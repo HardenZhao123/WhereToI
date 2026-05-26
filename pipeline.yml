@@ -30,8 +30,8 @@ jobs:
       - name: Build App
         run: |
           xcodebuild clean build \
-            -project WhereToI.xcodeproj \
-            -scheme WhereToI \
+            -project WhereToIApp/WhereToI.xcodeproj \
+            -scheme WhereToIApp/WhereToI \
             -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
