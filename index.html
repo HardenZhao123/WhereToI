@@ -8,7 +8,7 @@
       content="WHERE Toi helps people find nearby toilets, access paid partner toilets with QR tickets, and manage wallet, history, and subscription."
     />
     <title>WHERE Toi</title>
-    <link rel="stylesheet" href="./src/styles.css" />
+    <link rel="stylesheet" href="./src/styles.css?v=stable-map-1" />
   </head>
   <body>
     <main class="app-shell" aria-label="WHERE Toi web app">
@@ -20,64 +20,61 @@
               <p class="eyebrow">WHERE Toi</p>
               <h1 id="view-title">Map</h1>
             </div>
-            <button class="icon-button" type="button" aria-label="Open saved toilets">
-              <span aria-hidden="true">★</span>
+            <button class="icon-button" id="locate-button" type="button" aria-label="Find my location">
+              <span aria-hidden="true">LOC</span>
             </button>
           </header>
 
           <section class="view view-map is-active" id="map-panel" aria-labelledby="map-tab">
-            <div class="map-canvas" aria-label="Map of nearby toilets">
-              <div class="river"></div>
-              <div class="park park-a"></div>
-              <div class="park park-b"></div>
-              <div class="road road-a"></div>
-              <div class="road road-b"></div>
-              <div class="road road-c"></div>
-              <div class="road road-d"></div>
-              <button class="pin pin-a is-selected" type="button" data-location="city" aria-label="City and Guilds building toilet"></button>
-              <button class="pin pin-b" type="button" data-location="station" aria-label="South Kensington Station toilet"></button>
-              <button class="pin pin-c" type="button" data-location="library" aria-label="Imperial Library toilet"></button>
-              <button class="pin pin-d" type="button" data-location="museum" aria-label="Museum Quarter toilet"></button>
-              <button class="user-dot" type="button" aria-label="Current location"></button>
-              <span class="map-label label-kensington">Kensington</span>
-              <span class="map-label label-south">South Kensington</span>
+            <div class="map-canvas" id="map" aria-label="Map of nearby toilets">
+              <iframe
+                class="map-frame"
+                title="OpenStreetMap around South Kensington"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=-0.1900%2C51.4890%2C-0.1600%2C51.5050&layer=mapnik"
+              ></iframe>
+              <div class="marker-layer" id="marker-layer" aria-label="Toilet locations"></div>
             </div>
+            <p class="map-status" id="map-status" aria-live="polite">Loading real map...</p>
 
             <div class="search-card">
               <label for="location-search">Search</label>
               <div class="search-row">
                 <span aria-hidden="true"></span>
-                <input id="location-search" type="search" placeholder="Search location..." />
+                <input id="location-search" type="search" placeholder="Search toilet or area..." autocomplete="off" />
               </div>
               <div class="quick-actions">
-                <button type="button">Filter</button>
-                <button type="button">Add a Toilet</button>
-                <button type="button">Find near me</button>
+                <button type="button" id="filter-accessible">Accessible only</button>
+                <button type="button" id="reset-map">Show all toilets</button>
+                <button type="button" id="find-near-me">Find near me</button>
               </div>
             </div>
 
-            <article class="details-card" aria-live="polite">
-              <div>
-                <h2 id="toilet-name">City and Guilds building</h2>
-                <p id="toilet-area">Imperial College London</p>
-              </div>
-              <button class="primary-pill" type="button">Directions</button>
+            <article class="details-card is-hidden" id="details-card" aria-live="polite">
+              <header class="details-header">
+                <div>
+                  <h2 id="toilet-name">City and Guilds building</h2>
+                  <p id="toilet-area">Imperial College London</p>
+                </div>
+                <button class="close-button" id="close-details" type="button" aria-label="Close toilet details">X</button>
+              </header>
+              <button class="primary-pill" id="directions-button" type="button">Directions</button>
+              <div class="distance-line" id="distance-line">Enable location to see distance.</div>
               <div class="info-grid">
                 <div>
                   <h3>Features</h3>
-                  <p>Women <strong>Y</strong></p>
-                  <p>Men <strong>Y</strong></p>
-                  <p>Accessible <strong>N</strong></p>
-                  <p>Gender Neutral <strong>?</strong></p>
+                  <p>Women <strong id="feature-women">Y</strong></p>
+                  <p>Men <strong id="feature-men">Y</strong></p>
+                  <p>Accessible <strong id="feature-accessible">N</strong></p>
+                  <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
                 </div>
                 <div>
                   <h3>Opening Hours</h3>
-                  <p><mark>Tue 09:00 - 17:00</mark></p>
-                  <p>Sat Closed</p>
-                  <p>Sun Closed</p>
+                  <p><mark id="hours-today">Tue 09:00 - 17:00</mark></p>
+                  <p id="hours-sat">Sat Closed</p>
+                  <p id="hours-sun">Sun Closed</p>
                 </div>
               </div>
-              <p class="comment">Comment: clean today, short queue.</p>
+              <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
             </article>
           </section>
 
@@ -136,20 +133,20 @@
 
         <nav class="tabbar" aria-label="Primary">
           <button class="tab is-active" id="map-tab" type="button" data-tab="map" aria-controls="map-panel" aria-selected="true">
-            <span aria-hidden="true">⌖</span>
+            <span aria-hidden="true">MAP</span>
             Map
           </button>
           <button class="tab" id="qr-tab" type="button" data-tab="qr" aria-controls="qr-panel" aria-selected="false">
-            <span aria-hidden="true">▦</span>
+            <span aria-hidden="true">QR</span>
             Access QR
           </button>
           <button class="tab" id="account-tab" type="button" data-tab="account" aria-controls="account-panel" aria-selected="false">
-            <span aria-hidden="true">◷</span>
+            <span aria-hidden="true">ME</span>
             Account
           </button>
         </nav>
       </section>
     </main>
-    <script src="./src/main.js" type="module"></script>
+    <script src="./src/main.js?v=stable-map-1" type="module"></script>
   </body>
 </html>

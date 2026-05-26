@@ -113,11 +113,14 @@ h3 {
 }
 
 .icon-button {
-  width: 38px;
+  min-width: 44px;
   height: 38px;
+  padding-inline: 10px;
   border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: 999px;
   color: var(--blue);
+  font-size: 11px;
+  font-weight: 800;
   background: var(--panel);
 }
 
@@ -134,154 +137,78 @@ h3 {
   inset: 108px 0 78px;
   background: #e6eaf2;
   overflow: hidden;
+  z-index: 1;
 }
 
-.river,
-.park,
-.road {
+.map-frame {
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
   pointer-events: none;
 }
 
-.river {
-  top: 34px;
-  left: -20px;
-  width: 430px;
-  height: 70px;
-  transform: rotate(8deg);
-  background: #72d3dc;
-}
-
-.park {
-  background: var(--mint);
-}
-
-.park-a {
-  top: -8px;
-  right: -24px;
-  width: 230px;
-  height: 92px;
-  transform: rotate(-7deg);
-}
-
-.park-b {
-  right: -10px;
-  bottom: -22px;
-  width: 160px;
-  height: 120px;
-  transform: rotate(11deg);
-}
-
-.road {
-  height: 4px;
-  border-radius: 99px;
-  background: #aab4c6;
-}
-
-.road-a {
-  top: 130px;
-  left: -38px;
-  width: 460px;
-  transform: rotate(-8deg);
-}
-
-.road-b {
-  top: 210px;
-  left: -34px;
-  width: 430px;
-  transform: rotate(16deg);
-}
-
-.road-c {
-  top: 42px;
-  left: 168px;
-  width: 360px;
-  transform: rotate(96deg);
-}
-
-.road-d {
-  top: 70px;
-  left: 72px;
-  width: 360px;
-  transform: rotate(80deg);
-}
-
-.pin,
-.user-dot {
+.map-status {
   position: absolute;
-  border: 0;
+  right: 16px;
+  bottom: 88px;
+  left: 16px;
+  z-index: 3;
+  min-height: 28px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  background: rgb(255 255 255 / 88%);
+  box-shadow: 0 10px 28px rgb(31 42 51 / 12%);
+}
+
+.marker-layer {
+  position: absolute;
+  inset: 0;
   z-index: 2;
 }
 
-.pin {
+.map-marker {
+  position: absolute;
   width: 30px;
   height: 30px;
-  transform: translate(-50%, -50%) rotate(45deg);
-  border-radius: 50% 50% 50% 8px;
+  transform: translate(-50%, -100%) rotate(45deg);
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 7px;
   background: var(--pink);
+  box-shadow: 0 6px 18px rgb(31 42 51 / 28%);
 }
 
-.pin::after {
+.map-marker::after {
   content: "";
   position: absolute;
-  inset: 10px;
+  inset: 8px;
   border-radius: 50%;
   background: white;
 }
 
-.pin.is-selected {
-  outline: 4px solid rgb(236 61 114 / 18%);
+.map-marker.is-paid {
+  background: var(--gold);
 }
 
-.pin-a {
-  top: 150px;
-  left: 143px;
+.map-marker.is-selected {
+  outline: 5px solid rgb(236 61 114 / 22%);
 }
 
-.pin-b {
-  top: 198px;
-  left: 269px;
-}
-
-.pin-c {
-  top: 238px;
-  left: 59px;
-}
-
-.pin-d {
-  top: 281px;
-  left: 326px;
-}
-
-.user-dot {
-  top: 282px;
-  left: 179px;
-  width: 20px;
-  height: 20px;
+.map-user-marker {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%);
   border: 4px solid #d9ecff;
   border-radius: 50%;
   background: #2b80c7;
+  box-shadow: 0 0 0 8px rgb(43 128 199 / 18%);
 }
 
-.map-label {
-  position: absolute;
-  z-index: 1;
-  color: #6c7583;
-  font-size: 12px;
-}
-
-.label-kensington {
-  top: 180px;
-  left: 54px;
-}
-
-.label-south {
-  top: 226px;
-  left: 190px;
-}
-
-.search-card,
-.details-card {
+.search-card {
   position: relative;
   z-index: 4;
   width: calc(100% - 22px);
@@ -358,14 +285,53 @@ h3 {
 }
 
 .details-card {
-  margin-top: 168px;
+  position: absolute;
+  right: 18px;
+  bottom: 92px;
+  left: 18px;
+  z-index: 4;
+  max-height: 278px;
   padding: 16px;
+  overflow: auto;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 18px 48px rgb(31 42 51 / 12%);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.details-card.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(18px);
+}
+
+.view-map.has-details .map-status {
+  display: none;
 }
 
 .details-card h2 {
   margin-bottom: 4px;
   color: #142c72;
   font-size: 14px;
+}
+
+.details-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.close-button {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  background: white;
 }
 
 .primary-pill,
@@ -380,6 +346,17 @@ h3 {
   width: 112px;
   height: 34px;
   margin: 12px 0;
+}
+
+.primary-pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.distance-line {
+  margin: -4px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .info-grid {
@@ -598,10 +575,6 @@ mark {
 @media (min-width: 900px) {
   .app-shell {
     padding: 48px;
-  }
-
-  .phone {
-    transform: scale(1.04);
   }
 }
 
