@@ -21,8 +21,14 @@ if (missingCopy.length > 0) {
   throw new Error(`Missing expected UI copy: ${missingCopy.join(", ")}`);
 }
 
-if (!html.includes("openstreetmap.org/export/embed") || !js.includes("navigator.geolocation") || !js.includes("google.com/maps/dir")) {
-  throw new Error("Expected real map, geolocation, and directions integration.");
+if (
+  !html.includes("leaflet@1.9.4/dist/leaflet.css") ||
+  !html.includes("leaflet@1.9.4/dist/leaflet.js") ||
+  !js.includes("window.L.map") ||
+  !js.includes("navigator.geolocation") ||
+  !js.includes("google.com/maps/dir")
+) {
+  throw new Error("Expected interactive map, geolocation, and directions integration.");
 }
 
 if (!html.includes("close-details") || !js.includes("closeDetailsButton")) {
@@ -33,8 +39,8 @@ if (!css.includes("@media") || !js.includes("setTab")) {
   throw new Error("Expected responsive CSS and tab interaction code.");
 }
 
-if (!css.includes(".map-frame") || !css.includes(".map-marker")) {
-  throw new Error("Expected stable map frame and marker overlay CSS.");
+if (!css.includes(".map-canvas") || !css.includes(".map-marker") || !css.includes(".map-marker-icon")) {
+  throw new Error("Expected interactive map canvas and marker styling.");
 }
 
 console.log("Static app checks passed.");

@@ -8,6 +8,12 @@
       content="WHERE Toi helps people find nearby toilets, access paid partner toilets with QR tickets, and manage wallet, history, and subscription."
     />
     <title>WHERE Toi</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
     <link rel="stylesheet" href="./src/styles.css?v=stable-map-1" />
   </head>
   <body>
@@ -26,14 +32,7 @@
           </header>
 
           <section class="view view-map is-active" id="map-panel" aria-labelledby="map-tab">
-            <div class="map-canvas" id="map" aria-label="Map of nearby toilets">
-              <iframe
-                class="map-frame"
-                title="OpenStreetMap around South Kensington"
-                src="https://www.openstreetmap.org/export/embed.html?bbox=-0.1900%2C51.4890%2C-0.1600%2C51.5050&layer=mapnik"
-              ></iframe>
-              <div class="marker-layer" id="marker-layer" aria-label="Toilet locations"></div>
-            </div>
+            <div class="map-canvas" id="map" aria-label="Interactive map of nearby toilets"></div>
             <p class="map-status" id="map-status" aria-live="polite">Loading real map...</p>
 
             <div class="search-card">
@@ -147,6 +146,11 @@
         </nav>
       </section>
     </main>
-    <script src="./src/main.js?v=stable-map-1" type="module"></script>
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="./src/main.js?v=interactive-map-1" type="module"></script>
   </body>
 </html>

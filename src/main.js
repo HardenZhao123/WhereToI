@@ -6,7 +6,7 @@ const searchInput = document.querySelector("#location-search");
 const directionsButton = document.querySelector("#directions-button");
 const detailsCard = document.querySelector("#details-card");
 const mapPanel = document.querySelector("#map-panel");
-const markerLayer = document.querySelector("#marker-layer");
+const mapElement = document.querySelector("#map");
 const closeDetailsButton = document.querySelector("#close-details");
 const locateButtons = [document.querySelector("#locate-button"), document.querySelector("#find-near-me")];
 
@@ -16,14 +16,17 @@ const titles = {
   account: "Account"
 };
 
-const mapBounds = {
-  west: -0.19,
-  south: 51.489,
-  east: -0.16,
-  north: 51.505
+const csvDataPath = "./src/data/toilets.csv";
+const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const todayDayIndex = (new Date().getDay() + 6) % 7;
+const markerRenderLimit = 1000;
+const initialView = {
+  lat: 51.4974,
+  lng: -0.1751,
+  zoom: 15
 };
 
-const toilets = [
+const fallbackToilets = [
   {
     id: "city",
     name: "City and Guilds building",
@@ -70,9 +73,189 @@ const toilets = [
   }
 ];
 
+let allToilets = [...fallbackToilets];
+let filteredToilets = [...allToilets];
+let visibleToilets = [...filteredToilets];
 let selectedToilet = null;
 let userLocation = null;
-let visibleToilets = [...toilets];
+let queryText = "";
+let accessibleOnly = false;
+let map = null;
+let markersLayer = null;
+let userLocationMarker = null;
+let markerById = new Map();
+let hiddenByMarkerLimit = 0;
+
+function parseCsv(content) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index];
+
+    if (inQuotes) {
+      if (character === '"') {
+        if (content[index + 1] === '"') {
+          field += '"';
+          index += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += character;
+      }
+      continue;
+    }
+
+    if (character === '"') {
+      inQuotes = true;
+      continue;
+    }
+
+    if (character === ",") {
+      row.push(field);
+      field = "";
+      continue;
+    }
+
+    if (character === "\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+      continue;
+    }
+
+    if (character !== "\r") {
+      field += character;
+    }
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function rowsToObjects(rows) {
+  if (rows.length < 2) return [];
+  const [headers, ...records] = rows;
+
+  return records
+    .filter((record) => record.some((cell) => cell.trim() !== ""))
+    .map((record) => {
+      const object = {};
+      headers.forEach((header, index) => {
+        object[header] = record[index] ?? "";
+      });
+      return object;
+    });
+}
+
+function normaliseText(value) {
+  return value ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+function toFeatureFlag(value) {
+  const normalised = normaliseText(value).toLowerCase();
+  if (normalised === "true") return "Y";
+  if (normalised === "false") return "N";
+  return "?";
+}
+
+function parseAreaName(areasField) {
+  if (!areasField) return "Unknown area";
+
+  try {
+    const parsed = JSON.parse(areasField);
+    if (typeof parsed?.name === "string" && parsed.name.trim().length > 0) {
+      return parsed.name.trim();
+    }
+  } catch {}
+
+  return "Unknown area";
+}
+
+function parseOpeningTimes(openingTimesField) {
+  if (!openingTimesField) return [];
+
+  try {
+    const parsed = JSON.parse(openingTimesField);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function formatDayHours(openingTimes, dayIndex) {
+  const dayLabel = dayLabels[dayIndex] ?? "Day";
+  const slot = openingTimes[dayIndex];
+
+  if (!Array.isArray(slot) || slot.length < 2) {
+    return `${dayLabel} Closed`;
+  }
+
+  const [openTime, closeTime] = slot;
+  if (!openTime || !closeTime) {
+    return `${dayLabel} Closed`;
+  }
+
+  return `${dayLabel} ${openTime} - ${closeTime}`;
+}
+
+function mapRecordToToilet(record) {
+  if (record.active !== "true") return null;
+
+  const lat = Number(record.latitude);
+  const lng = Number(record.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const openingTimes = parseOpeningTimes(record.opening_times);
+  const note = normaliseText(record.notes);
+  const paymentDetails = normaliseText(record.payment_details);
+  const commentBody = note || paymentDetails || "No notes yet.";
+  const name = normaliseText(record.name) || "Unnamed toilet";
+  const area = parseAreaName(record.areas);
+  const noPayment = normaliseText(record.no_payment).toLowerCase();
+  const paid = noPayment === "false" || paymentDetails.length > 0;
+
+  return {
+    id: record.id || `${name}-${lat}-${lng}`,
+    name,
+    area,
+    lat,
+    lng,
+    paid,
+    comment: `Comment: ${commentBody}`,
+    features: {
+      women: toFeatureFlag(record.women),
+      men: toFeatureFlag(record.men),
+      accessible: toFeatureFlag(record.accessible),
+      neutral: toFeatureFlag(record.all_gender)
+    },
+    hours: {
+      today: formatDayHours(openingTimes, todayDayIndex),
+      sat: formatDayHours(openingTimes, 5),
+      sun: formatDayHours(openingTimes, 6)
+    }
+  };
+}
+
+async function loadToiletsFromCsv() {
+  const response = await fetch(csvDataPath);
+  if (!response.ok) {
+    throw new Error(`CSV request failed with status ${response.status}`);
+  }
+
+  const csvContent = await response.text();
+  const rows = parseCsv(csvContent);
+  const records = rowsToObjects(rows);
+  return records.map(mapRecordToToilet).filter(Boolean);
+}
 
 function setTab(nextTab) {
   tabs.forEach((tab) => {
@@ -86,19 +269,14 @@ function setTab(nextTab) {
   });
 
   title.textContent = titles[nextTab];
-}
 
-function projectPoint(lat, lng) {
-  const x = ((lng - mapBounds.west) / (mapBounds.east - mapBounds.west)) * 100;
-  const y = ((mapBounds.north - lat) / (mapBounds.north - mapBounds.south)) * 100;
-  return {
-    x: Math.max(0, Math.min(100, x)),
-    y: Math.max(0, Math.min(100, y))
-  };
-}
-
-function isInsideMap(lat, lng) {
-  return lat <= mapBounds.north && lat >= mapBounds.south && lng >= mapBounds.west && lng <= mapBounds.east;
+  if (nextTab === "map" && map) {
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+      renderMarkers();
+      renderUserMarker();
+    });
+  }
 }
 
 function formatDistance(from, to) {
@@ -120,8 +298,64 @@ function distanceInMetres(lat1, lng1, lat2, lng2) {
   return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function createToiletIcon(toilet, selected = false) {
+  const classes = ["map-marker"];
+  if (toilet.paid) classes.push("is-paid");
+  if (selected) classes.push("is-selected");
+
+  return window.L.divIcon({
+    className: "map-marker-icon",
+    html: `<span class="${classes.join(" ")}" aria-hidden="true"></span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30]
+  });
+}
+
+function getMapVisibleToilets() {
+  if (!map) return [...filteredToilets];
+
+  const bounds = map.getBounds();
+  return filteredToilets.filter((toilet) => bounds.contains([toilet.lat, toilet.lng]));
+}
+
+function renderMarkers() {
+  if (!map || !markersLayer) {
+    visibleToilets = [...filteredToilets];
+    hiddenByMarkerLimit = 0;
+    return;
+  }
+
+  const inBoundsToilets = getMapVisibleToilets();
+  hiddenByMarkerLimit = Math.max(0, inBoundsToilets.length - markerRenderLimit);
+  visibleToilets = inBoundsToilets.slice(0, markerRenderLimit);
+  markerById = new Map();
+  markersLayer.clearLayers();
+
+  visibleToilets.forEach((toilet) => {
+    const marker = window.L.marker([toilet.lat, toilet.lng], {
+      icon: createToiletIcon(toilet, selectedToilet?.id === toilet.id),
+      keyboard: true,
+      title: `${toilet.name}, ${toilet.area}`
+    });
+
+    marker.on("click", () => setToilet(toilet.id));
+    marker.addTo(markersLayer);
+    markerById.set(toilet.id, marker);
+  });
+
+  renderUserMarker();
+}
+
+function updateSelectedMarkerAppearance() {
+  markerById.forEach((marker, id) => {
+    const toilet = visibleToilets.find((item) => item.id === id);
+    if (!toilet) return;
+    marker.setIcon(createToiletIcon(toilet, selectedToilet?.id === id));
+  });
+}
+
 function setToilet(toiletId) {
-  const toilet = toilets.find((item) => item.id === toiletId);
+  const toilet = allToilets.find((item) => item.id === toiletId);
   if (!toilet) return;
 
   selectedToilet = toilet;
@@ -141,7 +375,12 @@ function setToilet(toiletId) {
   document.querySelector("#hours-sun").textContent = toilet.hours.sun;
   document.querySelector("#distance-line").textContent = formatDistance(userLocation, toilet);
 
-  renderMarkers(visibleToilets);
+  const marker = markerById.get(toilet.id);
+  if (marker && map) {
+    map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 16), { duration: 0.45 });
+  }
+
+  updateSelectedMarkerAppearance();
 }
 
 function hideToiletDetails() {
@@ -149,41 +388,31 @@ function hideToiletDetails() {
   detailsCard.classList.add("is-hidden");
   mapPanel.classList.remove("has-details");
   directionsButton.disabled = true;
-  renderMarkers(visibleToilets);
-}
-
-function renderMarkers(nextToilets = toilets) {
-  visibleToilets = [...nextToilets];
-  markerLayer.replaceChildren();
-
-  nextToilets.forEach((toilet) => {
-    const point = projectPoint(toilet.lat, toilet.lng);
-    const marker = document.createElement("button");
-    marker.type = "button";
-    marker.className = `map-marker ${toilet.paid ? "is-paid" : ""} ${selectedToilet?.id === toilet.id ? "is-selected" : ""}`;
-    marker.style.left = `${point.x}%`;
-    marker.style.top = `${point.y}%`;
-    marker.setAttribute("aria-label", `${toilet.name}, ${toilet.area}`);
-    marker.addEventListener("click", () => setToilet(toilet.id));
-    markerLayer.append(marker);
-  });
-
-  renderUserMarker();
+  updateSelectedMarkerAppearance();
 }
 
 function renderUserMarker() {
-  const oldMarker = markerLayer.querySelector(".map-user-marker");
-  oldMarker?.remove();
+  if (!map) return;
 
-  if (!userLocation || !isInsideMap(userLocation.lat, userLocation.lng)) return;
+  if (!userLocation) {
+    userLocationMarker?.remove();
+    userLocationMarker = null;
+    return;
+  }
 
-  const point = projectPoint(userLocation.lat, userLocation.lng);
-  const marker = document.createElement("span");
-  marker.className = "map-user-marker";
-  marker.style.left = `${point.x}%`;
-  marker.style.top = `${point.y}%`;
-  marker.setAttribute("aria-label", "Current location");
-  markerLayer.append(marker);
+  if (!userLocationMarker) {
+    userLocationMarker = window.L.marker([userLocation.lat, userLocation.lng], {
+      icon: window.L.divIcon({
+        className: "map-user-marker-icon",
+        html: '<span class="map-user-marker" aria-hidden="true"></span>',
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      }),
+      keyboard: false
+    }).addTo(map);
+  } else {
+    userLocationMarker.setLatLng([userLocation.lat, userLocation.lng]);
+  }
 }
 
 function requestLocation() {
@@ -201,15 +430,17 @@ function requestLocation() {
         lng: position.coords.longitude
       };
 
-      renderMarkers(visibleToilets);
+      renderUserMarker();
 
       if (selectedToilet) {
         document.querySelector("#distance-line").textContent = formatDistance(userLocation, selectedToilet);
       }
 
-      statusText.textContent = isInsideMap(userLocation.lat, userLocation.lng)
-        ? "Location found. Distances are now updated."
-        : "Location found. You are outside this preview map, but distances still work.";
+      if (map) {
+        map.flyTo([userLocation.lat, userLocation.lng], Math.max(map.getZoom(), 15), { duration: 0.5 });
+      }
+
+      statusText.textContent = "Location found. Distances are now updated.";
     },
     () => {
       statusText.textContent = "Location permission was denied or unavailable.";
@@ -234,30 +465,131 @@ function openDirections() {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function filterBySearch() {
-  const query = searchInput.value.trim().toLowerCase();
-  const matches = toilets.filter((toilet) => {
+function updateFilterStatus() {
+  if (filteredToilets.length === 0) {
+    statusText.textContent = "No matching toilets. Try removing some filters.";
+    return;
+  }
+
+  const inViewCount = visibleToilets.length;
+  const limitHint = hiddenByMarkerLimit > 0 ? ` Zoom in to load ${hiddenByMarkerLimit} more.` : "";
+  if (accessibleOnly && queryText) {
+    statusText.textContent = `Found ${filteredToilets.length} accessible matches. ${inViewCount} visible on map.${limitHint}`;
+    return;
+  }
+
+  if (accessibleOnly) {
+    statusText.textContent = `Showing ${filteredToilets.length} accessible toilets. ${inViewCount} visible on map.${limitHint}`;
+    return;
+  }
+
+  if (queryText) {
+    statusText.textContent = `Found ${filteredToilets.length} matches. ${inViewCount} visible on map.${limitHint}`;
+    return;
+  }
+
+  statusText.textContent = `Showing ${filteredToilets.length} toilets. ${inViewCount} visible on map.${limitHint}`;
+}
+
+function applyFilters() {
+  const query = queryText.trim().toLowerCase();
+
+  filteredToilets = allToilets.filter((toilet) => {
+    const matchesAccessible = !accessibleOnly || toilet.features.accessible === "Y";
+    if (!matchesAccessible) return false;
+
+    if (!query) return true;
     return toilet.name.toLowerCase().includes(query) || toilet.area.toLowerCase().includes(query);
   });
 
-  renderMarkers(matches);
+  if (selectedToilet && !filteredToilets.some((toilet) => toilet.id === selectedToilet.id)) {
+    hideToiletDetails();
+  }
+
+  renderMarkers();
+  updateFilterStatus();
+}
+
+function filterBySearch() {
+  queryText = searchInput.value;
+  applyFilters();
+}
+
+function resetFilters() {
+  accessibleOnly = false;
+  queryText = "";
+  searchInput.value = "";
+  applyFilters();
+}
+
+function createInteractiveMap() {
+  if (!mapElement || !window.L) {
+    statusText.textContent = "Map engine failed to load.";
+    return false;
+  }
+
+  map = window.L.map(mapElement, {
+    zoomControl: false,
+    attributionControl: true
+  }).setView([initialView.lat, initialView.lng], initialView.zoom);
+
+  window.L.control.zoom({ position: "topright" }).addTo(map);
+
+  window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    minZoom: 3,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+
+  markersLayer = window.L.layerGroup().addTo(map);
+
+  map.on("moveend zoomend", () => {
+    renderMarkers();
+    updateFilterStatus();
+  });
+
+  return true;
+}
+
+async function initializeToilets() {
+  statusText.textContent = "Loading toilets data...";
+
+  try {
+    const loadedToilets = await loadToiletsFromCsv();
+
+    if (loadedToilets.length > 0) {
+      allToilets = loadedToilets;
+      statusText.textContent = `Loaded ${allToilets.length} toilets from the dataset.`;
+    } else {
+      allToilets = [...fallbackToilets];
+      statusText.textContent = "Dataset was empty. Showing sample toilets instead.";
+    }
+  } catch (error) {
+    allToilets = [...fallbackToilets];
+    statusText.textContent = "Could not load CSV data. Showing sample toilets instead.";
+    console.error("Toilet dataset loading failed:", error);
+  }
+
+  filteredToilets = [...allToilets];
+  renderMarkers();
   hideToiletDetails();
-  statusText.textContent = matches.length === 1 ? "Showing 1 matching toilet." : `Showing ${matches.length} matching toilets.`;
+  updateFilterStatus();
+}
+
+function initializeApp() {
+  if (!createInteractiveMap()) {
+    return;
+  }
+
+  initializeToilets();
 }
 
 document.querySelector("#filter-accessible").addEventListener("click", () => {
-  const accessibleToilets = toilets.filter((toilet) => toilet.features.accessible === "Y");
-  renderMarkers(accessibleToilets);
-  hideToiletDetails();
-  statusText.textContent = "Showing accessible toilets only. Tap a marker for details.";
+  accessibleOnly = true;
+  applyFilters();
 });
 
-document.querySelector("#reset-map").addEventListener("click", () => {
-  searchInput.value = "";
-  renderMarkers(toilets);
-  hideToiletDetails();
-  statusText.textContent = "Showing all nearby toilets. Tap a marker for details.";
-});
+document.querySelector("#reset-map").addEventListener("click", resetFilters);
 
 tabs.forEach((tab) => {
   tab.addEventListener("click", () => setTab(tab.dataset.tab));
@@ -271,6 +603,4 @@ directionsButton.addEventListener("click", openDirections);
 closeDetailsButton.addEventListener("click", hideToiletDetails);
 searchInput.addEventListener("input", filterBySearch);
 
-renderMarkers(toilets);
-hideToiletDetails();
-statusText.textContent = "Showing toilets near South Kensington. Tap a marker for details.";
+initializeApp();

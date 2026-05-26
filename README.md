@@ -9,6 +9,7 @@ Static, deployable web prototype for a toilet access product with three core tab
 ## Local development
 
 Open `index.html` directly in a browser, or serve the project root with the built-in PowerShell server.
+For loading `src/data/toilets.csv` in the Map tab, use a local server (`localhost`) instead of `file://`.
 
 The map uses an OpenStreetMap preview frame with fixed marker overlays, so the browser needs internet access. Browser location works on `localhost` during development and on HTTPS after deployment.
 
