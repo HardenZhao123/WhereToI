@@ -1,0 +1,33 @@
+# Xcode
+#
+# gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
+
+## User settings
+xcuserdata/
+
+## DerivedData
+DerivedData/
+
+## Architecture-specific build products
+*.moved-aside
+*.xcuserstate
+
+## Swift Package Manager
+#
+# Add this line if you want to avoid checking in source code from Swift Package Manager dependencies.
+# .build/
+
+## Packages
+#
+# Add this line if you want to avoid checking in source code from Carthage or other package managers.
+# Carthage/Checkouts/
+
+## Bundle config
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+## Misc
+*.swp
+*.lock
+.DS_Store
