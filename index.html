@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="WHERE Toi helps people find nearby toilets, access paid partner toilets with QR tickets, and manage wallet, history, and subscription."
+    />
+    <title>WHERE Toi</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" aria-label="WHERE Toi web app">
+      <section class="phone" aria-label="Mobile app preview">
+        <div class="status-bar" aria-hidden="true"></div>
+        <div class="screen">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">WHERE Toi</p>
+              <h1 id="view-title">Map</h1>
+            </div>
+            <button class="icon-button" type="button" aria-label="Open saved toilets">
+              <span aria-hidden="true">★</span>
+            </button>
+          </header>
+
+          <section class="view view-map is-active" id="map-panel" aria-labelledby="map-tab">
+            <div class="map-canvas" aria-label="Map of nearby toilets">
+              <div class="river"></div>
+              <div class="park park-a"></div>
+              <div class="park park-b"></div>
+              <div class="road road-a"></div>
+              <div class="road road-b"></div>
+              <div class="road road-c"></div>
+              <div class="road road-d"></div>
+              <button class="pin pin-a is-selected" type="button" data-location="city" aria-label="City and Guilds building toilet"></button>
+              <button class="pin pin-b" type="button" data-location="station" aria-label="South Kensington Station toilet"></button>
+              <button class="pin pin-c" type="button" data-location="library" aria-label="Imperial Library toilet"></button>
+              <button class="pin pin-d" type="button" data-location="museum" aria-label="Museum Quarter toilet"></button>
+              <button class="user-dot" type="button" aria-label="Current location"></button>
+              <span class="map-label label-kensington">Kensington</span>
+              <span class="map-label label-south">South Kensington</span>
+            </div>
+
+            <div class="search-card">
+              <label for="location-search">Search</label>
+              <div class="search-row">
+                <span aria-hidden="true"></span>
+                <input id="location-search" type="search" placeholder="Search location..." />
+              </div>
+              <div class="quick-actions">
+                <button type="button">Filter</button>
+                <button type="button">Add a Toilet</button>
+                <button type="button">Find near me</button>
+              </div>
+            </div>
+
+            <article class="details-card" aria-live="polite">
+              <div>
+                <h2 id="toilet-name">City and Guilds building</h2>
+                <p id="toilet-area">Imperial College London</p>
+              </div>
+              <button class="primary-pill" type="button">Directions</button>
+              <div class="info-grid">
+                <div>
+                  <h3>Features</h3>
+                  <p>Women <strong>Y</strong></p>
+                  <p>Men <strong>Y</strong></p>
+                  <p>Accessible <strong>N</strong></p>
+                  <p>Gender Neutral <strong>?</strong></p>
+                </div>
+                <div>
+                  <h3>Opening Hours</h3>
+                  <p><mark>Tue 09:00 - 17:00</mark></p>
+                  <p>Sat Closed</p>
+                  <p>Sun Closed</p>
+                </div>
+              </div>
+              <p class="comment">Comment: clean today, short queue.</p>
+            </article>
+          </section>
+
+          <section class="view view-qr" id="qr-panel" aria-labelledby="qr-tab">
+            <p class="section-kicker">Access QR</p>
+            <h2>Use at partner paid toilets</h2>
+            <article class="ticket">
+              <p>Toilet Access Pass</p>
+              <h3>South Kensington Station Toilet</h3>
+              <div class="qr-code" aria-label="QR code access ticket">
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <p>Valid for gate entry</p>
+              <small>Expires in 14:59 after activation</small>
+            </article>
+            <div class="action-row">
+              <button class="solid-button" type="button">Activate</button>
+              <button class="outline-button" type="button">Details</button>
+            </div>
+          </section>
+
+          <section class="view view-account" id="account-panel" aria-labelledby="account-tab">
+            <p class="section-kicker">Account</p>
+            <h2>Wallet, history and subscription</h2>
+            <article class="wallet-card">
+              <span>Wallet balance</span>
+              <strong>GBP 8.40</strong>
+              <button type="button">Top up</button>
+            </article>
+            <article class="account-card">
+              <h3>Subscription</h3>
+              <p>Campus Plus - renews 26 Jun</p>
+              <p>Monthly free toilet access tickets: <strong>3 left</strong></p>
+            </article>
+            <article class="account-card history-card">
+              <h3>Toilet access history</h3>
+              <div>
+                <strong>South Kensington Station</strong>
+                <p>Today 14:22 - QR access - GBP 0.50</p>
+              </div>
+              <div>
+                <strong>Imperial Library</strong>
+                <p>Yesterday 18:05 - free access</p>
+              </div>
+            </article>
+            <article class="privacy-note">
+              <h3>Privacy note</h3>
+              <p>Let users hide or delete sensitive visit history.</p>
+            </article>
+          </section>
+        </div>
+
+        <nav class="tabbar" aria-label="Primary">
+          <button class="tab is-active" id="map-tab" type="button" data-tab="map" aria-controls="map-panel" aria-selected="true">
+            <span aria-hidden="true">⌖</span>
+            Map
+          </button>
+          <button class="tab" id="qr-tab" type="button" data-tab="qr" aria-controls="qr-panel" aria-selected="false">
+            <span aria-hidden="true">▦</span>
+            Access QR
+          </button>
+          <button class="tab" id="account-tab" type="button" data-tab="account" aria-controls="account-panel" aria-selected="false">
+            <span aria-hidden="true">◷</span>
+            Account
+          </button>
+        </nav>
+      </section>
+    </main>
+    <script src="./src/main.js" type="module"></script>
+  </body>
+</html>
