@@ -1,0 +1,38 @@
+name: CI/CD
+
+# Trigger the workflow on pushes or pull requests to the main branch
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build and Test
+    # This is crucial: iOS apps MUST be built on a macOS environment
+    runs-on: macos-latest 
+
+    steps:
+      # 1. Grab your code from GitHub
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Force the runner to use the latest stable Xcode version
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      # 3. Resolve dependencies (Uncomment if you use CocoaPods)
+      # - name: Install CocoaPods
+      #   run: pod install
+
+      # 4. Build the app for the iOS Simulator
+      - name: Build App
+        run: |
+          xcodebuild clean build \
+            -project WhereToI.xcodeproj \
+            -scheme WhereToI \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
