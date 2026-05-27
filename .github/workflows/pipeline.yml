@@ -1,23 +1,22 @@
-name: Web CI/CD
+name: Web Fullstack CI/CD
 
 on:
   push:
     branches: ["**"]
   pull_request:
     branches: ["**"]
+  workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages-${{ github.ref }}
+  group: web-fullstack-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build static web app
+  ci:
+    name: CI checks and local end-to-end smoke
     runs-on: ubuntu-latest
 
     steps:
@@ -28,29 +27,61 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - name: Check app
+      - name: Install dependencies
+        run: npm install
+
+      - name: Static checks
         run: npm run check
 
       - name: Build app
         run: npm run build
 
-      - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
+      - name: End-to-end smoke check (frontend <-> backend)
+        run: npm run check:e2e
 
-  deploy:
-    name: Deploy to GitHub Pages
-    if: github.ref == 'refs/heads/main'
-    needs: build
+  deploy_backend:
+    name: CD deploy backend to public Render service
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.RENDER_DEPLOY_HOOK_URL != ''
+    needs: ci
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+  verify_public:
+    name: Verify public server health and API
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.RENDER_DEPLOY_HOOK_URL != '' && secrets.PUBLIC_APP_URL != ''
+    needs: deploy_backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Wait for deployment
+        run: sleep 25
+
+      - name: Check public health endpoint with retries
+        env:
+          PUBLIC_APP_URL: ${{ secrets.PUBLIC_APP_URL }}
+        run: |
+          for i in {1..18}; do
+            if curl -fsS "$PUBLIC_APP_URL/api/health" | grep -q '"status":"ok"'; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Health check attempt $i failed, retrying in 10s"
+            sleep 10
+          done
+          echo "Public health check failed after retries" >&2
+          exit 1
+
+      - name: Check public end-to-end data endpoint
+        env:
+          PUBLIC_APP_URL: ${{ secrets.PUBLIC_APP_URL }}
+        run: |
+          payload=$(curl -fsS "$PUBLIC_APP_URL/api/account")
+          echo "$payload" | grep -q '"account"' || (echo "Missing account payload" >&2; exit 1)
+          echo "$payload" | grep -q '"history"' || (echo "Missing history payload" >&2; exit 1)
