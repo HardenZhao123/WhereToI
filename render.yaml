@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: wheretoi-webapp
+    runtime: node
+    plan: starter
+    region: frankfurt
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeployTrigger: checksPass
+    healthCheckPath: /api/health
+    numInstances: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WHERETOI_DB_FILE
+        value: /var/data/wheretoi.sqlite
+      - key: PORT
+        value: "10000"
+    disk:
+      name: wheretoi-data
+      mountPath: /var/data
+      sizeGB: 10

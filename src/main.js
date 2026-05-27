@@ -9,6 +9,13 @@ const mapPanel = document.querySelector("#map-panel");
 const mapElement = document.querySelector("#map");
 const closeDetailsButton = document.querySelector("#close-details");
 const locateButtons = [document.querySelector("#locate-button"), document.querySelector("#find-near-me")];
+const activatePassButton = document.querySelector("#activate-pass");
+const activationStatus = document.querySelector("#activation-status");
+const walletBalance = document.querySelector("#wallet-balance");
+const subscriptionPlan = document.querySelector("#subscription-plan");
+const monthlyTicketsLeft = document.querySelector("#monthly-tickets-left");
+const accessHistoryList = document.querySelector("#access-history-list");
+const ticketToiletName = document.querySelector("#ticket-toilet-name");
 
 const titles = {
   map: "Map",
@@ -16,6 +23,7 @@ const titles = {
   account: "Account"
 };
 
+const apiBasePath = "/api";
 const csvDataPath = "./src/data/toilets.csv";
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const todayDayIndex = (new Date().getDay() + 6) % 7;
@@ -85,6 +93,11 @@ let markersLayer = null;
 let userLocationMarker = null;
 let markerById = new Map();
 let hiddenByMarkerLimit = 0;
+
+function setActivationStatus(message) {
+  if (!activationStatus) return;
+  activationStatus.textContent = message;
+}
 
 function parseCsv(content) {
   const rows = [];
@@ -245,6 +258,33 @@ function mapRecordToToilet(record) {
   };
 }
 
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers ?? {})
+    },
+    ...options
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message = typeof payload?.error === "string" ? payload.error : `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
+async function loadToiletsFromApi() {
+  const payload = await fetchJson(`${apiBasePath}/toilets`);
+  if (!Array.isArray(payload.toilets)) {
+    throw new Error("Invalid toilets API response.");
+  }
+  return payload.toilets;
+}
+
 async function loadToiletsFromCsv() {
   const response = await fetch(csvDataPath);
   if (!response.ok) {
@@ -255,6 +295,146 @@ async function loadToiletsFromCsv() {
   const rows = parseCsv(csvContent);
   const records = rowsToObjects(rows);
   return records.map(mapRecordToToilet).filter(Boolean);
+}
+
+function formatCurrency(amount) {
+  const value = Number.isFinite(amount) ? amount : 0;
+  return `GBP ${value.toFixed(2)}`;
+}
+
+function formatRenewDate(dateValue) {
+  if (!dateValue) return "Unknown";
+  const parsed = new Date(dateValue);
+  if (!Number.isFinite(parsed.getTime())) return dateValue;
+  return parsed.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+}
+
+function formatAccessTime(isoText) {
+  const parsed = new Date(isoText);
+  if (!Number.isFinite(parsed.getTime())) return "Unknown time";
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+  const timeText = parsed.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+
+  if (parsed >= startOfToday) {
+    return `Today ${timeText}`;
+  }
+
+  if (parsed >= startOfYesterday) {
+    return `Yesterday ${timeText}`;
+  }
+
+  const dayText = parsed.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short"
+  });
+
+  return `${dayText} ${timeText}`;
+}
+
+function formatCharge(amountGbp) {
+  const amount = Number(amountGbp);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return "free access";
+  }
+  return formatCurrency(amount);
+}
+
+function renderAccount(account) {
+  if (!account) return;
+
+  if (walletBalance) {
+    walletBalance.textContent = formatCurrency(account.walletBalanceGbp);
+  }
+
+  if (subscriptionPlan) {
+    const renewDate = formatRenewDate(account.subscriptionRenewsOn);
+    subscriptionPlan.textContent = `${account.subscriptionName} - renews ${renewDate}`;
+  }
+
+  if (monthlyTicketsLeft) {
+    monthlyTicketsLeft.textContent = `${Number(account.monthlyFreeTicketsLeft ?? 0)} left`;
+  }
+}
+
+function renderAccessHistory(history) {
+  if (!accessHistoryList) return;
+
+  accessHistoryList.textContent = "";
+
+  if (!Array.isArray(history) || history.length === 0) {
+    const empty = document.createElement("div");
+    const info = document.createElement("p");
+    info.textContent = "No access history yet.";
+    empty.append(info);
+    accessHistoryList.append(empty);
+    return;
+  }
+
+  history.forEach((entry) => {
+    const block = document.createElement("div");
+    const heading = document.createElement("strong");
+    const line = document.createElement("p");
+
+    heading.textContent = entry.toiletName || "Unknown toilet";
+    line.textContent = `${formatAccessTime(entry.accessTime)} - ${entry.eventType || "Access"} - ${formatCharge(entry.amountGbp)}`;
+
+    block.append(heading, line);
+    accessHistoryList.append(block);
+  });
+}
+
+async function loadAccountPanel() {
+  try {
+    const payload = await fetchJson(`${apiBasePath}/account`);
+    renderAccount(payload.account);
+    renderAccessHistory(payload.history);
+    setActivationStatus("Database connected. Pass activation will be saved.");
+  } catch (error) {
+    console.error("Account API failed:", error);
+    setActivationStatus("Database API unavailable. Pass activation is disabled.");
+
+    if (activatePassButton) {
+      activatePassButton.disabled = true;
+    }
+  }
+}
+
+async function activatePass() {
+  if (!activatePassButton) return;
+
+  activatePassButton.disabled = true;
+  setActivationStatus("Activating pass and writing to database...");
+
+  const defaultToiletName = ticketToiletName?.textContent?.trim() || "South Kensington Station Toilet";
+
+  try {
+    const payload = await fetchJson(`${apiBasePath}/access-history`, {
+      method: "POST",
+      body: JSON.stringify({
+        toiletId: selectedToilet?.id ?? null,
+        toiletName: selectedToilet?.paid ? selectedToilet.name : defaultToiletName,
+        eventType: "QR access",
+        amountGbp: 0.5,
+        useFreeTicket: false
+      })
+    });
+
+    renderAccount(payload.account);
+    renderAccessHistory(payload.history);
+    setActivationStatus("Pass activated. Access record saved to database.");
+  } catch (error) {
+    console.error("Activation failed:", error);
+    setActivationStatus("Could not save access record. Please try again.");
+  } finally {
+    activatePassButton.disabled = false;
+  }
 }
 
 function setTab(nextTab) {
@@ -374,6 +554,10 @@ function setToilet(toiletId) {
   document.querySelector("#hours-sat").textContent = toilet.hours.sat;
   document.querySelector("#hours-sun").textContent = toilet.hours.sun;
   document.querySelector("#distance-line").textContent = formatDistance(userLocation, toilet);
+
+  if (ticketToiletName && toilet.paid) {
+    ticketToiletName.textContent = `${toilet.name} Toilet`;
+  }
 
   const marker = markerById.get(toilet.id);
   if (marker && map) {
@@ -554,20 +738,37 @@ function createInteractiveMap() {
 async function initializeToilets() {
   statusText.textContent = "Loading toilets data...";
 
-  try {
-    const loadedToilets = await loadToiletsFromCsv();
+  let apiLoadFailed = false;
 
-    if (loadedToilets.length > 0) {
-      allToilets = loadedToilets;
-      statusText.textContent = `Loaded ${allToilets.length} toilets from the dataset.`;
+  try {
+    const loadedFromApi = await loadToiletsFromApi();
+
+    if (loadedFromApi.length > 0) {
+      allToilets = loadedFromApi;
+      statusText.textContent = `Loaded ${allToilets.length} toilets from database.`;
     } else {
-      allToilets = [...fallbackToilets];
-      statusText.textContent = "Dataset was empty. Showing sample toilets instead.";
+      apiLoadFailed = true;
     }
   } catch (error) {
-    allToilets = [...fallbackToilets];
-    statusText.textContent = "Could not load CSV data. Showing sample toilets instead.";
-    console.error("Toilet dataset loading failed:", error);
+    apiLoadFailed = true;
+    console.error("Toilets API loading failed:", error);
+  }
+
+  if (apiLoadFailed) {
+    try {
+      const loadedFromCsv = await loadToiletsFromCsv();
+      if (loadedFromCsv.length > 0) {
+        allToilets = loadedFromCsv;
+        statusText.textContent = `Database unavailable. Loaded ${allToilets.length} toilets from CSV fallback.`;
+      } else {
+        allToilets = [...fallbackToilets];
+        statusText.textContent = "Dataset was empty. Showing sample toilets instead.";
+      }
+    } catch (error) {
+      allToilets = [...fallbackToilets];
+      statusText.textContent = "Could not load API or CSV data. Showing sample toilets instead.";
+      console.error("CSV loading failed:", error);
+    }
   }
 
   filteredToilets = [...allToilets];
@@ -576,12 +777,12 @@ async function initializeToilets() {
   updateFilterStatus();
 }
 
-function initializeApp() {
+async function initializeApp() {
   if (!createInteractiveMap()) {
     return;
   }
 
-  initializeToilets();
+  await Promise.all([initializeToilets(), loadAccountPanel()]);
 }
 
 document.querySelector("#filter-accessible").addEventListener("click", () => {
@@ -602,5 +803,6 @@ locateButtons.forEach((button) => {
 directionsButton.addEventListener("click", openDirections);
 closeDetailsButton.addEventListener("click", hideToiletDetails);
 searchInput.addEventListener("input", filterBySearch);
+activatePassButton?.addEventListener("click", activatePass);
 
 initializeApp();
