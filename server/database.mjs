@@ -460,6 +460,8 @@ function ensureSqliteCleanlinessColumns(db) {
   for (const column of missingColumns) {
     db.exec(`ALTER TABLE toilets ADD COLUMN ${column.name} ${column.definition};`);
   }
+
+  db.exec("UPDATE toilets SET cleanliness = 3 WHERE cleanliness < 1 OR cleanliness > 5;");
 }
 
 async function backfillSqliteFeatureColumns(db, seedCsvPath) {
@@ -511,6 +513,8 @@ async function ensurePostgresCleanlinessColumns(pool) {
   for (const column of extendedCleanlinessColumns) {
     await pool.query(`ALTER TABLE toilets ADD COLUMN IF NOT EXISTS ${column.name} ${column.definition}`);
   }
+
+  await pool.query("UPDATE toilets SET cleanliness = 3 WHERE cleanliness < 1 OR cleanliness > 5");
 }
 
 async function backfillPostgresFeatureColumns(pool, seedCsvPath) {
@@ -893,9 +897,6 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlinessScorin
         account: await this.getAccount(),
         history: await this.getAccessHistory(10)
       };
-    },
-    async close() {
-      db.close();
     }
   };
 }
@@ -932,15 +933,10 @@ async function createPostgresDatabase({ connectionString, seedCsvPath, cleanline
       urinal_only TEXT NOT NULL DEFAULT '?',
       radar_key TEXT NOT NULL DEFAULT '?',
       free_access TEXT NOT NULL DEFAULT '?',
-<<<<<<< HEAD
       opening_times JSONB NOT NULL DEFAULT '[]'::jsonb,
       cleanliness INTEGER NOT NULL DEFAULT 3,
       cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
       cleanliness_no_count INTEGER NOT NULL DEFAULT 0
-=======
-      cleanliness INTEGER DEFAULT 7,
-      opening_times JSONB NOT NULL DEFAULT '[]'::jsonb
->>>>>>> cf6ae2f (fix: add default value for cleanliness)
     );
   `);
 
@@ -1286,9 +1282,6 @@ async function createPostgresDatabase({ connectionString, seedCsvPath, cleanline
         account: await this.getAccount(),
         history: await this.getAccessHistory(10)
       };
-    },
-    async close() {
-      await pool.end();
     }
   };
 }

@@ -390,6 +390,28 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     return selectedToilet;
   }
 
+  function updateToiletCleanliness(toiletUpdate) {
+    if (!toiletUpdate?.id) return;
+
+    const applyUpdate = (toilet) =>
+      toilet.id === toiletUpdate.id
+        ? {
+            ...toilet,
+            cleanliness: toiletUpdate.cleanliness,
+            cleanlinessSurvey: toiletUpdate.cleanlinessSurvey
+          }
+        : toilet;
+
+    allToilets = allToilets.map(applyUpdate);
+    filteredToilets = filteredToilets.map(applyUpdate);
+    visibleToilets = visibleToilets.map(applyUpdate);
+
+    if (selectedToilet?.id === toiletUpdate.id) {
+      selectedToilet = applyUpdate(selectedToilet);
+      renderCleanlinessBar(selectedToilet);
+    }
+  }
+
   async function answerCleanlinessSurvey(answer) {
     if (!selectedToilet) {
       setStatus("Select a toilet marker before answering the survey.");
@@ -414,17 +436,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       savedToDatabase = true;
 
       if (result.toilet?.cleanliness != null) {
-        const updatedToilet = {
-          ...selectedToilet,
-          cleanliness: result.toilet.cleanliness,
-          cleanlinessSurvey: result.toilet.cleanlinessSurvey
-        };
-
-        selectedToilet = updatedToilet;
-        allToilets = allToilets.map((toilet) => (toilet.id === updatedToilet.id ? updatedToilet : toilet));
-        filteredToilets = filteredToilets.map((toilet) => (toilet.id === updatedToilet.id ? updatedToilet : toilet));
-        visibleToilets = visibleToilets.map((toilet) => (toilet.id === updatedToilet.id ? updatedToilet : toilet));
-        renderCleanlinessBar(updatedToilet);
+        updateToiletCleanliness(result.toilet);
       }
     } catch (error) {
       console.error("Cleanliness survey failed:", error);
@@ -462,6 +474,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     hideToiletDetails,
     refreshAfterTabVisible,
     getSelectedToilet,
+    updateToiletCleanliness,
     answerCleanlinessSurvey
   };
 }
