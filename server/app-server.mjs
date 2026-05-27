@@ -132,10 +132,20 @@ export async function createAppServer({ rootDirectory = ".", port = 4173 } = {})
   });
 
   return {
-    listen() {
-      return new Promise((resolveListen) => {
-        server.listen(port, () => {
-          resolveListen();
+    listen(host = undefined) {
+      return new Promise((resolveListen, rejectListen) => {
+        const onError = (error) => {
+          server.off("error", onError);
+          rejectListen(error);
+        };
+
+        server.on("error", onError);
+
+        server.listen(port, host, () => {
+          server.off("error", onError);
+          const address = server.address();
+          const assignedPort = typeof address === "object" && address ? address.port : port;
+          resolveListen(assignedPort);
         });
       });
     },

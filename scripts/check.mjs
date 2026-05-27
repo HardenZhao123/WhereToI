@@ -22,6 +22,7 @@ const requiredFiles = [
   "src/app/utils/account-formatters.js",
   "src/styles.css",
   "scripts/build.mjs",
+  "scripts/e2e-smoke.mjs",
   "server/app-server.mjs",
   "server/database.mjs",
   "render.yaml"

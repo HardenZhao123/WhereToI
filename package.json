@@ -7,7 +7,8 @@
     "dev": "node scripts/dev-server.mjs",
     "start": "node scripts/dev-server.mjs",
     "build": "node scripts/build.mjs",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "check:e2e": "node scripts/e2e-smoke.mjs"
   },
   "dependencies": {
     "pg": "^8.16.3"
