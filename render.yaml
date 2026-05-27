@@ -7,7 +7,7 @@ services:
     branch: main
     buildCommand: npm install
     startCommand: npm start
-    autoDeployTrigger: off
+    autoDeployTrigger: commit
     healthCheckPath: /api/health
     numInstances: 1
     envVars:
