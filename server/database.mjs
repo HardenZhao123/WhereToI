@@ -191,6 +191,66 @@ const extendedFeatureColumns = [
   { name: "free_access", definition: "TEXT NOT NULL DEFAULT '?'" }
 ];
 
+const extendedCleanlinessColumns = [
+  { name: "cleanliness", definition: "INTEGER NOT NULL DEFAULT 3" },
+  { name: "cleanliness_yes_count", definition: "INTEGER NOT NULL DEFAULT 0" },
+  { name: "cleanliness_no_count", definition: "INTEGER NOT NULL DEFAULT 0" }
+];
+
+function clampCleanlinessScore(value) {
+  return Math.min(Math.max(Math.round(value), 1), 5);
+}
+
+function normaliseScoringModel(scoringModel = null) {
+  const modelType =
+    typeof scoringModel === "string"
+      ? normaliseText(scoringModel).toLowerCase()
+      : normaliseText(scoringModel?.type).toLowerCase();
+
+  if (!modelType || modelType === "average") {
+    return { type: "average" };
+  }
+
+  if (modelType === "ema" || modelType === "exponential_moving_average") {
+    const alpha = Number(scoringModel?.alpha ?? 0.35);
+    if (!Number.isFinite(alpha) || alpha <= 0 || alpha > 1) {
+      throw new Error("scoringModel.alpha must be a number greater than 0 and less than or equal to 1.");
+    }
+
+    return { type: "ema", alpha };
+  }
+
+  throw new Error("Unsupported scoringModel type.");
+}
+
+function getConfiguredCleanlinessScoringModel() {
+  const modelType = normaliseText(process.env.WHERETOI_CLEANLINESS_SCORING_MODEL).toLowerCase();
+
+  if (modelType === "ema" || modelType === "exponential_moving_average") {
+    return normaliseScoringModel({
+      type: "ema",
+      alpha: process.env.WHERETOI_CLEANLINESS_EMA_ALPHA
+    });
+  }
+
+  return normaliseScoringModel(modelType || "average");
+}
+
+function calculateCleanlinessScore({ yesCount, noCount, previousCleanliness = 3, answer, scoringModel = null }) {
+  const model = normaliseScoringModel(scoringModel);
+
+  if (model.type === "ema") {
+    const previousScore = Number.isFinite(Number(previousCleanliness)) ? Number(previousCleanliness) : 3;
+    const voteScore = answer === "yes" ? 5 : 1;
+    return clampCleanlinessScore(model.alpha * voteScore + (1 - model.alpha) * previousScore);
+  }
+
+  const total = yesCount + noCount;
+  if (total <= 0) return 3;
+
+  return clampCleanlinessScore(1 + (yesCount / total) * 4);
+}
+
 function inferBidetOrWashingFlag(record) {
   const searchableText = normaliseText(
     `${record.name ?? ""} ${record.notes ?? ""} ${record.payment_details ?? ""}`
@@ -334,6 +394,11 @@ function mapRowToToilet(row) {
       today: formatDayHours(openingTimes, todayDayIndex),
       sat: formatDayHours(openingTimes, 5),
       sun: formatDayHours(openingTimes, 6)
+    },
+    cleanliness: Number(row.cleanliness ?? 3),
+    cleanlinessSurvey: {
+      yes: Number(row.cleanliness_yes_count ?? 0),
+      no: Number(row.cleanliness_no_count ?? 0)
     }
   };
 }
@@ -386,6 +451,17 @@ function ensureSqliteFeatureColumns(db) {
   return missingColumns;
 }
 
+function ensureSqliteCleanlinessColumns(db) {
+  const existingColumns = new Set(
+    db.prepare("PRAGMA table_info(toilets)").all().map((column) => column.name)
+  );
+  const missingColumns = extendedCleanlinessColumns.filter((column) => !existingColumns.has(column.name));
+
+  for (const column of missingColumns) {
+    db.exec(`ALTER TABLE toilets ADD COLUMN ${column.name} ${column.definition};`);
+  }
+}
+
 async function backfillSqliteFeatureColumns(db, seedCsvPath) {
   const toiletsToSeed = await loadSeedToilets(seedCsvPath);
   const updateToilet = db.prepare(`
@@ -431,6 +507,12 @@ async function ensurePostgresFeatureColumns(pool) {
   return missingColumns;
 }
 
+async function ensurePostgresCleanlinessColumns(pool) {
+  for (const column of extendedCleanlinessColumns) {
+    await pool.query(`ALTER TABLE toilets ADD COLUMN IF NOT EXISTS ${column.name} ${column.definition}`);
+  }
+}
+
 async function backfillPostgresFeatureColumns(pool, seedCsvPath) {
   const toiletsToSeed = await loadSeedToilets(seedCsvPath);
   const client = await pool.connect();
@@ -463,7 +545,7 @@ async function backfillPostgresFeatureColumns(pool, seedCsvPath) {
   }
 }
 
-async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
+async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlinessScoringModel }) {
   await mkdir(dirname(dbFilePath), { recursive: true });
   const db = new DatabaseSync(dbFilePath);
 
@@ -491,7 +573,9 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
       radar_key TEXT NOT NULL DEFAULT '?',
       free_access TEXT NOT NULL DEFAULT '?',
       opening_times TEXT NOT NULL DEFAULT '[]',
-      cleanliness INTEGER DEFAULT 7
+      cleanliness INTEGER NOT NULL DEFAULT 3,
+      cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
+      cleanliness_no_count INTEGER NOT NULL DEFAULT 0
     ) STRICT;
 
     CREATE TABLE IF NOT EXISTS app_account (
@@ -517,6 +601,7 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
   `);
 
   const missingFeatureColumns = ensureSqliteFeatureColumns(db);
+  ensureSqliteCleanlinessColumns(db);
   if (missingFeatureColumns.length > 0) {
     await backfillSqliteFeatureColumns(db, seedCsvPath);
   }
@@ -622,7 +707,10 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
             urinal_only,
             radar_key,
             free_access,
-            opening_times
+            opening_times,
+            cleanliness,
+            cleanliness_yes_count,
+            cleanliness_no_count
           FROM toilets
           `
         )
@@ -641,6 +729,65 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
             toilet.area.toLowerCase().includes(query)
           );
         });
+    },
+    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", answer }) {
+      const safeToiletId = normaliseText(toiletId);
+      const safeToiletName = normaliseText(toiletName).replace(/\s+Toilet$/i, "");
+      const safeAnswer = normaliseText(answer).toLowerCase();
+
+      if (safeAnswer !== "yes" && safeAnswer !== "no") {
+        throw new Error("answer must be yes or no.");
+      }
+
+      const row = safeToiletId
+        ? db
+            .prepare("SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count FROM toilets WHERE id = ?")
+            .get(safeToiletId)
+        : db
+            .prepare(
+              `
+              SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count
+              FROM toilets
+              WHERE LOWER(name) = LOWER(?)
+              LIMIT 1
+              `
+            )
+            .get(safeToiletName);
+
+      if (!row) {
+        throw new Error("toilet not found.");
+      }
+
+      const yesCount = Number(row.cleanliness_yes_count ?? 0) + (safeAnswer === "yes" ? 1 : 0);
+      const noCount = Number(row.cleanliness_no_count ?? 0) + (safeAnswer === "no" ? 1 : 0);
+      const cleanliness = calculateCleanlinessScore({
+        yesCount,
+        noCount,
+        previousCleanliness: row.cleanliness,
+        answer: safeAnswer,
+        scoringModel: cleanlinessScoringModel
+      });
+
+      db.prepare(
+        `
+        UPDATE toilets
+        SET cleanliness = ?, cleanliness_yes_count = ?, cleanliness_no_count = ?
+        WHERE id = ?
+        `
+      ).run(cleanliness, yesCount, noCount, row.id);
+
+      return {
+        toilet: {
+          id: row.id,
+          name: row.name,
+          cleanliness,
+          cleanlinessSurvey: {
+            yes: yesCount,
+            no: noCount
+          },
+          scoringModel: cleanlinessScoringModel
+        }
+      };
     },
     async getAccount() {
       const row = db
@@ -750,7 +897,7 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
   };
 }
 
-async function createPostgresDatabase({ connectionString, seedCsvPath }) {
+async function createPostgresDatabase({ connectionString, seedCsvPath, cleanlinessScoringModel }) {
   let Pool;
   try {
     ({ Pool } = await import("pg"));
@@ -782,11 +929,15 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
       urinal_only TEXT NOT NULL DEFAULT '?',
       radar_key TEXT NOT NULL DEFAULT '?',
       free_access TEXT NOT NULL DEFAULT '?',
-      opening_times JSONB NOT NULL DEFAULT '[]'::jsonb
+      opening_times JSONB NOT NULL DEFAULT '[]'::jsonb,
+      cleanliness INTEGER NOT NULL DEFAULT 3,
+      cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
+      cleanliness_no_count INTEGER NOT NULL DEFAULT 0
     );
   `);
 
   const missingFeatureColumns = await ensurePostgresFeatureColumns(pool);
+  await ensurePostgresCleanlinessColumns(pool);
   if (missingFeatureColumns.length > 0) {
     await backfillPostgresFeatureColumns(pool, seedCsvPath);
   }
@@ -950,7 +1101,10 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
           urinal_only,
           radar_key,
           free_access,
-          opening_times
+          opening_times,
+          cleanliness,
+          cleanliness_yes_count,
+          cleanliness_no_count
         FROM toilets
         ${whereClause}
         `,
@@ -958,6 +1112,67 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
       );
 
       return result.rows.map(mapRowToToilet);
+    },
+    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", answer }) {
+      const safeToiletId = normaliseText(toiletId);
+      const safeToiletName = normaliseText(toiletName).replace(/\s+Toilet$/i, "");
+      const safeAnswer = normaliseText(answer).toLowerCase();
+
+      if (safeAnswer !== "yes" && safeAnswer !== "no") {
+        throw new Error("answer must be yes or no.");
+      }
+
+      const result = safeToiletId
+        ? await pool.query(
+            "SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count FROM toilets WHERE id = $1",
+            [safeToiletId]
+          )
+        : await pool.query(
+            `
+            SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count
+            FROM toilets
+            WHERE LOWER(name) = LOWER($1)
+            LIMIT 1
+            `,
+            [safeToiletName]
+          );
+
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("toilet not found.");
+      }
+
+      const yesCount = Number(row.cleanliness_yes_count ?? 0) + (safeAnswer === "yes" ? 1 : 0);
+      const noCount = Number(row.cleanliness_no_count ?? 0) + (safeAnswer === "no" ? 1 : 0);
+      const cleanliness = calculateCleanlinessScore({
+        yesCount,
+        noCount,
+        previousCleanliness: row.cleanliness,
+        answer: safeAnswer,
+        scoringModel: cleanlinessScoringModel
+      });
+
+      await pool.query(
+        `
+        UPDATE toilets
+        SET cleanliness = $1, cleanliness_yes_count = $2, cleanliness_no_count = $3
+        WHERE id = $4
+        `,
+        [cleanliness, yesCount, noCount, row.id]
+      );
+
+      return {
+        toilet: {
+          id: row.id,
+          name: row.name,
+          cleanliness,
+          cleanlinessSurvey: {
+            yes: yesCount,
+            no: noCount
+          },
+          scoringModel: cleanlinessScoringModel
+        }
+      };
     },
     async getAccount() {
       const result = await pool.query(
@@ -1071,7 +1286,8 @@ export async function createDatabase({
   rootDirectory = ".",
   dbFilePath = process.env.WHERETOI_DB_FILE,
   seedCsvPath = process.env.WHERETOI_SEED_CSV,
-  databaseUrl = process.env.WHERETOI_DATABASE_URL
+  databaseUrl = process.env.WHERETOI_DATABASE_URL,
+  cleanlinessScoringModel = getConfiguredCleanlinessScoringModel()
 } = {}) {
   const resolvedSeedCsvPath =
     resolvePath(rootDirectory, seedCsvPath) ?? resolve(rootDirectory, "src", "data", "toilets.csv");
@@ -1079,7 +1295,8 @@ export async function createDatabase({
   if (databaseUrl) {
     return createPostgresDatabase({
       connectionString: databaseUrl,
-      seedCsvPath: resolvedSeedCsvPath
+      seedCsvPath: resolvedSeedCsvPath,
+      cleanlinessScoringModel
     });
   }
 
@@ -1088,6 +1305,7 @@ export async function createDatabase({
 
   return createSqliteDatabase({
     dbFilePath: resolvedDbFilePath,
-    seedCsvPath: resolvedSeedCsvPath
+    seedCsvPath: resolvedSeedCsvPath,
+    cleanlinessScoringModel
   });
 }

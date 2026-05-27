@@ -1,4 +1,5 @@
 import { appConfig } from "../config/app-config.js";
+import { submitCleanlinessSurvey } from "../services/toilets-service.js";
 import { formatDistance } from "../utils/geo.js";
 
 export function createMapController(elements, onToiletSelected = () => {}) {
@@ -8,8 +9,13 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     directionsButton,
     detailsCard,
     mapPanel,
-    mapElement
+    mapElement,
+    mapSurveyCleanYesButton,
+    mapSurveyCleanNoButton,
+    mapSurveyStatus
   } = elements;
+
+  const surveyStorageKey = "wheretoi-map-cleanliness-survey";
 
   let allToilets = [];
   let filteredToilets = [];
@@ -23,10 +29,54 @@ export function createMapController(elements, onToiletSelected = () => {}) {
   let userLocationMarker = null;
   let markerById = new Map();
   let hiddenByMarkerLimit = 0;
+  let cleanlinessSurveyAnswers = loadSurveyAnswers();
+
+  function loadSurveyAnswers() {
+    try {
+      const storedAnswers = window.localStorage?.getItem(surveyStorageKey);
+      if (!storedAnswers) return {};
+
+      const parsedAnswers = JSON.parse(storedAnswers);
+      return parsedAnswers && typeof parsedAnswers === "object" ? parsedAnswers : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveSurveyAnswers() {
+    try {
+      window.localStorage?.setItem(surveyStorageKey, JSON.stringify(cleanlinessSurveyAnswers));
+    } catch {
+      // Keep the survey usable for the current session when storage is blocked.
+    }
+  }
+
+  function renderCleanlinessBar(toilet) {
+    const cleanlinessBar = document.querySelector("#cleanliness-bar");
+    if (!cleanlinessBar) return;
+
+    const rating = Number(toilet?.cleanliness ?? 3);
+    const percent = Math.min(Math.max((rating / 5) * 100, 0), 100);
+    cleanlinessBar.style.width = `${percent}%`;
+  }
 
   function setStatus(message) {
     if (!statusText) return;
     statusText.textContent = message;
+  }
+
+  function renderCleanlinessSurvey(toilet) {
+    const answer = toilet ? cleanlinessSurveyAnswers[toilet.id]?.answer ?? cleanlinessSurveyAnswers[toilet.id] : null;
+    const hasAnswer = answer === "yes" || answer === "no";
+
+    mapSurveyCleanYesButton?.classList.toggle("is-selected", answer === "yes");
+    mapSurveyCleanNoButton?.classList.toggle("is-selected", answer === "no");
+    mapSurveyCleanYesButton?.setAttribute("aria-pressed", answer === "yes" ? "true" : "false");
+    mapSurveyCleanNoButton?.setAttribute("aria-pressed", answer === "no" ? "true" : "false");
+
+    if (mapSurveyStatus) {
+      mapSurveyStatus.textContent = hasAnswer ? "Thanks, your answer has been saved." : "Choose an answer to help others.";
+    }
   }
 
   function createToiletIcon(toilet, selected = false) {
@@ -66,6 +116,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       directionsButton.disabled = true;
     }
 
+    renderCleanlinessSurvey(null);
     updateSelectedMarkerAppearance();
   }
 
@@ -130,13 +181,9 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     document.querySelector("#hours-sat").textContent = toilet.hours.sat;
     document.querySelector("#hours-sun").textContent = toilet.hours.sun;
     document.querySelector("#distance-line").textContent = formatDistance(userLocation, toilet);
+    renderCleanlinessSurvey(toilet);
 
-    const cleanlinessBar = document.querySelector("#cleanliness-bar");
-    if (cleanlinessBar) {
-      const rating = Number(toilet.cleanliness ?? 3);
-      const percent = Math.min(Math.max((rating / 5) * 100, 0), 100);
-      cleanlinessBar.style.width = `${percent}%`;
-    }
+    renderCleanlinessBar(toilet);
 
     const marker = markerById.get(toilet.id);
     if (marker && map) {
@@ -343,6 +390,66 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     return selectedToilet;
   }
 
+  async function answerCleanlinessSurvey(answer) {
+    if (!selectedToilet) {
+      setStatus("Select a toilet marker before answering the survey.");
+      return;
+    }
+
+    if (answer !== "yes" && answer !== "no") return;
+
+    if (mapSurveyStatus) {
+      mapSurveyStatus.textContent = "Saving answer to database...";
+    }
+
+    let savedToDatabase = false;
+
+    try {
+      const result = await submitCleanlinessSurvey({
+        toiletId: selectedToilet.id,
+        toiletName: selectedToilet.name,
+        answer
+      });
+
+      savedToDatabase = true;
+
+      if (result.toilet?.cleanliness != null) {
+        const updatedToilet = {
+          ...selectedToilet,
+          cleanliness: result.toilet.cleanliness,
+          cleanlinessSurvey: result.toilet.cleanlinessSurvey
+        };
+
+        selectedToilet = updatedToilet;
+        allToilets = allToilets.map((toilet) => (toilet.id === updatedToilet.id ? updatedToilet : toilet));
+        filteredToilets = filteredToilets.map((toilet) => (toilet.id === updatedToilet.id ? updatedToilet : toilet));
+        visibleToilets = visibleToilets.map((toilet) => (toilet.id === updatedToilet.id ? updatedToilet : toilet));
+        renderCleanlinessBar(updatedToilet);
+      }
+    } catch (error) {
+      console.error("Cleanliness survey failed:", error);
+      if (mapSurveyStatus) {
+        mapSurveyStatus.textContent = "Could not save to database. Saved on this device only.";
+      }
+    }
+
+    cleanlinessSurveyAnswers = {
+      ...cleanlinessSurveyAnswers,
+      [selectedToilet.id]: {
+        answer,
+        toiletName: selectedToilet.name,
+        submittedAt: new Date().toISOString()
+      }
+    };
+
+    saveSurveyAnswers();
+    renderCleanlinessSurvey(selectedToilet);
+
+    if (!savedToDatabase && mapSurveyStatus) {
+      mapSurveyStatus.textContent = "Could not save to database. Saved on this device only.";
+    }
+  }
+
   return {
     createInteractiveMap,
     setStatus,
@@ -354,6 +461,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     openDirections,
     hideToiletDetails,
     refreshAfterTabVisible,
-    getSelectedToilet
+    getSelectedToilet,
+    answerCleanlinessSurvey
   };
 }

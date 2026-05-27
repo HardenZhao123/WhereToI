@@ -86,6 +86,17 @@
                 </div>
               </div>
               <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
+              <section class="map-cleanliness-survey" aria-labelledby="map-cleanliness-survey-title">
+                <div>
+                  <h3 id="map-cleanliness-survey-title">Cleanliness survey</h3>
+                  <p>Was this toilet clean?</p>
+                </div>
+                <div class="survey-actions" role="group" aria-label="Map cleanliness survey answer">
+                  <button id="map-survey-clean-yes" type="button" data-survey-answer="yes" aria-pressed="false">Yes</button>
+                  <button id="map-survey-clean-no" type="button" data-survey-answer="no" aria-pressed="false">No</button>
+                </div>
+                <p class="survey-status" id="map-survey-status" aria-live="polite">Choose an answer to help others.</p>
+              </section>
             </article>
           </section>
 
@@ -110,6 +121,18 @@
               <button class="outline-button" type="button">Details</button>
             </div>
             <p class="activation-status" id="activation-status" aria-live="polite">Ready to activate access pass.</p>
+            <div class="survey-modal is-hidden" id="cleanliness-survey-modal" role="dialog" aria-modal="true" aria-labelledby="cleanliness-survey-title">
+              <div class="survey-dialog">
+                <button class="close-button survey-close-button" id="close-survey" type="button" aria-label="Close cleanliness survey">X</button>
+                <h3 id="cleanliness-survey-title">Cleanliness survey</h3>
+                <p id="cleanliness-survey-question">Was this toilet clean?</p>
+                <div class="survey-actions" role="group" aria-label="Cleanliness survey answer">
+                  <button id="survey-clean-yes" type="button" data-survey-answer="yes" aria-pressed="false">Yes</button>
+                  <button id="survey-clean-no" type="button" data-survey-answer="no" aria-pressed="false">No</button>
+                </div>
+                <p class="survey-status" id="survey-status" aria-live="polite">Choose an answer to help others.</p>
+              </div>
+            </div>
           </section>
 
           <section class="view view-account" id="account-panel" aria-labelledby="account-tab">

@@ -52,6 +52,29 @@ On first startup, `data/wheretoi.sqlite` is created automatically and seeded (if
 
 The map uses OpenStreetMap tiles, so the browser needs internet access. Browser location works on `localhost` during development and on HTTPS after deployment.
 
+## Cleanliness survey API
+
+Submit a cleanliness survey result and update the toilet's `cleanliness` score:
+
+```http
+POST /api/cleanliness-survey
+Content-Type: application/json
+
+{
+  "toiletId": "1b8da78b0811f8692823b6a0",
+  "answer": "yes"
+}
+```
+
+The scoring model is configured server-side. By default, the API uses cumulative average scoring. To use exponential moving average scoring, set:
+
+```bash
+WHERETOI_CLEANLINESS_SCORING_MODEL=ema
+WHERETOI_CLEANLINESS_EMA_ALPHA=0.35
+```
+
+Supported server-side models are `average` and `ema`.
+
 ### Windows (PowerShell)
 
 Static-only fallback (no API/database persistence):
