@@ -43,29 +43,41 @@ jobs:
 
   deploy_backend:
     name: CD deploy backend to public Render service
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.RENDER_DEPLOY_HOOK_URL != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: ci
     runs-on: ubuntu-latest
+    env:
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
 
     steps:
       - name: Trigger Render deploy hook
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        if: env.RENDER_DEPLOY_HOOK_URL != ''
         run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Skip deploy when hook secret is not configured
+        if: env.RENDER_DEPLOY_HOOK_URL == ''
+        run: echo "Skipping backend deploy because RENDER_DEPLOY_HOOK_URL is not set."
 
   verify_public:
     name: Verify public server health and API
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.RENDER_DEPLOY_HOOK_URL != '' && secrets.PUBLIC_APP_URL != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: deploy_backend
     runs-on: ubuntu-latest
+    env:
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      PUBLIC_APP_URL: ${{ secrets.PUBLIC_APP_URL }}
 
     steps:
+      - name: Skip public verification when required secrets are missing
+        if: env.RENDER_DEPLOY_HOOK_URL == '' || env.PUBLIC_APP_URL == ''
+        run: echo "Skipping public verification because RENDER_DEPLOY_HOOK_URL or PUBLIC_APP_URL is not set."
+
       - name: Wait for deployment
+        if: env.RENDER_DEPLOY_HOOK_URL != '' && env.PUBLIC_APP_URL != ''
         run: sleep 25
 
       - name: Check public health endpoint with retries
-        env:
-          PUBLIC_APP_URL: ${{ secrets.PUBLIC_APP_URL }}
+        if: env.RENDER_DEPLOY_HOOK_URL != '' && env.PUBLIC_APP_URL != ''
         run: |
           for i in {1..18}; do
             if curl -fsS "$PUBLIC_APP_URL/api/health" | grep -q '"status":"ok"'; then
@@ -79,8 +91,7 @@ jobs:
           exit 1
 
       - name: Check public end-to-end data endpoint
-        env:
-          PUBLIC_APP_URL: ${{ secrets.PUBLIC_APP_URL }}
+        if: env.RENDER_DEPLOY_HOOK_URL != '' && env.PUBLIC_APP_URL != ''
         run: |
           payload=$(curl -fsS "$PUBLIC_APP_URL/api/account")
           echo "$payload" | grep -q '"account"' || (echo "Missing account payload" >&2; exit 1)
