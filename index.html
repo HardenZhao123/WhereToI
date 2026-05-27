@@ -40,8 +40,38 @@
                 <span aria-hidden="true"></span>
                 <input id="location-search" type="search" placeholder="Search toilet or area..." autocomplete="off" />
               </div>
+              <div class="filter-panel" aria-label="Toilet filters">
+                <div class="filter-header">
+                  <strong>Needs</strong>
+                  <label class="sort-control" for="toilet-sort">
+                    Sort
+                    <select id="toilet-sort">
+                      <option value="distance">Nearest</option>
+                      <option value="cleanliness">Cleanest</option>
+                      <option value="free">Free first</option>
+                      <option value="facilities">Most facilities</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="filter-options" id="feature-filters">
+                  <label class="filter-option"><input type="checkbox" value="women" /> Women</label>
+                  <label class="filter-option"><input type="checkbox" value="men" /> Men</label>
+                  <label class="filter-option"><input type="checkbox" value="accessible" /> Accessible</label>
+                  <label class="filter-option"><input type="checkbox" value="neutral" /> Gender Neutral</label>
+                  <label class="filter-option"><input type="checkbox" value="children" /> Children</label>
+                  <label class="filter-option"><input type="checkbox" value="babyChanging" /> Parent &amp; Baby</label>
+                  <label class="filter-option"><input type="checkbox" value="bidet" /> Bidet / Washing</label>
+                  <label class="filter-option"><input type="checkbox" value="automatic" /> Automatic</label>
+                  <label class="filter-option"><input type="checkbox" value="urinalOnly" /> Urinal Only</label>
+                  <label class="filter-option"><input type="checkbox" value="radarKey" /> RADAR Key</label>
+                  <label class="filter-option"><input type="checkbox" value="free" /> Free</label>
+                </div>
+                <div class="results-header">
+                  <span id="results-summary">Nearby toilets</span>
+                </div>
+                <div class="toilet-results" id="toilet-results" aria-live="polite"></div>
+              </div>
               <div class="quick-actions">
-                <button type="button" id="filter-accessible">Accessible only</button>
                 <button type="button" id="reset-map">Show all toilets</button>
                 <button type="button" id="find-near-me">Find near me</button>
               </div>
@@ -63,6 +93,7 @@
                   <div class="rating-bar-container">
                     <div id="cleanliness-bar" class="rating-bar-fill" style="width: 0%;"></div>
                   </div>
+                  <p class="cleanliness-score" id="cleanliness-score">Clean ?/10</p>
                 </div>
                 <div class="features-list">
                   <h3>Features</h3>

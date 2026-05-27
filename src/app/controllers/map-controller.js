@@ -1,5 +1,23 @@
 import { appConfig } from "../config/app-config.js";
-import { formatDistance } from "../utils/geo.js";
+import { distanceInMetres, formatDistance } from "../utils/geo.js";
+
+const featureFilterOptions = [
+  { key: "women", label: "Women" },
+  { key: "men", label: "Men" },
+  { key: "accessible", label: "Accessible" },
+  { key: "neutral", label: "Gender Neutral" },
+  { key: "children", label: "Children" },
+  { key: "babyChanging", label: "Parent & Baby" },
+  { key: "bidet", label: "Bidet / Washing" },
+  { key: "automatic", label: "Automatic" },
+  { key: "urinalOnly", label: "Urinal Only" },
+  { key: "radarKey", label: "RADAR Key" },
+  { key: "free", label: "Free" }
+];
+
+const sortModes = new Set(["distance", "cleanliness", "free", "facilities"]);
+const resultRenderLimit = 8;
+const defaultCleanlinessScore = 7;
 
 export function createMapController(elements, onToiletSelected = () => {}) {
   const {
@@ -8,7 +26,11 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     directionsButton,
     detailsCard,
     mapPanel,
-    mapElement
+    mapElement,
+    featureFilterInputs = [],
+    sortSelect,
+    resultsSummary,
+    resultsList
   } = elements;
 
   let allToilets = [];
@@ -17,7 +39,8 @@ export function createMapController(elements, onToiletSelected = () => {}) {
   let selectedToilet = null;
   let userLocation = null;
   let queryText = "";
-  let accessibleOnly = false;
+  let selectedFeatureFilters = new Set();
+  let sortMode = "distance";
   let map = null;
   let markersLayer = null;
   let userLocationMarker = null;
@@ -49,12 +72,160 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     return filteredToilets.filter((toilet) => bounds.contains([toilet.lat, toilet.lng]));
   }
 
+  function getDistanceReference() {
+    if (userLocation) {
+      return { lat: userLocation.lat, lng: userLocation.lng, source: "user" };
+    }
+
+    if (map) {
+      const center = map.getCenter();
+      return { lat: center.lat, lng: center.lng, source: "map" };
+    }
+
+    return { lat: appConfig.initialView.lat, lng: appConfig.initialView.lng, source: "map" };
+  }
+
+  function getDistanceMetres(toilet) {
+    const reference = getDistanceReference();
+    return distanceInMetres(reference.lat, reference.lng, toilet.lat, toilet.lng);
+  }
+
+  function formatToiletDistance(toilet) {
+    const reference = getDistanceReference();
+    const distance = formatDistance(reference, toilet);
+    return reference.source === "user" ? distance : distance.replace("away", "from map centre");
+  }
+
+  function getCleanlinessScore(toilet) {
+    const score = Number(toilet.cleanliness);
+    if (!Number.isFinite(score)) return defaultCleanlinessScore;
+    return Math.min(Math.max(score, 0), 10);
+  }
+
+  function formatCleanlinessScore(toilet) {
+    const score = getCleanlinessScore(toilet);
+    return `${Number.isInteger(score) ? score : score.toFixed(1)}/10`;
+  }
+
+  function getFeatureScore(toilet) {
+    return featureFilterOptions.reduce((score, option) => {
+      return score + (toilet.features?.[option.key] === "Y" ? 1 : 0);
+    }, 0);
+  }
+
+  function compareByName(a, b) {
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  }
+
+  function compareToilets(a, b) {
+    const distanceDelta = getDistanceMetres(a) - getDistanceMetres(b);
+    const cleanlinessDelta = getCleanlinessScore(b) - getCleanlinessScore(a);
+    const freeDelta = Number(b.features?.free === "Y") - Number(a.features?.free === "Y");
+    const facilitiesDelta = getFeatureScore(b) - getFeatureScore(a);
+
+    if (sortMode === "cleanliness") {
+      return cleanlinessDelta || distanceDelta || compareByName(a, b);
+    }
+
+    if (sortMode === "free") {
+      return freeDelta || distanceDelta || cleanlinessDelta || compareByName(a, b);
+    }
+
+    if (sortMode === "facilities") {
+      return facilitiesDelta || distanceDelta || cleanlinessDelta || compareByName(a, b);
+    }
+
+    return distanceDelta || cleanlinessDelta || facilitiesDelta || compareByName(a, b);
+  }
+
+  function sortFilteredToilets() {
+    filteredToilets.sort(compareToilets);
+  }
+
   function updateSelectedMarkerAppearance() {
     markerById.forEach((marker, id) => {
       const toilet = visibleToilets.find((item) => item.id === id);
       if (!toilet) return;
       marker.setIcon(createToiletIcon(toilet, selectedToilet?.id === id));
     });
+  }
+
+  function renderResultsSummary() {
+    if (!resultsSummary) return;
+
+    const sortLabel = sortSelect?.selectedOptions?.[0]?.textContent ?? "Nearest";
+    const suffix = selectedFeatureFilters.size > 0 ? "matches" : "nearby toilets";
+    resultsSummary.textContent = `${filteredToilets.length} ${suffix} - ${sortLabel}`;
+  }
+
+  function renderResults() {
+    renderResultsSummary();
+
+    if (!resultsList) return;
+
+    resultsList.replaceChildren();
+
+    if (filteredToilets.length === 0) {
+      const emptyState = document.createElement("p");
+      emptyState.className = "empty-results";
+      emptyState.textContent = "No toilets match the selected needs.";
+      resultsList.append(emptyState);
+      return;
+    }
+
+    filteredToilets.slice(0, resultRenderLimit).forEach((toilet) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "toilet-result";
+      if (selectedToilet?.id === toilet.id) {
+        button.classList.add("is-selected");
+      }
+      button.addEventListener("click", () => setToilet(toilet.id));
+
+      const main = document.createElement("span");
+      main.className = "result-main";
+
+      const title = document.createElement("strong");
+      title.className = "result-title";
+      title.textContent = toilet.name;
+
+      const area = document.createElement("span");
+      area.className = "result-area";
+      area.textContent = toilet.area;
+
+      const meta = document.createElement("span");
+      meta.className = "result-meta";
+
+      const cleanliness = document.createElement("span");
+      cleanliness.textContent = `Clean ${formatCleanlinessScore(toilet)}`;
+
+      const facilities = document.createElement("span");
+      facilities.textContent = `${getFeatureScore(toilet)} facilities`;
+
+      meta.append(cleanliness, facilities);
+      main.append(title, area, meta);
+
+      const distance = document.createElement("span");
+      distance.className = "result-distance";
+      distance.textContent = formatToiletDistance(toilet);
+
+      button.append(main, distance);
+      resultsList.append(button);
+    });
+
+    if (filteredToilets.length > resultRenderLimit) {
+      const more = document.createElement("p");
+      more.className = "more-results";
+      more.textContent = `${filteredToilets.length - resultRenderLimit} more toilets on the map.`;
+      resultsList.append(more);
+    }
+  }
+
+  function refreshFilteredDisplay() {
+    sortFilteredToilets();
+    renderMarkers();
+    renderResults();
+    updateFilterStatus();
   }
 
   function hideToiletDetails() {
@@ -66,6 +237,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       directionsButton.disabled = true;
     }
 
+    renderResults();
     updateSelectedMarkerAppearance();
   }
 
@@ -129,13 +301,17 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     document.querySelector("#hours-today").textContent = toilet.hours.today;
     document.querySelector("#hours-sat").textContent = toilet.hours.sat;
     document.querySelector("#hours-sun").textContent = toilet.hours.sun;
-    document.querySelector("#distance-line").textContent = formatDistance(userLocation, toilet);
+    document.querySelector("#distance-line").textContent = formatToiletDistance(toilet);
 
+    const cleanlinessScore = getCleanlinessScore(toilet);
     const cleanlinessBar = document.querySelector("#cleanliness-bar");
+    const cleanlinessLabel = document.querySelector("#cleanliness-score");
     if (cleanlinessBar) {
-      const rating = Number(toilet.cleanliness ?? 3);
-      const percent = Math.min(Math.max((rating / 5) * 100, 0), 100);
+      const percent = Math.min(Math.max((cleanlinessScore / 10) * 100, 0), 100);
       cleanlinessBar.style.width = `${percent}%`;
+    }
+    if (cleanlinessLabel) {
+      cleanlinessLabel.textContent = `Clean ${formatCleanlinessScore(toilet)}`;
     }
 
     const marker = markerById.get(toilet.id);
@@ -143,6 +319,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 16), { duration: 0.45 });
     }
 
+    renderResults();
     updateSelectedMarkerAppearance();
     onToiletSelected(toilet);
   }
@@ -183,31 +360,19 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
     const inViewCount = visibleToilets.length;
     const limitHint = hiddenByMarkerLimit > 0 ? ` Zoom in to load ${hiddenByMarkerLimit} more.` : "";
+    const queryHint = queryText ? " for this search" : "";
+    const filterHint = selectedFeatureFilters.size > 0 ? ` with ${selectedFeatureFilters.size} needs` : "";
 
-    if (accessibleOnly && queryText) {
-      setStatus(`Found ${filteredToilets.length} accessible matches. ${inViewCount} visible on map.${limitHint}`);
-      return;
-    }
-
-    if (accessibleOnly) {
-      setStatus(`Showing ${filteredToilets.length} accessible toilets. ${inViewCount} visible on map.${limitHint}`);
-      return;
-    }
-
-    if (queryText) {
-      setStatus(`Found ${filteredToilets.length} matches. ${inViewCount} visible on map.${limitHint}`);
-      return;
-    }
-
-    setStatus(`Showing ${filteredToilets.length} toilets. ${inViewCount} visible on map.${limitHint}`);
+    setStatus(`Showing ${filteredToilets.length} toilets${queryHint}${filterHint}. ${inViewCount} visible on map.${limitHint}`);
   }
 
   function applyFilters() {
     const query = queryText.trim().toLowerCase();
+    const selectedFilters = [...selectedFeatureFilters];
 
     filteredToilets = allToilets.filter((toilet) => {
-      const matchesAccessible = !accessibleOnly || toilet.features.accessible === "Y";
-      if (!matchesAccessible) return false;
+      const matchesFeatures = selectedFilters.every((featureKey) => toilet.features?.[featureKey] === "Y");
+      if (!matchesFeatures) return false;
 
       if (!query) return true;
       return toilet.name.toLowerCase().includes(query) || toilet.area.toLowerCase().includes(query);
@@ -217,8 +382,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       hideToiletDetails();
     }
 
-    renderMarkers();
-    updateFilterStatus();
+    refreshFilteredDisplay();
   }
 
   function requestLocation() {
@@ -236,10 +400,10 @@ export function createMapController(elements, onToiletSelected = () => {}) {
           lng: position.coords.longitude
         };
 
-        renderUserMarker();
+        refreshFilteredDisplay();
 
         if (selectedToilet) {
-          document.querySelector("#distance-line").textContent = formatDistance(userLocation, selectedToilet);
+          document.querySelector("#distance-line").textContent = formatToiletDistance(selectedToilet);
         }
 
         if (map) {
@@ -293,8 +457,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     markersLayer = window.L.layerGroup().addTo(map);
 
     map.on("moveend zoomend", () => {
-      renderMarkers();
-      updateFilterStatus();
+      refreshFilteredDisplay();
     });
 
     return true;
@@ -303,9 +466,8 @@ export function createMapController(elements, onToiletSelected = () => {}) {
   function setToilets(nextToilets) {
     allToilets = [...nextToilets];
     filteredToilets = [...allToilets];
-    renderMarkers();
+    refreshFilteredDisplay();
     hideToiletDetails();
-    updateFilterStatus();
   }
 
   function refreshAfterTabVisible() {
@@ -313,7 +475,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
     requestAnimationFrame(() => {
       map.invalidateSize();
-      renderMarkers();
+      refreshFilteredDisplay();
       renderUserMarker();
     });
   }
@@ -323,18 +485,50 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     applyFilters();
   }
 
-  function enableAccessibleOnly() {
-    accessibleOnly = true;
+  function setFeatureFilter(featureKey, checked) {
+    if (!featureFilterOptions.some((option) => option.key === featureKey)) return;
+
+    selectedFeatureFilters = new Set(selectedFeatureFilters);
+    if (checked) {
+      selectedFeatureFilters.add(featureKey);
+    } else {
+      selectedFeatureFilters.delete(featureKey);
+    }
+
     applyFilters();
   }
 
+  function setSortMode(nextSortMode) {
+    sortMode = sortModes.has(nextSortMode) ? nextSortMode : "distance";
+    refreshFilteredDisplay();
+  }
+
+  function enableAccessibleOnly() {
+    setFeatureFilter("accessible", true);
+
+    featureFilterInputs.forEach((input) => {
+      if (input.value === "accessible") {
+        input.checked = true;
+      }
+    });
+  }
+
   function resetFilters() {
-    accessibleOnly = false;
+    selectedFeatureFilters = new Set();
+    sortMode = "distance";
     queryText = "";
 
     if (searchInput) {
       searchInput.value = "";
     }
+
+    if (sortSelect) {
+      sortSelect.value = "distance";
+    }
+
+    featureFilterInputs.forEach((input) => {
+      input.checked = false;
+    });
 
     applyFilters();
   }
@@ -348,6 +542,8 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     setStatus,
     setToilets,
     setSearchQuery,
+    setFeatureFilter,
+    setSortMode,
     enableAccessibleOnly,
     resetFilters,
     requestLocation,
