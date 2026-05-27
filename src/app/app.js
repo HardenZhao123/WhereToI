@@ -29,11 +29,16 @@ export function createApp() {
 
     let apiLoadFailed = false;
 
+    function setLoadedToilets(toilets) {
+      mapController.setToilets(toilets);
+      accountController?.updateTicketToilet(toilets.find((toilet) => toilet.paid) ?? toilets[0]);
+    }
+
     try {
       const loadedFromApi = await loadToiletsFromApi();
 
       if (loadedFromApi.length > 0) {
-        mapController.setToilets(loadedFromApi);
+        setLoadedToilets(loadedFromApi);
         mapController.setStatus(`Loaded ${loadedFromApi.length} toilets from database.`);
         return;
       }
@@ -49,16 +54,16 @@ export function createApp() {
     try {
       const loadedFromCsv = await loadToiletsFromCsv();
       if (loadedFromCsv.length > 0) {
-        mapController.setToilets(loadedFromCsv);
+        setLoadedToilets(loadedFromCsv);
         mapController.setStatus(`Database unavailable. Loaded ${loadedFromCsv.length} toilets from CSV fallback.`);
         return;
       }
 
-      mapController.setToilets(fallbackToilets);
+      setLoadedToilets(fallbackToilets);
       mapController.setStatus("Dataset was empty. Showing sample toilets instead.");
     } catch (error) {
       console.error("CSV loading failed:", error);
-      mapController.setToilets(fallbackToilets);
+      setLoadedToilets(fallbackToilets);
       mapController.setStatus("Could not load API or CSV data. Showing sample toilets instead.");
     }
   }
@@ -69,6 +74,8 @@ export function createApp() {
     elements.searchInput?.addEventListener("input", (event) => mapController.setSearchQuery(event.target.value));
     elements.closeDetailsButton?.addEventListener("click", () => mapController.hideToiletDetails());
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
+    elements.mapSurveyCleanYesButton?.addEventListener("click", () => mapController.answerCleanlinessSurvey("yes"));
+    elements.mapSurveyCleanNoButton?.addEventListener("click", () => mapController.answerCleanlinessSurvey("no"));
 
     elements.locateButtons.forEach((button) => {
       button?.addEventListener("click", () => mapController.requestLocation());

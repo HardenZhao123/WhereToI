@@ -23,3 +23,10 @@ export async function loadToiletsFromCsv() {
   const records = rowsToObjects(rows);
   return records.map(mapRecordToToilet).filter(Boolean);
 }
+
+export function submitCleanlinessSurvey(payload) {
+  return fetchJson(`${appConfig.apiBasePath}/cleanliness-survey`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
