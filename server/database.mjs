@@ -605,7 +605,7 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
             toilet.features.men,
             toilet.features.accessible,
             toilet.features.neutral,
-            toilet.openingTimes ?? []
+            JSON.stringify(toilet.openingTimes ?? [])
           ]
         );
       }
