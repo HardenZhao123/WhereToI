@@ -43,6 +43,24 @@ function formatDayHours(openingTimes, dayIndex) {
   return `${dayLabel} ${openTime} - ${closeTime}`;
 }
 
+function inferBidetOrWashingFlag(record) {
+  const searchableText = normaliseText(
+    `${record.name ?? ""} ${record.notes ?? ""} ${record.payment_details ?? ""}`
+  ).toLowerCase();
+
+  if (!searchableText) return "?";
+
+  if (
+    /\b(bidet|wudu|ablution|shattaf)\b/.test(searchableText) ||
+    searchableText.includes("muslim") ||
+    searchableText.includes("prayer room washroom")
+  ) {
+    return "Y";
+  }
+
+  return "?";
+}
+
 export function mapRecordToToilet(record) {
   if (record.active !== "true") return null;
 
@@ -71,7 +89,14 @@ export function mapRecordToToilet(record) {
       women: toFeatureFlag(record.women),
       men: toFeatureFlag(record.men),
       accessible: toFeatureFlag(record.accessible),
-      neutral: toFeatureFlag(record.all_gender)
+      neutral: toFeatureFlag(record.all_gender),
+      children: toFeatureFlag(record.children),
+      babyChanging: toFeatureFlag(record.baby_change),
+      bidet: inferBidetOrWashingFlag(record),
+      automatic: toFeatureFlag(record.automatic),
+      urinalOnly: toFeatureFlag(record.urinal_only),
+      radarKey: toFeatureFlag(record.radar),
+      free: toFeatureFlag(record.no_payment)
     },
     hours: {
       today: formatDayHours(openingTimes, appConfig.todayDayIndex),

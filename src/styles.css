@@ -386,9 +386,19 @@ h3 {
 .info-grid p {
   display: flex;
   justify-content: space-between;
+  gap: 8px;
   color: #142c72;
   font-size: 11px;
   line-height: 1.7;
+}
+
+.features-list p {
+  align-items: center;
+}
+
+.features-list strong {
+  min-width: 18px;
+  text-align: right;
 }
 
 mark {
