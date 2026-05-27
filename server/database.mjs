@@ -1,6 +1,7 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { Pool } from "pg";
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const todayDayIndex = (new Date().getDay() + 6) % 7;
@@ -151,6 +152,10 @@ function parseAreaName(areasField) {
 function parseOpeningTimes(openingTimesField) {
   if (!openingTimesField) return [];
 
+  if (Array.isArray(openingTimesField)) {
+    return openingTimesField;
+  }
+
   try {
     const parsed = JSON.parse(openingTimesField);
     return Array.isArray(parsed) ? parsed : [];
@@ -209,8 +214,18 @@ function mapRecordToToilet(record) {
   };
 }
 
+function toBoolean(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalised = value.trim().toLowerCase();
+    return normalised === "1" || normalised === "true" || normalised === "t";
+  }
+  return false;
+}
+
 function mapRowToToilet(row) {
-  const openingTimes = row.opening_times ? parseOpeningTimes(row.opening_times) : [];
+  const openingTimes = parseOpeningTimes(row.opening_times);
 
   return {
     id: row.id,
@@ -218,7 +233,7 @@ function mapRowToToilet(row) {
     area: row.area,
     lat: Number(row.lat),
     lng: Number(row.lng),
-    paid: Boolean(row.paid),
+    paid: toBoolean(row.paid),
     comment: row.comment,
     features: {
       women: row.women,
@@ -239,17 +254,27 @@ function resolvePath(rootDirectory, targetPath) {
   return isAbsolute(targetPath) ? targetPath : resolve(rootDirectory, targetPath);
 }
 
-export async function createDatabase({
-  rootDirectory = ".",
-  dbFilePath = process.env.WHERETOI_DB_FILE,
-  seedCsvPath = process.env.WHERETOI_SEED_CSV
-} = {}) {
-  const dbFile =
-    resolvePath(rootDirectory, dbFilePath) ?? resolve(rootDirectory, "data", "wheretoi.sqlite");
-  const csvPath =
-    resolvePath(rootDirectory, seedCsvPath) ?? resolve(rootDirectory, "src", "data", "toilets.csv");
-  await mkdir(dirname(dbFile), { recursive: true });
-  const db = new DatabaseSync(dbFile);
+async function loadSeedToilets(csvPath) {
+  let toilets = [];
+
+  try {
+    const csv = await readFile(csvPath, "utf8");
+    const records = rowsToObjects(parseCsv(csv));
+    toilets = records.map(mapRecordToToilet).filter(Boolean);
+  } catch {
+    toilets = [];
+  }
+
+  if (toilets.length === 0) {
+    toilets = fallbackToilets;
+  }
+
+  return toilets;
+}
+
+async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
+  await mkdir(dirname(dbFilePath), { recursive: true });
+  const db = new DatabaseSync(dbFilePath);
 
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
@@ -292,24 +317,10 @@ export async function createDatabase({
     ON access_history(access_time DESC);
   `);
 
-  const toiletCountRow = db.prepare("SELECT COUNT(*) AS count FROM toilets").get();
-  const toiletCount = Number(toiletCountRow?.count ?? 0);
+  const toiletCount = Number(db.prepare("SELECT COUNT(*) AS count FROM toilets").get()?.count ?? 0);
 
   if (toiletCount === 0) {
-    let toiletsToSeed = [];
-
-    try {
-      const csv = await readFile(csvPath, "utf8");
-      const records = rowsToObjects(parseCsv(csv));
-      toiletsToSeed = records.map(mapRecordToToilet).filter(Boolean);
-    } catch {
-      toiletsToSeed = [];
-    }
-
-    if (toiletsToSeed.length === 0) {
-      toiletsToSeed = fallbackToilets;
-    }
-
+    const toiletsToSeed = await loadSeedToilets(seedCsvPath);
     const insertToilet = db.prepare(`
       INSERT INTO toilets (
         id, name, area, lat, lng, paid, comment,
@@ -342,8 +353,7 @@ export async function createDatabase({
     }
   }
 
-  const accountCountRow = db.prepare("SELECT COUNT(*) AS count FROM app_account").get();
-  const accountCount = Number(accountCountRow?.count ?? 0);
+  const accountCount = Number(db.prepare("SELECT COUNT(*) AS count FROM app_account").get()?.count ?? 0);
 
   if (accountCount === 0) {
     db.prepare(
@@ -359,8 +369,7 @@ export async function createDatabase({
     ).run(8.4, "Campus Plus", "2026-06-26", 3);
   }
 
-  const historyCountRow = db.prepare("SELECT COUNT(*) AS count FROM access_history").get();
-  const historyCount = Number(historyCountRow?.count ?? 0);
+  const historyCount = Number(db.prepare("SELECT COUNT(*) AS count FROM access_history").get()?.count ?? 0);
 
   if (historyCount === 0) {
     const insertHistory = db.prepare(`
@@ -377,8 +386,8 @@ export async function createDatabase({
   }
 
   return {
-    db,
-    getToilets({ search = "", accessibleOnly = false } = {}) {
+    backend: "sqlite",
+    async getToilets({ search = "", accessibleOnly = false } = {}) {
       const rows = db
         .prepare(
           `
@@ -414,7 +423,7 @@ export async function createDatabase({
           );
         });
     },
-    getAccount() {
+    async getAccount() {
       const row = db
         .prepare(
           `
@@ -436,7 +445,7 @@ export async function createDatabase({
         monthlyFreeTicketsLeft: Number(row.monthly_free_tickets_left)
       };
     },
-    getAccessHistory(limit = 10) {
+    async getAccessHistory(limit = 10) {
       const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.floor(limit), 1), 50) : 10;
       const rows = db
         .prepare(
@@ -464,7 +473,7 @@ export async function createDatabase({
         accessTime: row.access_time
       }));
     },
-    recordAccess({ toiletId = null, toiletName, eventType, amountGbp = 0, useFreeTicket = false }) {
+    async recordAccess({ toiletId = null, toiletName, eventType, amountGbp = 0, useFreeTicket = false }) {
       const safeToiletName = normaliseText(toiletName);
       const safeEventType = normaliseText(eventType);
       const safeAmount = Number(amountGbp);
@@ -515,9 +524,315 @@ export async function createDatabase({
       }
 
       return {
-        account: this.getAccount(),
-        history: this.getAccessHistory(10)
+        account: await this.getAccount(),
+        history: await this.getAccessHistory(10)
       };
     }
   };
+}
+
+async function createPostgresDatabase({ connectionString, seedCsvPath }) {
+  const pool = new Pool({ connectionString });
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS toilets (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      area TEXT NOT NULL,
+      lat DOUBLE PRECISION NOT NULL,
+      lng DOUBLE PRECISION NOT NULL,
+      paid BOOLEAN NOT NULL DEFAULT FALSE,
+      comment TEXT NOT NULL,
+      women TEXT NOT NULL DEFAULT '?',
+      men TEXT NOT NULL DEFAULT '?',
+      accessible TEXT NOT NULL DEFAULT '?',
+      neutral TEXT NOT NULL DEFAULT '?',
+      opening_times JSONB NOT NULL DEFAULT '[]'::jsonb
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_account (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      wallet_balance_gbp DOUBLE PRECISION NOT NULL,
+      subscription_name TEXT NOT NULL,
+      subscription_renews_on TEXT NOT NULL,
+      monthly_free_tickets_left INTEGER NOT NULL
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS access_history (
+      id BIGSERIAL PRIMARY KEY,
+      toilet_id TEXT REFERENCES toilets(id) ON DELETE SET NULL,
+      toilet_name TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      amount_gbp DOUBLE PRECISION NOT NULL,
+      access_time TEXT NOT NULL
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_access_history_access_time
+    ON access_history(access_time DESC);
+  `);
+
+  const toiletCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM toilets")).rows[0]?.count ?? 0);
+
+  if (toiletCount === 0) {
+    const toiletsToSeed = await loadSeedToilets(seedCsvPath);
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+      for (const toilet of toiletsToSeed) {
+        await client.query(
+          `
+          INSERT INTO toilets (
+            id, name, area, lat, lng, paid, comment,
+            women, men, accessible, neutral, opening_times
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          `,
+          [
+            toilet.id,
+            toilet.name,
+            toilet.area,
+            toilet.lat,
+            toilet.lng,
+            Boolean(toilet.paid),
+            toilet.comment,
+            toilet.features.women,
+            toilet.features.men,
+            toilet.features.accessible,
+            toilet.features.neutral,
+            toilet.openingTimes ?? []
+          ]
+        );
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  const accountCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM app_account")).rows[0]?.count ?? 0);
+
+  if (accountCount === 0) {
+    await pool.query(
+      `
+      INSERT INTO app_account (
+        id,
+        wallet_balance_gbp,
+        subscription_name,
+        subscription_renews_on,
+        monthly_free_tickets_left
+      ) VALUES (1, $1, $2, $3, $4)
+      `,
+      [8.4, "Campus Plus", "2026-06-26", 3]
+    );
+  }
+
+  const historyCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM access_history")).rows[0]?.count ?? 0);
+
+  if (historyCount === 0) {
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+    await pool.query(
+      `
+      INSERT INTO access_history (toilet_id, toilet_name, event_type, amount_gbp, access_time)
+      VALUES ($1, $2, $3, $4, $5), ($6, $7, $8, $9, $10)
+      `,
+      [
+        null,
+        "South Kensington Station",
+        "QR access",
+        0.5,
+        twoHoursAgo,
+        null,
+        "Imperial Library",
+        "Free access",
+        0,
+        oneDayAgo
+      ]
+    );
+  }
+
+  return {
+    backend: "postgres",
+    async getToilets({ search = "", accessibleOnly = false } = {}) {
+      const query = normaliseText(search).toLowerCase();
+      const params = [];
+      const conditions = [];
+
+      if (accessibleOnly) {
+        params.push("Y");
+        conditions.push(`accessible = $${params.length}`);
+      }
+
+      if (query) {
+        params.push(`%${query}%`);
+        conditions.push(`(LOWER(name) LIKE $${params.length} OR LOWER(area) LIKE $${params.length})`);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+      const result = await pool.query(
+        `
+        SELECT
+          id,
+          name,
+          area,
+          lat,
+          lng,
+          paid,
+          comment,
+          women,
+          men,
+          accessible,
+          neutral,
+          opening_times
+        FROM toilets
+        ${whereClause}
+        `,
+        params
+      );
+
+      return result.rows.map(mapRowToToilet);
+    },
+    async getAccount() {
+      const result = await pool.query(
+        `
+        SELECT
+          wallet_balance_gbp,
+          subscription_name,
+          subscription_renews_on,
+          monthly_free_tickets_left
+        FROM app_account
+        WHERE id = 1
+        `
+      );
+
+      const row = result.rows[0];
+      return {
+        walletBalanceGbp: Number(row.wallet_balance_gbp),
+        subscriptionName: row.subscription_name,
+        subscriptionRenewsOn: row.subscription_renews_on,
+        monthlyFreeTicketsLeft: Number(row.monthly_free_tickets_left)
+      };
+    },
+    async getAccessHistory(limit = 10) {
+      const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.floor(limit), 1), 50) : 10;
+      const result = await pool.query(
+        `
+        SELECT
+          id,
+          toilet_id,
+          toilet_name,
+          event_type,
+          amount_gbp,
+          access_time
+        FROM access_history
+        ORDER BY access_time DESC
+        LIMIT $1
+        `,
+        [safeLimit]
+      );
+
+      return result.rows.map((row) => ({
+        id: Number(row.id),
+        toiletId: row.toilet_id,
+        toiletName: row.toilet_name,
+        eventType: row.event_type,
+        amountGbp: Number(row.amount_gbp),
+        accessTime: row.access_time
+      }));
+    },
+    async recordAccess({ toiletId = null, toiletName, eventType, amountGbp = 0, useFreeTicket = false }) {
+      const safeToiletName = normaliseText(toiletName);
+      const safeEventType = normaliseText(eventType);
+      const safeAmount = Number(amountGbp);
+
+      if (!safeToiletName) {
+        throw new Error("toiletName is required.");
+      }
+
+      if (!safeEventType) {
+        throw new Error("eventType is required.");
+      }
+
+      if (!Number.isFinite(safeAmount) || safeAmount < 0) {
+        throw new Error("amountGbp must be a non-negative number.");
+      }
+
+      const nowIso = new Date().toISOString();
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+        await client.query(
+          `
+          INSERT INTO access_history (toilet_id, toilet_name, event_type, amount_gbp, access_time)
+          VALUES ($1, $2, $3, $4, $5)
+          `,
+          [toiletId, safeToiletName, safeEventType, safeAmount, nowIso]
+        );
+
+        await client.query(
+          `
+          UPDATE app_account
+          SET
+            wallet_balance_gbp = GREATEST(wallet_balance_gbp - $1, 0),
+            monthly_free_tickets_left =
+              CASE
+                WHEN $2 = TRUE THEN GREATEST(monthly_free_tickets_left - 1, 0)
+                ELSE monthly_free_tickets_left
+              END
+          WHERE id = 1
+          `,
+          [safeAmount, Boolean(useFreeTicket)]
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      return {
+        account: await this.getAccount(),
+        history: await this.getAccessHistory(10)
+      };
+    }
+  };
+}
+
+export async function createDatabase({
+  rootDirectory = ".",
+  dbFilePath = process.env.WHERETOI_DB_FILE,
+  seedCsvPath = process.env.WHERETOI_SEED_CSV,
+  databaseUrl = process.env.WHERETOI_DATABASE_URL
+} = {}) {
+  const resolvedSeedCsvPath =
+    resolvePath(rootDirectory, seedCsvPath) ?? resolve(rootDirectory, "src", "data", "toilets.csv");
+
+  if (databaseUrl) {
+    return createPostgresDatabase({
+      connectionString: databaseUrl,
+      seedCsvPath: resolvedSeedCsvPath
+    });
+  }
+
+  const resolvedDbFilePath =
+    resolvePath(rootDirectory, dbFilePath) ?? resolve(rootDirectory, "data", "wheretoi.sqlite");
+
+  return createSqliteDatabase({
+    dbFilePath: resolvedDbFilePath,
+    seedCsvPath: resolvedSeedCsvPath
+  });
 }

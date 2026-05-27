@@ -57,29 +57,31 @@ export async function createAppServer({ rootDirectory = ".", port = 4173 } = {})
           (url.searchParams.get("accessibleOnly") ?? "").toLowerCase()
         );
 
-        const toilets = database.getToilets({ search, accessibleOnly });
+        const toilets = await database.getToilets({ search, accessibleOnly });
         sendJson(response, 200, { toilets });
         return;
       }
 
       if (url.pathname === "/api/account" && request.method === "GET") {
+        const account = await database.getAccount();
+        const history = await database.getAccessHistory(10);
         sendJson(response, 200, {
-          account: database.getAccount(),
-          history: database.getAccessHistory(10)
+          account,
+          history
         });
         return;
       }
 
       if (url.pathname === "/api/access-history" && request.method === "GET") {
         const limit = Number(url.searchParams.get("limit") ?? 10);
-        sendJson(response, 200, { history: database.getAccessHistory(limit) });
+        sendJson(response, 200, { history: await database.getAccessHistory(limit) });
         return;
       }
 
       if (url.pathname === "/api/access-history" && request.method === "POST") {
         const body = await readJsonBody(request);
 
-        const result = database.recordAccess({
+        const result = await database.recordAccess({
           toiletId: typeof body.toiletId === "string" && body.toiletId.trim().length > 0 ? body.toiletId.trim() : null,
           toiletName: body.toiletName,
           eventType: body.eventType,
