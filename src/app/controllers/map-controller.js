@@ -69,6 +69,13 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     updateSelectedMarkerAppearance();
   }
 
+  function setFeatureValue(selector, value) {
+    const element = document.querySelector(selector);
+    if (element) {
+      element.textContent = value ?? "?";
+    }
+  }
+
   function renderUserMarker() {
     if (!map) return;
 
@@ -108,10 +115,17 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     document.querySelector("#toilet-name").textContent = toilet.name;
     document.querySelector("#toilet-area").textContent = toilet.area;
     document.querySelector("#toilet-comment").textContent = toilet.comment;
-    document.querySelector("#feature-women").textContent = toilet.features.women;
-    document.querySelector("#feature-men").textContent = toilet.features.men;
-    document.querySelector("#feature-accessible").textContent = toilet.features.accessible;
-    document.querySelector("#feature-neutral").textContent = toilet.features.neutral;
+    setFeatureValue("#feature-women", toilet.features.women);
+    setFeatureValue("#feature-men", toilet.features.men);
+    setFeatureValue("#feature-accessible", toilet.features.accessible);
+    setFeatureValue("#feature-neutral", toilet.features.neutral);
+    setFeatureValue("#feature-children", toilet.features.children);
+    setFeatureValue("#feature-baby-changing", toilet.features.babyChanging);
+    setFeatureValue("#feature-bidet", toilet.features.bidet);
+    setFeatureValue("#feature-automatic", toilet.features.automatic);
+    setFeatureValue("#feature-urinal-only", toilet.features.urinalOnly);
+    setFeatureValue("#feature-radar-key", toilet.features.radarKey);
+    setFeatureValue("#feature-free", toilet.features.free);
     document.querySelector("#hours-today").textContent = toilet.hours.today;
     document.querySelector("#hours-sat").textContent = toilet.hours.sat;
     document.querySelector("#hours-sun").textContent = toilet.hours.sun;

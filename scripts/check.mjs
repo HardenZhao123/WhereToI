@@ -35,7 +35,16 @@ const css = await readFile("src/styles.css", "utf8");
 const jsFiles = requiredFiles.filter((file) => file.startsWith("src/") && file.endsWith(".js"));
 const js = (await Promise.all(jsFiles.map((file) => readFile(file, "utf8")))).join("\n");
 
-const requiredCopy = ["Map", "Access QR", "Account", "Wallet balance", "Toilet Access Pass", "Directions"];
+const requiredCopy = [
+  "Map",
+  "Access QR",
+  "Account",
+  "Wallet balance",
+  "Toilet Access Pass",
+  "Directions",
+  "Parent &amp; Baby",
+  "Bidet / Washing"
+];
 const missingCopy = requiredCopy.filter((text) => !html.includes(text));
 
 if (missingCopy.length > 0) {
@@ -54,6 +63,10 @@ if (
 
 if (!html.includes("close-details") || !js.includes("closeDetailsButton")) {
   throw new Error("Expected closable toilet details panel.");
+}
+
+if (!html.includes("feature-baby-changing") || !html.includes("feature-bidet") || !js.includes("babyChanging")) {
+  throw new Error("Expected expanded toilet feature details.");
 }
 
 if (!html.includes("activate-pass") || !js.includes("access-history") || !js.includes("activatePass")) {

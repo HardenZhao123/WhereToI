@@ -14,7 +14,19 @@ const fallbackToilets = [
     lng: -0.17687,
     paid: false,
     comment: "Comment: clean today, short queue.",
-    features: { women: "Y", men: "Y", accessible: "N", neutral: "?" },
+    features: {
+      women: "Y",
+      men: "Y",
+      accessible: "N",
+      neutral: "?",
+      children: "?",
+      babyChanging: "N",
+      bidet: "?",
+      automatic: "?",
+      urinalOnly: "N",
+      radarKey: "?",
+      free: "Y"
+    },
     openingTimes: []
   },
   {
@@ -25,7 +37,19 @@ const fallbackToilets = [
     lng: -0.17392,
     paid: true,
     comment: "Comment: QR gate required, usually busy after lectures.",
-    features: { women: "Y", men: "Y", accessible: "Y", neutral: "N" },
+    features: {
+      women: "Y",
+      men: "Y",
+      accessible: "Y",
+      neutral: "N",
+      children: "?",
+      babyChanging: "?",
+      bidet: "Y",
+      automatic: "?",
+      urinalOnly: "N",
+      radarKey: "?",
+      free: "N"
+    },
     openingTimes: []
   },
   {
@@ -36,7 +60,19 @@ const fallbackToilets = [
     lng: -0.17821,
     paid: false,
     comment: "Comment: open late with accessible facilities nearby.",
-    features: { women: "Y", men: "Y", accessible: "Y", neutral: "Y" },
+    features: {
+      women: "Y",
+      men: "Y",
+      accessible: "Y",
+      neutral: "Y",
+      children: "Y",
+      babyChanging: "Y",
+      bidet: "?",
+      automatic: "N",
+      urinalOnly: "N",
+      radarKey: "?",
+      free: "Y"
+    },
     openingTimes: []
   },
   {
@@ -47,7 +83,19 @@ const fallbackToilets = [
     lng: -0.17222,
     paid: false,
     comment: "Comment: free access, closes early on Sundays.",
-    features: { women: "Y", men: "Y", accessible: "Y", neutral: "N" },
+    features: {
+      women: "Y",
+      men: "Y",
+      accessible: "Y",
+      neutral: "N",
+      children: "Y",
+      babyChanging: "Y",
+      bidet: "?",
+      automatic: "N",
+      urinalOnly: "N",
+      radarKey: "?",
+      free: "Y"
+    },
     openingTimes: []
   }
 ];
@@ -133,6 +181,34 @@ function toFeatureFlag(value) {
   return "?";
 }
 
+const extendedFeatureColumns = [
+  { name: "children", definition: "TEXT NOT NULL DEFAULT '?'" },
+  { name: "baby_changing", definition: "TEXT NOT NULL DEFAULT '?'" },
+  { name: "bidet", definition: "TEXT NOT NULL DEFAULT '?'" },
+  { name: "automatic", definition: "TEXT NOT NULL DEFAULT '?'" },
+  { name: "urinal_only", definition: "TEXT NOT NULL DEFAULT '?'" },
+  { name: "radar_key", definition: "TEXT NOT NULL DEFAULT '?'" },
+  { name: "free_access", definition: "TEXT NOT NULL DEFAULT '?'" }
+];
+
+function inferBidetOrWashingFlag(record) {
+  const searchableText = normaliseText(
+    `${record.name ?? ""} ${record.notes ?? ""} ${record.payment_details ?? ""}`
+  ).toLowerCase();
+
+  if (!searchableText) return "?";
+
+  if (
+    /\b(bidet|wudu|ablution|shattaf)\b/.test(searchableText) ||
+    searchableText.includes("muslim") ||
+    searchableText.includes("prayer room washroom")
+  ) {
+    return "Y";
+  }
+
+  return "?";
+}
+
 function parseAreaName(areasField) {
   if (!areasField) return "Unknown area";
 
@@ -207,7 +283,14 @@ function mapRecordToToilet(record) {
       women: toFeatureFlag(record.women),
       men: toFeatureFlag(record.men),
       accessible: toFeatureFlag(record.accessible),
-      neutral: toFeatureFlag(record.all_gender)
+      neutral: toFeatureFlag(record.all_gender),
+      children: toFeatureFlag(record.children),
+      babyChanging: toFeatureFlag(record.baby_change),
+      bidet: inferBidetOrWashingFlag(record),
+      automatic: toFeatureFlag(record.automatic),
+      urinalOnly: toFeatureFlag(record.urinal_only),
+      radarKey: toFeatureFlag(record.radar),
+      free: toFeatureFlag(record.no_payment)
     },
     openingTimes
   };
@@ -238,7 +321,14 @@ function mapRowToToilet(row) {
       women: row.women,
       men: row.men,
       accessible: row.accessible,
-      neutral: row.neutral
+      neutral: row.neutral,
+      children: row.children,
+      babyChanging: row.baby_changing,
+      bidet: row.bidet,
+      automatic: row.automatic,
+      urinalOnly: row.urinal_only,
+      radarKey: row.radar_key,
+      free: row.free_access
     },
     hours: {
       today: formatDayHours(openingTimes, todayDayIndex),
@@ -271,6 +361,108 @@ async function loadSeedToilets(csvPath) {
   return toilets;
 }
 
+function getFeatureColumnValues(toilet) {
+  return [
+    toilet.features.children,
+    toilet.features.babyChanging,
+    toilet.features.bidet,
+    toilet.features.automatic,
+    toilet.features.urinalOnly,
+    toilet.features.radarKey,
+    toilet.features.free
+  ];
+}
+
+function ensureSqliteFeatureColumns(db) {
+  const existingColumns = new Set(
+    db.prepare("PRAGMA table_info(toilets)").all().map((column) => column.name)
+  );
+  const missingColumns = extendedFeatureColumns.filter((column) => !existingColumns.has(column.name));
+
+  for (const column of missingColumns) {
+    db.exec(`ALTER TABLE toilets ADD COLUMN ${column.name} ${column.definition};`);
+  }
+
+  return missingColumns;
+}
+
+async function backfillSqliteFeatureColumns(db, seedCsvPath) {
+  const toiletsToSeed = await loadSeedToilets(seedCsvPath);
+  const updateToilet = db.prepare(`
+    UPDATE toilets
+    SET
+      children = ?,
+      baby_changing = ?,
+      bidet = ?,
+      automatic = ?,
+      urinal_only = ?,
+      radar_key = ?,
+      free_access = ?
+    WHERE id = ?
+  `);
+
+  db.exec("BEGIN;");
+  try {
+    for (const toilet of toiletsToSeed) {
+      updateToilet.run(...getFeatureColumnValues(toilet), toilet.id);
+    }
+    db.exec("COMMIT;");
+  } catch (error) {
+    db.exec("ROLLBACK;");
+    throw error;
+  }
+}
+
+async function ensurePostgresFeatureColumns(pool) {
+  const result = await pool.query(
+    `
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_name = 'toilets'
+    `
+  );
+  const existingColumns = new Set(result.rows.map((row) => row.column_name));
+  const missingColumns = extendedFeatureColumns.filter((column) => !existingColumns.has(column.name));
+
+  for (const column of extendedFeatureColumns) {
+    await pool.query(`ALTER TABLE toilets ADD COLUMN IF NOT EXISTS ${column.name} ${column.definition}`);
+  }
+
+  return missingColumns;
+}
+
+async function backfillPostgresFeatureColumns(pool, seedCsvPath) {
+  const toiletsToSeed = await loadSeedToilets(seedCsvPath);
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    for (const toilet of toiletsToSeed) {
+      await client.query(
+        `
+        UPDATE toilets
+        SET
+          children = $1,
+          baby_changing = $2,
+          bidet = $3,
+          automatic = $4,
+          urinal_only = $5,
+          radar_key = $6,
+          free_access = $7
+        WHERE id = $8
+        `,
+        [...getFeatureColumnValues(toilet), toilet.id]
+      );
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
   await mkdir(dirname(dbFilePath), { recursive: true });
   const db = new DatabaseSync(dbFilePath);
@@ -291,6 +483,13 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
       men TEXT NOT NULL DEFAULT '?',
       accessible TEXT NOT NULL DEFAULT '?',
       neutral TEXT NOT NULL DEFAULT '?',
+      children TEXT NOT NULL DEFAULT '?',
+      baby_changing TEXT NOT NULL DEFAULT '?',
+      bidet TEXT NOT NULL DEFAULT '?',
+      automatic TEXT NOT NULL DEFAULT '?',
+      urinal_only TEXT NOT NULL DEFAULT '?',
+      radar_key TEXT NOT NULL DEFAULT '?',
+      free_access TEXT NOT NULL DEFAULT '?',
       opening_times TEXT NOT NULL DEFAULT '[]',
       cleanliness INTEGER DEFAULT 7
     ) STRICT;
@@ -317,6 +516,11 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
     ON access_history(access_time DESC);
   `);
 
+  const missingFeatureColumns = ensureSqliteFeatureColumns(db);
+  if (missingFeatureColumns.length > 0) {
+    await backfillSqliteFeatureColumns(db, seedCsvPath);
+  }
+
   const toiletCount = Number(db.prepare("SELECT COUNT(*) AS count FROM toilets").get()?.count ?? 0);
 
   if (toiletCount === 0) {
@@ -324,8 +528,9 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
     const insertToilet = db.prepare(`
       INSERT INTO toilets (
         id, name, area, lat, lng, paid, comment,
-        women, men, accessible, neutral, opening_times
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        women, men, accessible, neutral, children, baby_changing, bidet,
+        automatic, urinal_only, radar_key, free_access, opening_times
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     db.exec("BEGIN;");
@@ -343,6 +548,13 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
           toilet.features.men,
           toilet.features.accessible,
           toilet.features.neutral,
+          toilet.features.children,
+          toilet.features.babyChanging,
+          toilet.features.bidet,
+          toilet.features.automatic,
+          toilet.features.urinalOnly,
+          toilet.features.radarKey,
+          toilet.features.free,
           JSON.stringify(toilet.openingTimes ?? [])
         );
       }
@@ -403,6 +615,13 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
             men,
             accessible,
             neutral,
+            children,
+            baby_changing,
+            bidet,
+            automatic,
+            urinal_only,
+            radar_key,
+            free_access,
             opening_times
           FROM toilets
           `
@@ -556,9 +775,21 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
       men TEXT NOT NULL DEFAULT '?',
       accessible TEXT NOT NULL DEFAULT '?',
       neutral TEXT NOT NULL DEFAULT '?',
+      children TEXT NOT NULL DEFAULT '?',
+      baby_changing TEXT NOT NULL DEFAULT '?',
+      bidet TEXT NOT NULL DEFAULT '?',
+      automatic TEXT NOT NULL DEFAULT '?',
+      urinal_only TEXT NOT NULL DEFAULT '?',
+      radar_key TEXT NOT NULL DEFAULT '?',
+      free_access TEXT NOT NULL DEFAULT '?',
       opening_times JSONB NOT NULL DEFAULT '[]'::jsonb
     );
   `);
+
+  const missingFeatureColumns = await ensurePostgresFeatureColumns(pool);
+  if (missingFeatureColumns.length > 0) {
+    await backfillPostgresFeatureColumns(pool, seedCsvPath);
+  }
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS app_account (
@@ -599,8 +830,9 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
           `
           INSERT INTO toilets (
             id, name, area, lat, lng, paid, comment,
-            women, men, accessible, neutral, opening_times
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            women, men, accessible, neutral, children, baby_changing, bidet,
+            automatic, urinal_only, radar_key, free_access, opening_times
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
           `,
           [
             toilet.id,
@@ -614,6 +846,13 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
             toilet.features.men,
             toilet.features.accessible,
             toilet.features.neutral,
+            toilet.features.children,
+            toilet.features.babyChanging,
+            toilet.features.bidet,
+            toilet.features.automatic,
+            toilet.features.urinalOnly,
+            toilet.features.radarKey,
+            toilet.features.free,
             JSON.stringify(toilet.openingTimes ?? [])
           ]
         );
@@ -704,6 +943,13 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
           men,
           accessible,
           neutral,
+          children,
+          baby_changing,
+          bidet,
+          automatic,
+          urinal_only,
+          radar_key,
+          free_access,
           opening_times
         FROM toilets
         ${whereClause}
