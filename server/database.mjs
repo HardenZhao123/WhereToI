@@ -1,7 +1,6 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { Pool } from "pg";
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const todayDayIndex = (new Date().getDay() + 6) % 7;
@@ -532,6 +531,15 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
 }
 
 async function createPostgresDatabase({ connectionString, seedCsvPath }) {
+  let Pool;
+  try {
+    ({ Pool } = await import("pg"));
+  } catch {
+    throw new Error(
+      "PostgreSQL mode requires the 'pg' package. Run 'npm install' and try again."
+    );
+  }
+
   const pool = new Pool({ connectionString });
 
   await pool.query(`
