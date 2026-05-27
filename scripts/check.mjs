@@ -43,7 +43,11 @@ const requiredCopy = [
   "Toilet Access Pass",
   "Directions",
   "Parent &amp; Baby",
-  "Bidet / Washing"
+  "Bidet / Washing",
+  "Needs",
+  "Nearest",
+  "Cleanest",
+  "Most facilities"
 ];
 const missingCopy = requiredCopy.filter((text) => !html.includes(text));
 
@@ -67,6 +71,10 @@ if (!html.includes("close-details") || !js.includes("closeDetailsButton")) {
 
 if (!html.includes("feature-baby-changing") || !html.includes("feature-bidet") || !js.includes("babyChanging")) {
   throw new Error("Expected expanded toilet feature details.");
+}
+
+if (!html.includes("feature-filters") || !html.includes("toilet-results") || !js.includes("setFeatureFilter")) {
+  throw new Error("Expected multi-select toilet filtering and result list interaction.");
 }
 
 if (!html.includes("activate-pass") || !js.includes("access-history") || !js.includes("activatePass")) {

@@ -61,6 +61,12 @@ function inferBidetOrWashingFlag(record) {
   return "?";
 }
 
+function parseCleanlinessScore(value) {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return 7;
+  return Math.min(Math.max(score, 0), 10);
+}
+
 export function mapRecordToToilet(record) {
   if (record.active !== "true") return null;
 
@@ -103,6 +109,6 @@ export function mapRecordToToilet(record) {
       sat: formatDayHours(openingTimes, 5),
       sun: formatDayHours(openingTimes, 6)
     },
-    cleanliness: Number(record.cleanliness) ?? 7
+    cleanliness: parseCleanlinessScore(record.cleanliness)
   };
 }
