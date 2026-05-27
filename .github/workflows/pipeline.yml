@@ -1,38 +1,56 @@
-name: CI/CD
+name: Web CI/CD
 
-# Trigger the workflow on pushes or pull requests to the main branch
 on:
   push:
-    branches: [ "main" ]
+    branches: ["**"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["**"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
-    name: Build and Test
-    # This is crucial: iOS apps MUST be built on a macOS environment
-    runs-on: macos-latest 
+    name: Build static web app
+    runs-on: ubuntu-latest
 
     steps:
-      # 1. Grab your code from GitHub
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Force the runner to use the latest stable Xcode version
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-      # 3. Resolve dependencies (Uncomment if you use CocoaPods)
-      # - name: Install CocoaPods
-      #   run: pod install
+      - name: Check app
+        run: npm run check
 
-      # 4. Build the app for the iOS Simulator
-      - name: Build App
-        run: |
-          xcodebuild clean build \
-            -project WhereToIApp/WhereToIApp.xcodeproj \
-            -scheme WhereToIApp \
-            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+      - name: Build app
+        run: npm run build
+
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

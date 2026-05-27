@@ -31,3 +31,8 @@ DerivedData/
 *.swp
 *.lock
 .DS_Store
+.idea/
+
+# Web
+node_modules/
+dist/
