@@ -117,6 +117,13 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     document.querySelector("#hours-sun").textContent = toilet.hours.sun;
     document.querySelector("#distance-line").textContent = formatDistance(userLocation, toilet);
 
+    const cleanlinessBar = document.querySelector("#cleanliness-bar");
+    if (cleanlinessBar) {
+      const rating = Number(toilet.cleanliness ?? 3);
+      const percent = Math.min(Math.max((rating / 5) * 100, 0), 100);
+      cleanlinessBar.style.width = `${percent}%`;
+    }
+
     const marker = markerById.get(toilet.id);
     if (marker && map) {
       map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 16), { duration: 0.45 });
