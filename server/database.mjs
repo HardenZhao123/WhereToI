@@ -460,6 +460,8 @@ function ensureSqliteCleanlinessColumns(db) {
   for (const column of missingColumns) {
     db.exec(`ALTER TABLE toilets ADD COLUMN ${column.name} ${column.definition};`);
   }
+
+  db.exec("UPDATE toilets SET cleanliness = 3 WHERE cleanliness < 1 OR cleanliness > 5;");
 }
 
 async function backfillSqliteFeatureColumns(db, seedCsvPath) {
@@ -511,6 +513,8 @@ async function ensurePostgresCleanlinessColumns(pool) {
   for (const column of extendedCleanlinessColumns) {
     await pool.query(`ALTER TABLE toilets ADD COLUMN IF NOT EXISTS ${column.name} ${column.definition}`);
   }
+
+  await pool.query("UPDATE toilets SET cleanliness = 3 WHERE cleanliness < 1 OR cleanliness > 5");
 }
 
 async function backfillPostgresFeatureColumns(pool, seedCsvPath) {

@@ -14,7 +14,11 @@ export function createApp() {
     accountController?.updateTicketToilet(toilet);
   });
 
-  accountController = createAccountController(elements, () => mapController.getSelectedToilet());
+  accountController = createAccountController(
+    elements,
+    () => mapController.getSelectedToilet(),
+    (toiletUpdate) => mapController.updateToiletCleanliness(toiletUpdate)
+  );
 
   const tabController = createTabController({
     tabs: elements.tabs,

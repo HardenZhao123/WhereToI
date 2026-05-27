@@ -15,7 +15,10 @@ const types = {
 };
 
 function sendJson(response, statusCode, payload) {
-  response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+  response.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
   response.end(JSON.stringify(payload));
 }
 
@@ -119,7 +122,8 @@ export async function createAppServer({ rootDirectory = ".", port = 4173 } = {})
       const file = fileStat.isDirectory() ? join(candidate, "index.html") : candidate;
 
       response.writeHead(200, {
-        "Content-Type": types[extname(file)] ?? "application/octet-stream"
+        "Content-Type": types[extname(file)] ?? "application/octet-stream",
+        "Cache-Control": "no-store"
       });
       createReadStream(file).pipe(response);
     } catch (error) {
