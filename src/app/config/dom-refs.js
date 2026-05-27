@@ -1,0 +1,24 @@
+export function getDomRefs() {
+  return {
+    tabs: document.querySelectorAll(".tab"),
+    views: document.querySelectorAll(".view"),
+    title: document.querySelector("#view-title"),
+    statusText: document.querySelector("#map-status"),
+    searchInput: document.querySelector("#location-search"),
+    directionsButton: document.querySelector("#directions-button"),
+    detailsCard: document.querySelector("#details-card"),
+    mapPanel: document.querySelector("#map-panel"),
+    mapElement: document.querySelector("#map"),
+    closeDetailsButton: document.querySelector("#close-details"),
+    locateButtons: [document.querySelector("#locate-button"), document.querySelector("#find-near-me")],
+    filterAccessibleButton: document.querySelector("#filter-accessible"),
+    resetMapButton: document.querySelector("#reset-map"),
+    activatePassButton: document.querySelector("#activate-pass"),
+    activationStatus: document.querySelector("#activation-status"),
+    walletBalance: document.querySelector("#wallet-balance"),
+    subscriptionPlan: document.querySelector("#subscription-plan"),
+    monthlyTicketsLeft: document.querySelector("#monthly-tickets-left"),
+    accessHistoryList: document.querySelector("#access-history-list"),
+    ticketToiletName: document.querySelector("#ticket-toilet-name")
+  };
+}
