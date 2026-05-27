@@ -14,12 +14,11 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./src/styles.css?v=stable-map-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=fullscreen-layout-3" />
   </head>
   <body>
     <main class="app-shell" aria-label="WHERE Toi web app">
-      <section class="phone" aria-label="Mobile app preview">
-        <div class="status-bar" aria-hidden="true"></div>
+      <section class="phone" aria-label="App layout">
         <div class="screen">
           <header class="topbar">
             <div>
@@ -82,7 +81,7 @@
             <h2>Use at partner paid toilets</h2>
             <article class="ticket">
               <p>Toilet Access Pass</p>
-              <h3>South Kensington Station Toilet</h3>
+              <h3 id="ticket-toilet-name">South Kensington Station Toilet</h3>
               <div class="qr-code" aria-label="QR code access ticket">
                 <span></span><span></span><span></span><span></span><span></span>
                 <span></span><span></span><span></span><span></span><span></span>
@@ -94,9 +93,10 @@
               <small>Expires in 14:59 after activation</small>
             </article>
             <div class="action-row">
-              <button class="solid-button" type="button">Activate</button>
+              <button class="solid-button" id="activate-pass" type="button">Activate</button>
               <button class="outline-button" type="button">Details</button>
             </div>
+            <p class="activation-status" id="activation-status" aria-live="polite">Ready to activate access pass.</p>
           </section>
 
           <section class="view view-account" id="account-panel" aria-labelledby="account-tab">
@@ -104,23 +104,25 @@
             <h2>Wallet, history and subscription</h2>
             <article class="wallet-card">
               <span>Wallet balance</span>
-              <strong>GBP 8.40</strong>
+              <strong id="wallet-balance">GBP 8.40</strong>
               <button type="button">Top up</button>
             </article>
             <article class="account-card">
               <h3>Subscription</h3>
-              <p>Campus Plus - renews 26 Jun</p>
-              <p>Monthly free toilet access tickets: <strong>3 left</strong></p>
+              <p id="subscription-plan">Campus Plus - renews 26 Jun</p>
+              <p>Monthly free toilet access tickets: <strong id="monthly-tickets-left">3 left</strong></p>
             </article>
             <article class="account-card history-card">
               <h3>Toilet access history</h3>
-              <div>
-                <strong>South Kensington Station</strong>
-                <p>Today 14:22 - QR access - GBP 0.50</p>
-              </div>
-              <div>
-                <strong>Imperial Library</strong>
-                <p>Yesterday 18:05 - free access</p>
+              <div id="access-history-list" aria-live="polite">
+                <div>
+                  <strong>South Kensington Station</strong>
+                  <p>Today 14:22 - QR access - GBP 0.50</p>
+                </div>
+                <div>
+                  <strong>Imperial Library</strong>
+                  <p>Yesterday 18:05 - free access</p>
+                </div>
               </div>
             </article>
             <article class="privacy-note">

@@ -5,7 +5,10 @@ const requiredFiles = [
   "index.html",
   "src/main.js",
   "src/styles.css",
-  "scripts/build.mjs"
+  "scripts/build.mjs",
+  "server/app-server.mjs",
+  "server/database.mjs",
+  "render.yaml"
 ];
 
 await Promise.all(requiredFiles.map((file) => access(resolve(file))));
@@ -33,6 +36,10 @@ if (
 
 if (!html.includes("close-details") || !js.includes("closeDetailsButton")) {
   throw new Error("Expected closable toilet details panel.");
+}
+
+if (!html.includes("activate-pass") || !js.includes("access-history") || !js.includes("activatePass")) {
+  throw new Error("Expected QR pass activation to persist via API/database.");
 }
 
 if (!css.includes("@media") || !js.includes("setTab")) {
