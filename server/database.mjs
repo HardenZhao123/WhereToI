@@ -4,6 +4,15 @@ import { DatabaseSync } from "node:sqlite";
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const todayDayIndex = (new Date().getDay() + 6) % 7;
+const defaultCleanliness = 3;
+const minCleanliness = 0;
+const maxCleanliness = 5;
+
+function normaliseCleanliness(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return defaultCleanliness;
+  return Math.min(Math.max(parsed, minCleanliness), maxCleanliness);
+}
 
 const fallbackToilets = [
   {
@@ -27,7 +36,8 @@ const fallbackToilets = [
       radarKey: "?",
       free: "Y"
     },
-    openingTimes: []
+    openingTimes: [],
+    cleanliness: defaultCleanliness
   },
   {
     id: "station",
@@ -50,7 +60,8 @@ const fallbackToilets = [
       radarKey: "?",
       free: "N"
     },
-    openingTimes: []
+    openingTimes: [],
+    cleanliness: defaultCleanliness
   },
   {
     id: "library",
@@ -73,7 +84,8 @@ const fallbackToilets = [
       radarKey: "?",
       free: "Y"
     },
-    openingTimes: []
+    openingTimes: [],
+    cleanliness: defaultCleanliness
   },
   {
     id: "museum",
@@ -96,7 +108,8 @@ const fallbackToilets = [
       radarKey: "?",
       free: "Y"
     },
-    openingTimes: []
+    openingTimes: [],
+    cleanliness: defaultCleanliness
   }
 ];
 
@@ -292,7 +305,8 @@ function mapRecordToToilet(record) {
       radarKey: toFeatureFlag(record.radar),
       free: toFeatureFlag(record.no_payment)
     },
-    openingTimes
+    openingTimes,
+    cleanliness: normaliseCleanliness(record.cleanliness)
   };
 }
 
@@ -334,7 +348,8 @@ function mapRowToToilet(row) {
       today: formatDayHours(openingTimes, todayDayIndex),
       sat: formatDayHours(openingTimes, 5),
       sun: formatDayHours(openingTimes, 6)
-    }
+    },
+    cleanliness: normaliseCleanliness(row.cleanliness)
   };
 }
 
@@ -386,6 +401,18 @@ function ensureSqliteFeatureColumns(db) {
   return missingColumns;
 }
 
+function ensureSqliteCleanlinessColumn(db) {
+  const existingColumns = new Set(
+    db.prepare("PRAGMA table_info(toilets)").all().map((column) => column.name)
+  );
+
+  if (!existingColumns.has("cleanliness")) {
+    db.exec(`ALTER TABLE toilets ADD COLUMN cleanliness INTEGER DEFAULT ${defaultCleanliness};`);
+  }
+
+  db.exec(`UPDATE toilets SET cleanliness = ${defaultCleanliness} WHERE cleanliness IS NULL;`);
+}
+
 async function backfillSqliteFeatureColumns(db, seedCsvPath) {
   const toiletsToSeed = await loadSeedToilets(seedCsvPath);
   const updateToilet = db.prepare(`
@@ -429,6 +456,12 @@ async function ensurePostgresFeatureColumns(pool) {
   }
 
   return missingColumns;
+}
+
+async function ensurePostgresCleanlinessColumn(pool) {
+  await pool.query(`ALTER TABLE toilets ADD COLUMN IF NOT EXISTS cleanliness INTEGER DEFAULT ${defaultCleanliness};`);
+  await pool.query(`ALTER TABLE toilets ALTER COLUMN cleanliness SET DEFAULT ${defaultCleanliness};`);
+  await pool.query(`UPDATE toilets SET cleanliness = ${defaultCleanliness} WHERE cleanliness IS NULL;`);
 }
 
 async function backfillPostgresFeatureColumns(pool, seedCsvPath) {
@@ -491,7 +524,7 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
       radar_key TEXT NOT NULL DEFAULT '?',
       free_access TEXT NOT NULL DEFAULT '?',
       opening_times TEXT NOT NULL DEFAULT '[]',
-      cleanliness INTEGER DEFAULT 7
+      cleanliness INTEGER DEFAULT ${defaultCleanliness}
     ) STRICT;
 
     CREATE TABLE IF NOT EXISTS app_account (
@@ -517,6 +550,7 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
   `);
 
   const missingFeatureColumns = ensureSqliteFeatureColumns(db);
+  ensureSqliteCleanlinessColumn(db);
   if (missingFeatureColumns.length > 0) {
     await backfillSqliteFeatureColumns(db, seedCsvPath);
   }
@@ -529,8 +563,8 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
       INSERT INTO toilets (
         id, name, area, lat, lng, paid, comment,
         women, men, accessible, neutral, children, baby_changing, bidet,
-        automatic, urinal_only, radar_key, free_access, opening_times
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        automatic, urinal_only, radar_key, free_access, cleanliness, opening_times
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     db.exec("BEGIN;");
@@ -555,6 +589,7 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
           toilet.features.urinalOnly,
           toilet.features.radarKey,
           toilet.features.free,
+          toilet.cleanliness,
           JSON.stringify(toilet.openingTimes ?? [])
         );
       }
@@ -622,6 +657,7 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
             urinal_only,
             radar_key,
             free_access,
+            cleanliness,
             opening_times
           FROM toilets
           `
@@ -785,12 +821,13 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
       urinal_only TEXT NOT NULL DEFAULT '?',
       radar_key TEXT NOT NULL DEFAULT '?',
       free_access TEXT NOT NULL DEFAULT '?',
-      cleanliness INTEGER DEFAULT 7,
+      cleanliness INTEGER DEFAULT ${defaultCleanliness},
       opening_times JSONB NOT NULL DEFAULT '[]'::jsonb
     );
   `);
 
   const missingFeatureColumns = await ensurePostgresFeatureColumns(pool);
+  await ensurePostgresCleanlinessColumn(pool);
   if (missingFeatureColumns.length > 0) {
     await backfillPostgresFeatureColumns(pool, seedCsvPath);
   }
@@ -835,8 +872,8 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
           INSERT INTO toilets (
             id, name, area, lat, lng, paid, comment,
             women, men, accessible, neutral, children, baby_changing, bidet,
-            automatic, urinal_only, radar_key, free_access, opening_times
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            automatic, urinal_only, radar_key, free_access, cleanliness, opening_times
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
           `,
           [
             toilet.id,
@@ -857,6 +894,7 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
             toilet.features.urinalOnly,
             toilet.features.radarKey,
             toilet.features.free,
+            toilet.cleanliness,
             JSON.stringify(toilet.openingTimes ?? [])
           ]
         );
@@ -954,6 +992,7 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
           urinal_only,
           radar_key,
           free_access,
+          cleanliness,
           opening_times
         FROM toilets
         ${whereClause}

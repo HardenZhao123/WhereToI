@@ -133,7 +133,8 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
     const cleanlinessBar = document.querySelector("#cleanliness-bar");
     if (cleanlinessBar) {
-      const rating = Number(toilet.cleanliness ?? 3);
+      const parsedRating = Number(toilet.cleanliness);
+      const rating = Number.isFinite(parsedRating) ? parsedRating : 3;
       const percent = Math.min(Math.max((rating / 5) * 100, 0), 100);
       cleanlinessBar.style.width = `${percent}%`;
     }
