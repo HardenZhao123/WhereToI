@@ -77,6 +77,7 @@ export function mapRecordToToilet(record) {
       today: formatDayHours(openingTimes, appConfig.todayDayIndex),
       sat: formatDayHours(openingTimes, 5),
       sun: formatDayHours(openingTimes, 6)
-    }
+    },
+    cleanliness: Number(record.cleanliness) ?? 7
   };
 }

@@ -291,7 +291,8 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
       men TEXT NOT NULL DEFAULT '?',
       accessible TEXT NOT NULL DEFAULT '?',
       neutral TEXT NOT NULL DEFAULT '?',
-      opening_times TEXT NOT NULL DEFAULT '[]'
+      opening_times TEXT NOT NULL DEFAULT '[]',
+      cleanliness INTEGER DEFAULT 7
     ) STRICT;
 
     CREATE TABLE IF NOT EXISTS app_account (
