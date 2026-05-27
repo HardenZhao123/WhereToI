@@ -785,6 +785,7 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
       urinal_only TEXT NOT NULL DEFAULT '?',
       radar_key TEXT NOT NULL DEFAULT '?',
       free_access TEXT NOT NULL DEFAULT '?',
+      cleanliness INTEGER DEFAULT 7,
       opening_times JSONB NOT NULL DEFAULT '[]'::jsonb
     );
   `);
