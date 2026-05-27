@@ -746,6 +746,9 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath }) {
         account: await this.getAccount(),
         history: await this.getAccessHistory(10)
       };
+    },
+    async close() {
+      db.close();
     }
   };
 }
@@ -1063,6 +1066,9 @@ async function createPostgresDatabase({ connectionString, seedCsvPath }) {
         account: await this.getAccount(),
         history: await this.getAccessHistory(10)
       };
+    },
+    async close() {
+      await pool.end();
     }
   };
 }

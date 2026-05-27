@@ -34,6 +34,9 @@ jobs:
       - name: Static checks
         run: npm run check
 
+      - name: Unit and regression tests
+        run: npm test
+
       - name: Build app
         run: npm run build
 
