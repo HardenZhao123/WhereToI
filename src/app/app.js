@@ -73,9 +73,12 @@ export function createApp() {
   }
 
   function bindEvents() {
-    elements.filterAccessibleButton?.addEventListener("click", () => mapController.enableAccessibleOnly());
     elements.resetMapButton?.addEventListener("click", () => mapController.resetFilters());
     elements.searchInput?.addEventListener("input", (event) => mapController.setSearchQuery(event.target.value));
+    elements.sortSelect?.addEventListener("change", (event) => mapController.setSortMode(event.target.value));
+    elements.featureFilterInputs.forEach((input) => {
+      input?.addEventListener("change", () => mapController.setFeatureFilter(input.value, input.checked));
+    });
     elements.closeDetailsButton?.addEventListener("click", () => mapController.hideToiletDetails());
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
     elements.mapSurveyCleanYesButton?.addEventListener("click", () => mapController.answerCleanlinessSurvey("yes"));

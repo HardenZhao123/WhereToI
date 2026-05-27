@@ -13,6 +13,7 @@ const fallbackToilets = [
     lat: 51.49876,
     lng: -0.17687,
     paid: false,
+    cleanliness: 8,
     comment: "Comment: clean today, short queue.",
     features: {
       women: "Y",
@@ -36,6 +37,7 @@ const fallbackToilets = [
     lat: 51.49412,
     lng: -0.17392,
     paid: true,
+    cleanliness: 6,
     comment: "Comment: QR gate required, usually busy after lectures.",
     features: {
       women: "Y",
@@ -59,6 +61,7 @@ const fallbackToilets = [
     lat: 51.49818,
     lng: -0.17821,
     paid: false,
+    cleanliness: 7,
     comment: "Comment: open late with accessible facilities nearby.",
     features: {
       women: "Y",
@@ -82,6 +85,7 @@ const fallbackToilets = [
     lat: 51.49661,
     lng: -0.17222,
     paid: false,
+    cleanliness: 9,
     comment: "Comment: free access, closes early on Sundays.",
     features: {
       women: "Y",
@@ -181,6 +185,12 @@ function toFeatureFlag(value) {
   return "?";
 }
 
+function parseCleanlinessScore(value) {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return 7;
+  return Math.min(Math.max(score, 0), 10);
+}
+
 const extendedFeatureColumns = [
   { name: "children", definition: "TEXT NOT NULL DEFAULT '?'" },
   { name: "baby_changing", definition: "TEXT NOT NULL DEFAULT '?'" },
@@ -188,7 +198,8 @@ const extendedFeatureColumns = [
   { name: "automatic", definition: "TEXT NOT NULL DEFAULT '?'" },
   { name: "urinal_only", definition: "TEXT NOT NULL DEFAULT '?'" },
   { name: "radar_key", definition: "TEXT NOT NULL DEFAULT '?'" },
-  { name: "free_access", definition: "TEXT NOT NULL DEFAULT '?'" }
+  { name: "free_access", definition: "TEXT NOT NULL DEFAULT '?'" },
+  { name: "cleanliness", definition: "INTEGER DEFAULT 7" }
 ];
 
 const extendedCleanlinessColumns = [
@@ -338,6 +349,7 @@ function mapRecordToToilet(record) {
     lat,
     lng,
     paid,
+    cleanliness: parseCleanlinessScore(record.cleanliness),
     comment: `Comment: ${commentBody}`,
     features: {
       women: toFeatureFlag(record.women),
@@ -376,6 +388,7 @@ function mapRowToToilet(row) {
     lat: Number(row.lat),
     lng: Number(row.lng),
     paid: toBoolean(row.paid),
+    cleanliness: parseCleanlinessScore(row.cleanliness),
     comment: row.comment,
     features: {
       women: row.women,
@@ -618,8 +631,8 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlinessScorin
       INSERT INTO toilets (
         id, name, area, lat, lng, paid, comment,
         women, men, accessible, neutral, children, baby_changing, bidet,
-        automatic, urinal_only, radar_key, free_access, opening_times
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        automatic, urinal_only, radar_key, free_access, opening_times, cleanliness
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     db.exec("BEGIN;");
@@ -644,7 +657,8 @@ async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlinessScorin
           toilet.features.urinalOnly,
           toilet.features.radarKey,
           toilet.features.free,
-          JSON.stringify(toilet.openingTimes ?? [])
+          JSON.stringify(toilet.openingTimes ?? []),
+          toilet.cleanliness
         );
       }
       db.exec("COMMIT;");
@@ -986,8 +1000,8 @@ async function createPostgresDatabase({ connectionString, seedCsvPath, cleanline
           INSERT INTO toilets (
             id, name, area, lat, lng, paid, comment,
             women, men, accessible, neutral, children, baby_changing, bidet,
-            automatic, urinal_only, radar_key, free_access, opening_times
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            automatic, urinal_only, radar_key, free_access, opening_times, cleanliness
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
           `,
           [
             toilet.id,
@@ -1008,7 +1022,8 @@ async function createPostgresDatabase({ connectionString, seedCsvPath, cleanline
             toilet.features.urinalOnly,
             toilet.features.radarKey,
             toilet.features.free,
-            JSON.stringify(toilet.openingTimes ?? [])
+            JSON.stringify(toilet.openingTimes ?? []),
+            toilet.cleanliness
           ]
         );
       }

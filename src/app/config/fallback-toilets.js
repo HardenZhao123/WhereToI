@@ -6,6 +6,7 @@ export const fallbackToilets = [
     lat: 51.49876,
     lng: -0.17687,
     paid: false,
+    cleanliness: 8,
     comment: "Comment: clean today, short queue.",
     features: {
       women: "Y",
@@ -29,6 +30,7 @@ export const fallbackToilets = [
     lat: 51.49412,
     lng: -0.17392,
     paid: true,
+    cleanliness: 6,
     comment: "Comment: QR gate required, usually busy after lectures.",
     features: {
       women: "Y",
@@ -52,6 +54,7 @@ export const fallbackToilets = [
     lat: 51.49818,
     lng: -0.17821,
     paid: false,
+    cleanliness: 7,
     comment: "Comment: open late with accessible facilities nearby.",
     features: {
       women: "Y",
@@ -75,6 +78,7 @@ export const fallbackToilets = [
     lat: 51.49661,
     lng: -0.17222,
     paid: false,
+    cleanliness: 9,
     comment: "Comment: free access, closes early on Sundays.",
     features: {
       women: "Y",
