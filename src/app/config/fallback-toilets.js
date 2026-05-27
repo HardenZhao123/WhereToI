@@ -20,8 +20,7 @@ export const fallbackToilets = [
       radarKey: "?",
       free: "Y"
     },
-    hours: { today: "Tue 09:00 - 17:00", sat: "Sat Closed", sun: "Sun Closed" },
-    cleanliness: 3
+    hours: { today: "Tue 09:00 - 17:00", sat: "Sat Closed", sun: "Sun Closed" }
   },
   {
     id: "station",
@@ -44,8 +43,7 @@ export const fallbackToilets = [
       radarKey: "?",
       free: "N"
     },
-    hours: { today: "Tue 06:00 - 23:30", sat: "Sat 07:00 - 23:30", sun: "Sun 08:00 - 22:30" },
-    cleanliness: 3
+    hours: { today: "Tue 06:00 - 23:30", sat: "Sat 07:00 - 23:30", sun: "Sun 08:00 - 22:30" }
   },
   {
     id: "library",
@@ -68,8 +66,7 @@ export const fallbackToilets = [
       radarKey: "?",
       free: "Y"
     },
-    hours: { today: "Tue 08:30 - 23:00", sat: "Sat 10:00 - 20:00", sun: "Sun 10:00 - 20:00" },
-    cleanliness: 3
+    hours: { today: "Tue 08:30 - 23:00", sat: "Sat 10:00 - 20:00", sun: "Sun 10:00 - 20:00" }
   },
   {
     id: "museum",
@@ -92,7 +89,6 @@ export const fallbackToilets = [
       radarKey: "?",
       free: "Y"
     },
-    hours: { today: "Tue 10:00 - 18:00", sat: "Sat 10:00 - 18:00", sun: "Sun 10:00 - 17:00" },
-    cleanliness: 3
+    hours: { today: "Tue 10:00 - 18:00", sat: "Sat 10:00 - 18:00", sun: "Sun 10:00 - 17:00" }
   }
 ];

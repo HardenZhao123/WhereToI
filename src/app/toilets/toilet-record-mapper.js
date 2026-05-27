@@ -1,16 +1,6 @@
 import { appConfig } from "../config/app-config.js";
 import { normaliseText, toFeatureFlag } from "../utils/text.js";
 
-const defaultCleanliness = 3;
-const minCleanliness = 0;
-const maxCleanliness = 5;
-
-function normaliseCleanliness(value) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return defaultCleanliness;
-  return Math.min(Math.max(parsed, minCleanliness), maxCleanliness);
-}
-
 function parseAreaName(areasField) {
   if (!areasField) return "Unknown area";
 
@@ -113,6 +103,6 @@ export function mapRecordToToilet(record) {
       sat: formatDayHours(openingTimes, 5),
       sun: formatDayHours(openingTimes, 6)
     },
-    cleanliness: normaliseCleanliness(record.cleanliness)
+    cleanliness: Number(record.cleanliness) ?? 7
   };
 }

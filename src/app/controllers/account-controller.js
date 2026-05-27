@@ -2,7 +2,7 @@ import { fetchAccountSnapshot, saveAccessRecord } from "../services/account-serv
 import { submitCleanlinessSurvey } from "../services/toilets-service.js";
 import { renderAccessHistory, renderAccount, setActivationStatus } from "../views/account-view.js";
 
-export function createAccountController(elements, getSelectedToilet) {
+export function createAccountController(elements, getSelectedToilet, onCleanlinessUpdated = () => {}) {
   const {
     activatePassButton,
     activationStatus,
@@ -93,11 +93,13 @@ export function createAccountController(elements, getSelectedToilet) {
     }
 
     try {
-      await submitCleanlinessSurvey({
+      const result = await submitCleanlinessSurvey({
         toiletId: pendingSurveyToilet.id,
         toiletName: pendingSurveyToilet.name,
         answer
       });
+
+      onCleanlinessUpdated(result.toilet);
 
       if (surveyStatus) {
         surveyStatus.textContent = "Thanks, your answer has been saved.";
