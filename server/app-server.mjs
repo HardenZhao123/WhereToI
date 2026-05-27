@@ -93,6 +93,19 @@ export async function createAppServer({ rootDirectory = ".", port = 4173 } = {})
         return;
       }
 
+      if (url.pathname === "/api/cleanliness-survey" && request.method === "POST") {
+        const body = await readJsonBody(request);
+
+        const result = await database.recordCleanlinessSurvey({
+          toiletId: typeof body.toiletId === "string" && body.toiletId.trim().length > 0 ? body.toiletId.trim() : null,
+          toiletName: body.toiletName,
+          answer: body.answer
+        });
+
+        sendJson(response, 201, result);
+        return;
+      }
+
       const pathname = normalize(decodeURIComponent(url.pathname)).replace(/^([.][./\\])+/, "");
       const candidate = resolve(join(root, pathname === "/" ? "index.html" : pathname));
 
@@ -121,7 +134,15 @@ export async function createAppServer({ rootDirectory = ".", port = 4173 } = {})
         return;
       }
 
-      if (error instanceof Error && (error.message.includes("required") || error.message.includes("non-negative"))) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("required") ||
+          error.message.includes("non-negative") ||
+          error.message.includes("yes or no") ||
+          error.message.includes("scoringModel") ||
+          error.message.includes("Unsupported") ||
+          error.message.includes("not found"))
+      ) {
         sendJson(response, 400, { error: error.message });
         return;
       }
