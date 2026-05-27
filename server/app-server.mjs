@@ -158,6 +158,8 @@ export async function createAppServer({ rootDirectory = ".", port = 4173 } = {})
           }
           resolveClose();
         });
+      }).then(async () => {
+        await database.close?.();
       });
     }
   };
