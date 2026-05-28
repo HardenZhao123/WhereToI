@@ -136,10 +136,6 @@ h3 {
   font-size: 9px;
 }
 
-.map-canvas .leaflet-control-zoom a {
-  color: var(--ink);
-}
-
 .map-status {
   position: absolute;
   right: 16px;

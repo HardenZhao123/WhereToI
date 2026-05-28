@@ -494,8 +494,6 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       attributionControl: true
     }).setView([appConfig.initialView.lat, appConfig.initialView.lng], appConfig.initialView.zoom);
 
-    window.L.control.zoom({ position: "topright" }).addTo(map);
-
     window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       minZoom: 3,

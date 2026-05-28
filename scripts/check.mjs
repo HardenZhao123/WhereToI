@@ -65,6 +65,10 @@ if (
   throw new Error("Expected interactive map, geolocation, and directions integration.");
 }
 
+if (!js.includes("zoomControl: false") || js.includes("L.control.zoom") || css.includes("leaflet-control-zoom")) {
+  throw new Error("Expected map zoom to use native map gestures without visible +/- controls.");
+}
+
 if (!html.includes("close-details") || !js.includes("closeDetailsButton")) {
   throw new Error("Expected closable toilet details panel.");
 }
