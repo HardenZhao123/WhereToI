@@ -178,8 +178,8 @@ Optional workflow inputs when manually running:
 Workflow file: `.github/workflows/pipeline.yml`
 
 - CI (all push/PR): run static checks, then a dedicated test stage (`npm test` plus local end-to-end smoke), then a build stage.
-- CD (push to `main`): deploy only after the test and build stages pass, then automatically trigger Render backend deployment via deploy hook.
-- Public verification (push to `main`): automatically verify `/api/health` and `/api/account` on the public URL (when configured).
+- CD (push to `main`): GitHub Pages deploys after the build stage; Render deploys the backend automatically after linked-branch checks pass.
+- Public verification: `.github/workflows/verify-render-deploy.yml` waits for the public Render service to report the deployed commit, then verifies `/api/account`.
 
 ## Public deployment (Render free + external PostgreSQL)
 
@@ -188,7 +188,7 @@ This repo includes a `render.yaml` that keeps backend hosting on Render while mo
 ### What is already configured
 
 - `render.yaml` creates a Render web service (`type: web`) with `plan: free`.
-- Render `autoDeployTrigger` is set to `off` so deployment is controlled by GitHub Actions after CI passes.
+- Render `autoDeployTrigger` is set to `checksPass`, so backend deployment starts automatically only after linked GitHub checks pass.
 - Health check path is `/api/health`.
 - Database connection is read from `WHERETOI_DATABASE_URL` (set in Render Dashboard as a secret env var).
 - On startup, the backend auto-creates required tables and seeds initial data if tables are empty.
@@ -204,16 +204,15 @@ This repo includes a `render.yaml` that keeps backend hosting on Render while mo
    - `/api/health` returns `{ "status": "ok" }`
    - App loads and map/account data come from API endpoints.
 
-### GitHub Actions secrets for fully automated CD demo
+### Configuration for fully automated CD demo
 
-Set these repository secrets in GitHub:
-
-- `RENDER_DEPLOY_HOOK_URL`: Render deploy hook URL for the web service.
-- `PUBLIC_APP_URL`: public app base URL (for example `https://wheretoi-webapp.onrender.com`) used for post-deploy verification.
-- `WHERETOI_DATABASE_URL`: should be set in Render service environment (not GitHub Actions).
+- `WHERETOI_DATABASE_URL`: set this in the Render service environment, not GitHub Actions.
+- No GitHub deploy-hook secret is required. Render auto-deploys from `main` after checks pass, using `autoDeployTrigger: checksPass`.
+- The verification workflow uses the public app URL `https://wheretoi-webapp.onrender.com`.
 
 ### Continuous deployment behavior
 
 - Every new commit to `main` runs CI in GitHub Actions.
-- After CI passes, GitHub Actions calls `RENDER_DEPLOY_HOOK_URL` to redeploy the public backend automatically.
+- After CI checks pass, Render automatically redeploys the public backend from the same commit.
+- After the main workflow completes successfully, the verification workflow checks that `/api/health` reports the expected commit and that `/api/account` returns account/history data.
 - Database data persists across Render restarts/redeploys because it lives in the external PostgreSQL service, not Render local filesystem.

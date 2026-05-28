@@ -82,7 +82,10 @@ function parseAccessibleOnly(queryValue) {
 function createApiRouteHandlers(database) {
   return {
     "GET /api/health": async ({ response }) => {
-      sendJson(response, 200, { status: "ok" });
+      sendJson(response, 200, {
+        status: "ok",
+        commit: process.env.RENDER_GIT_COMMIT ?? null
+      });
     },
     "GET /api/toilets": async ({ response, url }) => {
       const search = url.searchParams.get("search") ?? "";

@@ -1,0 +1,46 @@
+name: Verify Render Auto Deploy
+
+on:
+  workflow_run:
+    workflows: ["Web Fullstack CI/CD"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  verify_render:
+    name: Verify public Render deployment
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    env:
+      PUBLIC_APP_URL: https://wheretoi-webapp.onrender.com
+      EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Wait for Render to deploy the checked commit
+        run: |
+          set -euo pipefail
+
+          for i in {1..60}; do
+            payload=$(curl -fsS "$PUBLIC_APP_URL/api/health" || true)
+            echo "Attempt $i health payload: $payload"
+
+            if echo "$payload" | grep -q '"status":"ok"' && echo "$payload" | grep -Fq "\"commit\":\"${EXPECTED_SHA}\""; then
+              echo "Render deployed ${EXPECTED_SHA}"
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "Render did not report expected commit ${EXPECTED_SHA} within the retry window." >&2
+          exit 1
+
+      - name: Verify public end-to-end data endpoint
+        run: |
+          set -euo pipefail
+
+          payload=$(curl -fsS "$PUBLIC_APP_URL/api/account")
+          echo "$payload" | grep -q '"account"' || (echo "Missing account payload" >&2; exit 1)
+          echo "$payload" | grep -q '"history"' || (echo "Missing history payload" >&2; exit 1)
