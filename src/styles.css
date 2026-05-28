@@ -342,20 +342,26 @@ h3 {
   display: inline-flex;
   align-items: center;
   min-height: 28px;
-  padding: 5px 8px;
+  padding: 5px 12px;
   border: 1px solid #d8dfd6;
   border-radius: 999px;
   color: #142c72;
   font-size: 11px;
   line-height: 1.2;
   background: #fbfdf8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.filter-option:has(input:checked) {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: white;
 }
 
 .filter-option input {
-  width: 14px;
-  height: 14px;
-  margin: 0 6px 0 0;
-  accent-color: var(--teal);
+  display: none;
 }
 
 .results-header {
