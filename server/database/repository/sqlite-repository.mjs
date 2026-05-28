@@ -151,6 +151,9 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
 
   return {
     backend: "sqlite",
+    async close() {
+      db.close();
+    },
     async getToilets({ search = "", accessibleOnly = false } = {}) {
       const rows = db
         .prepare(

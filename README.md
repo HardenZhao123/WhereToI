@@ -177,8 +177,8 @@ Optional workflow inputs when manually running:
 
 Workflow file: `.github/workflows/pipeline.yml`
 
-- CI (all push/PR): install dependencies, run static checks, build, and execute a local end-to-end smoke check against real API endpoints.
-- CD (push to `main`): automatically trigger Render backend deployment via deploy hook.
+- CI (all push/PR): run static checks, then a dedicated test stage (`npm test` plus local end-to-end smoke), then a build stage.
+- CD (push to `main`): deploy only after the test and build stages pass, then automatically trigger Render backend deployment via deploy hook.
 - Public verification (push to `main`): automatically verify `/api/health` and `/api/account` on the public URL (when configured).
 
 ## Public deployment (Render free + external PostgreSQL)

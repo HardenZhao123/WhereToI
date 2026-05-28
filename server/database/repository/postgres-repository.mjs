@@ -175,6 +175,9 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
   return {
     backend: "postgres",
+    async close() {
+      await pool.end();
+    },
     async getToilets({ search = "", accessibleOnly = false } = {}) {
       const query = normaliseSearchQuery(search);
       const params = [];
