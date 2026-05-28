@@ -34,8 +34,13 @@
             <div class="map-canvas" id="map" aria-label="Interactive map of nearby toilets"></div>
             <p class="map-status" id="map-status" aria-live="polite">Loading real map...</p>
 
-            <div class="search-card">
-              <label for="location-search">Search</label>
+            <div class="search-card" id="search-card">
+              <div class="search-header-row">
+                <label for="location-search">Search</label>
+                <button id="toggle-search" type="button" aria-label="Collapse search panel">
+                  <span class="chevron" aria-hidden="true"></span>
+                </button>
+              </div>
               <div class="search-row">
                 <span aria-hidden="true"></span>
                 <input id="location-search" type="search" placeholder="Search toilet or area..." autocomplete="off" />

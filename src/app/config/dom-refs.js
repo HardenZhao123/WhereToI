@@ -5,6 +5,8 @@ export function getDomRefs() {
     title: document.querySelector("#view-title"),
     statusText: document.querySelector("#map-status"),
     searchInput: document.querySelector("#location-search"),
+    searchCard: document.querySelector("#search-card"),
+    toggleSearchButton: document.querySelector("#toggle-search"),
     directionsButton: document.querySelector("#directions-button"),
     detailsCard: document.querySelector("#details-card"),
     mapPanel: document.querySelector("#map-panel"),

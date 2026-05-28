@@ -204,19 +204,65 @@ h3 {
   width: calc(100% - 22px);
   max-height: min(66vh, 520px);
   margin-inline: auto;
+  padding: 12px 16px;
   overflow: auto;
   border-radius: 18px;
   background: rgb(255 255 255 / 92%);
   box-shadow: 0 18px 48px rgb(31 42 51 / 10%);
+  transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out;
 }
 
-.search-card {
-  padding: 12px 16px;
+.search-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.search-header-row label {
+  margin-bottom: 0;
+}
+
+#toggle-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: white;
+  color: var(--blue);
+  transition: transform 0.3s ease;
+}
+
+.chevron {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: translateY(2px) rotate(-45deg); /* Up arrow by default (to collapse) */
+  transition: transform 0.3s ease;
+}
+
+.search-card.is-collapsed .chevron {
+  transform: translateY(-2px) rotate(135deg); /* Down arrow (to expand) */
+}
+
+.search-card.is-collapsed .filter-panel,
+.search-card.is-collapsed .quick-actions {
+  display: none;
+}
+
+.search-card.is-collapsed {
+  max-height: none;
+  padding-bottom: 12px;
 }
 
 .search-card label {
   display: block;
-  margin-bottom: 6px;
   color: #142c72;
   font-size: 12px;
 }
