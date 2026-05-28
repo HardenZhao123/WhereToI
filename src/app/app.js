@@ -5,6 +5,7 @@ import { createAccountController } from "./controllers/account-controller.js";
 import { createMapController } from "./controllers/map-controller.js";
 import { createTabController } from "./controllers/tab-controller.js";
 import { loadToiletsFromApi, loadToiletsFromCsv } from "./services/toilets-service.js";
+import { distanceInMetres } from "./utils/geo.js";
 
 export function createApp() {
   const elements = getDomRefs();
@@ -34,8 +35,15 @@ export function createApp() {
     let apiLoadFailed = false;
 
     function setLoadedToilets(toilets) {
-      mapController.setToilets(toilets);
-      accountController?.updateTicketToilet(toilets.find((toilet) => toilet.paid) ?? toilets[0]);
+      const southKen = appConfig.initialView;
+      const sorted = [...toilets].sort((a, b) => {
+        const distA = distanceInMetres(southKen.lat, southKen.lng, a.lat, a.lng);
+        const distB = distanceInMetres(southKen.lat, southKen.lng, b.lat, b.lng);
+        return distA - distB;
+      });
+      const top10 = sorted.slice(0, 10);
+      mapController.setToilets(top10);
+      accountController?.updateTicketToilet(top10.find((toilet) => toilet.paid) ?? top10[0]);
     }
 
     try {
