@@ -41,8 +41,8 @@ export function createApp() {
         const distB = distanceInMetres(southKen.lat, southKen.lng, b.lat, b.lng);
         return distA - distB;
       });
+      mapController.setToilets(sorted);
       const top10 = sorted.slice(0, 10);
-      mapController.setToilets(top10);
       accountController?.updateTicketToilet(top10.find((toilet) => toilet.paid) ?? top10[0]);
     }
 
