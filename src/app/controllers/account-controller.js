@@ -11,6 +11,7 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     monthlyTicketsLeft,
     accessHistoryList,
     ticketToiletName,
+    ticketPrice,
     surveyModal,
     surveyCleanYesButton,
     surveyCleanNoButton,
@@ -172,6 +173,9 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     if (!ticketToiletName || !toilet?.paid) return;
     ticketToilet = toilet;
     ticketToiletName.textContent = `${toilet.name} Toilet`;
+    if (ticketPrice) {
+      ticketPrice.textContent = "GBP 0.50";
+    }
   }
 
   function bindEvents() {

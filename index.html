@@ -34,10 +34,10 @@
             <div class="map-canvas" id="map" aria-label="Interactive map of nearby toilets"></div>
             <p class="map-status" id="map-status" aria-live="polite">Loading real map...</p>
 
-            <div class="search-card" id="search-card">
+            <div class="search-card is-collapsed" id="search-card">
               <div class="search-header-row">
                 <label for="location-search">Search</label>
-                <button id="toggle-search" type="button" aria-label="Collapse search panel">
+                <button id="toggle-search" type="button" aria-label="Expand search panel">
                   <span class="chevron" aria-hidden="true"></span>
                 </button>
               </div>
@@ -142,6 +142,7 @@
             <article class="ticket">
               <p>Toilet Access Pass</p>
               <h3 id="ticket-toilet-name">South Kensington Station Toilet</h3>
+              <p class="ticket-price" id="ticket-price">GBP 0.50</p>
               <div class="qr-code" aria-label="QR code access ticket">
                 <span></span><span></span><span></span><span></span><span></span>
                 <span></span><span></span><span></span><span></span><span></span>
@@ -154,7 +155,6 @@
             </article>
             <div class="action-row">
               <button class="solid-button" id="activate-pass" type="button">Activate</button>
-              <button class="outline-button" type="button">Details</button>
             </div>
             <p class="activation-status" id="activation-status" aria-live="polite">Ready to activate access pass.</p>
             <div class="survey-modal is-hidden" id="cleanliness-survey-modal" role="dialog" aria-modal="true" aria-labelledby="cleanliness-survey-title">

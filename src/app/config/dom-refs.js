@@ -33,6 +33,7 @@ export function getDomRefs() {
     subscriptionPlan: document.querySelector("#subscription-plan"),
     monthlyTicketsLeft: document.querySelector("#monthly-tickets-left"),
     accessHistoryList: document.querySelector("#access-history-list"),
-    ticketToiletName: document.querySelector("#ticket-toilet-name")
+    ticketToiletName: document.querySelector("#ticket-toilet-name"),
+    ticketPrice: document.querySelector("#ticket-price")
   };
 }
