@@ -28,7 +28,7 @@ function Write-Response {
 
 try {
   $Listener.Start()
-  Write-Host "WHERE ZZZ dev server running at http://localhost:$Port/"
+  Write-Host "WhereToI dev server running at http://localhost:$Port/"
   Write-Host "Press Ctrl+C to stop."
 
   while ($true) {
