@@ -10,7 +10,7 @@ export const appConfig = {
     zoom: 15
   },
   titles: {
-    map: "Map",
+    map: "My Map",
     qr: "Access QR",
     account: "Account"
   }
