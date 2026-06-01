@@ -122,6 +122,16 @@
                 </div>
               </div>
               <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
+              <section class="comments-section">
+                <h3>Comments</h3>
+                <div id="comments-list" class="comments-list">
+                  <p>Loading comments...</p>
+                </div>
+                <form id="comment-form" class="comment-form">
+                  <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
+                  <button type="submit" id="submit-comment">Post Comment</button>
+                </form>
+              </section>
               <section class="map-cleanliness-survey" aria-labelledby="map-cleanliness-survey-title">
                 <div>
                   <h3 id="map-cleanliness-survey-title">Cleanliness survey</h3>
@@ -171,37 +181,38 @@
             </div>
           </section>
 
-          <section class="view view-account" id="account-panel" aria-labelledby="account-tab">
-            <p class="section-kicker">Account</p>
-            <h2>Wallet, history and subscription</h2>
-            <article class="wallet-card">
-              <span>Wallet balance</span>
-              <strong id="wallet-balance">GBP 8.40</strong>
-              <button type="button">Top up</button>
-            </article>
-            <article class="account-card">
-              <h3>Subscription</h3>
-              <p id="subscription-plan">Campus Plus - renews 26 Jun</p>
-              <p>Monthly free toilet access tickets: <strong id="monthly-tickets-left">3 left</strong></p>
-            </article>
-            <article class="account-card history-card">
-              <h3>Toilet access history</h3>
-              <div id="access-history-list" aria-live="polite">
-                <div>
-                  <strong>South Kensington Station</strong>
-                  <p>Today 14:22 - QR access - GBP 0.50</p>
+            <section class="view view-account" id="account-panel" aria-labelledby="account-tab">
+              <p class="section-kicker" id="account-welcome">Welcome</p>
+              <h2 id="account-username">Your Account</h2>
+              <article class="wallet-card">
+                <span>Wallet balance</span>
+                <strong id="wallet-balance">GBP 8.40</strong>
+                <button type="button">Top up</button>
+              </article>
+              <article class="account-card">
+                <h3>Subscription</h3>
+                <p id="subscription-plan">Campus Plus - renews 26 Jun</p>
+                <p>Monthly free toilet access tickets: <strong id="monthly-tickets-left">3 left</strong></p>
+              </article>
+              <article class="account-card history-card">
+                <h3>Toilet access history</h3>
+                <div id="access-history-list" aria-live="polite">
+                  <div>
+                    <strong>South Kensington Station</strong>
+                    <p>Today 14:22 - QR access - GBP 0.50</p>
+                  </div>
+                  <div>
+                    <strong>Imperial Library</strong>
+                    <p>Yesterday 18:05 - free access</p>
+                  </div>
                 </div>
-                <div>
-                  <strong>Imperial Library</strong>
-                  <p>Yesterday 18:05 - free access</p>
-                </div>
-              </div>
-            </article>
-            <article class="privacy-note">
-              <h3>Privacy note</h3>
-              <p>Let users hide or delete sensitive visit history.</p>
-            </article>
-          </section>
+              </article>
+              <article class="privacy-note">
+                <h3>Privacy note</h3>
+                <p>Let users hide or delete sensitive visit history.</p>
+              </article>
+              <button id="logout-button" class="logout-button" type="button">Log out</button>
+            </section>
         </div>
 
         <nav class="tabbar" aria-label="Primary">
@@ -226,5 +237,30 @@
       crossorigin=""
     ></script>
     <script src="./src/main.js?v=survey-db-2" type="module"></script>
+    <section class="auth-modal is-hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <div class="auth-dialog">
+        <h2 id="auth-title">Log in to WhereToI</h2>
+        <p id="auth-subtitle">Manage your wallet and history.</p>
+        <form id="auth-form" class="auth-form">
+          <div id="email-group" class="is-hidden">
+            <label for="auth-email">Email</label>
+            <input id="auth-email" type="email" placeholder="email@example.com" autocomplete="email" />
+          </div>
+          <div>
+            <label for="auth-username">Username</label>
+            <input id="auth-username" type="text" placeholder="Your username" required autocomplete="username" />
+          </div>
+          <div>
+            <label for="auth-password">Password</label>
+            <input id="auth-password" type="password" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+          <button class="solid-button" id="auth-submit" type="submit">Log in</button>
+        </form>
+        <p class="auth-status" id="auth-status" aria-live="polite"></p>
+        <p class="auth-switch" id="auth-switch-text">
+          Don't have an account? <button id="auth-toggle" type="button">Sign up</button>
+        </p>
+      </div>
+    </section>
   </body>
 </html>

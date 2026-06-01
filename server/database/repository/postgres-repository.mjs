@@ -75,8 +75,22 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS toilet_comments (
+      id SERIAL PRIMARY KEY,
+      toilet_id TEXT NOT NULL REFERENCES toilets(id) ON DELETE CASCADE,
+      comment_text TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `);
+
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_access_history_access_time
     ON access_history(access_time DESC);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_toilet_comments_toilet_id
+    ON toilet_comments(toilet_id);
   `);
 
   const toiletCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM toilets")).rows[0]?.count ?? 0);
@@ -362,6 +376,37 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         account: await this.getAccount(),
         history: await this.getAccessHistory(10)
       };
+    },
+    async getComments(toiletId) {
+      if (!toiletId) return [];
+
+      const result = await pool.query(
+        `
+        SELECT id, toilet_id, comment_text, created_at
+        FROM toilet_comments
+        WHERE toilet_id = $1
+        ORDER BY created_at DESC
+        `,
+        [toiletId]
+      );
+
+      return result.rows;
+    },
+    async saveComment({ toiletId, commentText }) {
+      if (!toiletId || !commentText) {
+        throw new Error("toiletId and commentText are required");
+      }
+
+      const nowIso = new Date().toISOString();
+      await pool.query(
+        `
+        INSERT INTO toilet_comments (toilet_id, comment_text, created_at)
+        VALUES ($1, $2, $3)
+        `,
+        [toiletId, commentText, nowIso]
+      );
+
+      return this.getComments(toiletId);
     }
   };
 }

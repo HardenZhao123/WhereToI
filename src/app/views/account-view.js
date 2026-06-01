@@ -5,7 +5,14 @@ export function setActivationStatus(element, message) {
   element.textContent = message;
 }
 
-export function renderAccount({ walletBalance, subscriptionPlan, monthlyTicketsLeft }, account) {
+export function renderAccount({ walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome }, account, user) {
+  if (user && accountUsername) {
+    accountUsername.textContent = user.username;
+    if (accountWelcome) {
+      accountWelcome.textContent = `Welcome back, ${user.username}`;
+    }
+  }
+
   if (!account) return;
 
   if (walletBalance) {

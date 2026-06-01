@@ -611,6 +611,64 @@ mark {
   font-size: 12px;
 }
 
+.comments-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.comments-list {
+  margin-top: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.comment-item {
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #f6f8f4;
+}
+
+.comment-text {
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.comment-date {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.comment-form {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-form textarea {
+  width: 100%;
+  height: 60px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.comment-form button {
+  align-self: flex-end;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  color: white;
+  background: var(--teal);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .map-cleanliness-survey {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -912,6 +970,91 @@ mark {
 
 .tab.is-active {
   color: var(--teal);
+}
+
+.auth-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(31 42 51 / 60%);
+}
+
+.auth-modal.is-hidden {
+  display: none;
+}
+
+.auth-dialog {
+  position: relative;
+  width: min(360px, 100%);
+  padding: 24px;
+  border-radius: 18px;
+  background: white;
+  box-shadow: 0 24px 72px rgb(31 42 51 / 28%);
+}
+
+.auth-dialog h2 {
+  margin-bottom: 4px;
+  color: #142c72;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.auth-form label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #142c72;
+}
+
+.auth-form input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfcf8;
+}
+
+.auth-form button {
+  height: 44px;
+  margin-top: 8px;
+}
+
+.auth-switch {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.auth-switch button {
+  padding: 0;
+  border: 0;
+  color: var(--blue);
+  font-weight: 600;
+  background: transparent;
+}
+
+.auth-status {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--pink);
+  text-align: center;
+}
+
+.logout-button {
+  width: 100%;
+  margin-top: 12px;
 }
 
 @media (min-width: 900px) {

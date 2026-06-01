@@ -1,4 +1,4 @@
-import { fetchAccountSnapshot, saveAccessRecord } from "../services/account-service.js";
+import { fetchAccountSnapshot, saveAccessRecord, loginUser, registerUser, logoutUser, getCurrentUser } from "../services/account-service.js";
 import { submitCleanlinessSurvey } from "../services/toilets-service.js";
 import { renderAccessHistory, renderAccount, setActivationStatus } from "../views/account-view.js";
 
@@ -10,6 +10,8 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     subscriptionPlan,
     monthlyTicketsLeft,
     accessHistoryList,
+    accountWelcome,
+    accountUsername,
     ticketToiletName,
     ticketPrice,
     surveyModal,
@@ -17,12 +19,25 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     surveyCleanNoButton,
     closeSurveyButton,
     surveyQuestion,
-    surveyStatus
+    surveyStatus,
+    authModal,
+    authForm,
+    authTitle,
+    authSubmit,
+    authToggle,
+    authStatus,
+    authUsername,
+    authPassword,
+    authEmail,
+    emailGroup,
+    logoutButton
   } = elements;
 
   const surveyStorageKey = "wheretoi-qr-cleanliness-survey";
   let pendingSurveyToilet = null;
   let ticketToilet = null;
+  let currentUser = null;
+  let isRegisterMode = false;
 
   function loadSurveyAnswers() {
     try {
@@ -116,15 +131,84 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     window.setTimeout(hideCleanlinessSurvey, 650);
   }
 
+  function showAuthModal() {
+    authModal?.classList.remove("is-hidden");
+    authStatus.textContent = "";
+  }
+
+  function hideAuthModal() {
+    authModal?.classList.add("is-hidden");
+  }
+
+  function toggleAuthMode() {
+    isRegisterMode = !isRegisterMode;
+    if (authTitle) authTitle.textContent = isRegisterMode ? "Sign up for WhereToI" : "Log in to WhereToI";
+    if (authSubmit) authSubmit.textContent = isRegisterMode ? "Sign up" : "Log in";
+    if (authToggle) authToggle.textContent = isRegisterMode ? "Log in" : "Sign up";
+    if (emailGroup) emailGroup.classList.toggle("is-hidden", !isRegisterMode);
+    if (authEmail) authEmail.required = isRegisterMode;
+  }
+
+  async function handleAuthSubmit(event) {
+    event.preventDefault();
+    if (authStatus) authStatus.textContent = isRegisterMode ? "Creating account..." : "Logging in...";
+
+    const payload = {
+      username: authUsername.value,
+      password: authPassword.value,
+      email: isRegisterMode ? authEmail.value : undefined
+    };
+
+    try {
+      if (isRegisterMode) {
+        await registerUser(payload);
+        if (authStatus) authStatus.textContent = "Account created! Now logging in...";
+        await loginUser({ username: payload.username, password: payload.password });
+      } else {
+        await loginUser(payload);
+      }
+
+      hideAuthModal();
+      await loadPanelData();
+    } catch (error) {
+      console.error("Auth failed:", error);
+      if (authStatus) authStatus.textContent = error.message || "Authentication failed. Please try again.";
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await logoutUser();
+      currentUser = null;
+      window.location.reload(); // Simplest way to clear state
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  }
+
   async function loadPanelData() {
     try {
+      // First, check if we are logged in
+      const me = await getCurrentUser();
+      currentUser = me.user;
+
       const payload = await fetchAccountSnapshot();
-      renderAccount({ walletBalance, subscriptionPlan, monthlyTicketsLeft }, payload.account);
+      renderAccount(
+        { walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome },
+        payload.account,
+        currentUser
+      );
       renderAccessHistory(accessHistoryList, payload.history);
-      setActivationStatus(activationStatus, "Database connected. Pass activation will be saved.");
+      setActivationStatus(activationStatus, `Welcome, ${currentUser.username}. Database connected.`);
+      if (activatePassButton) activatePassButton.disabled = false;
     } catch (error) {
       console.error("Account API failed:", error);
-      setActivationStatus(activationStatus, "Database API unavailable. Pass activation is disabled.");
+      if (error.message?.includes("authenticated") || error.status === 401) {
+        setActivationStatus(activationStatus, "Log in to access your wallet and history.");
+        showAuthModal();
+      } else {
+        setActivationStatus(activationStatus, "Database API unavailable. Pass activation is disabled.");
+      }
 
       if (activatePassButton) {
         activatePassButton.disabled = true;
@@ -134,6 +218,11 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
 
   async function activatePass() {
     if (!activatePassButton) return;
+
+    if (!currentUser) {
+      showAuthModal();
+      return;
+    }
 
     activatePassButton.disabled = true;
     setActivationStatus(activationStatus, "Activating pass and writing to database...");
@@ -163,7 +252,11 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
       showCleanlinessSurvey(activatedToilet);
     } catch (error) {
       console.error("Activation failed:", error);
-      setActivationStatus(activationStatus, "Could not save access record. Please try again.");
+      if (error.message?.includes("authenticated") || error.status === 401) {
+        showAuthModal();
+      } else {
+        setActivationStatus(activationStatus, "Could not save access record. Please try again.");
+      }
     } finally {
       activatePassButton.disabled = false;
     }
@@ -183,6 +276,10 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     surveyCleanYesButton?.addEventListener("click", () => answerCleanlinessSurvey("yes"));
     surveyCleanNoButton?.addEventListener("click", () => answerCleanlinessSurvey("no"));
     closeSurveyButton?.addEventListener("click", hideCleanlinessSurvey);
+
+    authForm?.addEventListener("submit", handleAuthSubmit);
+    authToggle?.addEventListener("click", toggleAuthMode);
+    logoutButton?.addEventListener("click", handleLogout);
   }
 
   return {

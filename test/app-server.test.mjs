@@ -28,14 +28,14 @@ async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
   const payload = await response.json();
 
-  assert.equal(response.ok, true, `Expected ${url} to return 2xx.`);
-  return payload;
+  assert.equal(response.ok, true, `Expected ${url} to return 2xx. Status: ${response.status}`);
+  return { payload, response };
 }
 
 test("API exposes health and expanded toilet feature details", async () => {
   await withAppServer(async (baseUrl) => {
-    const health = await fetchJson(`${baseUrl}/api/health`);
-    const toiletsPayload = await fetchJson(`${baseUrl}/api/toilets`);
+    const { payload: health } = await fetchJson(`${baseUrl}/api/health`);
+    const { payload: toiletsPayload } = await fetchJson(`${baseUrl}/api/toilets`);
     const detailToilet = toiletsPayload.toilets.find((toilet) => toilet.id === "detail-test");
 
     assert.equal(health.status, "ok");
@@ -48,16 +48,25 @@ test("API exposes health and expanded toilet feature details", async () => {
 
 test("API preserves accessible filtering and access-history write behavior", async () => {
   await withAppServer(async (baseUrl) => {
-    const accessiblePayload = await fetchJson(`${baseUrl}/api/toilets?accessibleOnly=true`);
+    const { payload: accessiblePayload } = await fetchJson(`${baseUrl}/api/toilets?accessibleOnly=true`);
     assert.deepEqual(
       accessiblePayload.toilets.map((toilet) => toilet.id),
       ["detail-test"]
     );
 
-    const posted = await fetchJson(`${baseUrl}/api/access-history`, {
+    // Login first
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const { payload: posted } = await fetchJson(`${baseUrl}/api/access-history`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Cookie": cookie
       },
       body: JSON.stringify({
         toiletId: "detail-test",
@@ -71,5 +80,40 @@ test("API preserves accessible filtering and access-history write behavior", asy
     assert.equal(posted.history[0].toiletId, "detail-test");
     assert.equal(posted.history[0].eventType, "QR access");
     assert.equal(posted.account.monthlyFreeTicketsLeft, 2);
+  });
+});
+
+test("API supports fetching and posting toilet comments", async () => {
+  await withAppServer(async (baseUrl) => {
+    const toiletId = "detail-test";
+
+    const { payload: initialPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.equal(initialPayload.comments.length, 0);
+
+    // Login first
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const { payload: postedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Great experience!"
+      })
+    });
+
+    assert.equal(postedPayload.comments.length, 1);
+    assert.equal(postedPayload.comments[0].comment_text, "Great experience!");
+
+    const { payload: fetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.deepEqual(fetchedPayload, postedPayload);
   });
 });
