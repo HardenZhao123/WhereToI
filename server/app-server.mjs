@@ -114,7 +114,7 @@ function createApiRouteHandlers(database) {
         });
         sendJson(response, 201, { user });
       } catch (error) {
-        if (error.message?.includes("UNIQUE constraint failed")) {
+        if (error.code === "23505" || error.message?.includes("UNIQUE constraint failed")) {
           sendJson(response, 400, { error: "Username already exists." });
         } else {
           throw error;

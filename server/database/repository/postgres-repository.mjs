@@ -1,6 +1,7 @@
 import { mapRowToToilet } from "../mapper/toilet-mapper.mjs";
 import { applyPostgresToiletMigrations } from "../migration/toilet-schema-migration.mjs";
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import {
   mapAccessHistoryRow,
   mapAccountRow,
@@ -11,6 +12,84 @@ import {
   normaliseSearchQuery,
   toCleanlinessUpdate
 } from "./repository-utils.mjs";
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const derivedKey = scryptSync(password, salt, 64);
+  return `${salt}:${derivedKey.toString("hex")}`;
+}
+
+function verifyPassword(password, hash) {
+  const [salt, key] = hash.split(":");
+  const keyBuffer = Buffer.from(key, "hex");
+  const derivedKey = scryptSync(password, salt, 64);
+  return timingSafeEqual(keyBuffer, derivedKey);
+}
+
+function mapUserRow(row, { includePasswordHash = false } = {}) {
+  if (!row) return null;
+
+  const user = {
+    id: row.id,
+    username: row.username,
+    email: row.email,
+    gender: row.gender ?? null,
+    preferences:
+      typeof row.preferences === "string"
+        ? row.preferences
+        : JSON.stringify(row.preferences ?? [])
+  };
+
+  if (includePasswordHash) {
+    user.password_hash = row.password_hash;
+  }
+
+  return user;
+}
+
+async function ensureDemoUser(pool) {
+  const existingDemo = await pool.query(
+    "SELECT id FROM users WHERE username = $1",
+    ["demo"]
+  );
+
+  if (existingDemo.rows[0]?.id) {
+    return existingDemo.rows[0].id;
+  }
+
+  const insertedDemo = await pool.query(
+    `
+    INSERT INTO users (username, password_hash, email, preferences)
+    VALUES ($1, $2, $3, $4::jsonb)
+    ON CONFLICT (username) DO UPDATE SET username = EXCLUDED.username
+    RETURNING id
+    `,
+    ["demo", hashPassword("demo123"), "demo@example.com", JSON.stringify([])]
+  );
+
+  return insertedDemo.rows[0].id;
+}
+
+async function ensurePostgresUserSupport(pool) {
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB");
+
+  await pool.query("ALTER TABLE app_account ADD COLUMN IF NOT EXISTS user_id INTEGER");
+  await pool.query("ALTER TABLE access_history ADD COLUMN IF NOT EXISTS user_id INTEGER");
+  await pool.query("ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS user_id INTEGER");
+  await pool.query("ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS username TEXT");
+
+  const demoUserId = await ensureDemoUser(pool);
+
+  await pool.query("UPDATE app_account SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
+  await pool.query("UPDATE access_history SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
+  await pool.query("UPDATE toilet_comments SET username = $1 WHERE username IS NULL", ["Anonymous"]);
+
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_app_account_user_id ON app_account(user_id)");
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_access_history_user_id ON access_history(user_id)");
+
+  return demoUserId;
+}
 
 export async function createPostgresDatabase({ connectionString, seedCsvPath, cleanlinessScoringModel }) {
   let Pool;
@@ -96,6 +175,8 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     );
   `);
 
+  const demoUserId = await ensurePostgresUserSupport(pool);
+
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_access_history_access_time
     ON access_history(access_time DESC);
@@ -163,13 +244,14 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       `
       INSERT INTO app_account (
         id,
+        user_id,
         wallet_balance_gbp,
         subscription_name,
         subscription_renews_on,
         monthly_free_tickets_left
-      ) VALUES (1, $1, $2, $3, $4)
+      ) VALUES (1, $1, $2, $3, $4, $5)
       `,
-      [8.4, "Campus Plus", "2026-06-26", 3]
+      [demoUserId, 8.4, "Campus Plus", "2026-06-26", 3]
     );
   }
 
@@ -182,15 +264,17 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
     await pool.query(
       `
-      INSERT INTO access_history (toilet_id, toilet_name, event_type, amount_gbp, access_time)
-      VALUES ($1, $2, $3, $4, $5), ($6, $7, $8, $9, $10)
+      INSERT INTO access_history (user_id, toilet_id, toilet_name, event_type, amount_gbp, access_time)
+      VALUES ($1, $2, $3, $4, $5, $6), ($7, $8, $9, $10, $11, $12)
       `,
       [
+        demoUserId,
         null,
         "South Kensington Station",
         "QR access",
         0.5,
         twoHoursAgo,
+        demoUserId,
         null,
         "Imperial Library",
         "Free access",
@@ -204,6 +288,97 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     backend: "postgres",
     async close() {
       await pool.end();
+    },
+    async createUser({ username, password, email }) {
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+        const userResult = await client.query(
+          `
+          INSERT INTO users (username, password_hash, email, preferences)
+          VALUES ($1, $2, $3, $4::jsonb)
+          RETURNING id, username, email, gender, preferences
+          `,
+          [username, hashPassword(password), email, JSON.stringify([])]
+        );
+        const user = mapUserRow(userResult.rows[0]);
+
+        await client.query(
+          `
+          INSERT INTO app_account (
+            user_id,
+            wallet_balance_gbp,
+            subscription_name,
+            subscription_renews_on,
+            monthly_free_tickets_left
+          ) VALUES ($1, $2, $3, $4, $5)
+          `,
+          [
+            user.id,
+            5.0,
+            "Standard",
+            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            0
+          ]
+        );
+
+        await client.query("COMMIT");
+        return user;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    async getUserByUsername(username) {
+      const result = await pool.query(
+        `
+        SELECT id, username, password_hash, email, gender, preferences
+        FROM users
+        WHERE username = $1
+        `,
+        [username]
+      );
+
+      return mapUserRow(result.rows[0], { includePasswordHash: true });
+    },
+    async getUserById(userId) {
+      const result = await pool.query(
+        `
+        SELECT id, username, email, gender, preferences
+        FROM users
+        WHERE id = $1
+        `,
+        [userId]
+      );
+
+      return mapUserRow(result.rows[0]);
+    },
+    async updateUserProfile(userId, { gender, preferences }) {
+      const result = await pool.query(
+        `
+        UPDATE users
+        SET gender = $1, preferences = $2::jsonb
+        WHERE id = $3
+        RETURNING id, username, email, gender, preferences
+        `,
+        [gender, JSON.stringify(preferences ?? []), userId]
+      );
+
+      return mapUserRow(result.rows[0]);
+    },
+    async verifyUserPassword(username, password) {
+      const user = await this.getUserByUsername(username);
+      if (!user) return null;
+
+      if (verifyPassword(password, user.password_hash)) {
+        const { password_hash, ...safeUser } = user;
+        return safeUser;
+      }
+
+      return null;
     },
     async getToilets({ search = "", accessibleOnly = false } = {}) {
       const query = normaliseSearchQuery(search);
@@ -305,7 +480,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         cleanlinessScoringModel
       });
     },
-    async getAccount() {
+    async getAccount(userId) {
       const result = await pool.query(
         `
         SELECT
@@ -314,13 +489,14 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           subscription_renews_on,
           monthly_free_tickets_left
         FROM app_account
-        WHERE id = 1
-        `
+        WHERE user_id = $1
+        `,
+        [userId]
       );
 
       return mapAccountRow(result.rows[0]);
     },
-    async getAccessHistory(limit = 10) {
+    async getAccessHistory(userId, limit = 10) {
       const safeLimit = normaliseHistoryLimit(limit);
       const result = await pool.query(
         `
@@ -332,10 +508,11 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           amount_gbp,
           access_time
         FROM access_history
+        WHERE user_id = $1
         ORDER BY access_time DESC
-        LIMIT $1
+        LIMIT $2
         `,
-        [safeLimit]
+        [userId, safeLimit]
       );
 
       return result.rows.map(mapAccessHistoryRow);
@@ -357,10 +534,10 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         await client.query("BEGIN");
         await client.query(
           `
-          INSERT INTO access_history (toilet_id, toilet_name, event_type, amount_gbp, access_time)
-          VALUES ($1, $2, $3, $4, $5)
+          INSERT INTO access_history (user_id, toilet_id, toilet_name, event_type, amount_gbp, access_time)
+          VALUES ($1, $2, $3, $4, $5, $6)
           `,
-          [toiletId, safeToiletName, safeEventType, safeAmount, nowIso]
+          [userId, toiletId, safeToiletName, safeEventType, safeAmount, nowIso]
         );
 
         await client.query(
@@ -372,10 +549,10 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
               CASE
                 WHEN $2 = TRUE THEN GREATEST(monthly_free_tickets_left - 1, 0)
                 ELSE monthly_free_tickets_left
-              END
-          WHERE id = 1
+            END
+          WHERE user_id = $3
           `,
-          [safeAmount, shouldUseFreeTicket]
+          [safeAmount, shouldUseFreeTicket, userId]
         );
         await client.query("COMMIT");
       } catch (error) {
@@ -386,8 +563,8 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       }
 
       return {
-        account: await this.getAccount(),
-        history: await this.getAccessHistory(10)
+        account: await this.getAccount(userId),
+        history: await this.getAccessHistory(userId, 10)
       };
     },
     async getComments(toiletId) {
@@ -395,7 +572,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       const result = await pool.query(
         `
-        SELECT id, toilet_id, comment_text, created_at
+        SELECT id, toilet_id, user_id, username, comment_text, created_at
         FROM toilet_comments
         WHERE toilet_id = $1
         ORDER BY created_at DESC
@@ -405,7 +582,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return result.rows;
     },
-    async saveComment({ toiletId, commentText }) {
+    async saveComment({ toiletId, userId, username, commentText }) {
       if (!toiletId || !commentText) {
         throw new Error("toiletId and commentText are required");
       }
@@ -413,10 +590,10 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       const nowIso = new Date().toISOString();
       await pool.query(
         `
-        INSERT INTO toilet_comments (toilet_id, comment_text, created_at)
-        VALUES ($1, $2, $3)
+        INSERT INTO toilet_comments (toilet_id, user_id, username, comment_text, created_at)
+        VALUES ($1, $2, $3, $4, $5)
         `,
-        [toiletId, commentText, nowIso]
+        [toiletId, userId, username, commentText, nowIso]
       );
 
       return this.getComments(toiletId);
