@@ -25,12 +25,18 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     authTitle,
     authSubmit,
     authToggle,
+    authSwitchCopy,
     authStatus,
     authUsername,
     authPassword,
+    authConfirmPassword,
     authEmail,
     emailGroup,
+    confirmPasswordGroup,
     logoutButton,
+    accountUnlockCard,
+    accountSignupButton,
+    accountLoginButton,
     profileModal,
     profileForm,
     profileGender,
@@ -155,9 +161,10 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     window.setTimeout(hideCleanlinessSurvey, 650);
   }
 
-  function showAuthModal() {
+  function showAuthModal(mode = isRegisterMode ? "register" : "login") {
+    setAuthMode(mode);
     authModal?.classList.remove("is-hidden");
-    authStatus.textContent = "";
+    if (authStatus) authStatus.textContent = "";
   }
 
   function hideAuthModal() {
@@ -172,13 +179,62 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     profileModal?.classList.add("is-hidden");
   }
 
-  function toggleAuthMode() {
-    isRegisterMode = !isRegisterMode;
+  function setAuthMode(mode) {
+    isRegisterMode = mode === "register";
     if (authTitle) authTitle.textContent = isRegisterMode ? "Sign up for WhereToI" : "Log in to WhereToI";
     if (authSubmit) authSubmit.textContent = isRegisterMode ? "Sign up" : "Log in";
     if (authToggle) authToggle.textContent = isRegisterMode ? "Log in" : "Sign up";
+    if (authSwitchCopy) authSwitchCopy.textContent = isRegisterMode ? "Already have an account?" : "Don't have an account?";
     if (emailGroup) emailGroup.classList.toggle("is-hidden", !isRegisterMode);
     if (authEmail) authEmail.required = isRegisterMode;
+    if (confirmPasswordGroup) confirmPasswordGroup.classList.toggle("is-hidden", !isRegisterMode);
+    if (authConfirmPassword) authConfirmPassword.required = isRegisterMode;
+    if (authPassword) authPassword.autocomplete = isRegisterMode ? "new-password" : "current-password";
+  }
+
+  function toggleAuthMode() {
+    setAuthMode(isRegisterMode ? "login" : "register");
+  }
+
+  function renderGuestAccount() {
+    currentUser = null;
+
+    accountUnlockCard?.classList.remove("is-hidden");
+    logoutButton?.classList.add("is-hidden");
+
+    if (accountWelcome) accountWelcome.textContent = "Welcome";
+    if (accountUsername) accountUsername.textContent = "Guest access";
+    if (walletBalance) walletBalance.textContent = "Sign up to view";
+    if (subscriptionPlan) subscriptionPlan.textContent = "Create an account to manage a plan.";
+    if (monthlyTicketsLeft) monthlyTicketsLeft.textContent = "Sign up";
+    if (displayGender) displayGender.textContent = "Sign up to set";
+    if (displayNeeds) displayNeeds.textContent = "Sign up to set";
+
+    if (accessHistoryList) {
+      accessHistoryList.replaceChildren();
+      const empty = document.createElement("div");
+      const info = document.createElement("p");
+      info.textContent = "Create an account to save and view toilet access history.";
+      empty.append(info);
+      accessHistoryList.append(empty);
+    }
+
+    if (autoFilterToggle) {
+      autoFilterToggle.checked = false;
+      autoFilterToggle.disabled = true;
+    }
+
+    if (editProfileButton) {
+      editProfileButton.disabled = true;
+    }
+
+    setActivationStatus(activationStatus, "Create an account or log in to activate QR tickets.");
+
+    if (activatePassButton) {
+      activatePassButton.disabled = false;
+    }
+
+    onProfilePreferenceToggled(null, false);
   }
 
   async function handleAuthSubmit(event) {
@@ -190,6 +246,11 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
       password: authPassword.value,
       email: isRegisterMode ? authEmail.value : undefined
     };
+
+    if (isRegisterMode && payload.password !== authConfirmPassword?.value) {
+      if (authStatus) authStatus.textContent = "Passwords do not match.";
+      return;
+    }
 
     try {
       if (isRegisterMode) {
@@ -268,12 +329,19 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
       // First, check if we are logged in
       const me = await getCurrentUser();
       currentUser = me.user;
+      accountUnlockCard?.classList.add("is-hidden");
+      logoutButton?.classList.remove("is-hidden");
 
       if (autoFilterToggle) {
+        autoFilterToggle.disabled = false;
         autoFilterToggle.checked = loadAutoFilterState();
         if (autoFilterToggle.checked) {
           onProfilePreferenceToggled(currentUser, true);
         }
+      }
+
+      if (editProfileButton) {
+        editProfileButton.disabled = false;
       }
 
       const payload = await fetchAccountSnapshot();
@@ -288,14 +356,13 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     } catch (error) {
       console.error("Account API failed:", error);
       if (error.message?.includes("authenticated") || error.status === 401) {
-        setActivationStatus(activationStatus, "Log in to access your wallet and history.");
-        showAuthModal();
+        renderGuestAccount();
       } else {
         setActivationStatus(activationStatus, "Database API unavailable. Pass activation is disabled.");
-      }
 
-      if (activatePassButton) {
-        activatePassButton.disabled = true;
+        if (activatePassButton) {
+          activatePassButton.disabled = true;
+        }
       }
     }
   }
@@ -304,7 +371,8 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     if (!activatePassButton) return;
 
     if (!currentUser) {
-      showAuthModal();
+      setActivationStatus(activationStatus, "Log in or sign up to activate QR tickets.");
+      showAuthModal("register");
       return;
     }
 
@@ -337,7 +405,7 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     } catch (error) {
       console.error("Activation failed:", error);
       if (error.message?.includes("authenticated") || error.status === 401) {
-        showAuthModal();
+        showAuthModal("login");
       } else {
         setActivationStatus(activationStatus, "Could not save access record. Please try again.");
       }
@@ -364,6 +432,8 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     authForm?.addEventListener("submit", handleAuthSubmit);
     authToggle?.addEventListener("click", toggleAuthMode);
     logoutButton?.addEventListener("click", handleLogout);
+    accountSignupButton?.addEventListener("click", () => showAuthModal("register"));
+    accountLoginButton?.addEventListener("click", () => showAuthModal("login"));
 
     profileForm?.addEventListener("submit", handleProfileSubmit);
     skipProfileButton?.addEventListener("click", hideProfileModal);

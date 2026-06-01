@@ -83,6 +83,39 @@ test("API preserves accessible filtering and access-history write behavior", asy
   });
 });
 
+test("API registers a new user with an account and allows login", async () => {
+  await withAppServer(async (baseUrl) => {
+    const username = `new-user-${Date.now()}`;
+    const password = "demo123";
+
+    const { payload: registered } = await fetchJson(`${baseUrl}/api/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: `${username}@example.com`,
+        username,
+        password
+      })
+    });
+
+    assert.equal(registered.user.username, username);
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const { payload: accountPayload } = await fetchJson(`${baseUrl}/api/account`, {
+      headers: { "Cookie": cookie }
+    });
+
+    assert.equal(accountPayload.account.walletBalanceGbp, 5);
+    assert.deepEqual(accountPayload.history, []);
+  });
+});
+
 test("API supports fetching and posting toilet comments", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletId = "detail-test";

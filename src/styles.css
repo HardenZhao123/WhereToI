@@ -1008,6 +1008,12 @@ mark {
   margin-top: 20px;
 }
 
+.auth-form .is-hidden,
+.account-unlock-card.is-hidden,
+.logout-button.is-hidden {
+  display: none;
+}
+
 .auth-form label {
   display: block;
   margin-bottom: 6px;
@@ -1055,6 +1061,22 @@ mark {
 .logout-button {
   width: 100%;
   margin-top: 12px;
+}
+
+.account-unlock-card {
+  border-color: rgb(40 118 102 / 28%);
+  background: var(--teal-soft);
+}
+
+.account-unlock-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.account-unlock-actions button {
+  height: 40px;
 }
 
 @media (min-width: 900px) {

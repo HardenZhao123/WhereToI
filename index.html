@@ -184,6 +184,14 @@
             <section class="view view-account" id="account-panel" aria-labelledby="account-tab">
               <p class="section-kicker" id="account-welcome">Welcome</p>
               <h2 id="account-username">Your Account</h2>
+              <article class="account-card account-unlock-card" id="account-unlock-card">
+                <h3>Create an account to unlock more features</h3>
+                <p>Use the map without logging in. Sign up when you want wallet access, QR tickets, saved history, and profile-based filters.</p>
+                <div class="account-unlock-actions">
+                  <button class="solid-button" id="account-signup-button" type="button">Sign up</button>
+                  <button class="outline-button" id="account-login-button" type="button">Log in</button>
+                </div>
+              </article>
               <article class="wallet-card">
                 <span>Wallet balance</span>
                 <strong id="wallet-balance">GBP 8.40</strong>
@@ -264,11 +272,15 @@
             <label for="auth-password">Password</label>
             <input id="auth-password" type="password" placeholder="••••••••" required autocomplete="current-password" />
           </div>
+          <div id="confirm-password-group" class="is-hidden">
+            <label for="auth-confirm-password">Confirm password</label>
+            <input id="auth-confirm-password" type="password" placeholder="••••••••" autocomplete="new-password" />
+          </div>
           <button class="solid-button" id="auth-submit" type="submit">Log in</button>
         </form>
         <p class="auth-status" id="auth-status" aria-live="polite"></p>
         <p class="auth-switch" id="auth-switch-text">
-          Don't have an account? <button id="auth-toggle" type="button">Sign up</button>
+          <span id="auth-switch-copy">Don't have an account?</span> <button id="auth-toggle" type="button">Sign up</button>
         </p>
       </div>
     </section>

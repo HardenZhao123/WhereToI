@@ -47,7 +47,9 @@ const requiredCopy = [
   "Needs",
   "Nearest",
   "Cleanest",
-  "Most facilities"
+  "Most facilities",
+  "Confirm password",
+  "Create an account to unlock more features"
 ];
 const missingCopy = requiredCopy.filter((text) => !html.includes(text));
 
@@ -83,6 +85,14 @@ if (!html.includes("feature-filters") || !html.includes("toilet-results") || !js
 
 if (!html.includes("activate-pass") || !js.includes("access-history") || !js.includes("activatePass")) {
   throw new Error("Expected QR pass activation to persist via API/database.");
+}
+
+if (!html.includes("auth-confirm-password") || !js.includes("Passwords do not match")) {
+  throw new Error("Expected sign-up flow to confirm matching passwords before registration.");
+}
+
+if (!html.includes("account-unlock-card") || !js.includes("renderGuestAccount") || js.includes("showAuthModal();")) {
+  throw new Error("Expected unauthenticated users to keep map access and see an account unlock prompt.");
 }
 
 if (!css.includes("@media") || !js.includes("setTab")) {
