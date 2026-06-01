@@ -527,7 +527,8 @@ h3 {
 .primary-pill {
   width: 112px;
   height: 34px;
-  margin: 12px 0;
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 .primary-pill:disabled {
@@ -536,9 +537,16 @@ h3 {
 }
 
 .distance-line {
-  margin: -4px 0 10px;
+  margin: 0 0 10px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.details-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 8px;
 }
 
 .info-grid {
@@ -557,8 +565,26 @@ h3 {
 
 .cleanliness-section {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   justify-content: center;
+  min-width: 0;
+}
+
+.details-actions-row .cleanliness-section h3 {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.details-actions-row .rating-bar-container {
+  height: 18px;
+  margin-top: 5px;
+}
+
+.details-actions-row .cleanliness-score {
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.25;
 }
 
 .rating-bar-container {
