@@ -41,6 +41,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          payload=$(curl -fsS "$PUBLIC_APP_URL/api/account")
+          cookie_file=$(mktemp)
+          curl -fsS \
+            -c "$cookie_file" \
+            -H "Content-Type: application/json" \
+            -d '{"username":"demo","password":"demo123"}' \
+            "$PUBLIC_APP_URL/api/login" > /tmp/wheretoi-login.json
+
+          payload=$(curl -fsS -b "$cookie_file" "$PUBLIC_APP_URL/api/account")
           echo "$payload" | grep -q '"account"' || (echo "Missing account payload" >&2; exit 1)
           echo "$payload" | grep -q '"history"' || (echo "Missing history payload" >&2; exit 1)
