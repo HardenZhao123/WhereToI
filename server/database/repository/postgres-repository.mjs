@@ -74,6 +74,33 @@ async function ensurePostgresUserSupport(pool) {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB");
 
+  await pool.query(`
+    DO $$
+    DECLARE
+      constraint_name TEXT;
+    BEGIN
+      FOR constraint_name IN
+        SELECT conname
+        FROM pg_constraint
+        WHERE conrelid = 'app_account'::regclass
+          AND contype = 'c'
+          AND pg_get_constraintdef(oid) LIKE '%id = 1%'
+      LOOP
+        EXECUTE format('ALTER TABLE app_account DROP CONSTRAINT %I', constraint_name);
+      END LOOP;
+    END $$;
+  `);
+  await pool.query("CREATE SEQUENCE IF NOT EXISTS app_account_id_seq");
+  await pool.query(`
+    SELECT setval(
+      'app_account_id_seq',
+      GREATEST(COALESCE((SELECT MAX(id) FROM app_account), 0) + 1, 1),
+      false
+    )
+  `);
+  await pool.query("ALTER TABLE app_account ALTER COLUMN id SET DEFAULT nextval('app_account_id_seq')");
+  await pool.query("ALTER SEQUENCE app_account_id_seq OWNED BY app_account.id");
+
   await pool.query("ALTER TABLE app_account ADD COLUMN IF NOT EXISTS user_id INTEGER");
   await pool.query("ALTER TABLE access_history ADD COLUMN IF NOT EXISTS user_id INTEGER");
   await pool.query("ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS user_id INTEGER");
