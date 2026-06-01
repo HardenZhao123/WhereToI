@@ -52,13 +52,17 @@ test("SQLite database keeps accessible-only filtering behavior", async () => {
 
 test("recordAccess validates inputs and persists wallet/history changes", async () => {
   await withSeededDatabase(async (database) => {
+    const user = await database.getUserByUsername("demo");
+    const userId = user.id;
+
     await assert.rejects(
-      () => database.recordAccess({ toiletName: "", eventType: "QR access" }),
+      () => database.recordAccess({ userId, toiletName: "", eventType: "QR access" }),
       /toiletName is required/
     );
 
-    const before = await database.getAccount();
+    const before = await database.getAccount(userId);
     const result = await database.recordAccess({
+      userId,
       toiletId: "detail-test",
       toiletName: "Prayer room washroom",
       eventType: "QR access",
@@ -70,5 +74,32 @@ test("recordAccess validates inputs and persists wallet/history changes", async 
     assert.equal(result.account.monthlyFreeTicketsLeft, before.monthlyFreeTicketsLeft - 1);
     assert.equal(result.history[0].toiletId, "detail-test");
     assert.equal(result.history[0].eventType, "QR access");
+  });
+});
+
+test("database saves and retrieves comments for toilets", async () => {
+  await withSeededDatabase(async (database) => {
+    const user = await database.getUserByUsername("demo");
+    const userId = user.id;
+    const toiletId = "detail-test";
+    const commentText = "This is a test comment";
+
+    const initialComments = await database.getComments(toiletId);
+    assert.equal(initialComments.length, 0);
+
+    const updatedComments = await database.saveComment({
+      toiletId,
+      userId,
+      username: user.username,
+      commentText
+    });
+
+    assert.equal(updatedComments.length, 1);
+    assert.equal(updatedComments[0].comment_text, commentText);
+    assert.equal(updatedComments[0].toilet_id, toiletId);
+    assert.equal(updatedComments[0].username, user.username);
+
+    const fetchedComments = await database.getComments(toiletId);
+    assert.deepEqual(fetchedComments, updatedComments);
   });
 });

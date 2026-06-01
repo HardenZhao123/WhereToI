@@ -1,5 +1,5 @@
 import { appConfig } from "../config/app-config.js";
-import { submitCleanlinessSurvey } from "../services/toilets-service.js";
+import { fetchComments, submitCleanlinessSurvey, submitComment } from "../services/toilets-service.js";
 import { distanceInMetres, formatDistance } from "../utils/geo.js";
 
 const featureFilterOptions = [
@@ -31,6 +31,9 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     mapSurveyCleanYesButton,
     mapSurveyCleanNoButton,
     mapSurveyStatus,
+    commentsList,
+    commentForm,
+    commentInput,
     featureFilterInputs = [],
     sortSelect,
     resultsSummary,
@@ -106,6 +109,35 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     if (mapSurveyStatus) {
       mapSurveyStatus.textContent = hasAnswer ? "Thanks, your answer has been saved." : "Choose an answer to help others.";
     }
+  }
+
+  function renderComments(comments) {
+    if (!commentsList) return;
+
+    commentsList.replaceChildren();
+
+    if (!Array.isArray(comments) || comments.length === 0) {
+      const empty = document.createElement("p");
+      empty.textContent = "No comments yet. Be the first to write one!";
+      commentsList.append(empty);
+      return;
+    }
+
+    comments.forEach((comment) => {
+      const item = document.createElement("div");
+      item.className = "comment-item";
+
+      const text = document.createElement("p");
+      text.className = "comment-text";
+      text.textContent = comment.comment_text;
+
+      const date = document.createElement("p");
+      date.className = "comment-date";
+      date.textContent = new Date(comment.created_at).toLocaleString();
+
+      item.append(text, date);
+      commentsList.append(item);
+    });
   }
 
   function createToiletIcon(toilet, selected = false) {
@@ -362,6 +394,22 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     renderCleanlinessSurvey(toilet);
     renderCleanlinessBar(toilet);
 
+    if (commentsList) {
+      commentsList.replaceChildren();
+      const loading = document.createElement("p");
+      loading.textContent = "Loading comments...";
+      commentsList.append(loading);
+
+      fetchComments(toilet.id)
+        .then((comments) => renderComments(comments))
+        .catch((error) => {
+          console.error("Failed to fetch comments:", error);
+          if (commentsList) {
+            commentsList.textContent = "Could not load comments.";
+          }
+        });
+    }
+
     const marker = markerById.get(toilet.id);
     if (marker && map) {
       map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 16), { duration: 0.45 });
@@ -579,6 +627,39 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     applyFilters();
   }
 
+  function applyProfilePreferences(user, enabled) {
+    if (!enabled || !user) {
+      resetFilters();
+      return;
+    }
+
+    const preferences = [];
+    try {
+      const needs = JSON.parse(user.preferences || "[]");
+      preferences.push(...needs);
+    } catch (e) {
+      console.error("Failed to parse user preferences:", e);
+    }
+
+    if (user.gender === "female") preferences.push("women");
+    if (user.gender === "male") preferences.push("men");
+    if (user.gender === "neutral") preferences.push("neutral");
+
+    selectedFeatureFilters = new Set();
+    preferences.forEach(pref => {
+      if (featureFilterOptions.some(opt => opt.key === pref)) {
+        selectedFeatureFilters.add(pref);
+      }
+    });
+
+    // Sync UI checkboxes
+    featureFilterInputs.forEach(input => {
+      input.checked = selectedFeatureFilters.has(input.value);
+    });
+
+    applyFilters();
+  }
+
   function getSelectedToilet() {
     return selectedToilet;
   }
@@ -655,6 +736,24 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     }
   }
 
+  async function postComment(event) {
+    event.preventDefault();
+
+    if (!selectedToilet || !commentInput) return;
+
+    const commentText = commentInput.value.trim();
+    if (!commentText) return;
+
+    try {
+      const updatedComments = await submitComment(selectedToilet.id, commentText);
+      renderComments(updatedComments);
+      commentInput.value = "";
+    } catch (error) {
+      console.error("Failed to post comment:", error);
+      alert("Could not post comment. Please try again later.");
+    }
+  }
+
   return {
     createInteractiveMap,
     setStatus,
@@ -670,6 +769,8 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     refreshAfterTabVisible,
     getSelectedToilet,
     updateToiletCleanliness,
-    answerCleanlinessSurvey
+    answerCleanlinessSurvey,
+    postComment,
+    applyProfilePreferences
   };
 }

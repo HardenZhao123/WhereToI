@@ -18,7 +18,8 @@ export function createApp() {
   accountController = createAccountController(
     elements,
     () => mapController.getSelectedToilet(),
-    (toiletUpdate) => mapController.updateToiletCleanliness(toiletUpdate)
+    (toiletUpdate) => mapController.updateToiletCleanliness(toiletUpdate),
+    (user, enabled) => mapController.applyProfilePreferences(user, enabled)
   );
 
   const tabController = createTabController({
@@ -106,6 +107,7 @@ export function createApp() {
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
     elements.mapSurveyCleanYesButton?.addEventListener("click", () => mapController.answerCleanlinessSurvey("yes"));
     elements.mapSurveyCleanNoButton?.addEventListener("click", () => mapController.answerCleanlinessSurvey("no"));
+    elements.commentForm?.addEventListener("submit", (event) => mapController.postComment(event));
 
     elements.locateButtons.forEach((button) => {
       button?.addEventListener("click", () => mapController.requestLocation());

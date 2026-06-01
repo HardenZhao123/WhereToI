@@ -143,9 +143,73 @@ async function backfillPostgresFeatureColumns(pool, seedCsvPath) {
 export async function applySqliteToiletMigrations({ db, seedCsvPath }) {
   const missingFeatureColumns = ensureSqliteFeatureColumns(db);
   ensureSqliteCleanlinessColumns(db);
+  ensureSqliteUserSupport(db);
+  ensureSqliteUserColumns(db);
 
   if (missingFeatureColumns.length > 0) {
     await backfillSqliteFeatureColumns(db, seedCsvPath);
+  }
+}
+
+function ensureSqliteUserColumns(db) {
+  const existingColumns = new Set(
+    db.prepare("PRAGMA table_info(users)").all().map((column) => column.name)
+  );
+  
+  if (!existingColumns.has("gender")) {
+    db.exec("ALTER TABLE users ADD COLUMN gender TEXT;");
+  }
+  if (!existingColumns.has("preferences")) {
+    db.exec("ALTER TABLE users ADD COLUMN preferences TEXT;");
+  }
+}
+
+function ensureSqliteUserSupport(db) {
+  // 1. Create users table if not exists
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      email TEXT
+    ) STRICT;
+  `);
+
+  // 2. Add user_id to app_account
+  const appAccountCols = new Set(db.prepare("PRAGMA table_info(app_account)").all().map(c => c.name));
+  if (!appAccountCols.has("user_id")) {
+    db.exec("ALTER TABLE app_account ADD COLUMN user_id INTEGER;");
+  }
+
+  // 3. Add user_id to access_history
+  const accessHistoryCols = new Set(db.prepare("PRAGMA table_info(access_history)").all().map(c => c.name));
+  if (!accessHistoryCols.has("user_id")) {
+    db.exec("ALTER TABLE access_history ADD COLUMN user_id INTEGER;");
+  }
+
+  // 4. Add user_id and username to toilet_comments
+  const commentCols = new Set(db.prepare("PRAGMA table_info(toilet_comments)").all().map(c => c.name));
+  if (!commentCols.has("user_id")) {
+    db.exec("ALTER TABLE toilet_comments ADD COLUMN user_id INTEGER;");
+  }
+  if (!commentCols.has("username")) {
+    db.exec("ALTER TABLE toilet_comments ADD COLUMN username TEXT;");
+  }
+
+  // 5. If we have orphaned records and no users, we need to create a default user and link them.
+  // This handles the transition for an existing database.
+  const userCount = Number(db.prepare("SELECT COUNT(*) AS count FROM users").get().count);
+  if (userCount === 0) {
+    const hasOrphans = db.prepare("SELECT 1 FROM app_account WHERE user_id IS NULL LIMIT 1").get() ||
+                       db.prepare("SELECT 1 FROM access_history WHERE user_id IS NULL LIMIT 1").get();
+    
+    if (hasOrphans) {
+      // We'll let the repository create its "demo" user, but we need to ensure 
+      // it happens before we try to enforce user_id or if we want to fix orphans now.
+      // For simplicity, let's just allow NULL for now and let the repository handle the first user.
+      // But we must NOT have the NOT NULL constraint in the CREATE TABLE IF NOT EXISTS in the repository
+      // if we want to be safe with existing tables.
+    }
   }
 }
 

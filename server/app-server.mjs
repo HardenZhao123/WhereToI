@@ -25,10 +25,11 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "not found"
 ];
 
-function sendJson(response, statusCode, payload) {
+function sendJson(response, statusCode, payload, headers = {}) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store"
+    "Cache-Control": "no-store",
+    ...headers
   });
   response.end(JSON.stringify(payload));
 }
@@ -36,6 +37,22 @@ function sendJson(response, statusCode, payload) {
 function sendPlainText(response, statusCode, message) {
   response.writeHead(statusCode);
   response.end(message);
+}
+
+function parseCookies(cookieHeader) {
+  const cookies = {};
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const parts = cookie.split("=");
+      cookies[parts.shift().trim()] = decodeURI(parts.join("="));
+    });
+  }
+  return cookies;
+}
+
+function getSessionUserId(request) {
+  const cookies = parseCookies(request.headers.cookie);
+  return cookies.session ? Number(cookies.session) : null;
 }
 
 async function readJsonBody(request) {
@@ -87,6 +104,62 @@ function createApiRouteHandlers(database) {
         commit: process.env.RENDER_GIT_COMMIT ?? null
       });
     },
+    "POST /api/register": async ({ request, response }) => {
+      const body = await readJsonBody(request);
+      try {
+        const user = await database.createUser({
+          username: body.username,
+          password: body.password,
+          email: body.email
+        });
+        sendJson(response, 201, { user });
+      } catch (error) {
+        if (error.message?.includes("UNIQUE constraint failed")) {
+          sendJson(response, 400, { error: "Username already exists." });
+        } else {
+          throw error;
+        }
+      }
+    },
+    "POST /api/login": async ({ request, response }) => {
+      const body = await readJsonBody(request);
+      const user = await database.verifyUserPassword(body.username, body.password);
+
+      if (user) {
+        sendJson(response, 200, { user }, {
+          "Set-Cookie": `session=${user.id}; HttpOnly; Path=/; SameSite=Strict; Max-Age=86400`
+        });
+      } else {
+        sendJson(response, 401, { error: "Invalid username or password." });
+      }
+    },
+    "POST /api/logout": async ({ response }) => {
+      sendJson(response, 200, { status: "logged out" }, {
+        "Set-Cookie": "session=; HttpOnly; Path=/; Max-Age=0"
+      });
+    },
+    "GET /api/me": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      if (!userId) {
+        sendJson(response, 401, { error: "Not authenticated" });
+        return;
+      }
+      const user = await database.getUserById(userId);
+      sendJson(response, 200, { user });
+    },
+    "POST /api/me/profile": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      if (!userId) {
+        sendJson(response, 401, { error: "Not authenticated" });
+        return;
+      }
+      const body = await readJsonBody(request);
+      const user = await database.updateUserProfile(userId, {
+        gender: body.gender,
+        preferences: body.preferences
+      });
+      sendJson(response, 200, { user });
+    },
     "GET /api/toilets": async ({ response, url }) => {
       const search = url.searchParams.get("search") ?? "";
       const accessibleOnly = parseAccessibleOnly(url.searchParams.get("accessibleOnly"));
@@ -94,21 +167,37 @@ function createApiRouteHandlers(database) {
 
       sendJson(response, 200, { toilets });
     },
-    "GET /api/account": async ({ response }) => {
-      const account = await database.getAccount();
-      const history = await database.getAccessHistory(10);
+    "GET /api/account": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      if (!userId) {
+        sendJson(response, 401, { error: "Not authenticated" });
+        return;
+      }
+      const account = await database.getAccount(userId);
+      const history = await database.getAccessHistory(userId, 10);
 
       sendJson(response, 200, { account, history });
     },
-    "GET /api/access-history": async ({ response, url }) => {
+    "GET /api/access-history": async ({ request, response, url }) => {
+      const userId = getSessionUserId(request);
+      if (!userId) {
+        sendJson(response, 401, { error: "Not authenticated" });
+        return;
+      }
       const limit = Number(url.searchParams.get("limit") ?? 10);
-      const history = await database.getAccessHistory(limit);
+      const history = await database.getAccessHistory(userId, limit);
 
       sendJson(response, 200, { history });
     },
     "POST /api/access-history": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      if (!userId) {
+        sendJson(response, 401, { error: "Not authenticated" });
+        return;
+      }
       const body = await readJsonBody(request);
       const result = await database.recordAccess({
+        userId,
         toiletId: normaliseOptionalToiletId(body.toiletId),
         toiletName: body.toiletName,
         eventType: body.eventType,
@@ -127,6 +216,26 @@ function createApiRouteHandlers(database) {
       });
 
       sendJson(response, 201, result);
+    },
+    "GET /api/comments": async ({ response, url }) => {
+      const toiletId = url.searchParams.get("toiletId");
+      const comments = await database.getComments(toiletId);
+
+      sendJson(response, 200, { comments });
+    },
+    "POST /api/comments": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+
+      const body = await readJsonBody(request);
+      const comments = await database.saveComment({
+        toiletId: body.toiletId,
+        userId: userId,
+        username: user?.username ?? "Anonymous",
+        commentText: body.commentText
+      });
+
+      sendJson(response, 201, { comments });
     }
   };
 }

@@ -30,3 +30,16 @@ export function submitCleanlinessSurvey(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export async function fetchComments(toiletId) {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/comments?toiletId=${encodeURIComponent(toiletId)}`);
+  return payload.comments || [];
+}
+
+export async function submitComment(toiletId, commentText) {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ toiletId, commentText })
+  });
+  return payload.comments || [];
+}
