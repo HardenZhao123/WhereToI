@@ -18,6 +18,7 @@ const requiredFiles = [
   "src/app/toilets/toilet-record-mapper.js",
   "src/app/utils/csv.js",
   "src/app/utils/geo.js",
+  "src/app/utils/cleanliness.js",
   "src/app/utils/text.js",
   "src/app/utils/account-formatters.js",
   "src/styles.css",
@@ -77,6 +78,21 @@ if (!html.includes("close-details") || !js.includes("closeDetailsButton")) {
 
 if (!html.includes("feature-baby-changing") || !html.includes("feature-bidet") || !js.includes("babyChanging")) {
   throw new Error("Expected expanded toilet feature details.");
+}
+
+if (
+  html.includes("Clean ?/10") ||
+  js.includes("formatCleanlinessScore") ||
+  !html.includes("0 clean (0%) | 0 not clean (0%)") ||
+  !html.includes("cleanliness-clean-bar") ||
+  !html.includes("cleanliness-not-clean-bar") ||
+  !html.includes("rating-bar-label") ||
+  !css.includes(".rating-bar-clean") ||
+  !css.includes(".rating-bar-not-clean") ||
+  !css.includes("height: 22px") ||
+  !js.includes("formatCleanlinessVotes")
+) {
+  throw new Error("Expected cleanliness to display clean/not clean vote counts and percentages instead of a 1-10 score.");
 }
 
 if (!html.includes("feature-filters") || !html.includes("toilet-results") || !js.includes("setFeatureFilter")) {

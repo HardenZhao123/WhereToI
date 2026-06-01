@@ -95,10 +95,15 @@
               <div class="info-grid">
                 <div class="cleanliness-section">
                   <h3>Cleanliness</h3>
-                  <div class="rating-bar-container">
-                    <div id="cleanliness-bar" class="rating-bar-fill" style="width: 0%;"></div>
+                  <div class="rating-bar-container" id="cleanliness-bar">
+                    <div id="cleanliness-clean-bar" class="rating-bar-fill rating-bar-clean" style="width: 0%;">
+                      <span class="rating-bar-label">clean</span>
+                    </div>
+                    <div id="cleanliness-not-clean-bar" class="rating-bar-fill rating-bar-not-clean" style="width: 0%;">
+                      <span class="rating-bar-label">not clean</span>
+                    </div>
                   </div>
-                  <p class="cleanliness-score" id="cleanliness-score">Clean ?/10</p>
+                  <p class="cleanliness-score" id="cleanliness-score">0 clean (0%) | 0 not clean (0%)</p>
                 </div>
                 <div class="features-list">
                   <h3>Features</h3>

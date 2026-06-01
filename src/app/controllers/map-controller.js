@@ -1,5 +1,6 @@
 import { appConfig } from "../config/app-config.js";
 import { fetchComments, submitCleanlinessSurvey, submitComment } from "../services/toilets-service.js";
+import { formatCleanlinessVotes, getCleanlinessScore, getCleanlinessVoteStats } from "../utils/cleanliness.js";
 import { distanceInMetres, formatDistance } from "../utils/geo.js";
 
 const featureFilterOptions = [
@@ -18,7 +19,6 @@ const featureFilterOptions = [
 
 const sortModes = new Set(["distance", "cleanliness", "free", "facilities"]);
 const resultRenderLimit = 8;
-const defaultCleanlinessScore = 7;
 
 export function createMapController(elements, onToiletSelected = () => {}) {
   const {
@@ -79,16 +79,28 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
   function renderCleanlinessBar(toilet) {
     const cleanlinessBar = document.querySelector("#cleanliness-bar");
+    const cleanBar = document.querySelector("#cleanliness-clean-bar");
+    const notCleanBar = document.querySelector("#cleanliness-not-clean-bar");
     const cleanlinessLabel = document.querySelector("#cleanliness-score");
+    const voteStats = getCleanlinessVoteStats(toilet);
 
-    const cleanlinessScore = getCleanlinessScore(toilet);
     if (cleanlinessBar) {
-      const percent = Math.min(Math.max((cleanlinessScore / 10) * 100, 0), 100);
-      cleanlinessBar.style.width = `${percent}%`;
+      cleanlinessBar.setAttribute(
+        "aria-label",
+        `${voteStats.cleanPercent}% clean and ${voteStats.notCleanPercent}% not clean`
+      );
+    }
+
+    if (cleanBar) {
+      cleanBar.style.width = `${voteStats.cleanPercent}%`;
+    }
+
+    if (notCleanBar) {
+      notCleanBar.style.width = `${voteStats.notCleanPercent}%`;
     }
 
     if (cleanlinessLabel) {
-      cleanlinessLabel.textContent = `Clean ${formatCleanlinessScore(toilet)}`;
+      cleanlinessLabel.textContent = formatCleanlinessVotes(toilet);
     }
   }
 
@@ -184,17 +196,6 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     return reference.source === "user" ? distance : distance.replace("away", "from map centre");
   }
 
-  function getCleanlinessScore(toilet) {
-    const score = Number(toilet.cleanliness);
-    if (!Number.isFinite(score)) return defaultCleanlinessScore;
-    return Math.min(Math.max(score, 0), 10);
-  }
-
-  function formatCleanlinessScore(toilet) {
-    const score = getCleanlinessScore(toilet);
-    return `${Number.isInteger(score) ? score : score.toFixed(1)}/10`;
-  }
-
   function getFeatureScore(toilet) {
     return featureFilterOptions.reduce((score, option) => {
       return score + (toilet.features?.[option.key] === "Y" ? 1 : 0);
@@ -285,7 +286,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       meta.className = "result-meta";
 
       const cleanliness = document.createElement("span");
-      cleanliness.textContent = `Clean ${formatCleanlinessScore(toilet)}`;
+      cleanliness.textContent = formatCleanlinessVotes(toilet);
 
       const facilities = document.createElement("span");
       facilities.textContent = `${getFeatureScore(toilet)} facilities`;
@@ -684,6 +685,8 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       selectedToilet = applyUpdate(selectedToilet);
       renderCleanlinessBar(selectedToilet);
     }
+
+    renderResults();
   }
 
   async function answerCleanlinessSurvey(answer) {
@@ -709,7 +712,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
       savedToDatabase = true;
 
-      if (result.toilet?.cleanliness != null) {
+      if (result.toilet?.id) {
         updateToiletCleanliness(result.toilet);
       }
     } catch (error) {
