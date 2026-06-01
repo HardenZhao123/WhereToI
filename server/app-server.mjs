@@ -147,6 +147,19 @@ function createApiRouteHandlers(database) {
       const user = await database.getUserById(userId);
       sendJson(response, 200, { user });
     },
+    "POST /api/me/profile": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      if (!userId) {
+        sendJson(response, 401, { error: "Not authenticated" });
+        return;
+      }
+      const body = await readJsonBody(request);
+      const user = await database.updateUserProfile(userId, {
+        gender: body.gender,
+        preferences: body.preferences
+      });
+      sendJson(response, 200, { user });
+    },
     "GET /api/toilets": async ({ response, url }) => {
       const search = url.searchParams.get("search") ?? "";
       const accessibleOnly = parseAccessibleOnly(url.searchParams.get("accessibleOnly"));

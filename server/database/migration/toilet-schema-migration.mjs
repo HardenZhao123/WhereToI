@@ -144,9 +144,23 @@ export async function applySqliteToiletMigrations({ db, seedCsvPath }) {
   const missingFeatureColumns = ensureSqliteFeatureColumns(db);
   ensureSqliteCleanlinessColumns(db);
   ensureSqliteUserSupport(db);
+  ensureSqliteUserColumns(db);
 
   if (missingFeatureColumns.length > 0) {
     await backfillSqliteFeatureColumns(db, seedCsvPath);
+  }
+}
+
+function ensureSqliteUserColumns(db) {
+  const existingColumns = new Set(
+    db.prepare("PRAGMA table_info(users)").all().map((column) => column.name)
+  );
+  
+  if (!existingColumns.has("gender")) {
+    db.exec("ALTER TABLE users ADD COLUMN gender TEXT;");
+  }
+  if (!existingColumns.has("preferences")) {
+    db.exec("ALTER TABLE users ADD COLUMN preferences TEXT;");
   }
 }
 

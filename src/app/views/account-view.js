@@ -5,11 +5,24 @@ export function setActivationStatus(element, message) {
   element.textContent = message;
 }
 
-export function renderAccount({ walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome }, account, user) {
+export function renderAccount({ walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome, displayGender, displayNeeds }, account, user) {
   if (user && accountUsername) {
     accountUsername.textContent = user.username;
     if (accountWelcome) {
       accountWelcome.textContent = `Welcome back, ${user.username}`;
+    }
+
+    if (displayGender) {
+      displayGender.textContent = user.gender || "Not set";
+    }
+
+    if (displayNeeds) {
+      try {
+        const needs = JSON.parse(user.preferences || "[]");
+        displayNeeds.textContent = needs.length > 0 ? needs.join(", ") : "None set";
+      } catch {
+        displayNeeds.textContent = "None set";
+      }
     }
   }
 

@@ -66,7 +66,9 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
-      email TEXT
+      email TEXT,
+      gender TEXT,
+      preferences TEXT
     ) STRICT;
 
     CREATE TABLE IF NOT EXISTS app_account (
@@ -232,10 +234,16 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
     },
     async getUserByUsername(username) {
-      return db.prepare("SELECT id, username, password_hash, email FROM users WHERE username = ?").get(username);
+      return db.prepare("SELECT id, username, password_hash, email, gender, preferences FROM users WHERE username = ?").get(username);
     },
     async getUserById(userId) {
-      return db.prepare("SELECT id, username, email FROM users WHERE id = ?").get(userId);
+      return db.prepare("SELECT id, username, email, gender, preferences FROM users WHERE id = ?").get(userId);
+    },
+    async updateUserProfile(userId, { gender, preferences }) {
+      db.prepare(
+        "UPDATE users SET gender = ?, preferences = ? WHERE id = ?"
+      ).run(gender, JSON.stringify(preferences), userId);
+      return this.getUserById(userId);
     },
     async verifyUserPassword(username, password) {
       const user = await this.getUserByUsername(username);

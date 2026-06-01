@@ -35,3 +35,10 @@ export function logoutUser() {
 export function getCurrentUser() {
   return fetchJson(`${appConfig.apiBasePath}/me`);
 }
+
+export function updateUserProfile(payload) {
+  return fetchJson(`${appConfig.apiBasePath}/me/profile`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}

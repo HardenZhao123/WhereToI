@@ -1075,3 +1075,55 @@ mark {
     border-radius: 0;
   }
 }
+
+.profile-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 51;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(31 42 51 / 60%);
+}
+
+.profile-modal.is-hidden {
+  display: none;
+}
+
+.profile-dialog {
+  width: min(360px, 100%);
+  padding: 24px;
+  border-radius: 18px;
+  background: white;
+  box-shadow: 0 24px 72px rgb(31 42 51 / 28%);
+}
+
+.profile-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.profile-form p {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.preferences-group {
+  display: grid;
+  gap: 8px;
+}
+
+.preferences-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.profile-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}

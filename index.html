@@ -194,6 +194,16 @@
                 <p id="subscription-plan">Campus Plus - renews 26 Jun</p>
                 <p>Monthly free toilet access tickets: <strong id="monthly-tickets-left">3 left</strong></p>
               </article>
+              <article class="account-card" id="profile-card">
+                <h3>My Profile</h3>
+                <p>Gender: <strong id="display-gender">Not set</strong></p>
+                <p>Needs: <strong id="display-needs">None set</strong></p>
+                <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; cursor: pointer;">
+                  <input type="checkbox" id="auto-filter-toggle" />
+                  Auto-filter map based on my profile
+                </label>
+                <button type="button" id="edit-profile" style="background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; margin-top: 12px; cursor: pointer; font-size: 12px;">Edit Profile</button>
+              </article>
               <article class="account-card history-card">
                 <h3>Toilet access history</h3>
                 <div id="access-history-list" aria-live="polite">
@@ -260,6 +270,34 @@
         <p class="auth-switch" id="auth-switch-text">
           Don't have an account? <button id="auth-toggle" type="button">Sign up</button>
         </p>
+      </div>
+    </section>
+    <section class="profile-modal is-hidden" id="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+      <div class="profile-dialog">
+        <h2 id="profile-title">Set up your profile</h2>
+        <p id="profile-subtitle">This is optional but helps us show you the best toilets.</p>
+        <form id="profile-form" class="profile-form">
+          <div>
+            <label for="profile-gender">Gender Preference</label>
+            <select id="profile-gender" style="width: 100%; height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px;">
+              <option value="">Choose...</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+              <option value="neutral">Gender Neutral</option>
+            </select>
+          </div>
+          <div class="preferences-group">
+            <p>My Needs</p>
+            <label><input type="checkbox" name="need" value="accessible" /> Accessible</label>
+            <label><input type="checkbox" name="need" value="babyChanging" /> Baby Changing</label>
+            <label><input type="checkbox" name="need" value="free" /> Free toilets only</label>
+            <label><input type="checkbox" name="need" value="radarKey" /> RADAR Key access</label>
+          </div>
+          <div class="profile-actions">
+            <button class="solid-button" type="submit">Save Profile</button>
+            <button class="text-button" id="skip-profile" type="button" style="background: none; border: none; padding: 10px; color: var(--muted); cursor: pointer;">Skip for now</button>
+          </div>
+        </form>
       </div>
     </section>
   </body>

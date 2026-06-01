@@ -627,6 +627,39 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     applyFilters();
   }
 
+  function applyProfilePreferences(user, enabled) {
+    if (!enabled || !user) {
+      resetFilters();
+      return;
+    }
+
+    const preferences = [];
+    try {
+      const needs = JSON.parse(user.preferences || "[]");
+      preferences.push(...needs);
+    } catch (e) {
+      console.error("Failed to parse user preferences:", e);
+    }
+
+    if (user.gender === "female") preferences.push("women");
+    if (user.gender === "male") preferences.push("men");
+    if (user.gender === "neutral") preferences.push("neutral");
+
+    selectedFeatureFilters = new Set();
+    preferences.forEach(pref => {
+      if (featureFilterOptions.some(opt => opt.key === pref)) {
+        selectedFeatureFilters.add(pref);
+      }
+    });
+
+    // Sync UI checkboxes
+    featureFilterInputs.forEach(input => {
+      input.checked = selectedFeatureFilters.has(input.value);
+    });
+
+    applyFilters();
+  }
+
   function getSelectedToilet() {
     return selectedToilet;
   }
@@ -737,6 +770,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     getSelectedToilet,
     updateToiletCleanliness,
     answerCleanlinessSurvey,
-    postComment
+    postComment,
+    applyProfilePreferences
   };
 }

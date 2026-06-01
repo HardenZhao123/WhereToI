@@ -18,7 +18,8 @@ export function createApp() {
   accountController = createAccountController(
     elements,
     () => mapController.getSelectedToilet(),
-    (toiletUpdate) => mapController.updateToiletCleanliness(toiletUpdate)
+    (toiletUpdate) => mapController.updateToiletCleanliness(toiletUpdate),
+    (user, enabled) => mapController.applyProfilePreferences(user, enabled)
   );
 
   const tabController = createTabController({

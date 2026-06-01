@@ -50,6 +50,15 @@ export function getDomRefs() {
     authPassword: document.querySelector("#auth-password"),
     authEmail: document.querySelector("#auth-email"),
     emailGroup: document.querySelector("#email-group"),
-    logoutButton: document.querySelector("#logout-button")
+    logoutButton: document.querySelector("#logout-button"),
+    profileModal: document.querySelector("#profile-modal"),
+    profileForm: document.querySelector("#profile-form"),
+    profileGender: document.querySelector("#profile-gender"),
+    profileNeeds: document.querySelectorAll("input[name='need']"),
+    skipProfileButton: document.querySelector("#skip-profile"),
+    displayGender: document.querySelector("#display-gender"),
+    displayNeeds: document.querySelector("#display-needs"),
+    autoFilterToggle: document.querySelector("#auto-filter-toggle"),
+    editProfileButton: document.querySelector("#edit-profile")
   };
 }

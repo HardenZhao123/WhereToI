@@ -1,8 +1,8 @@
-import { fetchAccountSnapshot, saveAccessRecord, loginUser, registerUser, logoutUser, getCurrentUser } from "../services/account-service.js";
+import { fetchAccountSnapshot, saveAccessRecord, loginUser, registerUser, logoutUser, getCurrentUser, updateUserProfile } from "../services/account-service.js";
 import { submitCleanlinessSurvey } from "../services/toilets-service.js";
 import { renderAccessHistory, renderAccount, setActivationStatus } from "../views/account-view.js";
 
-export function createAccountController(elements, getSelectedToilet, onCleanlinessUpdated = () => {}) {
+export function createAccountController(elements, getSelectedToilet, onCleanlinessUpdated = () => {}, onProfilePreferenceToggled = () => {}) {
   const {
     activatePassButton,
     activationStatus,
@@ -30,14 +30,38 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     authPassword,
     authEmail,
     emailGroup,
-    logoutButton
+    logoutButton,
+    profileModal,
+    profileForm,
+    profileGender,
+    profileNeeds,
+    skipProfileButton,
+    displayGender,
+    displayNeeds,
+    autoFilterToggle,
+    editProfileButton
   } = elements;
 
   const surveyStorageKey = "wheretoi-qr-cleanliness-survey";
+  const autoFilterStorageKey = "wheretoi-auto-filter-enabled";
   let pendingSurveyToilet = null;
   let ticketToilet = null;
   let currentUser = null;
   let isRegisterMode = false;
+
+  function loadAutoFilterState() {
+    return window.localStorage?.getItem(autoFilterStorageKey) === "true";
+  }
+
+  function saveAutoFilterState(enabled) {
+    window.localStorage?.setItem(autoFilterStorageKey, enabled ? "true" : "false");
+  }
+
+  function handleAutoFilterToggle() {
+    const enabled = autoFilterToggle?.checked ?? false;
+    saveAutoFilterState(enabled);
+    onProfilePreferenceToggled(currentUser, enabled);
+  }
 
   function loadSurveyAnswers() {
     try {
@@ -140,6 +164,14 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     authModal?.classList.add("is-hidden");
   }
 
+  function showProfileModal() {
+    profileModal?.classList.remove("is-hidden");
+  }
+
+  function hideProfileModal() {
+    profileModal?.classList.add("is-hidden");
+  }
+
   function toggleAuthMode() {
     isRegisterMode = !isRegisterMode;
     if (authTitle) authTitle.textContent = isRegisterMode ? "Sign up for WhereToI" : "Log in to WhereToI";
@@ -164,16 +196,61 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
         await registerUser(payload);
         if (authStatus) authStatus.textContent = "Account created! Now logging in...";
         await loginUser({ username: payload.username, password: payload.password });
+        hideAuthModal();
+        await loadPanelData();
+        showProfileModal();
       } else {
         await loginUser(payload);
+        hideAuthModal();
+        await loadPanelData();
       }
-
-      hideAuthModal();
-      await loadPanelData();
     } catch (error) {
       console.error("Auth failed:", error);
       if (authStatus) authStatus.textContent = error.message || "Authentication failed. Please try again.";
     }
+  }
+
+  async function handleProfileSubmit(event) {
+    event.preventDefault();
+    
+    const preferences = [];
+    profileNeeds?.forEach(checkbox => {
+      if (checkbox.checked) preferences.push(checkbox.value);
+    });
+
+    try {
+      await updateUserProfile({
+        gender: profileGender?.value || null,
+        preferences: preferences
+      });
+      hideProfileModal();
+      await loadPanelData();
+    } catch (error) {
+      console.error("Profile update failed:", error);
+      alert("Could not save profile. You can try again later in the Account settings.");
+      hideProfileModal();
+    }
+  }
+
+  function handleEditProfile() {
+    if (!currentUser) return;
+
+    if (profileGender) {
+      profileGender.value = currentUser.gender || "";
+    }
+
+    if (profileNeeds) {
+      try {
+        const preferences = JSON.parse(currentUser.preferences || "[]");
+        profileNeeds.forEach(checkbox => {
+          checkbox.checked = preferences.includes(checkbox.value);
+        });
+      } catch {
+        profileNeeds.forEach(checkbox => checkbox.checked = false);
+      }
+    }
+
+    showProfileModal();
   }
 
   async function handleLogout() {
@@ -192,9 +269,16 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
       const me = await getCurrentUser();
       currentUser = me.user;
 
+      if (autoFilterToggle) {
+        autoFilterToggle.checked = loadAutoFilterState();
+        if (autoFilterToggle.checked) {
+          onProfilePreferenceToggled(currentUser, true);
+        }
+      }
+
       const payload = await fetchAccountSnapshot();
       renderAccount(
-        { walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome },
+        { walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome, displayGender, displayNeeds },
         payload.account,
         currentUser
       );
@@ -280,6 +364,11 @@ export function createAccountController(elements, getSelectedToilet, onCleanline
     authForm?.addEventListener("submit", handleAuthSubmit);
     authToggle?.addEventListener("click", toggleAuthMode);
     logoutButton?.addEventListener("click", handleLogout);
+
+    profileForm?.addEventListener("submit", handleProfileSubmit);
+    skipProfileButton?.addEventListener("click", hideProfileModal);
+    editProfileButton?.addEventListener("click", handleEditProfile);
+    autoFilterToggle?.addEventListener("change", handleAutoFilterToggle);
   }
 
   return {

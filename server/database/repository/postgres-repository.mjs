@@ -49,13 +49,23 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
       cleanliness_no_count INTEGER NOT NULL DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      email TEXT,
+      gender TEXT,
+      preferences JSONB
+    );
   `);
 
   await applyPostgresToiletMigrations({ pool, seedCsvPath });
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS app_account (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       wallet_balance_gbp DOUBLE PRECISION NOT NULL,
       subscription_name TEXT NOT NULL,
       subscription_renews_on TEXT NOT NULL,
@@ -66,6 +76,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
   await pool.query(`
     CREATE TABLE IF NOT EXISTS access_history (
       id BIGSERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       toilet_id TEXT REFERENCES toilets(id) ON DELETE SET NULL,
       toilet_name TEXT NOT NULL,
       event_type TEXT NOT NULL,
@@ -78,6 +89,8 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     CREATE TABLE IF NOT EXISTS toilet_comments (
       id SERIAL PRIMARY KEY,
       toilet_id TEXT NOT NULL REFERENCES toilets(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      username TEXT,
       comment_text TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
