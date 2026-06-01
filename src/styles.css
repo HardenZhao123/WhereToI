@@ -562,8 +562,9 @@ h3 {
 }
 
 .rating-bar-container {
+  display: flex;
   width: 100%;
-  height: 10px;
+  height: 22px;
   background: var(--line);
   border-radius: 999px;
   margin-top: 8px;
@@ -571,9 +572,34 @@ h3 {
 }
 
 .rating-bar-fill {
+  display: flex;
+  align-items: center;
+  min-width: 0;
   height: 100%;
-  background: var(--teal);
   transition: width 0.4s ease-out;
+  overflow: hidden;
+}
+
+.rating-bar-clean {
+  justify-content: flex-start;
+  background: #15a46d;
+}
+
+.rating-bar-not-clean {
+  justify-content: flex-end;
+  background: #df4f4f;
+}
+
+.rating-bar-label {
+  min-width: 0;
+  padding: 0 9px;
+  overflow: hidden;
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .cleanliness-score {
@@ -598,6 +624,11 @@ h3 {
 .features-list strong {
   min-width: 18px;
   text-align: right;
+}
+
+.info-grid .cleanliness-score {
+  display: block;
+  line-height: 1.5;
 }
 
 mark {
