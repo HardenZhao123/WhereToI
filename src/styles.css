@@ -472,7 +472,7 @@ h3 {
   bottom: 92px;
   left: 18px;
   z-index: 4;
-  max-height: 278px;
+  max-height: min(430px, 58vh);
   padding: 16px;
   overflow: auto;
   border-radius: 18px;
@@ -542,6 +542,44 @@ h3 {
   font-size: 12px;
 }
 
+.details-section-nav {
+  display: flex;
+  gap: 16px;
+  margin: 8px -2px 12px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+}
+
+.details-section-link {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 2px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  background: transparent;
+}
+
+.details-section-link.is-active {
+  border-bottom-color: var(--teal);
+  color: var(--teal);
+}
+
+.details-section-panels {
+  min-height: 142px;
+}
+
+.details-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.details-panel[hidden] {
+  display: none;
+}
+
 .details-actions-row {
   display: flex;
   align-items: center;
@@ -549,16 +587,11 @@ h3 {
   margin: 12px 0 8px;
 }
 
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.info-grid > div {
-  min-height: 96px;
-  padding: 9px;
-  border: 1px solid var(--ink);
+.features-list,
+.opening-hours-list,
+.comment-panel {
+  padding: 10px;
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
 }
@@ -634,7 +667,8 @@ h3 {
   font-size: 11px;
 }
 
-.info-grid p {
+.features-list p,
+.opening-hours-list p {
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -652,25 +686,21 @@ h3 {
   text-align: right;
 }
 
-.info-grid .cleanliness-score {
-  display: block;
-  line-height: 1.5;
-}
-
 mark {
   border-radius: 99px;
   background: #bdf5ec;
 }
 
 .comment {
-  margin-top: 9px;
+  margin-top: 8px;
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.5;
 }
 
 .comments-section {
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 0;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
 }
 
@@ -731,9 +761,10 @@ mark {
   grid-template-columns: 1fr auto;
   gap: 10px 12px;
   align-items: center;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
 }
 
 .map-cleanliness-survey p {

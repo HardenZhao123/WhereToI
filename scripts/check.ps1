@@ -34,6 +34,10 @@ if (-not $Html.Contains("close-details") -or -not $Js.Contains("closeDetailsButt
   throw "Expected closable toilet details panel."
 }
 
+if (-not $Html.Contains('data-detail-section="features"') -or -not $Html.Contains('data-detail-panel="survey"')) {
+  throw "Expected toilet details to switch between linked detail sections."
+}
+
 if (-not $Css.Contains("@media") -or -not $Js.Contains("setTab")) {
   throw "Expected responsive CSS and tab interaction code."
 }

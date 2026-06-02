@@ -31,6 +31,8 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     mapSurveyCleanYesButton,
     mapSurveyCleanNoButton,
     mapSurveyStatus,
+    detailSectionLinks = [],
+    detailPanels = [],
     commentsList,
     commentForm,
     commentInput,
@@ -149,6 +151,23 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
       item.append(text, date);
       commentsList.append(item);
+    });
+  }
+
+  function setDetailSection(sectionName = "features") {
+    const hasPanel = [...detailPanels].some((panel) => panel.dataset.detailPanel === sectionName);
+    const nextSection = hasPanel ? sectionName : "features";
+
+    detailSectionLinks.forEach((link) => {
+      const isActive = link.dataset.detailSection === nextSection;
+      link.classList.toggle("is-active", isActive);
+      link.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    detailPanels.forEach((panel) => {
+      const isActive = panel.dataset.detailPanel === nextSection;
+      panel.classList.toggle("is-active", isActive);
+      panel.hidden = !isActive;
     });
   }
 
@@ -367,6 +386,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     if (!toilet) return;
 
     selectedToilet = toilet;
+    setDetailSection("features");
     detailsCard?.classList.remove("is-hidden");
     mapPanel?.classList.add("has-details");
 
@@ -768,6 +788,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     resetFilters,
     requestLocation,
     openDirections,
+    setDetailSection,
     hideToiletDetails,
     refreshAfterTabVisible,
     getSelectedToilet,

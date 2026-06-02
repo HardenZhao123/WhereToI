@@ -106,50 +106,67 @@
                 </div>
               </div>
               <div class="distance-line" id="distance-line">Enable location to see distance.</div>
-              <div class="info-grid">
-                <div class="features-list">
-                  <h3>Features</h3>
-                  <p>Women <strong id="feature-women">Y</strong></p>
-                  <p>Men <strong id="feature-men">Y</strong></p>
-                  <p>Accessible <strong id="feature-accessible">N</strong></p>
-                  <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
-                  <p>Children <strong id="feature-children">?</strong></p>
-                  <p>Parent &amp; Baby <strong id="feature-baby-changing">?</strong></p>
-                  <p>Bidet / Washing <strong id="feature-bidet">?</strong></p>
-                  <p>Automatic <strong id="feature-automatic">?</strong></p>
-                  <p>Urinal Only <strong id="feature-urinal-only">?</strong></p>
-                  <p>RADAR Key <strong id="feature-radar-key">?</strong></p>
-                  <p>Free <strong id="feature-free">?</strong></p>
-                </div>
-                <div>
-                  <h3>Opening Hours</h3>
-                  <p><mark id="hours-today">Tue 09:00 - 17:00</mark></p>
-                  <p id="hours-sat">Sat Closed</p>
-                  <p id="hours-sun">Sun Closed</p>
-                </div>
+              <nav class="details-section-nav" aria-label="Toilet detail sections">
+                <button class="details-section-link is-active" id="details-features-link" type="button" data-detail-section="features" aria-controls="details-features-panel" aria-selected="true">Features</button>
+                <button class="details-section-link" id="details-hours-link" type="button" data-detail-section="hours" aria-controls="details-hours-panel" aria-selected="false">Opening Hours</button>
+                <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Comment</button>
+                <button class="details-section-link" id="details-survey-link" type="button" data-detail-section="survey" aria-controls="details-survey-panel" aria-selected="false">Survey</button>
+              </nav>
+              <div class="details-section-panels">
+                <section class="details-panel is-active" id="details-features-panel" data-detail-panel="features" aria-labelledby="details-features-link">
+                  <div class="features-list">
+                    <h3>Features</h3>
+                    <p>Women <strong id="feature-women">Y</strong></p>
+                    <p>Men <strong id="feature-men">Y</strong></p>
+                    <p>Accessible <strong id="feature-accessible">N</strong></p>
+                    <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
+                    <p>Children <strong id="feature-children">?</strong></p>
+                    <p>Parent &amp; Baby <strong id="feature-baby-changing">?</strong></p>
+                    <p>Bidet / Washing <strong id="feature-bidet">?</strong></p>
+                    <p>Automatic <strong id="feature-automatic">?</strong></p>
+                    <p>Urinal Only <strong id="feature-urinal-only">?</strong></p>
+                    <p>RADAR Key <strong id="feature-radar-key">?</strong></p>
+                    <p>Free <strong id="feature-free">?</strong></p>
+                  </div>
+                </section>
+                <section class="details-panel" id="details-hours-panel" data-detail-panel="hours" aria-labelledby="details-hours-link" hidden>
+                  <div class="opening-hours-list">
+                    <h3>Opening Hours</h3>
+                    <p><mark id="hours-today">Tue 09:00 - 17:00</mark></p>
+                    <p id="hours-sat">Sat Closed</p>
+                    <p id="hours-sun">Sun Closed</p>
+                  </div>
+                </section>
+                <section class="details-panel" id="details-comment-panel" data-detail-panel="comment" aria-labelledby="details-comment-link" hidden>
+                  <div class="comment-panel">
+                    <h3>Comment</h3>
+                    <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
+                  </div>
+                  <section class="comments-section">
+                    <h3>Comments</h3>
+                    <div id="comments-list" class="comments-list">
+                      <p>Loading comments...</p>
+                    </div>
+                    <form id="comment-form" class="comment-form">
+                      <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
+                      <button type="submit" id="submit-comment">Post Comment</button>
+                    </form>
+                  </section>
+                </section>
+                <section class="details-panel" id="details-survey-panel" data-detail-panel="survey" aria-labelledby="details-survey-link" hidden>
+                  <section class="map-cleanliness-survey" aria-labelledby="map-cleanliness-survey-title">
+                    <div>
+                      <h3 id="map-cleanliness-survey-title">Cleanliness survey</h3>
+                      <p>Was this toilet clean?</p>
+                    </div>
+                    <div class="survey-actions" role="group" aria-label="Map cleanliness survey answer">
+                      <button id="map-survey-clean-yes" type="button" data-survey-answer="yes" aria-pressed="false">Yes</button>
+                      <button id="map-survey-clean-no" type="button" data-survey-answer="no" aria-pressed="false">No</button>
+                    </div>
+                    <p class="survey-status" id="map-survey-status" aria-live="polite">Choose an answer to help others.</p>
+                  </section>
+                </section>
               </div>
-              <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
-              <section class="comments-section">
-                <h3>Comments</h3>
-                <div id="comments-list" class="comments-list">
-                  <p>Loading comments...</p>
-                </div>
-                <form id="comment-form" class="comment-form">
-                  <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
-                  <button type="submit" id="submit-comment">Post Comment</button>
-                </form>
-              </section>
-              <section class="map-cleanliness-survey" aria-labelledby="map-cleanliness-survey-title">
-                <div>
-                  <h3 id="map-cleanliness-survey-title">Cleanliness survey</h3>
-                  <p>Was this toilet clean?</p>
-                </div>
-                <div class="survey-actions" role="group" aria-label="Map cleanliness survey answer">
-                  <button id="map-survey-clean-yes" type="button" data-survey-answer="yes" aria-pressed="false">Yes</button>
-                  <button id="map-survey-clean-no" type="button" data-survey-answer="no" aria-pressed="false">No</button>
-                </div>
-                <p class="survey-status" id="map-survey-status" aria-live="polite">Choose an answer to help others.</p>
-              </section>
             </article>
           </section>
 

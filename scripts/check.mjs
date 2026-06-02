@@ -97,6 +97,15 @@ if (!html.includes("feature-filters") || !html.includes("toilet-results") || !js
   throw new Error("Expected multi-select toilet filtering and result list interaction.");
 }
 
+if (
+  !html.includes("data-detail-section=\"features\"") ||
+  !html.includes("data-detail-panel=\"survey\"") ||
+  !js.includes("setDetailSection") ||
+  !css.includes(".details-section-link")
+) {
+  throw new Error("Expected toilet details to switch between linked detail sections.");
+}
+
 if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {
   throw new Error("QR access UI and activation flow should not be present.");
 }

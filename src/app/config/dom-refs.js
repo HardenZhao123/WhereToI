@@ -21,6 +21,8 @@ export function getDomRefs() {
     mapSurveyCleanYesButton: document.querySelector("#map-survey-clean-yes"),
     mapSurveyCleanNoButton: document.querySelector("#map-survey-clean-no"),
     mapSurveyStatus: document.querySelector("#map-survey-status"),
+    detailSectionLinks: document.querySelectorAll("[data-detail-section]"),
+    detailPanels: document.querySelectorAll("[data-detail-panel]"),
     commentsList: document.querySelector("#comments-list"),
     commentForm: document.querySelector("#comment-form"),
     commentInput: document.querySelector("#comment-input"),
