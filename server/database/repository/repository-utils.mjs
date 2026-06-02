@@ -6,21 +6,14 @@ export function normaliseSearchQuery(search) {
 }
 
 const COMMENT_MEDIA_MAX_BYTES = 8 * 1024 * 1024;
+const COMMENT_MEDIA_MAX_ATTACHMENTS = 9;
+const COMMENT_MEDIA_MAX_VIDEOS = 3;
+const COMMENT_MEDIA_MAX_IMAGES = 9;
 const COMMENT_MEDIA_TYPES = new Set(["image", "video"]);
 const COMMENT_MEDIA_DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
 
-function normaliseCommentMedia(media = null) {
-  if (media === null || media === undefined) {
-    return {
-      mediaType: null,
-      mediaMimeType: null,
-      mediaName: null,
-      mediaSize: null,
-      mediaUrl: null
-    };
-  }
-
-  if (typeof media !== "object" || Array.isArray(media)) {
+function normaliseCommentMediaAttachment(media) {
+  if (typeof media !== "object" || Array.isArray(media) || media === null) {
     throw new Error("comment media must be an image or video attachment.");
   }
 
@@ -53,11 +46,95 @@ function normaliseCommentMedia(media = null) {
   }
 
   return {
-    mediaType,
-    mediaMimeType,
-    mediaName,
-    mediaSize,
-    mediaUrl
+    type: mediaType,
+    mimeType: mediaMimeType,
+    name: mediaName,
+    size: mediaSize,
+    dataUrl: mediaUrl
+  };
+}
+
+function normaliseCommentMedia(media = null) {
+  const rawAttachments =
+    media === null || media === undefined
+      ? []
+      : Array.isArray(media) ? media : [media];
+
+  if (rawAttachments.length > COMMENT_MEDIA_MAX_ATTACHMENTS) {
+    throw new Error("comment media can include at most 9 attachments.");
+  }
+
+  const attachments = rawAttachments.map(normaliseCommentMediaAttachment);
+  const videoCount = attachments.filter((attachment) => attachment.type === "video").length;
+  const imageCount = attachments.filter((attachment) => attachment.type === "image").length;
+
+  if (videoCount > COMMENT_MEDIA_MAX_VIDEOS) {
+    throw new Error("comment media can include at most 3 videos.");
+  }
+
+  if (imageCount > COMMENT_MEDIA_MAX_IMAGES) {
+    throw new Error("comment media can include at most 9 images.");
+  }
+
+  const firstAttachment = attachments[0] ?? null;
+
+  if (!firstAttachment) {
+    return {
+      mediaAttachments: [],
+      mediaAttachmentsJson: null,
+      mediaType: null,
+      mediaMimeType: null,
+      mediaName: null,
+      mediaSize: null,
+      mediaUrl: null
+    };
+  }
+
+  return {
+    mediaAttachments: attachments,
+    mediaAttachmentsJson: JSON.stringify(attachments),
+    mediaType: firstAttachment.type,
+    mediaMimeType: firstAttachment.mimeType,
+    mediaName: firstAttachment.name,
+    mediaSize: firstAttachment.size,
+    mediaUrl: firstAttachment.dataUrl
+  };
+}
+
+function parseCommentMediaAttachments(row) {
+  if (Array.isArray(row.media_attachments)) {
+    return row.media_attachments;
+  }
+
+  if (typeof row.media_attachments === "string" && row.media_attachments.trim()) {
+    try {
+      const parsed = JSON.parse(row.media_attachments);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  if (row.media_url && row.media_type && row.media_mime_type) {
+    return [
+      {
+        type: row.media_type,
+        mimeType: row.media_mime_type,
+        name: row.media_name ?? "attachment",
+        size: Number(row.media_size ?? 0),
+        dataUrl: row.media_url
+      }
+    ];
+  }
+
+  return [];
+}
+
+export function mapCommentRow(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    media_attachments: parseCommentMediaAttachments(row)
   };
 }
 

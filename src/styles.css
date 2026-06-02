@@ -703,17 +703,23 @@ mark {
 }
 
 .comment-media {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+  gap: 8px;
   margin-top: 8px;
-  width: 100%;
-  height: 220px;
+}
+
+.comment-media-item {
+  aspect-ratio: 16 / 9;
+  min-height: 120px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfcf8;
 }
 
-.comment-media img,
-.comment-media video {
+.comment-media-item img,
+.comment-media-item video {
   display: block;
   width: 100%;
   height: 100%;
@@ -754,28 +760,72 @@ mark {
 }
 
 .comment-media-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 92px);
+  gap: 8px;
+  min-height: 0;
+}
+
+.comment-media-preview:empty {
+  display: none;
+}
+
+.comment-media-preview-item {
+  position: relative;
+  width: 92px;
+}
+
+.comment-media-preview-frame {
+  width: 92px;
+  height: 92px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.comment-media-preview-frame img,
+.comment-media-preview-frame video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.comment-media-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: white;
+  background: #1e252c;
+  box-shadow: 0 2px 6px rgba(9, 19, 33, 0.22);
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.comment-media-caption {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-media-status {
   min-height: 14px;
   color: var(--muted);
   font-size: 11px;
 }
 
-.comment-media-remove {
-  justify-self: flex-start;
-  min-height: 28px;
-  padding: 5px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--pink);
-  background: white;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.comment-media-remove[hidden] {
-  display: none;
-}
-
-.comment-form button:not(.comment-media-remove) {
+.comment-form > button[type="submit"] {
   align-self: flex-end;
   padding: 6px 12px;
   border: 0;

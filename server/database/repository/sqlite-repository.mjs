@@ -9,6 +9,7 @@ import {
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
+  mapCommentRow,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
   normaliseCommentPayload,
@@ -107,6 +108,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       media_name TEXT,
       media_size INTEGER,
       media_url TEXT,
+      media_attachments TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -461,13 +463,15 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             media_name,
             media_size,
             media_url,
+            media_attachments,
             created_at
           FROM toilet_comments
           WHERE toilet_id = ?
           ORDER BY created_at DESC, id DESC
           `
         )
-        .all(toiletId);
+        .all(toiletId)
+        .map(mapCommentRow);
     },
     async saveComment({ toiletId, userId, username, commentText, media }) {
       const comment = normaliseCommentPayload({ toiletId, commentText, media });
@@ -485,9 +489,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
           media_name,
           media_size,
           media_url,
+          media_attachments,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       ).run(
         comment.toiletId,
@@ -499,6 +504,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         comment.mediaName,
         comment.mediaSize,
         comment.mediaUrl,
+        comment.mediaAttachmentsJson,
         nowIso
       );
 

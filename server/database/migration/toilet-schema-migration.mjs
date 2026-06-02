@@ -24,7 +24,8 @@ const COMMENT_MEDIA_COLUMNS = [
   { name: "media_mime_type", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
   { name: "media_name", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
   { name: "media_size", sqliteDefinition: "INTEGER", postgresDefinition: "INTEGER" },
-  { name: "media_url", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" }
+  { name: "media_url", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
+  { name: "media_attachments", sqliteDefinition: "TEXT", postgresDefinition: "JSONB" }
 ];
 
 function getFeatureColumnValues(toilet) {
