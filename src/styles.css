@@ -784,7 +784,23 @@ mark {
   font-size: 11px;
 }
 
-.comment-form button {
+.comment-media-remove {
+  justify-self: flex-start;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--pink);
+  background: white;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.comment-media-remove[hidden] {
+  display: none;
+}
+
+.comment-form button:not(.comment-media-remove) {
   align-self: flex-end;
   padding: 6px 12px;
   border: 0;
