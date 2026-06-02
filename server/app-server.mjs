@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { createDatabase } from "./database.mjs";
+import { createRegistrationEmailService } from "./email-service.mjs";
 
 const STATIC_CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -96,7 +97,20 @@ function parseAccessibleOnly(queryValue) {
   return TRUTHY_QUERY_FLAGS.has((queryValue ?? "").toLowerCase());
 }
 
-function createApiRouteHandlers(database) {
+function queueRegistrationEmail({ emailService, logger, user }) {
+  if (typeof emailService?.sendRegistrationSuccessEmail !== "function") return;
+
+  try {
+    const sendResult = emailService.sendRegistrationSuccessEmail(user);
+    Promise.resolve(sendResult).catch((error) => {
+      logger.error("Registration confirmation email failed:", error);
+    });
+  } catch (error) {
+    logger.error("Registration confirmation email failed:", error);
+  }
+}
+
+function createApiRouteHandlers(database, { emailService, logger }) {
   return {
     "GET /api/health": async ({ response }) => {
       sendJson(response, 200, {
@@ -112,6 +126,7 @@ function createApiRouteHandlers(database) {
           password: body.password,
           email: body.email
         });
+        queueRegistrationEmail({ emailService, logger, user });
         sendJson(response, 201, { user });
       } catch (error) {
         if (error.code === "23505" || error.message?.includes("UNIQUE constraint failed")) {
@@ -275,8 +290,8 @@ async function serveStaticFile({ root, pathname, response }) {
   createReadStream(file).pipe(response);
 }
 
-function createRequestHandler({ root, port, database }) {
-  const routeHandlers = createApiRouteHandlers(database);
+function createRequestHandler({ root, port, database, emailService, logger }) {
+  const routeHandlers = createApiRouteHandlers(database, { emailService, logger });
 
   return async function handleRequest(request, response) {
     const url = new URL(request.url ?? "/", `http://localhost:${port}`);
@@ -297,16 +312,21 @@ function createRequestHandler({ root, port, database }) {
         return;
       }
 
-      console.error("Server request failed:", error);
+      logger.error("Server request failed:", error);
       sendJson(response, 500, { error: "Internal server error." });
     }
   };
 }
 
-export async function createAppServer({ rootDirectory = ".", port = 4173 } = {}) {
+export async function createAppServer({
+  rootDirectory = ".",
+  port = 4173,
+  logger = console,
+  emailService = createRegistrationEmailService()
+} = {}) {
   const root = resolve(rootDirectory);
   const database = await createDatabase({ rootDirectory: root });
-  const requestHandler = createRequestHandler({ root, port, database });
+  const requestHandler = createRequestHandler({ root, port, database, emailService, logger });
 
   const server = createServer(requestHandler);
 

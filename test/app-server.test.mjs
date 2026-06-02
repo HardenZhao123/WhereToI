@@ -6,7 +6,7 @@ import test from "node:test";
 import { createAppServer } from "../server/app-server.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
-async function withAppServer(callback) {
+async function withAppServer(callback, serverOptions = {}) {
   const rootDirectory = await mkdtemp(join(tmpdir(), "wheretoi-server-test-"));
   const dataDirectory = join(rootDirectory, "src", "data");
   let appServer;
@@ -15,7 +15,7 @@ async function withAppServer(callback) {
     await mkdir(dataDirectory, { recursive: true });
     await writeFile(join(dataDirectory, "toilets.csv"), sampleToiletsCsv, "utf8");
 
-    appServer = await createAppServer({ rootDirectory, port: 0 });
+    appServer = await createAppServer({ rootDirectory, port: 0, ...serverOptions });
     const port = await appServer.listen("127.0.0.1");
     await callback(`http://127.0.0.1:${port}`);
   } finally {
@@ -114,6 +114,79 @@ test("API registers a new user with an account and allows login", async () => {
     assert.equal(accountPayload.account.walletBalanceGbp, 5);
     assert.deepEqual(accountPayload.history, []);
   });
+});
+
+test("API queues a registration confirmation email after account creation", async () => {
+  const sentUsers = [];
+  const emailService = {
+    sendRegistrationSuccessEmail(user) {
+      sentUsers.push(user);
+      return Promise.resolve({ status: "sent" });
+    }
+  };
+
+  await withAppServer(async (baseUrl) => {
+    const username = `email-user-${Date.now()}`;
+    const email = `${username}@example.com`;
+
+    const { payload: registered } = await fetchJson(`${baseUrl}/api/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        username,
+        password: "demo123"
+      })
+    });
+
+    assert.equal(registered.user.username, username);
+    assert.equal(sentUsers.length, 1);
+    assert.equal(sentUsers[0].username, username);
+    assert.equal(sentUsers[0].email, email);
+  }, { emailService });
+});
+
+test("API registration still succeeds when confirmation email sending fails", async () => {
+  const loggedErrors = [];
+  const emailService = {
+    sendRegistrationSuccessEmail() {
+      return Promise.reject(new Error("email provider unavailable"));
+    }
+  };
+  const logger = {
+    error(...args) {
+      loggedErrors.push(args);
+    }
+  };
+
+  await withAppServer(async (baseUrl) => {
+    const username = `email-failure-user-${Date.now()}`;
+    const password = "demo123";
+
+    const { payload: registered } = await fetchJson(`${baseUrl}/api/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: `${username}@example.com`,
+        username,
+        password
+      })
+    });
+
+    assert.equal(registered.user.username, username);
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+
+    assert.match(loginRes.headers.get("set-cookie"), /session=/);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(loggedErrors.length, 1);
+    assert.equal(loggedErrors[0][0], "Registration confirmation email failed:");
+  }, { emailService, logger });
 });
 
 test("API supports fetching and posting toilet comments", async () => {
