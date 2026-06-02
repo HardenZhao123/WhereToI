@@ -25,6 +25,8 @@ export function getDomRefs() {
     commentsList: document.querySelector("#comments-list"),
     commentForm: document.querySelector("#comment-form"),
     commentInput: document.querySelector("#comment-input"),
+    commentMediaInput: document.querySelector("#comment-media"),
+    commentMediaPreview: document.querySelector("#comment-media-preview"),
     walletBalance: document.querySelector("#wallet-balance"),
     subscriptionPlan: document.querySelector("#subscription-plan"),
     monthlyTicketsLeft: document.querySelector("#monthly-tickets-left"),
