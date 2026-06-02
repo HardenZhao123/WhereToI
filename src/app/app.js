@@ -105,6 +105,7 @@ export function createApp() {
     elements.mapSurveyRatingButtons.forEach((button) => {
       button?.addEventListener("click", () => mapController.answerCleanlinessSurvey(button.dataset.surveyRating));
     });
+    elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
     elements.commentForm?.addEventListener("submit", (event) => mapController.postComment(event));
     elements.detailSectionLinks.forEach((link) => {
       link?.addEventListener("click", () => mapController.setDetailSection(link.dataset.detailSection));

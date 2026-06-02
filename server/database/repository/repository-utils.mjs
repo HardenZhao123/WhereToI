@@ -5,6 +5,77 @@ export function normaliseSearchQuery(search) {
   return normaliseText(search).toLowerCase();
 }
 
+const COMMENT_MEDIA_MAX_BYTES = 8 * 1024 * 1024;
+const COMMENT_MEDIA_TYPES = new Set(["image", "video"]);
+const COMMENT_MEDIA_DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
+
+function normaliseCommentMedia(media = null) {
+  if (media === null || media === undefined) {
+    return {
+      mediaType: null,
+      mediaMimeType: null,
+      mediaName: null,
+      mediaSize: null,
+      mediaUrl: null
+    };
+  }
+
+  if (typeof media !== "object" || Array.isArray(media)) {
+    throw new Error("comment media must be an image or video attachment.");
+  }
+
+  const mediaType = normaliseText(media.type).toLowerCase();
+  const mediaMimeType = normaliseText(media.mimeType).toLowerCase();
+  const mediaName = normaliseText(media.name).replace(/[\\/]/g, "").slice(0, 120) || "attachment";
+  const mediaUrl = typeof media.dataUrl === "string" ? media.dataUrl.trim() : "";
+  const dataUrlMatch = mediaUrl.match(COMMENT_MEDIA_DATA_URL_PATTERN);
+
+  if (!COMMENT_MEDIA_TYPES.has(mediaType)) {
+    throw new Error("Unsupported comment media type.");
+  }
+
+  if (!mediaMimeType.startsWith(`${mediaType}/`)) {
+    throw new Error("comment media MIME type must match the selected image or video type.");
+  }
+
+  if (!dataUrlMatch || dataUrlMatch[1].toLowerCase() !== mediaMimeType) {
+    throw new Error("comment media must be a valid base64 data URL.");
+  }
+
+  const calculatedSize = Buffer.from(dataUrlMatch[2], "base64").byteLength;
+  const suppliedSize = Number(media.size);
+  const mediaSize = Number.isFinite(suppliedSize) && suppliedSize > 0
+    ? Math.floor(suppliedSize)
+    : calculatedSize;
+
+  if (mediaSize > COMMENT_MEDIA_MAX_BYTES || calculatedSize > COMMENT_MEDIA_MAX_BYTES) {
+    throw new Error("comment media file is too large.");
+  }
+
+  return {
+    mediaType,
+    mediaMimeType,
+    mediaName,
+    mediaSize,
+    mediaUrl
+  };
+}
+
+export function normaliseCommentPayload({ toiletId, commentText, media = null }) {
+  const safeToiletId = normaliseText(toiletId);
+  const safeCommentText = typeof commentText === "string" ? commentText.trim() : "";
+
+  if (!safeToiletId || !safeCommentText) {
+    throw new Error("toiletId and commentText are required.");
+  }
+
+  return {
+    toiletId: safeToiletId,
+    commentText: safeCommentText,
+    ...normaliseCommentMedia(media)
+  };
+}
+
 function normaliseRating(value) {
   const rating = Number(value);
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {

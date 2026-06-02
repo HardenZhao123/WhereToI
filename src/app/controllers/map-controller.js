@@ -19,6 +19,7 @@ const featureFilterOptions = [
 
 const sortModes = new Set(["distance", "cleanliness", "free", "facilities"]);
 const resultRenderLimit = 8;
+const commentMediaMaxBytes = 8 * 1024 * 1024;
 
 export function createMapController(elements, onToiletSelected = () => {}, auth = {}) {
   const {
@@ -35,6 +36,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentsList,
     commentForm,
     commentInput,
+    commentMediaInput,
+    commentMediaPreview,
     featureFilterInputs = [],
     sortSelect,
     resultsSummary,
@@ -91,16 +94,39 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (cleanlinessStars) {
       cleanlinessStars.setAttribute(
         "aria-label",
-        `Cleanliness rating ${rating.rating} out of ${rating.maxRating}`
+        `Cleanliness rating ${rating.displayRating} out of ${rating.maxRating}`
       );
     }
 
     if (starIcons) {
-      starIcons.textContent = `${rating.filled}${rating.empty}`;
+      const icons = [];
+
+      for (let index = 0; index < rating.full; index += 1) {
+        const icon = document.createElement("span");
+        icon.className = "star-icon is-full";
+        icon.textContent = "\u2605";
+        icons.push(icon);
+      }
+
+      if (rating.half) {
+        const icon = document.createElement("span");
+        icon.className = "star-icon is-half";
+        icon.textContent = "\u2606";
+        icons.push(icon);
+      }
+
+      for (let index = 0; index < rating.empty; index += 1) {
+        const icon = document.createElement("span");
+        icon.className = "star-icon is-empty";
+        icon.textContent = "\u2606";
+        icons.push(icon);
+      }
+
+      starIcons.replaceChildren(...icons);
     }
 
     if (cleanlinessLabel) {
-      cleanlinessLabel.textContent = `${rating.rating}/${rating.maxRating}`;
+      cleanlinessLabel.textContent = `${rating.displayRating}/${rating.maxRating}`;
     }
   }
 
@@ -128,6 +154,136 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
+  function isPlaceholderToiletComment(comment = "") {
+    const normalised = String(comment)
+      .replace(/^comment:\s*/i, "")
+      .trim()
+      .replace(/[.。]+$/, "")
+      .toLowerCase();
+
+    return ["", "no notes yet", "no comment yet", "no comments yet", "none", "n/a"].includes(normalised);
+  }
+
+  function renderToiletSourceComment(toilet) {
+    const toiletComment = document.querySelector("#toilet-comment");
+    const commentPanel = toiletComment?.closest(".comment-panel");
+    const hasUsefulComment = !isPlaceholderToiletComment(toilet?.comment);
+
+    if (commentPanel) {
+      commentPanel.hidden = !hasUsefulComment;
+    }
+
+    if (toiletComment && hasUsefulComment) {
+      toiletComment.textContent = toilet.comment;
+    }
+  }
+
+  function getCommentMediaType(file) {
+    if (!file?.type) return null;
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    return null;
+  }
+
+  function formatMediaSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "";
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+
+  function setCommentMediaPreview(message = "") {
+    if (!commentMediaPreview) return;
+    commentMediaPreview.textContent = message;
+  }
+
+  function previewCommentMediaSelection() {
+    const file = commentMediaInput?.files?.[0];
+    if (!file) {
+      setCommentMediaPreview("");
+      return;
+    }
+
+    const mediaType = getCommentMediaType(file);
+    if (!mediaType) {
+      setCommentMediaPreview("Choose an image or video file.");
+      return;
+    }
+
+    if (file.size > commentMediaMaxBytes) {
+      setCommentMediaPreview("Choose a file under 8 MB.");
+      return;
+    }
+
+    const label = mediaType === "image" ? "Image" : "Video";
+    setCommentMediaPreview(`${label} selected: ${file.name} ${formatMediaSize(file.size)}`.trim());
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
+      reader.addEventListener("error", () => reject(new Error("Could not read selected file.")));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function readCommentMediaAttachment() {
+    const file = commentMediaInput?.files?.[0];
+    if (!file) return null;
+
+    const mediaType = getCommentMediaType(file);
+    if (!mediaType) {
+      throw new Error("Choose an image or video file.");
+    }
+
+    if (file.size > commentMediaMaxBytes) {
+      throw new Error("Choose a file under 8 MB.");
+    }
+
+    return {
+      type: mediaType,
+      mimeType: file.type,
+      name: file.name,
+      size: file.size,
+      dataUrl: await readFileAsDataUrl(file)
+    };
+  }
+
+  function resetCommentMediaAttachment() {
+    if (commentMediaInput) {
+      commentMediaInput.value = "";
+    }
+    setCommentMediaPreview("");
+  }
+
+  function createCommentMediaElement(comment) {
+    if (!comment?.media_url || !comment?.media_type || !comment?.media_mime_type) return null;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "comment-media";
+
+    if (comment.media_type === "image" && comment.media_mime_type.startsWith("image/")) {
+      const image = document.createElement("img");
+      image.src = comment.media_url;
+      image.alt = comment.media_name ? `Attached image: ${comment.media_name}` : "Attached image";
+      image.loading = "lazy";
+      wrapper.append(image);
+      return wrapper;
+    }
+
+    if (comment.media_type === "video" && comment.media_mime_type.startsWith("video/")) {
+      const video = document.createElement("video");
+      video.src = comment.media_url;
+      video.controls = true;
+      video.preload = "metadata";
+      video.playsInline = true;
+      wrapper.append(video);
+      return wrapper;
+    }
+
+    return null;
+  }
+
   function renderComments(comments) {
     if (!commentsList) return;
 
@@ -148,11 +304,15 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       text.className = "comment-text";
       text.textContent = comment.comment_text;
 
+      const media = createCommentMediaElement(comment);
+
       const date = document.createElement("p");
       date.className = "comment-date";
       date.textContent = new Date(comment.created_at).toLocaleString();
 
-      item.append(text, date);
+      item.append(text);
+      if (media) item.append(media);
+      item.append(date);
       commentsList.append(item);
     });
   }
@@ -399,7 +559,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     document.querySelector("#toilet-name").textContent = toilet.name;
     document.querySelector("#toilet-area").textContent = toilet.area;
-    document.querySelector("#toilet-comment").textContent = toilet.comment;
+    renderToiletSourceComment(toilet);
     setFeatureValue("#feature-women", toilet.features.women);
     setFeatureValue("#feature-men", toilet.features.men);
     setFeatureValue("#feature-accessible", toilet.features.accessible);
@@ -776,17 +936,28 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       return;
     }
 
+    const submitButton = commentForm?.querySelector("button[type='submit']");
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+
     try {
-      const updatedComments = await submitComment(selectedToilet.id, commentText);
+      const media = await readCommentMediaAttachment();
+      const updatedComments = await submitComment(selectedToilet.id, commentText, media);
       renderComments(updatedComments);
       commentInput.value = "";
+      resetCommentMediaAttachment();
     } catch (error) {
       console.error("Failed to post comment:", error);
       if (error.status === 401) {
         showLoginPrompt("Log in to post a comment. You can still rate cleanliness as a guest.");
         return;
       }
-      alert("Could not post comment. Please try again later.");
+      alert(error?.message || "Could not post comment. Please try again later.");
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+      }
     }
   }
 
@@ -808,6 +979,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     updateToiletCleanliness,
     answerCleanlinessSurvey,
     postComment,
+    previewCommentMediaSelection,
     applyProfilePreferences
   };
 }

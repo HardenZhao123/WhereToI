@@ -240,6 +240,84 @@ test("API supports fetching and posting toilet comments", async () => {
   });
 });
 
+test("API supports image and video comment attachments", async () => {
+  await withAppServer(async (baseUrl) => {
+    const toiletId = "detail-test";
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const authHeaders = {
+      "Content-Type": "application/json",
+      "Cookie": cookie
+    };
+
+    const { payload: imagePayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Photo evidence",
+        media: {
+          type: "image",
+          mimeType: "image/png",
+          name: "door.png",
+          size: 5,
+          dataUrl: "data:image/png;base64,aW1hZ2U="
+        }
+      })
+    });
+
+    assert.equal(imagePayload.comments[0].media_type, "image");
+    assert.equal(imagePayload.comments[0].media_mime_type, "image/png");
+
+    const { payload: videoPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Queue clip",
+        media: {
+          type: "video",
+          mimeType: "video/mp4",
+          name: "queue.mp4",
+          size: 5,
+          dataUrl: "data:video/mp4;base64,dmlkZW8="
+        }
+      })
+    });
+
+    assert.equal(videoPayload.comments.length, 2);
+    assert.equal(videoPayload.comments[0].media_type, "video");
+    assert.equal(videoPayload.comments[0].media_mime_type, "video/mp4");
+    assert.equal(videoPayload.comments[0].media_url, "data:video/mp4;base64,dmlkZW8=");
+
+    const invalidResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Not media",
+        media: {
+          type: "file",
+          mimeType: "application/pdf",
+          name: "rules.pdf",
+          size: 5,
+          dataUrl: "data:application/pdf;base64,cGRm"
+        }
+      })
+    });
+    const invalidPayload = await invalidResponse.json();
+
+    assert.equal(invalidResponse.status, 400);
+    assert.match(invalidPayload.error, /Unsupported comment media type/);
+  });
+});
+
 test("API records cleanliness survey as a star rating", async () => {
   await withAppServer(async (baseUrl) => {
     const { payload } = await fetchJson(`${baseUrl}/api/cleanliness-survey`, {

@@ -11,6 +11,7 @@ import {
   mapCleanlinessSurveyResponse,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
+  normaliseCommentPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
   toCleanlinessUpdate
@@ -101,6 +102,11 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       user_id INTEGER,
       username TEXT,
       comment_text TEXT NOT NULL,
+      media_type TEXT,
+      media_mime_type TEXT,
+      media_name TEXT,
+      media_size INTEGER,
+      media_url TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -444,28 +450,59 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       return db
         .prepare(
           `
-          SELECT id, toilet_id, user_id, username, comment_text, created_at
+          SELECT
+            id,
+            toilet_id,
+            user_id,
+            username,
+            comment_text,
+            media_type,
+            media_mime_type,
+            media_name,
+            media_size,
+            media_url,
+            created_at
           FROM toilet_comments
           WHERE toilet_id = ?
-          ORDER BY created_at DESC
+          ORDER BY created_at DESC, id DESC
           `
         )
         .all(toiletId);
     },
-    async saveComment({ toiletId, userId, username, commentText }) {
-      if (!toiletId || !commentText) {
-        throw new Error("toiletId and commentText are required");
-      }
+    async saveComment({ toiletId, userId, username, commentText, media }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media });
 
       const nowIso = new Date().toISOString();
       db.prepare(
         `
-        INSERT INTO toilet_comments (toilet_id, user_id, username, comment_text, created_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO toilet_comments (
+          toilet_id,
+          user_id,
+          username,
+          comment_text,
+          media_type,
+          media_mime_type,
+          media_name,
+          media_size,
+          media_url,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
-      ).run(toiletId, userId, username, commentText, nowIso);
+      ).run(
+        comment.toiletId,
+        userId,
+        username,
+        comment.commentText,
+        comment.mediaType,
+        comment.mediaMimeType,
+        comment.mediaName,
+        comment.mediaSize,
+        comment.mediaUrl,
+        nowIso
+      );
 
-      return this.getComments(toiletId);
+      return this.getComments(comment.toiletId);
     }
   };
 }

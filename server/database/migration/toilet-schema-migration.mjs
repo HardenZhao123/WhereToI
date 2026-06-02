@@ -19,6 +19,14 @@ const EXTENDED_CLEANLINESS_COLUMNS = [
   { name: "cleanliness_rating_count", definition: "INTEGER NOT NULL DEFAULT 0" }
 ];
 
+const COMMENT_MEDIA_COLUMNS = [
+  { name: "media_type", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
+  { name: "media_mime_type", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
+  { name: "media_name", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
+  { name: "media_size", sqliteDefinition: "INTEGER", postgresDefinition: "INTEGER" },
+  { name: "media_url", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" }
+];
+
 function getFeatureColumnValues(toilet) {
   return [
     toilet.features.children,
@@ -213,6 +221,11 @@ function ensureSqliteUserSupport(db) {
   if (!commentCols.has("username")) {
     db.exec("ALTER TABLE toilet_comments ADD COLUMN username TEXT;");
   }
+  for (const column of COMMENT_MEDIA_COLUMNS) {
+    if (!commentCols.has(column.name)) {
+      db.exec(`ALTER TABLE toilet_comments ADD COLUMN ${column.name} ${column.sqliteDefinition};`);
+    }
+  }
 
   // 5. If we have orphaned records and no users, we need to create a default user and link them.
   // This handles the transition for an existing database.
@@ -237,5 +250,11 @@ export async function applyPostgresToiletMigrations({ pool, seedCsvPath }) {
 
   if (missingFeatureColumns.length > 0) {
     await backfillPostgresFeatureColumns(pool, seedCsvPath);
+  }
+}
+
+export async function ensurePostgresCommentMediaColumns(pool) {
+  for (const column of COMMENT_MEDIA_COLUMNS) {
+    await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${column.name} ${column.postgresDefinition}`);
   }
 }

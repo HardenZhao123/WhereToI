@@ -36,10 +36,10 @@ export async function fetchComments(toiletId) {
   return payload.comments || [];
 }
 
-export async function submitComment(toiletId, commentText) {
+export async function submitComment(toiletId, commentText, media = null) {
   const payload = await fetchJson(`${appConfig.apiBasePath}/comments`, {
     method: "POST",
-    body: JSON.stringify({ toiletId, commentText })
+    body: JSON.stringify({ toiletId, commentText, media })
   });
   return payload.comments || [];
 }
