@@ -240,9 +240,14 @@
     <script src="./src/main.js?v=survey-db-2" type="module"></script>
     <section class="auth-modal is-hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div class="auth-dialog">
-        <h2 id="auth-title">Log in to WhereToI</h2>
-        <p id="auth-subtitle">Manage your wallet and history.</p>
-        <form id="auth-form" class="auth-form">
+        <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px;">
+          <div>
+            <h2 id="auth-title" style="margin-bottom: 4px; color: #142c72; font-size: 18px; font-weight: 700;">Log in to WhereToI</h2>
+            <p id="auth-subtitle">Manage your wallet and history.</p>
+          </div>
+          <button class="close-button" id="close-auth" type="button" aria-label="Close login dialog">X</button>
+        </header>
+        <form id="auth-form" class="auth-form" style="margin-top: 0;">
           <div id="email-group" class="is-hidden">
             <label for="auth-email">Email</label>
             <input id="auth-email" type="email" placeholder="email@example.com" autocomplete="email" />

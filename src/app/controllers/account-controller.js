@@ -11,6 +11,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     accountUsername,
     authModal,
     authForm,
+    closeAuthButton,
     authTitle,
     authSubmit,
     authToggle,
@@ -250,6 +251,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   function bindEvents() {
     authForm?.addEventListener("submit", handleAuthSubmit);
     authToggle?.addEventListener("click", toggleAuthMode);
+    closeAuthButton?.addEventListener("click", hideAuthModal);
     logoutButton?.addEventListener("click", handleLogout);
     accountSignupButton?.addEventListener("click", () => showAuthModal("register"));
     accountLoginButton?.addEventListener("click", () => showAuthModal("login"));

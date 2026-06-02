@@ -33,6 +33,7 @@ export function getDomRefs() {
     accountUsername: document.querySelector("#account-username"),
     authModal: document.querySelector("#auth-modal"),
     authForm: document.querySelector("#auth-form"),
+    closeAuthButton: document.querySelector("#close-auth"),
     authTitle: document.querySelector("#auth-title"),
     authSubmit: document.querySelector("#auth-submit"),
     authToggle: document.querySelector("#auth-toggle"),
