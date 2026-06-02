@@ -625,11 +625,36 @@ h3 {
 }
 
 .star-rating-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
   color: var(--gold);
   font-size: 15px;
   letter-spacing: 0;
   line-height: 1;
   white-space: nowrap;
+}
+
+.star-icon {
+  position: relative;
+  display: inline-block;
+  width: 1em;
+  color: #b8c1ba;
+  line-height: 1;
+}
+
+.star-icon.is-full {
+  color: var(--gold);
+}
+
+.star-icon.is-half::before {
+  content: "\2605";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  overflow: hidden;
+  color: var(--gold);
 }
 
 .cleanliness-score {
