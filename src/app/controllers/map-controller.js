@@ -90,16 +90,39 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     if (cleanlinessStars) {
       cleanlinessStars.setAttribute(
         "aria-label",
-        `Cleanliness rating ${rating.rating} out of ${rating.maxRating}`
+        `Cleanliness rating ${rating.displayRating} out of ${rating.maxRating}`
       );
     }
 
     if (starIcons) {
-      starIcons.textContent = `${rating.filled}${rating.empty}`;
+      const icons = [];
+
+      for (let index = 0; index < rating.full; index += 1) {
+        const icon = document.createElement("span");
+        icon.className = "star-icon is-full";
+        icon.textContent = "\u2605";
+        icons.push(icon);
+      }
+
+      if (rating.half) {
+        const icon = document.createElement("span");
+        icon.className = "star-icon is-half";
+        icon.textContent = "\u2606";
+        icons.push(icon);
+      }
+
+      for (let index = 0; index < rating.empty; index += 1) {
+        const icon = document.createElement("span");
+        icon.className = "star-icon is-empty";
+        icon.textContent = "\u2606";
+        icons.push(icon);
+      }
+
+      starIcons.replaceChildren(...icons);
     }
 
     if (cleanlinessLabel) {
-      cleanlinessLabel.textContent = `${rating.rating}/${rating.maxRating}`;
+      cleanlinessLabel.textContent = `${rating.displayRating}/${rating.maxRating}`;
     }
   }
 
