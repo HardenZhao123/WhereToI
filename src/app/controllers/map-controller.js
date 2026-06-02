@@ -21,7 +21,7 @@ const sortModes = new Set(["distance", "cleanliness", "free", "facilities"]);
 const resultRenderLimit = 8;
 const commentMediaMaxBytes = 8 * 1024 * 1024;
 
-export function createMapController(elements, onToiletSelected = () => {}) {
+export function createMapController(elements, onToiletSelected = () => {}, auth = {}) {
   const {
     statusText,
     searchInput,
@@ -44,6 +44,10 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     resultsSummary,
     resultsList
   } = elements;
+  const {
+    isAuthenticated = () => true,
+    showLoginPrompt = () => {}
+  } = auth;
 
   const surveyStorageKey = "wheretoi-map-cleanliness-survey";
 
@@ -941,6 +945,11 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     const commentText = commentInput.value.trim();
     if (!commentText) return;
 
+    if (!isAuthenticated()) {
+      showLoginPrompt("Log in to post a comment. You can still rate cleanliness as a guest.");
+      return;
+    }
+
     const submitButton = commentForm?.querySelector("button[type='submit']");
     if (submitButton) {
       submitButton.disabled = true;
@@ -954,6 +963,10 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       resetCommentMediaAttachment();
     } catch (error) {
       console.error("Failed to post comment:", error);
+      if (error.status === 401) {
+        showLoginPrompt("Log in to post a comment. You can still rate cleanliness as a guest.");
+        return;
+      }
       alert(error?.message || "Could not post comment. Please try again later.");
     } finally {
       if (submitButton) {

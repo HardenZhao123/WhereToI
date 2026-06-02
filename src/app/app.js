@@ -11,7 +11,10 @@ export function createApp() {
   const elements = getDomRefs();
   let accountController = null;
 
-  const mapController = createMapController(elements);
+  const mapController = createMapController(elements, () => {}, {
+    isAuthenticated: () => accountController?.isAuthenticated() ?? false,
+    showLoginPrompt: (message) => accountController?.showAuthModal("login", message)
+  });
 
   accountController = createAccountController(
     elements,

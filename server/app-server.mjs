@@ -243,12 +243,16 @@ function createApiRouteHandlers(database, { emailService, logger }) {
     "POST /api/comments": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendJson(response, 401, { error: "Log in to post comments." });
+        return;
+      }
 
       const body = await readJsonBody(request);
       const comments = await database.saveComment({
         toiletId: body.toiletId,
         userId: userId,
-        username: user?.username ?? "Anonymous",
+        username: user.username,
         commentText: body.commentText,
         media: body.media
       });

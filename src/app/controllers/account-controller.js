@@ -56,10 +56,10 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     onProfilePreferenceToggled(currentUser, enabled);
   }
 
-  function showAuthModal(mode = isRegisterMode ? "register" : "login") {
+  function showAuthModal(mode = isRegisterMode ? "register" : "login", message = "") {
     setAuthMode(mode);
     authModal?.classList.remove("is-hidden");
-    if (authStatus) authStatus.textContent = "";
+    if (authStatus) authStatus.textContent = message;
   }
 
   function hideAuthModal() {
@@ -264,6 +264,8 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
   return {
     bindEvents,
-    loadPanelData
+    loadPanelData,
+    showAuthModal,
+    isAuthenticated: () => Boolean(currentUser)
   };
 }
