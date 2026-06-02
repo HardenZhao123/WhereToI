@@ -52,6 +52,9 @@ test("registration email service posts a welcome email through Resend", async ()
   assert.deepEqual(body.to, ["ruijie@example.com"]);
   assert.equal(body.subject, "Welcome to WhereToI");
   assert.match(body.text, /Your WhereToI account has been created/);
+  assert.match(body.text, /wallet access, profile preferences, and access history/);
+  assert.doesNotMatch(body.text, /QR access/);
+  assert.doesNotMatch(body.html, /QR access/);
   assert.match(body.text, /does not verify ownership/);
   assert.match(body.html, /https:\/\/wheretoi\.example\.test/);
 });

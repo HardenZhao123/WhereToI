@@ -28,7 +28,7 @@ function buildRegistrationEmail({ user, from, replyTo, appBaseUrl }) {
       `Hi ${username},`,
       "",
       "Your WhereToI account has been created.",
-      "You can now use your account for QR access, profile preferences, and access history.",
+      "You can now use your account for wallet access, profile preferences, and access history.",
       "",
       `Open WhereToI: ${safeAppBaseUrl}`,
       "",
@@ -37,7 +37,7 @@ function buildRegistrationEmail({ user, from, replyTo, appBaseUrl }) {
     html: [
       `<p>Hi ${escapedUsername},</p>`,
       "<p>Your WhereToI account has been created.</p>",
-      "<p>You can now use your account for QR access, profile preferences, and access history.</p>",
+      "<p>You can now use your account for wallet access, profile preferences, and access history.</p>",
       `<p><a href="${escapeHtml(safeAppBaseUrl)}">Open WhereToI</a></p>`,
       "<p>This message confirms account creation. It does not verify ownership of this email address.</p>"
     ].join("")
