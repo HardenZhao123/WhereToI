@@ -20,6 +20,7 @@ export function getDomRefs() {
     resetMapButton: document.querySelector("#reset-map"),
     mapSurveyRatingButtons: document.querySelectorAll("[data-survey-rating]"),
     mapSurveyStatus: document.querySelector("#map-survey-status"),
+    submitCleanlinessSurveyButton: document.querySelector("#submit-cleanliness-survey"),
     detailSectionLinks: document.querySelectorAll("[data-detail-section]"),
     detailPanels: document.querySelectorAll("[data-detail-panel]"),
     commentsList: document.querySelector("#comments-list"),

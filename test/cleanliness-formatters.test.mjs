@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   formatCleanlinessRating,
+  formatCleanlinessRatingCount,
+  getCleanlinessRatingCount,
   getCleanlinessScore,
   getCleanlinessStars
 } from "../src/app/utils/cleanliness.js";
@@ -22,7 +24,9 @@ test("formats cleanliness as a 1-5 star rating", () => {
     empty: 1,
     text: `${fullStar.repeat(4)}${emptyStar}`
   });
-  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(4)}${emptyStar} 4.0/5`);
+  assert.equal(getCleanlinessRatingCount(toilet), 0);
+  assert.equal(formatCleanlinessRatingCount(toilet), "0 ratings");
+  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(4)}${emptyStar} 4.0/5 · 0 ratings`);
 });
 
 test("formats cleanliness survey averages with one decimal and a half star", () => {
@@ -44,7 +48,21 @@ test("formats cleanliness survey averages with one decimal and a half star", () 
     empty: 1,
     text: `${fullStar.repeat(3)}${halfStar}${emptyStar}`
   });
-  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(3)}${halfStar}${emptyStar} 3.5/5`);
+  assert.equal(getCleanlinessRatingCount(toilet), 2);
+  assert.equal(formatCleanlinessRatingCount(toilet), "2 ratings");
+  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(3)}${halfStar}${emptyStar} 3.5/5 · 2 ratings`);
+});
+
+test("formats a single cleanliness rating count", () => {
+  const toilet = {
+    cleanliness: 5,
+    cleanlinessSurvey: {
+      ratingTotal: 5,
+      ratingCount: 1
+    }
+  };
+
+  assert.equal(formatCleanlinessRatingCount(toilet), "1 rating");
 });
 
 test("normalises missing and legacy cleanliness scores to star ratings", () => {

@@ -103,8 +103,13 @@ export function createApp() {
     elements.closeDetailsButton?.addEventListener("click", () => mapController.hideToiletDetails());
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
     elements.mapSurveyRatingButtons.forEach((button) => {
-      button?.addEventListener("click", () => mapController.answerCleanlinessSurvey(button.dataset.surveyRating));
+      button?.addEventListener("click", () => mapController.selectCleanlinessRating(button.dataset.surveyRating));
     });
+
+    elements.submitCleanlinessSurveyButton?.addEventListener("click", () =>
+      mapController.submitCleanlinessSurveySelection()
+    );
+
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
     elements.commentForm?.addEventListener("submit", (event) => mapController.postComment(event));
     elements.detailSectionLinks.forEach((link) => {
