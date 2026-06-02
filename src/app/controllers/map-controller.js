@@ -20,7 +20,7 @@ const featureFilterOptions = [
 const sortModes = new Set(["distance", "cleanliness", "free", "facilities"]);
 const resultRenderLimit = 8;
 
-export function createMapController(elements, onToiletSelected = () => {}) {
+export function createMapController(elements, onToiletSelected = () => {}, auth = {}) {
   const {
     statusText,
     searchInput,
@@ -40,6 +40,10 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     resultsSummary,
     resultsList
   } = elements;
+  const {
+    isAuthenticated = () => true,
+    showLoginPrompt = () => {}
+  } = auth;
 
   const surveyStorageKey = "wheretoi-map-cleanliness-survey";
 
@@ -767,12 +771,21 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     const commentText = commentInput.value.trim();
     if (!commentText) return;
 
+    if (!isAuthenticated()) {
+      showLoginPrompt("Log in to post a comment. You can still rate cleanliness as a guest.");
+      return;
+    }
+
     try {
       const updatedComments = await submitComment(selectedToilet.id, commentText);
       renderComments(updatedComments);
       commentInput.value = "";
     } catch (error) {
       console.error("Failed to post comment:", error);
+      if (error.status === 401) {
+        showLoginPrompt("Log in to post a comment. You can still rate cleanliness as a guest.");
+        return;
+      }
       alert("Could not post comment. Please try again later.");
     }
   }

@@ -196,6 +196,22 @@ test("API supports fetching and posting toilet comments", async () => {
     const { payload: initialPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
     assert.equal(initialPayload.comments.length, 0);
 
+    const anonymousCommentResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Anonymous comment should not save."
+      })
+    });
+    const anonymousCommentPayload = await anonymousCommentResponse.json();
+
+    assert.equal(anonymousCommentResponse.status, 401);
+    assert.equal(anonymousCommentPayload.error, "Log in to post comments.");
+
+    const { payload: afterAnonymousPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.equal(afterAnonymousPayload.comments.length, 0);
+
     // Login first
     const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
       method: "POST",
