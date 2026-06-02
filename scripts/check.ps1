@@ -15,11 +15,15 @@ $Html = Get-Content -LiteralPath "index.html" -Raw
 $Css = Get-Content -LiteralPath "src/styles.css" -Raw
 $Js = Get-Content -LiteralPath "src/main.js" -Raw
 
-$RequiredCopy = @("Map", "Access QR", "Account", "Wallet balance", "Toilet Access Pass", "Directions")
+$RequiredCopy = @("Map", "Account", "Wallet balance", "Directions")
 $MissingCopy = $RequiredCopy | Where-Object { -not $Html.Contains($_) }
 
 if ($MissingCopy.Count -gt 0) {
   throw "Missing expected UI copy: $($MissingCopy -join ', ')"
+}
+
+if ($Html.Contains("Access QR") -or $Html.Contains("activate-pass")) {
+  throw "QR access UI and activation flow should not be present."
 }
 
 if (-not $Html.Contains("openstreetmap.org/export/embed") -or -not $Js.Contains("navigator.geolocation") -or -not $Js.Contains("google.com/maps/dir")) {

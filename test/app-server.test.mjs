@@ -71,14 +71,14 @@ test("API preserves accessible filtering and access-history write behavior", asy
       body: JSON.stringify({
         toiletId: "detail-test",
         toiletName: "Prayer room washroom",
-        eventType: "QR access",
+        eventType: "Paid access",
         amountGbp: 0.5,
         useFreeTicket: true
       })
     });
 
     assert.equal(posted.history[0].toiletId, "detail-test");
-    assert.equal(posted.history[0].eventType, "QR access");
+    assert.equal(posted.history[0].eventType, "Paid access");
     assert.equal(posted.account.monthlyFreeTicketsLeft, 2);
   });
 });

@@ -298,7 +298,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         demoUserId,
         null,
         "South Kensington Station",
-        "QR access",
+        "Paid access",
         0.5,
         twoHoursAgo,
         demoUserId,

@@ -1,10 +1,9 @@
 # WhereToI Web App
 
-Walking-skeleton web app for a toilet access product with three core tabs:
+Walking-skeleton web app for a toilet access product with two core tabs:
 
 - Map: OpenStreetMap preview, nearby toilet markers, browser location, filters, toilet details and walking directions (loaded from API/database).
-- Access QR: paid or partner toilet access pass with activation persisted to database.
-- Account: wallet, subscription, monthly free tickets and history (loaded from database).
+- Account: wallet, subscription, monthly free visits and history (loaded from database).
 
 ## Local development
 

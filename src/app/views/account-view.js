@@ -1,10 +1,5 @@
 import { formatAccessTime, formatCharge, formatCurrency, formatRenewDate } from "../utils/account-formatters.js";
 
-export function setActivationStatus(element, message) {
-  if (!element) return;
-  element.textContent = message;
-}
-
 export function renderAccount({ walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome, displayGender, displayNeeds }, account, user) {
   if (user && accountUsername) {
     accountUsername.textContent = user.username;

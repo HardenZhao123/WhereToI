@@ -195,7 +195,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-    insertHistory.run(demoUserId, null, "South Kensington Station", "QR access", 0.5, twoHoursAgo);
+    insertHistory.run(demoUserId, null, "South Kensington Station", "Paid access", 0.5, twoHoursAgo);
     insertHistory.run(demoUserId, null, "Imperial Library", "Free access", 0, oneDayAgo);
   }
 

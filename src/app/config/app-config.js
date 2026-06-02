@@ -11,7 +11,6 @@ export const appConfig = {
   },
   titles: {
     map: "My Map",
-    qr: "Access QR",
     account: "Account"
   }
 };

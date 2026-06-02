@@ -11,14 +11,10 @@ export function createApp() {
   const elements = getDomRefs();
   let accountController = null;
 
-  const mapController = createMapController(elements, (toilet) => {
-    accountController?.updateTicketToilet(toilet);
-  });
+  const mapController = createMapController(elements);
 
   accountController = createAccountController(
     elements,
-    () => mapController.getSelectedToilet(),
-    (toiletUpdate) => mapController.updateToiletCleanliness(toiletUpdate),
     (user, enabled) => mapController.applyProfilePreferences(user, enabled)
   );
 
@@ -43,8 +39,6 @@ export function createApp() {
         return distA - distB;
       });
       mapController.setToilets(sorted);
-      const top10 = sorted.slice(0, 10);
-      accountController?.updateTicketToilet(top10.find((toilet) => toilet.paid) ?? top10[0]);
     }
 
     try {

@@ -38,10 +38,8 @@ const js = (await Promise.all(jsFiles.map((file) => readFile(file, "utf8")))).jo
 
 const requiredCopy = [
   "Map",
-  "Access QR",
   "Account",
   "Wallet balance",
-  "Toilet Access Pass",
   "Directions",
   "Parent &amp; Baby",
   "Bidet / Washing",
@@ -99,8 +97,8 @@ if (!html.includes("feature-filters") || !html.includes("toilet-results") || !js
   throw new Error("Expected multi-select toilet filtering and result list interaction.");
 }
 
-if (!html.includes("activate-pass") || !js.includes("access-history") || !js.includes("activatePass")) {
-  throw new Error("Expected QR pass activation to persist via API/database.");
+if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {
+  throw new Error("QR access UI and activation flow should not be present.");
 }
 
 if (!html.includes("auth-confirm-password") || !js.includes("Passwords do not match")) {

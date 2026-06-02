@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="WhereToI helps people find nearby toilets, access paid partner toilets with QR tickets, and manage wallet, history, and subscription."
+      content="WhereToI helps people find nearby toilets and manage wallet, history, and subscription."
     />
     <title>WhereToI</title>
     <link
@@ -153,47 +153,12 @@
             </article>
           </section>
 
-          <section class="view view-qr" id="qr-panel" aria-labelledby="qr-tab">
-            <p class="section-kicker">Access QR</p>
-            <h2>Use at partner paid toilets</h2>
-            <article class="ticket">
-              <p>Toilet Access Pass</p>
-              <h3 id="ticket-toilet-name">South Kensington Station Toilet</h3>
-              <p class="ticket-price" id="ticket-price">GBP 0.50</p>
-              <div class="qr-code" aria-label="QR code access ticket">
-                <span></span><span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span><span></span>
-              </div>
-              <p>Valid for gate entry</p>
-              <small>Expires in 14:59 after activation</small>
-            </article>
-            <div class="action-row">
-              <button class="solid-button" id="activate-pass" type="button">Activate</button>
-            </div>
-            <p class="activation-status" id="activation-status" aria-live="polite">Ready to activate access pass.</p>
-            <div class="survey-modal is-hidden" id="cleanliness-survey-modal" role="dialog" aria-modal="true" aria-labelledby="cleanliness-survey-title">
-              <div class="survey-dialog">
-                <button class="close-button survey-close-button" id="close-survey" type="button" aria-label="Close cleanliness survey">X</button>
-                <h3 id="cleanliness-survey-title">Cleanliness survey</h3>
-                <p id="cleanliness-survey-question">Was this toilet clean?</p>
-                <div class="survey-actions" role="group" aria-label="Cleanliness survey answer">
-                  <button id="survey-clean-yes" type="button" data-survey-answer="yes" aria-pressed="false">Yes</button>
-                  <button id="survey-clean-no" type="button" data-survey-answer="no" aria-pressed="false">No</button>
-                </div>
-                <p class="survey-status" id="survey-status" aria-live="polite">Choose an answer to help others.</p>
-              </div>
-            </div>
-          </section>
-
             <section class="view view-account" id="account-panel" aria-labelledby="account-tab">
               <p class="section-kicker" id="account-welcome">Welcome</p>
               <h2 id="account-username">Your Account</h2>
               <article class="account-card account-unlock-card" id="account-unlock-card">
                 <h3>Create an account to unlock more features</h3>
-                <p>Use the map without logging in. Sign up when you want wallet access, QR tickets, saved history, and profile-based filters.</p>
+                <p>Use the map without logging in. Sign up when you want wallet access, saved history, and profile-based filters.</p>
                 <div class="account-unlock-actions">
                   <button class="solid-button" id="account-signup-button" type="button">Sign up</button>
                   <button class="outline-button" id="account-login-button" type="button">Log in</button>
@@ -207,7 +172,7 @@
               <article class="account-card">
                 <h3>Subscription</h3>
                 <p id="subscription-plan">Campus Plus - renews 26 Jun</p>
-                <p>Monthly free toilet access tickets: <strong id="monthly-tickets-left">3 left</strong></p>
+                <p>Monthly free toilet visits: <strong id="monthly-tickets-left">3 left</strong></p>
               </article>
               <article class="account-card" id="profile-card">
                 <h3>My Profile</h3>
@@ -224,7 +189,7 @@
                 <div id="access-history-list" aria-live="polite">
                   <div>
                     <strong>South Kensington Station</strong>
-                    <p>Today 14:22 - QR access - GBP 0.50</p>
+                    <p>Today 14:22 - Paid access - GBP 0.50</p>
                   </div>
                   <div>
                     <strong>Imperial Library</strong>
@@ -244,10 +209,6 @@
           <button class="tab is-active" id="map-tab" type="button" data-tab="map" aria-controls="map-panel" aria-selected="true">
             <span aria-hidden="true">MAP</span>
             Map
-          </button>
-          <button class="tab" id="qr-tab" type="button" data-tab="qr" aria-controls="qr-panel" aria-selected="false">
-            <span aria-hidden="true">QR</span>
-            Access QR
           </button>
           <button class="tab" id="account-tab" type="button" data-tab="account" aria-controls="account-panel" aria-selected="false">
             <span aria-hidden="true">ME</span>

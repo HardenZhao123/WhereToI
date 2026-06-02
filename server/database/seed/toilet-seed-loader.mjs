@@ -34,7 +34,7 @@ const fallbackToilets = [
     lng: -0.17392,
     paid: true,
     cleanliness: 6,
-    comment: "Comment: QR gate required, usually busy after lectures.",
+    comment: "Comment: paid gate required, usually busy after lectures.",
     features: {
       women: "Y",
       men: "Y",
