@@ -14,8 +14,9 @@ function toFeatureFlag(value) {
 
 function parseCleanlinessScore(value) {
   const score = Number(value);
-  if (!Number.isFinite(score)) return 7;
-  return Math.min(Math.max(score, 0), 10);
+  if (!Number.isFinite(score)) return 3;
+  const starScore = score > 5 && score <= 10 ? Math.round(score / 2) : score;
+  return Math.min(Math.max(Math.round(starScore), 1), 5);
 }
 
 function inferBidetOrWashingFlag(record) {
@@ -165,8 +166,8 @@ export function mapRowToToilet(row) {
     },
     cleanliness: Number(row.cleanliness ?? 3),
     cleanlinessSurvey: {
-      yes: Number(row.cleanliness_yes_count ?? 0),
-      no: Number(row.cleanliness_no_count ?? 0)
+      ratingTotal: Number(row.cleanliness_rating_total ?? 0),
+      ratingCount: Number(row.cleanliness_rating_count ?? 0)
     }
   };
 }

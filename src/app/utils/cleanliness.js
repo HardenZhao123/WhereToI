@@ -1,34 +1,31 @@
-const defaultCleanlinessScore = 7;
+const defaultCleanlinessScore = 3;
+const maxStarRating = 5;
 
-function normaliseVoteCount(value) {
-  const count = Number(value);
-  if (!Number.isFinite(count) || count < 0) return 0;
-  return Math.trunc(count);
+function normaliseLegacyScore(score) {
+  if (score > maxStarRating && score <= 10) {
+    return Math.round(score / 2);
+  }
+
+  return score;
 }
 
 export function getCleanlinessScore(toilet) {
   const score = Number(toilet?.cleanliness);
   if (!Number.isFinite(score)) return defaultCleanlinessScore;
-  return Math.min(Math.max(score, 0), 10);
+  return Math.min(Math.max(normaliseLegacyScore(score), 1), maxStarRating);
 }
 
-export function getCleanlinessVoteStats(toilet) {
-  const cleanCount = normaliseVoteCount(toilet?.cleanlinessSurvey?.yes);
-  const notCleanCount = normaliseVoteCount(toilet?.cleanlinessSurvey?.no);
-  const total = cleanCount + notCleanCount;
-  const cleanPercent = total > 0 ? Math.round((cleanCount / total) * 100) : 0;
-  const notCleanPercent = total > 0 ? 100 - cleanPercent : 0;
-
+export function getCleanlinessStars(toilet) {
+  const rating = getCleanlinessScore(toilet);
   return {
-    cleanCount,
-    notCleanCount,
-    cleanPercent,
-    notCleanPercent,
-    total
+    rating,
+    maxRating: maxStarRating,
+    filled: "★".repeat(rating),
+    empty: "☆".repeat(maxStarRating - rating)
   };
 }
 
-export function formatCleanlinessVotes(toilet) {
-  const { cleanCount, notCleanCount, cleanPercent, notCleanPercent } = getCleanlinessVoteStats(toilet);
-  return `${cleanCount} clean (${cleanPercent}%) | ${notCleanCount} not clean (${notCleanPercent}%)`;
+export function formatCleanlinessRating(toilet) {
+  const { rating, maxRating, filled, empty } = getCleanlinessStars(toilet);
+  return `${filled}${empty} ${rating}/${maxRating}`;
 }

@@ -5,45 +5,57 @@ export function normaliseSearchQuery(search) {
   return normaliseText(search).toLowerCase();
 }
 
-export function normaliseCleanlinessSurveyPayload({ toiletId = null, toiletName = "", answer }) {
+function normaliseRating(value) {
+  const rating = Number(value);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    throw new Error("rating must be an integer from 1 to 5.");
+  }
+  return rating;
+}
+
+export function normaliseCleanlinessSurveyPayload({ toiletId = null, toiletName = "", rating, answer }) {
   const safeToiletId = normaliseText(toiletId);
   const safeToiletName = normaliseText(toiletName).replace(/\s+Toilet$/i, "");
-  const safeAnswer = normaliseText(answer).toLowerCase();
+  const legacyAnswer = normaliseText(answer).toLowerCase();
+  const safeRating =
+    rating === undefined && (legacyAnswer === "yes" || legacyAnswer === "no")
+      ? legacyAnswer === "yes" ? 5 : 1
+      : normaliseRating(rating);
 
-  if (safeAnswer !== "yes" && safeAnswer !== "no") {
-    throw new Error("answer must be yes or no.");
-  }
-
-  return { safeToiletId, safeToiletName, safeAnswer };
+  return { safeToiletId, safeToiletName, safeRating };
 }
 
 export function toCleanlinessUpdate({
   row,
-  answer,
+  rating,
   cleanlinessScoringModel
 }) {
-  const yesCount = Number(row.cleanliness_yes_count ?? 0) + (answer === "yes" ? 1 : 0);
-  const noCount = Number(row.cleanliness_no_count ?? 0) + (answer === "no" ? 1 : 0);
+  const legacyRatingTotal = Number(row.cleanliness_yes_count ?? 0) * 5 + Number(row.cleanliness_no_count ?? 0);
+  const legacyRatingCount = Number(row.cleanliness_yes_count ?? 0) + Number(row.cleanliness_no_count ?? 0);
+  const previousRatingTotal = Number(row.cleanliness_rating_total ?? legacyRatingTotal);
+  const previousRatingCount = Number(row.cleanliness_rating_count ?? legacyRatingCount);
+  const ratingTotal = Math.max(previousRatingTotal, 0) + rating;
+  const ratingCount = Math.max(previousRatingCount, 0) + 1;
   const cleanliness = calculateCleanlinessScore({
-    yesCount,
-    noCount,
+    rating,
+    ratingTotal,
+    ratingCount,
     previousCleanliness: row.cleanliness,
-    answer,
     scoringModel: cleanlinessScoringModel
   });
 
-  return { cleanliness, yesCount, noCount };
+  return { cleanliness, ratingTotal, ratingCount };
 }
 
-export function mapCleanlinessSurveyResponse({ row, cleanliness, yesCount, noCount, cleanlinessScoringModel }) {
+export function mapCleanlinessSurveyResponse({ row, cleanliness, ratingTotal, ratingCount, cleanlinessScoringModel }) {
   return {
     toilet: {
       id: row.id,
       name: row.name,
       cleanliness,
       cleanlinessSurvey: {
-        yes: yesCount,
-        no: noCount
+        ratingTotal,
+        ratingCount
       },
       scoringModel: cleanlinessScoringModel
     }

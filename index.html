@@ -84,26 +84,21 @@
 
             <article class="details-card is-hidden" id="details-card" aria-live="polite">
               <header class="details-header">
-                <div>
+                <div class="details-title-block">
                   <h2 id="toilet-name">City and Guilds building</h2>
+                  <div class="cleanliness-section" aria-label="Cleanliness">
+                    <span class="cleanliness-label">Cleanliness</span>
+                    <div class="star-rating-display" id="cleanliness-stars" aria-label="Cleanliness rating 0 out of 5">
+                      <span class="star-rating-icons" id="cleanliness-star-icons" aria-hidden="true">☆☆☆☆☆</span>
+                      <span class="cleanliness-score" id="cleanliness-score">0/5</span>
+                    </div>
+                  </div>
                   <p id="toilet-area">Imperial College London</p>
                 </div>
                 <button class="close-button" id="close-details" type="button" aria-label="Close toilet details">X</button>
               </header>
               <div class="details-actions-row">
                 <button class="primary-pill" id="directions-button" type="button">Directions</button>
-                <div class="cleanliness-section">
-                  <h3>Cleanliness</h3>
-                  <div class="rating-bar-container" id="cleanliness-bar">
-                    <div id="cleanliness-clean-bar" class="rating-bar-fill rating-bar-clean" style="width: 0%;">
-                      <span class="rating-bar-label">clean</span>
-                    </div>
-                    <div id="cleanliness-not-clean-bar" class="rating-bar-fill rating-bar-not-clean" style="width: 0%;">
-                      <span class="rating-bar-label">not clean</span>
-                    </div>
-                  </div>
-                  <p class="cleanliness-score" id="cleanliness-score">0 clean (0%) | 0 not clean (0%)</p>
-                </div>
               </div>
               <div class="distance-line" id="distance-line">Enable location to see distance.</div>
               <nav class="details-section-nav" aria-label="Toilet detail sections">
@@ -157,13 +152,16 @@
                   <section class="map-cleanliness-survey" aria-labelledby="map-cleanliness-survey-title">
                     <div>
                       <h3 id="map-cleanliness-survey-title">Cleanliness survey</h3>
-                      <p>Was this toilet clean?</p>
+                      <p>How clean was this toilet?</p>
                     </div>
-                    <div class="survey-actions" role="group" aria-label="Map cleanliness survey answer">
-                      <button id="map-survey-clean-yes" type="button" data-survey-answer="yes" aria-pressed="false">Yes</button>
-                      <button id="map-survey-clean-no" type="button" data-survey-answer="no" aria-pressed="false">No</button>
+                    <div class="star-survey-actions" role="group" aria-label="Map cleanliness star rating">
+                      <button type="button" data-survey-rating="1" aria-label="Rate 1 star" aria-pressed="false">★</button>
+                      <button type="button" data-survey-rating="2" aria-label="Rate 2 stars" aria-pressed="false">★</button>
+                      <button type="button" data-survey-rating="3" aria-label="Rate 3 stars" aria-pressed="false">★</button>
+                      <button type="button" data-survey-rating="4" aria-label="Rate 4 stars" aria-pressed="false">★</button>
+                      <button type="button" data-survey-rating="5" aria-label="Rate 5 stars" aria-pressed="false">★</button>
                     </div>
-                    <p class="survey-status" id="map-survey-status" aria-live="polite">Choose an answer to help others.</p>
+                    <p class="survey-status" id="map-survey-status" aria-live="polite">Choose 1 to 5 stars to help others.</p>
                   </section>
                 </section>
               </div>

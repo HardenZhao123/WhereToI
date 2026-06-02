@@ -38,6 +38,10 @@ if (-not $Html.Contains('data-detail-section="features"') -or -not $Html.Contain
   throw "Expected toilet details to switch between linked detail sections."
 }
 
+if ($Html.Contains("0 clean (0%) | 0 not clean (0%)") -or -not $Html.Contains('data-survey-rating="5"')) {
+  throw "Expected cleanliness to display and submit 1-5 star ratings."
+}
+
 if (-not $Css.Contains("@media") -or -not $Js.Contains("setTab")) {
   throw "Expected responsive CSS and tab interaction code."
 }

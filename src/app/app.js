@@ -99,8 +99,9 @@ export function createApp() {
     });
     elements.closeDetailsButton?.addEventListener("click", () => mapController.hideToiletDetails());
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
-    elements.mapSurveyCleanYesButton?.addEventListener("click", () => mapController.answerCleanlinessSurvey("yes"));
-    elements.mapSurveyCleanNoButton?.addEventListener("click", () => mapController.answerCleanlinessSurvey("no"));
+    elements.mapSurveyRatingButtons.forEach((button) => {
+      button?.addEventListener("click", () => mapController.answerCleanlinessSurvey(button.dataset.surveyRating));
+    });
     elements.commentForm?.addEventListener("submit", (event) => mapController.postComment(event));
     elements.detailSectionLinks.forEach((link) => {
       link?.addEventListener("click", () => mapController.setDetailSection(link.dataset.detailSection));

@@ -79,18 +79,16 @@ if (!html.includes("feature-baby-changing") || !html.includes("feature-bidet") |
 }
 
 if (
-  html.includes("Clean ?/10") ||
-  js.includes("formatCleanlinessScore") ||
-  !html.includes("0 clean (0%) | 0 not clean (0%)") ||
-  !html.includes("cleanliness-clean-bar") ||
-  !html.includes("cleanliness-not-clean-bar") ||
-  !html.includes("rating-bar-label") ||
-  !css.includes(".rating-bar-clean") ||
-  !css.includes(".rating-bar-not-clean") ||
-  !css.includes("height: 22px") ||
-  !js.includes("formatCleanlinessVotes")
+  html.includes("0 clean (0%) | 0 not clean (0%)") ||
+  html.includes("cleanliness-clean-bar") ||
+  html.includes("cleanliness-not-clean-bar") ||
+  js.includes("formatCleanlinessVotes") ||
+  !html.includes("data-survey-rating=\"5\"") ||
+  !html.includes("cleanliness-star-icons") ||
+  !css.includes(".star-survey-actions") ||
+  !js.includes("formatCleanlinessRating")
 ) {
-  throw new Error("Expected cleanliness to display clean/not clean vote counts and percentages instead of a 1-10 score.");
+  throw new Error("Expected cleanliness to display and submit 1-5 star ratings.");
 }
 
 if (!html.includes("feature-filters") || !html.includes("toilet-results") || !js.includes("setFeatureFilter")) {

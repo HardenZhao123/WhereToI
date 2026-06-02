@@ -39,11 +39,11 @@ Content-Type: application/json
 
 {
   "toiletId": "1b8da78b0811f8692823b6a0",
-  "answer": "yes"
+  "rating": 4
 }
 ```
 
-The scoring model is configured server-side. By default, the API uses cumulative average scoring. To use exponential moving average scoring, set:
+Ratings are integers from 1 to 5 stars. The scoring model is configured server-side. By default, the API uses cumulative average scoring. To use exponential moving average scoring, set:
 
 ```bash
 WHERETOI_CLEANLINESS_SCORING_MODEL=ema

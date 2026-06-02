@@ -150,3 +150,22 @@ test("API supports fetching and posting toilet comments", async () => {
     assert.deepEqual(fetchedPayload, postedPayload);
   });
 });
+
+test("API records cleanliness survey as a star rating", async () => {
+  await withAppServer(async (baseUrl) => {
+    const { payload } = await fetchJson(`${baseUrl}/api/cleanliness-survey`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toiletId: "detail-test",
+        toiletName: "Prayer room washroom",
+        rating: 5
+      })
+    });
+
+    assert.equal(payload.toilet.id, "detail-test");
+    assert.equal(payload.toilet.cleanliness, 5);
+    assert.equal(payload.toilet.cleanlinessSurvey.ratingTotal, 5);
+    assert.equal(payload.toilet.cleanlinessSurvey.ratingCount, 1);
+  });
+});

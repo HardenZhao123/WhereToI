@@ -59,7 +59,9 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       opening_times TEXT NOT NULL DEFAULT '[]',
       cleanliness INTEGER NOT NULL DEFAULT 3,
       cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
-      cleanliness_no_count INTEGER NOT NULL DEFAULT 0
+      cleanliness_no_count INTEGER NOT NULL DEFAULT 0,
+      cleanliness_rating_total INTEGER NOT NULL DEFAULT 0,
+      cleanliness_rating_count INTEGER NOT NULL DEFAULT 0
     ) STRICT;
 
     CREATE TABLE IF NOT EXISTS users (
@@ -280,7 +282,9 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             opening_times,
             cleanliness,
             cleanliness_yes_count,
-            cleanliness_no_count
+            cleanliness_no_count,
+            cleanliness_rating_total,
+            cleanliness_rating_count
           FROM toilets
           `
         )
@@ -298,21 +302,22 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         );
       });
     },
-    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", answer }) {
-      const { safeToiletId, safeToiletName, safeAnswer } = normaliseCleanlinessSurveyPayload({
+    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", rating, answer }) {
+      const { safeToiletId, safeToiletName, safeRating } = normaliseCleanlinessSurveyPayload({
         toiletId,
         toiletName,
+        rating,
         answer
       });
 
       const row = safeToiletId
         ? db
-            .prepare("SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count FROM toilets WHERE id = ?")
+            .prepare("SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count FROM toilets WHERE id = ?")
             .get(safeToiletId)
         : db
             .prepare(
               `
-              SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count
+              SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count
               FROM toilets
               WHERE LOWER(name) = LOWER(?)
               LIMIT 1
@@ -324,25 +329,25 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         throw new Error("toilet not found.");
       }
 
-      const { cleanliness, yesCount, noCount } = toCleanlinessUpdate({
+      const { cleanliness, ratingTotal, ratingCount } = toCleanlinessUpdate({
         row,
-        answer: safeAnswer,
+        rating: safeRating,
         cleanlinessScoringModel
       });
 
       db.prepare(
         `
         UPDATE toilets
-        SET cleanliness = ?, cleanliness_yes_count = ?, cleanliness_no_count = ?
+        SET cleanliness = ?, cleanliness_rating_total = ?, cleanliness_rating_count = ?
         WHERE id = ?
         `
-      ).run(cleanliness, yesCount, noCount, row.id);
+      ).run(cleanliness, ratingTotal, ratingCount, row.id);
 
       return mapCleanlinessSurveyResponse({
         row,
         cleanliness,
-        yesCount,
-        noCount,
+        ratingTotal,
+        ratingCount,
         cleanlinessScoringModel
       });
     },

@@ -1,6 +1,6 @@
 import { appConfig } from "../config/app-config.js";
 import { fetchComments, submitCleanlinessSurvey, submitComment } from "../services/toilets-service.js";
-import { formatCleanlinessVotes, getCleanlinessScore, getCleanlinessVoteStats } from "../utils/cleanliness.js";
+import { formatCleanlinessRating, getCleanlinessScore, getCleanlinessStars } from "../utils/cleanliness.js";
 import { distanceInMetres, formatDistance } from "../utils/geo.js";
 
 const featureFilterOptions = [
@@ -28,8 +28,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     detailsCard,
     mapPanel,
     mapElement,
-    mapSurveyCleanYesButton,
-    mapSurveyCleanNoButton,
+    mapSurveyRatingButtons = [],
     mapSurveyStatus,
     detailSectionLinks = [],
     detailPanels = [],
@@ -79,30 +78,25 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     }
   }
 
-  function renderCleanlinessBar(toilet) {
-    const cleanlinessBar = document.querySelector("#cleanliness-bar");
-    const cleanBar = document.querySelector("#cleanliness-clean-bar");
-    const notCleanBar = document.querySelector("#cleanliness-not-clean-bar");
+  function renderCleanlinessRating(toilet) {
+    const cleanlinessStars = document.querySelector("#cleanliness-stars");
+    const starIcons = document.querySelector("#cleanliness-star-icons");
     const cleanlinessLabel = document.querySelector("#cleanliness-score");
-    const voteStats = getCleanlinessVoteStats(toilet);
+    const rating = getCleanlinessStars(toilet);
 
-    if (cleanlinessBar) {
-      cleanlinessBar.setAttribute(
+    if (cleanlinessStars) {
+      cleanlinessStars.setAttribute(
         "aria-label",
-        `${voteStats.cleanPercent}% clean and ${voteStats.notCleanPercent}% not clean`
+        `Cleanliness rating ${rating.rating} out of ${rating.maxRating}`
       );
     }
 
-    if (cleanBar) {
-      cleanBar.style.width = `${voteStats.cleanPercent}%`;
-    }
-
-    if (notCleanBar) {
-      notCleanBar.style.width = `${voteStats.notCleanPercent}%`;
+    if (starIcons) {
+      starIcons.textContent = `${rating.filled}${rating.empty}`;
     }
 
     if (cleanlinessLabel) {
-      cleanlinessLabel.textContent = formatCleanlinessVotes(toilet);
+      cleanlinessLabel.textContent = `${rating.rating}/${rating.maxRating}`;
     }
   }
 
@@ -112,16 +106,21 @@ export function createMapController(elements, onToiletSelected = () => {}) {
   }
 
   function renderCleanlinessSurvey(toilet) {
-    const answer = toilet ? cleanlinessSurveyAnswers[toilet.id]?.answer ?? cleanlinessSurveyAnswers[toilet.id] : null;
-    const hasAnswer = answer === "yes" || answer === "no";
+    const storedRating = toilet ? cleanlinessSurveyAnswers[toilet.id]?.rating ?? cleanlinessSurveyAnswers[toilet.id] : null;
+    const rating = Number(storedRating);
+    const hasRating = Number.isInteger(rating) && rating >= 1 && rating <= 5;
 
-    mapSurveyCleanYesButton?.classList.toggle("is-selected", answer === "yes");
-    mapSurveyCleanNoButton?.classList.toggle("is-selected", answer === "no");
-    mapSurveyCleanYesButton?.setAttribute("aria-pressed", answer === "yes" ? "true" : "false");
-    mapSurveyCleanNoButton?.setAttribute("aria-pressed", answer === "no" ? "true" : "false");
+    mapSurveyRatingButtons.forEach((button) => {
+      const buttonRating = Number(button.dataset.surveyRating);
+      const isSelected = hasRating && buttonRating <= rating;
+      button.classList.toggle("is-selected", isSelected);
+      button.setAttribute("aria-pressed", hasRating && buttonRating === rating ? "true" : "false");
+    });
 
     if (mapSurveyStatus) {
-      mapSurveyStatus.textContent = hasAnswer ? "Thanks, your answer has been saved." : "Choose an answer to help others.";
+      mapSurveyStatus.textContent = hasRating
+        ? `Thanks, your ${rating}/5 rating has been saved.`
+        : "Choose 1 to 5 stars to help others.";
     }
   }
 
@@ -305,7 +304,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       meta.className = "result-meta";
 
       const cleanliness = document.createElement("span");
-      cleanliness.textContent = formatCleanlinessVotes(toilet);
+      cleanliness.textContent = formatCleanlinessRating(toilet);
 
       const facilities = document.createElement("span");
       facilities.textContent = `${getFeatureScore(toilet)} facilities`;
@@ -413,7 +412,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     document.querySelector("#hours-sun").textContent = toilet.hours.sun;
     document.querySelector("#distance-line").textContent = formatToiletDistance(toilet);
     renderCleanlinessSurvey(toilet);
-    renderCleanlinessBar(toilet);
+    renderCleanlinessRating(toilet);
 
     if (commentsList) {
       commentsList.replaceChildren();
@@ -703,22 +702,23 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
     if (selectedToilet?.id === toiletUpdate.id) {
       selectedToilet = applyUpdate(selectedToilet);
-      renderCleanlinessBar(selectedToilet);
+      renderCleanlinessRating(selectedToilet);
     }
 
     renderResults();
   }
 
-  async function answerCleanlinessSurvey(answer) {
+  async function answerCleanlinessSurvey(rating) {
     if (!selectedToilet) {
       setStatus("Select a toilet marker before answering the survey.");
       return;
     }
 
-    if (answer !== "yes" && answer !== "no") return;
+    const safeRating = Number(rating);
+    if (!Number.isInteger(safeRating) || safeRating < 1 || safeRating > 5) return;
 
     if (mapSurveyStatus) {
-      mapSurveyStatus.textContent = "Saving answer to database...";
+      mapSurveyStatus.textContent = "Saving rating to database...";
     }
 
     let savedToDatabase = false;
@@ -727,7 +727,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       const result = await submitCleanlinessSurvey({
         toiletId: selectedToilet.id,
         toiletName: selectedToilet.name,
-        answer
+        rating: safeRating
       });
 
       savedToDatabase = true;
@@ -745,7 +745,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     cleanlinessSurveyAnswers = {
       ...cleanlinessSurveyAnswers,
       [selectedToilet.id]: {
-        answer,
+        rating: safeRating,
         toiletName: selectedToilet.name,
         submittedAt: new Date().toISOString()
       }

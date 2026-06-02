@@ -14,7 +14,9 @@ const EXTENDED_FEATURE_COLUMNS = [
 const EXTENDED_CLEANLINESS_COLUMNS = [
   { name: "cleanliness", definition: "INTEGER NOT NULL DEFAULT 3" },
   { name: "cleanliness_yes_count", definition: "INTEGER NOT NULL DEFAULT 0" },
-  { name: "cleanliness_no_count", definition: "INTEGER NOT NULL DEFAULT 0" }
+  { name: "cleanliness_no_count", definition: "INTEGER NOT NULL DEFAULT 0" },
+  { name: "cleanliness_rating_total", definition: "INTEGER NOT NULL DEFAULT 0" },
+  { name: "cleanliness_rating_count", definition: "INTEGER NOT NULL DEFAULT 0" }
 ];
 
 function getFeatureColumnValues(toilet) {
@@ -53,6 +55,14 @@ function ensureSqliteCleanlinessColumns(db) {
   }
 
   db.exec("UPDATE toilets SET cleanliness = 3 WHERE cleanliness < 1 OR cleanliness > 5;");
+  db.exec(`
+    UPDATE toilets
+    SET
+      cleanliness_rating_total = cleanliness_yes_count * 5 + cleanliness_no_count,
+      cleanliness_rating_count = cleanliness_yes_count + cleanliness_no_count
+    WHERE cleanliness_rating_count = 0
+      AND (cleanliness_yes_count > 0 OR cleanliness_no_count > 0);
+  `);
 }
 
 async function backfillSqliteFeatureColumns(db, seedCsvPath) {
@@ -106,6 +116,14 @@ async function ensurePostgresCleanlinessColumns(pool) {
   }
 
   await pool.query("UPDATE toilets SET cleanliness = 3 WHERE cleanliness < 1 OR cleanliness > 5");
+  await pool.query(`
+    UPDATE toilets
+    SET
+      cleanliness_rating_total = cleanliness_yes_count * 5 + cleanliness_no_count,
+      cleanliness_rating_count = cleanliness_yes_count + cleanliness_no_count
+    WHERE cleanliness_rating_count = 0
+      AND (cleanliness_yes_count > 0 OR cleanliness_no_count > 0)
+  `);
 }
 
 async function backfillPostgresFeatureColumns(pool, seedCsvPath) {
