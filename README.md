@@ -52,6 +52,27 @@ WHERETOI_CLEANLINESS_EMA_ALPHA=0.35
 
 Supported server-side models are `average` and `ema`.
 
+## Registration confirmation email
+
+After `POST /api/register` creates an account, the server queues a short registration confirmation email. This is non-blocking: if the email provider is unavailable, registration still succeeds and the failure is logged server-side.
+
+Email sending is disabled unless these environment variables are configured:
+
+```bash
+WHERETOI_RESEND_API_KEY=...
+WHERETOI_EMAIL_FROM="WhereToI <hello@example.com>"
+WHERETOI_PUBLIC_APP_URL=https://wheretoi-webapp.onrender.com
+```
+
+Optional:
+
+```bash
+WHERETOI_EMAIL_REPLY_TO=hello@example.com
+WHERETOI_RESEND_API_URL=https://api.resend.com/emails
+```
+
+This message confirms account creation only. It does not verify ownership of the email address; a future email-verification flow would need separate verification tokens or codes.
+
 ### Windows (PowerShell)
 
 Static-only fallback (no API/database persistence):
