@@ -225,6 +225,13 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       sendJson(response, 201, result);
     },
     "POST /api/cleanliness-survey": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendJson(response, 401, { error: "Log in to rate cleanliness." });
+        return;
+      }
+
       const body = await readJsonBody(request);
       const result = await database.recordCleanlinessSurvey({
         toiletId: normaliseOptionalToiletId(body.toiletId),

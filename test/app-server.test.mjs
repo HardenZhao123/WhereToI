@@ -341,9 +341,33 @@ test("API supports multiple image and video comment attachments", async () => {
 
 test("API records cleanliness survey as a star rating", async () => {
   await withAppServer(async (baseUrl) => {
-    const { payload } = await fetchJson(`${baseUrl}/api/cleanliness-survey`, {
+    const anonymousResponse = await fetch(`${baseUrl}/api/cleanliness-survey`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toiletId: "detail-test",
+        toiletName: "Prayer room washroom",
+        rating: 5
+      })
+    });
+    const anonymousPayload = await anonymousResponse.json();
+
+    assert.equal(anonymousResponse.status, 401);
+    assert.equal(anonymousPayload.error, "Log in to rate cleanliness.");
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const { payload } = await fetchJson(`${baseUrl}/api/cleanliness-survey`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
       body: JSON.stringify({
         toiletId: "detail-test",
         toiletName: "Prayer room washroom",

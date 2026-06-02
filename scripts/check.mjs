@@ -86,8 +86,10 @@ if (
   js.includes("formatCleanlinessVotes") ||
   !html.includes("data-survey-rating=\"5\"") ||
   !html.includes("cleanliness-star-icons") ||
+  !html.includes("cleanliness-rating-count") ||
   !css.includes(".star-survey-actions") ||
-  !js.includes("formatCleanlinessRating")
+  !js.includes("formatCleanlinessRating") ||
+  !js.includes("formatCleanlinessRatingCount")
 ) {
   throw new Error("Expected cleanliness to display and submit 1-5 star ratings.");
 }

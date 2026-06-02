@@ -607,6 +607,7 @@ h3 {
 .cleanliness-section {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 6px 0 4px;
 }
@@ -625,6 +626,7 @@ h3 {
 .star-rating-display {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -665,6 +667,14 @@ h3 {
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
+}
+
+.cleanliness-rating-count {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .features-list p,
