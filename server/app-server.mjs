@@ -16,7 +16,7 @@ const STATIC_CONTENT_TYPES = {
 };
 
 const TRUTHY_QUERY_FLAGS = new Set(["1", "true", "yes"]);
-const BODY_SIZE_LIMIT_BYTES = 12 * 1024 * 1024;
+const BODY_SIZE_LIMIT_BYTES = 110 * 1024 * 1024;
 const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "required",
   "non-negative",
@@ -24,6 +24,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "scoringModel",
   "Unsupported",
   "comment media",
+  "too large",
   "not found"
 ];
 
@@ -254,7 +255,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         userId: userId,
         username: user.username,
         commentText: body.commentText,
-        media: body.media
+        media: body.mediaAttachments ?? body.media
       });
 
       sendJson(response, 201, { comments });

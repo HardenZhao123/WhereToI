@@ -106,7 +106,6 @@ export function createApp() {
       button?.addEventListener("click", () => mapController.answerCleanlinessSurvey(button.dataset.surveyRating));
     });
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
-    elements.commentMediaRemoveButton?.addEventListener("click", () => mapController.removeCommentMediaSelection());
     elements.commentForm?.addEventListener("submit", (event) => mapController.postComment(event));
     elements.detailSectionLinks.forEach((link) => {
       link?.addEventListener("click", () => mapController.setDetailSection(link.dataset.detailSection));
