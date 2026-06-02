@@ -11,14 +11,10 @@ export function createApp() {
   const elements = getDomRefs();
   let accountController = null;
 
-  const mapController = createMapController(elements, (toilet) => {
-    accountController?.updateTicketToilet(toilet);
-  });
+  const mapController = createMapController(elements);
 
   accountController = createAccountController(
     elements,
-    () => mapController.getSelectedToilet(),
-    (toiletUpdate) => mapController.updateToiletCleanliness(toiletUpdate),
     (user, enabled) => mapController.applyProfilePreferences(user, enabled)
   );
 
@@ -43,8 +39,6 @@ export function createApp() {
         return distA - distB;
       });
       mapController.setToilets(sorted);
-      const top10 = sorted.slice(0, 10);
-      accountController?.updateTicketToilet(top10.find((toilet) => toilet.paid) ?? top10[0]);
     }
 
     try {
@@ -105,9 +99,13 @@ export function createApp() {
     });
     elements.closeDetailsButton?.addEventListener("click", () => mapController.hideToiletDetails());
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
-    elements.mapSurveyCleanYesButton?.addEventListener("click", () => mapController.answerCleanlinessSurvey("yes"));
-    elements.mapSurveyCleanNoButton?.addEventListener("click", () => mapController.answerCleanlinessSurvey("no"));
+    elements.mapSurveyRatingButtons.forEach((button) => {
+      button?.addEventListener("click", () => mapController.answerCleanlinessSurvey(button.dataset.surveyRating));
+    });
     elements.commentForm?.addEventListener("submit", (event) => mapController.postComment(event));
+    elements.detailSectionLinks.forEach((link) => {
+      link?.addEventListener("click", () => mapController.setDetailSection(link.dataset.detailSection));
+    });
 
     elements.locateButtons.forEach((button) => {
       button?.addEventListener("click", () => mapController.requestLocation());

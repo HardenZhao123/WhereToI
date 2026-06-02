@@ -71,14 +71,14 @@ test("API preserves accessible filtering and access-history write behavior", asy
       body: JSON.stringify({
         toiletId: "detail-test",
         toiletName: "Prayer room washroom",
-        eventType: "QR access",
+        eventType: "Paid access",
         amountGbp: 0.5,
         useFreeTicket: true
       })
     });
 
     assert.equal(posted.history[0].toiletId, "detail-test");
-    assert.equal(posted.history[0].eventType, "QR access");
+    assert.equal(posted.history[0].eventType, "Paid access");
     assert.equal(posted.account.monthlyFreeTicketsLeft, 2);
   });
 });
@@ -221,5 +221,24 @@ test("API supports fetching and posting toilet comments", async () => {
 
     const { payload: fetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
     assert.deepEqual(fetchedPayload, postedPayload);
+  });
+});
+
+test("API records cleanliness survey as a star rating", async () => {
+  await withAppServer(async (baseUrl) => {
+    const { payload } = await fetchJson(`${baseUrl}/api/cleanliness-survey`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toiletId: "detail-test",
+        toiletName: "Prayer room washroom",
+        rating: 5
+      })
+    });
+
+    assert.equal(payload.toilet.id, "detail-test");
+    assert.equal(payload.toilet.cleanliness, 5);
+    assert.equal(payload.toilet.cleanlinessSurvey.ratingTotal, 5);
+    assert.equal(payload.toilet.cleanlinessSurvey.ratingCount, 1);
   });
 });

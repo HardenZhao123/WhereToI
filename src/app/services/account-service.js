@@ -5,13 +5,6 @@ export function fetchAccountSnapshot() {
   return fetchJson(`${appConfig.apiBasePath}/account`);
 }
 
-export function saveAccessRecord(payload) {
-  return fetchJson(`${appConfig.apiBasePath}/access-history`, {
-    method: "POST",
-    body: JSON.stringify(payload)
-  });
-}
-
 export function registerUser(payload) {
   return fetchJson(`${appConfig.apiBasePath}/register`, {
     method: "POST",

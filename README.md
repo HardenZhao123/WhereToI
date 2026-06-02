@@ -1,10 +1,9 @@
 # WhereToI Web App
 
-Walking-skeleton web app for a toilet access product with three core tabs:
+Walking-skeleton web app for a toilet access product with two core tabs:
 
 - Map: OpenStreetMap preview, nearby toilet markers, browser location, filters, toilet details and walking directions (loaded from API/database).
-- Access QR: paid or partner toilet access pass with activation persisted to database.
-- Account: wallet, subscription, monthly free tickets and history (loaded from database).
+- Account: wallet, subscription, monthly free visits and history (loaded from database).
 
 ## Local development
 
@@ -40,11 +39,11 @@ Content-Type: application/json
 
 {
   "toiletId": "1b8da78b0811f8692823b6a0",
-  "answer": "yes"
+  "rating": 4
 }
 ```
 
-The scoring model is configured server-side. By default, the API uses cumulative average scoring. To use exponential moving average scoring, set:
+Ratings are integers from 1 to 5 stars. The scoring model is configured server-side. By default, the API uses cumulative average scoring. To use exponential moving average scoring, set:
 
 ```bash
 WHERETOI_CLEANLINESS_SCORING_MODEL=ema

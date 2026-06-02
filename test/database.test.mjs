@@ -56,7 +56,7 @@ test("recordAccess validates inputs and persists wallet/history changes", async 
     const userId = user.id;
 
     await assert.rejects(
-      () => database.recordAccess({ userId, toiletName: "", eventType: "QR access" }),
+      () => database.recordAccess({ userId, toiletName: "", eventType: "Paid access" }),
       /toiletName is required/
     );
 
@@ -65,7 +65,7 @@ test("recordAccess validates inputs and persists wallet/history changes", async 
       userId,
       toiletId: "detail-test",
       toiletName: "Prayer room washroom",
-      eventType: "QR access",
+      eventType: "Paid access",
       amountGbp: 0.5,
       useFreeTicket: true
     });
@@ -73,7 +73,7 @@ test("recordAccess validates inputs and persists wallet/history changes", async 
     assert.equal(result.account.walletBalanceGbp, before.walletBalanceGbp - 0.5);
     assert.equal(result.account.monthlyFreeTicketsLeft, before.monthlyFreeTicketsLeft - 1);
     assert.equal(result.history[0].toiletId, "detail-test");
-    assert.equal(result.history[0].eventType, "QR access");
+    assert.equal(result.history[0].eventType, "Paid access");
   });
 });
 

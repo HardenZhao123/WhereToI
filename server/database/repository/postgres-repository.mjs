@@ -153,7 +153,9 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       opening_times JSONB NOT NULL DEFAULT '[]'::jsonb,
       cleanliness INTEGER NOT NULL DEFAULT 3,
       cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
-      cleanliness_no_count INTEGER NOT NULL DEFAULT 0
+      cleanliness_no_count INTEGER NOT NULL DEFAULT 0,
+      cleanliness_rating_total INTEGER NOT NULL DEFAULT 0,
+      cleanliness_rating_count INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS users (
@@ -298,7 +300,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         demoUserId,
         null,
         "South Kensington Station",
-        "QR access",
+        "Paid access",
         0.5,
         twoHoursAgo,
         demoUserId,
@@ -448,7 +450,9 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           opening_times,
           cleanliness,
           cleanliness_yes_count,
-          cleanliness_no_count
+          cleanliness_no_count,
+          cleanliness_rating_total,
+          cleanliness_rating_count
         FROM toilets
         ${whereClause}
         `,
@@ -457,21 +461,22 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return result.rows.map(mapRowToToilet);
     },
-    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", answer }) {
-      const { safeToiletId, safeToiletName, safeAnswer } = normaliseCleanlinessSurveyPayload({
+    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", rating, answer }) {
+      const { safeToiletId, safeToiletName, safeRating } = normaliseCleanlinessSurveyPayload({
         toiletId,
         toiletName,
+        rating,
         answer
       });
 
       const result = safeToiletId
         ? await pool.query(
-            "SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count FROM toilets WHERE id = $1",
+            "SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count FROM toilets WHERE id = $1",
             [safeToiletId]
           )
         : await pool.query(
             `
-            SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count
+            SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count
             FROM toilets
             WHERE LOWER(name) = LOWER($1)
             LIMIT 1
@@ -484,26 +489,26 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         throw new Error("toilet not found.");
       }
 
-      const { cleanliness, yesCount, noCount } = toCleanlinessUpdate({
+      const { cleanliness, ratingTotal, ratingCount } = toCleanlinessUpdate({
         row,
-        answer: safeAnswer,
+        rating: safeRating,
         cleanlinessScoringModel
       });
 
       await pool.query(
         `
         UPDATE toilets
-        SET cleanliness = $1, cleanliness_yes_count = $2, cleanliness_no_count = $3
+        SET cleanliness = $1, cleanliness_rating_total = $2, cleanliness_rating_count = $3
         WHERE id = $4
         `,
-        [cleanliness, yesCount, noCount, row.id]
+        [cleanliness, ratingTotal, ratingCount, row.id]
       );
 
       return mapCleanlinessSurveyResponse({
         row,
         cleanliness,
-        yesCount,
-        noCount,
+        ratingTotal,
+        ratingCount,
         cleanlinessScoringModel
       });
     },

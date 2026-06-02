@@ -38,10 +38,8 @@ const js = (await Promise.all(jsFiles.map((file) => readFile(file, "utf8")))).jo
 
 const requiredCopy = [
   "Map",
-  "Access QR",
   "Account",
   "Wallet balance",
-  "Toilet Access Pass",
   "Directions",
   "Parent &amp; Baby",
   "Bidet / Washing",
@@ -81,26 +79,33 @@ if (!html.includes("feature-baby-changing") || !html.includes("feature-bidet") |
 }
 
 if (
-  html.includes("Clean ?/10") ||
-  js.includes("formatCleanlinessScore") ||
-  !html.includes("0 clean (0%) | 0 not clean (0%)") ||
-  !html.includes("cleanliness-clean-bar") ||
-  !html.includes("cleanliness-not-clean-bar") ||
-  !html.includes("rating-bar-label") ||
-  !css.includes(".rating-bar-clean") ||
-  !css.includes(".rating-bar-not-clean") ||
-  !css.includes("height: 22px") ||
-  !js.includes("formatCleanlinessVotes")
+  html.includes("0 clean (0%) | 0 not clean (0%)") ||
+  html.includes("cleanliness-clean-bar") ||
+  html.includes("cleanliness-not-clean-bar") ||
+  js.includes("formatCleanlinessVotes") ||
+  !html.includes("data-survey-rating=\"5\"") ||
+  !html.includes("cleanliness-star-icons") ||
+  !css.includes(".star-survey-actions") ||
+  !js.includes("formatCleanlinessRating")
 ) {
-  throw new Error("Expected cleanliness to display clean/not clean vote counts and percentages instead of a 1-10 score.");
+  throw new Error("Expected cleanliness to display and submit 1-5 star ratings.");
 }
 
 if (!html.includes("feature-filters") || !html.includes("toilet-results") || !js.includes("setFeatureFilter")) {
   throw new Error("Expected multi-select toilet filtering and result list interaction.");
 }
 
-if (!html.includes("activate-pass") || !js.includes("access-history") || !js.includes("activatePass")) {
-  throw new Error("Expected QR pass activation to persist via API/database.");
+if (
+  !html.includes("data-detail-section=\"features\"") ||
+  !html.includes("data-detail-panel=\"survey\"") ||
+  !js.includes("setDetailSection") ||
+  !css.includes(".details-section-link")
+) {
+  throw new Error("Expected toilet details to switch between linked detail sections.");
+}
+
+if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {
+  throw new Error("QR access UI and activation flow should not be present.");
 }
 
 if (!html.includes("auth-confirm-password") || !js.includes("Passwords do not match")) {

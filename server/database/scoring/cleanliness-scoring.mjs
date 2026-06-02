@@ -40,22 +40,25 @@ export function getConfiguredCleanlinessScoringModel() {
 }
 
 export function calculateCleanlinessScore({
-  yesCount,
-  noCount,
+  rating,
+  ratingTotal,
+  ratingCount,
   previousCleanliness = 3,
-  answer,
   scoringModel = null
 }) {
   const model = normaliseScoringModel(scoringModel);
+  const safeRating = clampCleanlinessScore(rating);
 
   if (model.type === "ema") {
     const previousScore = Number.isFinite(Number(previousCleanliness)) ? Number(previousCleanliness) : 3;
-    const voteScore = answer === "yes" ? 5 : 1;
-    return clampCleanlinessScore(model.alpha * voteScore + (1 - model.alpha) * previousScore);
+    return clampCleanlinessScore(model.alpha * safeRating + (1 - model.alpha) * previousScore);
   }
 
-  const total = yesCount + noCount;
-  if (total <= 0) return 3;
+  const safeRatingTotal = Number(ratingTotal);
+  const safeRatingCount = Number(ratingCount);
+  if (!Number.isFinite(safeRatingTotal) || !Number.isFinite(safeRatingCount) || safeRatingCount <= 0) {
+    return safeRating;
+  }
 
-  return clampCleanlinessScore(1 + (yesCount / total) * 4);
+  return clampCleanlinessScore(safeRatingTotal / safeRatingCount);
 }

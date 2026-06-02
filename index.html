@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="WhereToI helps people find nearby toilets, access paid partner toilets with QR tickets, and manage wallet, history, and subscription."
+      content="WhereToI helps people find nearby toilets and manage wallet, history, and subscription."
     />
     <title>WhereToI</title>
     <link
@@ -84,108 +84,88 @@
 
             <article class="details-card is-hidden" id="details-card" aria-live="polite">
               <header class="details-header">
-                <div>
+                <div class="details-title-block">
                   <h2 id="toilet-name">City and Guilds building</h2>
+                  <div class="cleanliness-section" aria-label="Cleanliness">
+                    <span class="cleanliness-label">Cleanliness</span>
+                    <div class="star-rating-display" id="cleanliness-stars" aria-label="Cleanliness rating 0 out of 5">
+                      <span class="star-rating-icons" id="cleanliness-star-icons" aria-hidden="true">☆☆☆☆☆</span>
+                      <span class="cleanliness-score" id="cleanliness-score">0/5</span>
+                    </div>
+                  </div>
                   <p id="toilet-area">Imperial College London</p>
                 </div>
                 <button class="close-button" id="close-details" type="button" aria-label="Close toilet details">X</button>
               </header>
               <div class="details-actions-row">
                 <button class="primary-pill" id="directions-button" type="button">Directions</button>
-                <div class="cleanliness-section">
-                  <h3>Cleanliness</h3>
-                  <div class="rating-bar-container" id="cleanliness-bar">
-                    <div id="cleanliness-clean-bar" class="rating-bar-fill rating-bar-clean" style="width: 0%;">
-                      <span class="rating-bar-label">clean</span>
-                    </div>
-                    <div id="cleanliness-not-clean-bar" class="rating-bar-fill rating-bar-not-clean" style="width: 0%;">
-                      <span class="rating-bar-label">not clean</span>
-                    </div>
-                  </div>
-                  <p class="cleanliness-score" id="cleanliness-score">0 clean (0%) | 0 not clean (0%)</p>
-                </div>
               </div>
               <div class="distance-line" id="distance-line">Enable location to see distance.</div>
-              <div class="info-grid">
-                <div class="features-list">
-                  <h3>Features</h3>
-                  <p>Women <strong id="feature-women">Y</strong></p>
-                  <p>Men <strong id="feature-men">Y</strong></p>
-                  <p>Accessible <strong id="feature-accessible">N</strong></p>
-                  <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
-                  <p>Children <strong id="feature-children">?</strong></p>
-                  <p>Parent &amp; Baby <strong id="feature-baby-changing">?</strong></p>
-                  <p>Bidet / Washing <strong id="feature-bidet">?</strong></p>
-                  <p>Automatic <strong id="feature-automatic">?</strong></p>
-                  <p>Urinal Only <strong id="feature-urinal-only">?</strong></p>
-                  <p>RADAR Key <strong id="feature-radar-key">?</strong></p>
-                  <p>Free <strong id="feature-free">?</strong></p>
-                </div>
-                <div>
-                  <h3>Opening Hours</h3>
-                  <p><mark id="hours-today">Tue 09:00 - 17:00</mark></p>
-                  <p id="hours-sat">Sat Closed</p>
-                  <p id="hours-sun">Sun Closed</p>
-                </div>
+              <nav class="details-section-nav" aria-label="Toilet detail sections">
+                <button class="details-section-link is-active" id="details-features-link" type="button" data-detail-section="features" aria-controls="details-features-panel" aria-selected="true">Features</button>
+                <button class="details-section-link" id="details-hours-link" type="button" data-detail-section="hours" aria-controls="details-hours-panel" aria-selected="false">Opening Hours</button>
+                <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Comment</button>
+                <button class="details-section-link" id="details-survey-link" type="button" data-detail-section="survey" aria-controls="details-survey-panel" aria-selected="false">Survey</button>
+              </nav>
+              <div class="details-section-panels">
+                <section class="details-panel is-active" id="details-features-panel" data-detail-panel="features" aria-labelledby="details-features-link">
+                  <div class="features-list">
+                    <h3>Features</h3>
+                    <p>Women <strong id="feature-women">Y</strong></p>
+                    <p>Men <strong id="feature-men">Y</strong></p>
+                    <p>Accessible <strong id="feature-accessible">N</strong></p>
+                    <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
+                    <p>Children <strong id="feature-children">?</strong></p>
+                    <p>Parent &amp; Baby <strong id="feature-baby-changing">?</strong></p>
+                    <p>Bidet / Washing <strong id="feature-bidet">?</strong></p>
+                    <p>Automatic <strong id="feature-automatic">?</strong></p>
+                    <p>Urinal Only <strong id="feature-urinal-only">?</strong></p>
+                    <p>RADAR Key <strong id="feature-radar-key">?</strong></p>
+                    <p>Free <strong id="feature-free">?</strong></p>
+                  </div>
+                </section>
+                <section class="details-panel" id="details-hours-panel" data-detail-panel="hours" aria-labelledby="details-hours-link" hidden>
+                  <div class="opening-hours-list">
+                    <h3>Opening Hours</h3>
+                    <p><mark id="hours-today">Tue 09:00 - 17:00</mark></p>
+                    <p id="hours-sat">Sat Closed</p>
+                    <p id="hours-sun">Sun Closed</p>
+                  </div>
+                </section>
+                <section class="details-panel" id="details-comment-panel" data-detail-panel="comment" aria-labelledby="details-comment-link" hidden>
+                  <div class="comment-panel">
+                    <h3>Comment</h3>
+                    <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
+                  </div>
+                  <section class="comments-section">
+                    <h3>Comments</h3>
+                    <div id="comments-list" class="comments-list">
+                      <p>Loading comments...</p>
+                    </div>
+                    <form id="comment-form" class="comment-form">
+                      <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
+                      <button type="submit" id="submit-comment">Post Comment</button>
+                    </form>
+                  </section>
+                </section>
+                <section class="details-panel" id="details-survey-panel" data-detail-panel="survey" aria-labelledby="details-survey-link" hidden>
+                  <section class="map-cleanliness-survey" aria-labelledby="map-cleanliness-survey-title">
+                    <div>
+                      <h3 id="map-cleanliness-survey-title">Cleanliness survey</h3>
+                      <p>How clean was this toilet?</p>
+                    </div>
+                    <div class="star-survey-actions" role="group" aria-label="Map cleanliness star rating">
+                      <button type="button" data-survey-rating="1" aria-label="Rate 1 star" aria-pressed="false">★</button>
+                      <button type="button" data-survey-rating="2" aria-label="Rate 2 stars" aria-pressed="false">★</button>
+                      <button type="button" data-survey-rating="3" aria-label="Rate 3 stars" aria-pressed="false">★</button>
+                      <button type="button" data-survey-rating="4" aria-label="Rate 4 stars" aria-pressed="false">★</button>
+                      <button type="button" data-survey-rating="5" aria-label="Rate 5 stars" aria-pressed="false">★</button>
+                    </div>
+                    <p class="survey-status" id="map-survey-status" aria-live="polite">Choose 1 to 5 stars to help others.</p>
+                  </section>
+                </section>
               </div>
-              <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
-              <section class="comments-section">
-                <h3>Comments</h3>
-                <div id="comments-list" class="comments-list">
-                  <p>Loading comments...</p>
-                </div>
-                <form id="comment-form" class="comment-form">
-                  <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
-                  <button type="submit" id="submit-comment">Post Comment</button>
-                </form>
-              </section>
-              <section class="map-cleanliness-survey" aria-labelledby="map-cleanliness-survey-title">
-                <div>
-                  <h3 id="map-cleanliness-survey-title">Cleanliness survey</h3>
-                  <p>Was this toilet clean?</p>
-                </div>
-                <div class="survey-actions" role="group" aria-label="Map cleanliness survey answer">
-                  <button id="map-survey-clean-yes" type="button" data-survey-answer="yes" aria-pressed="false">Yes</button>
-                  <button id="map-survey-clean-no" type="button" data-survey-answer="no" aria-pressed="false">No</button>
-                </div>
-                <p class="survey-status" id="map-survey-status" aria-live="polite">Choose an answer to help others.</p>
-              </section>
             </article>
-          </section>
-
-          <section class="view view-qr" id="qr-panel" aria-labelledby="qr-tab">
-            <p class="section-kicker">Access QR</p>
-            <h2>Use at partner paid toilets</h2>
-            <article class="ticket">
-              <p>Toilet Access Pass</p>
-              <h3 id="ticket-toilet-name">South Kensington Station Toilet</h3>
-              <p class="ticket-price" id="ticket-price">GBP 0.50</p>
-              <div class="qr-code" aria-label="QR code access ticket">
-                <span></span><span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span><span></span>
-              </div>
-              <p>Valid for gate entry</p>
-              <small>Expires in 14:59 after activation</small>
-            </article>
-            <div class="action-row">
-              <button class="solid-button" id="activate-pass" type="button">Activate</button>
-            </div>
-            <p class="activation-status" id="activation-status" aria-live="polite">Ready to activate access pass.</p>
-            <div class="survey-modal is-hidden" id="cleanliness-survey-modal" role="dialog" aria-modal="true" aria-labelledby="cleanliness-survey-title">
-              <div class="survey-dialog">
-                <button class="close-button survey-close-button" id="close-survey" type="button" aria-label="Close cleanliness survey">X</button>
-                <h3 id="cleanliness-survey-title">Cleanliness survey</h3>
-                <p id="cleanliness-survey-question">Was this toilet clean?</p>
-                <div class="survey-actions" role="group" aria-label="Cleanliness survey answer">
-                  <button id="survey-clean-yes" type="button" data-survey-answer="yes" aria-pressed="false">Yes</button>
-                  <button id="survey-clean-no" type="button" data-survey-answer="no" aria-pressed="false">No</button>
-                </div>
-                <p class="survey-status" id="survey-status" aria-live="polite">Choose an answer to help others.</p>
-              </div>
-            </div>
           </section>
 
             <section class="view view-account" id="account-panel" aria-labelledby="account-tab">
@@ -193,7 +173,7 @@
               <h2 id="account-username">Your Account</h2>
               <article class="account-card account-unlock-card" id="account-unlock-card">
                 <h3>Create an account to unlock more features</h3>
-                <p>Use the map without logging in. Sign up when you want wallet access, QR tickets, saved history, and profile-based filters.</p>
+                <p>Use the map without logging in. Sign up when you want wallet access, saved history, and profile-based filters.</p>
                 <div class="account-unlock-actions">
                   <button class="solid-button" id="account-signup-button" type="button">Sign up</button>
                   <button class="outline-button" id="account-login-button" type="button">Log in</button>
@@ -207,7 +187,7 @@
               <article class="account-card">
                 <h3>Subscription</h3>
                 <p id="subscription-plan">Campus Plus - renews 26 Jun</p>
-                <p>Monthly free toilet access tickets: <strong id="monthly-tickets-left">3 left</strong></p>
+                <p>Monthly free toilet visits: <strong id="monthly-tickets-left">3 left</strong></p>
               </article>
               <article class="account-card" id="profile-card">
                 <h3>My Profile</h3>
@@ -224,7 +204,7 @@
                 <div id="access-history-list" aria-live="polite">
                   <div>
                     <strong>South Kensington Station</strong>
-                    <p>Today 14:22 - QR access - GBP 0.50</p>
+                    <p>Today 14:22 - Paid access - GBP 0.50</p>
                   </div>
                   <div>
                     <strong>Imperial Library</strong>
@@ -244,10 +224,6 @@
           <button class="tab is-active" id="map-tab" type="button" data-tab="map" aria-controls="map-panel" aria-selected="true">
             <span aria-hidden="true">MAP</span>
             Map
-          </button>
-          <button class="tab" id="qr-tab" type="button" data-tab="qr" aria-controls="qr-panel" aria-selected="false">
-            <span aria-hidden="true">QR</span>
-            Access QR
           </button>
           <button class="tab" id="account-tab" type="button" data-tab="account" aria-controls="account-panel" aria-selected="false">
             <span aria-hidden="true">ME</span>

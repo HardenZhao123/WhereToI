@@ -20,7 +20,7 @@ const BODY_SIZE_LIMIT_BYTES = 1024 * 1024;
 const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "required",
   "non-negative",
-  "yes or no",
+  "integer from 1 to 5",
   "scoringModel",
   "Unsupported",
   "not found"
@@ -227,6 +227,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       const result = await database.recordCleanlinessSurvey({
         toiletId: normaliseOptionalToiletId(body.toiletId),
         toiletName: body.toiletName,
+        rating: body.rating,
         answer: body.answer
       });
 
