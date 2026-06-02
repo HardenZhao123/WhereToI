@@ -16,13 +16,14 @@ const STATIC_CONTENT_TYPES = {
 };
 
 const TRUTHY_QUERY_FLAGS = new Set(["1", "true", "yes"]);
-const BODY_SIZE_LIMIT_BYTES = 1024 * 1024;
+const BODY_SIZE_LIMIT_BYTES = 12 * 1024 * 1024;
 const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "required",
   "non-negative",
   "integer from 1 to 5",
   "scoringModel",
   "Unsupported",
+  "comment media",
   "not found"
 ];
 
@@ -248,7 +249,8 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         toiletId: body.toiletId,
         userId: userId,
         username: user?.username ?? "Anonymous",
-        commentText: body.commentText
+        commentText: body.commentText,
+        media: body.media
       });
 
       sendJson(response, 201, { comments });

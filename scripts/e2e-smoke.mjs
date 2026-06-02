@@ -1,7 +1,17 @@
-import { resolve } from "node:path";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { createAppServer } from "../server/app-server.mjs";
 
 const root = resolve(".");
+const tempDatabaseDirectory = process.env.WHERETOI_DB_FILE
+  ? null
+  : await mkdtemp(join(tmpdir(), "wheretoi-e2e-"));
+
+if (tempDatabaseDirectory) {
+  process.env.WHERETOI_DB_FILE = join(tempDatabaseDirectory, "wheretoi.sqlite");
+}
+
 const appServer = await createAppServer({ rootDirectory: root, port: 0 });
 
 function assert(condition, message) {
@@ -78,5 +88,8 @@ try {
 } finally {
   if (started) {
     await appServer.close();
+  }
+  if (tempDatabaseDirectory) {
+    await rm(tempDatabaseDirectory, { recursive: true, force: true });
   }
 }

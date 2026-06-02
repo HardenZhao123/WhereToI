@@ -600,6 +600,10 @@ h3 {
   background: white;
 }
 
+.comment-panel[hidden] {
+  display: none;
+}
+
 .cleanliness-section {
   display: flex;
   align-items: center;
@@ -676,13 +680,12 @@ mark {
 }
 
 .comments-list {
+  display: grid;
+  gap: 8px;
   margin-top: 8px;
-  max-height: 150px;
-  overflow-y: auto;
 }
 
 .comment-item {
-  margin-bottom: 8px;
   padding: 8px;
   border-radius: 8px;
   background: #f6f8f4;
@@ -697,6 +700,24 @@ mark {
   font-size: 10px;
   color: var(--muted);
   margin-top: 4px;
+}
+
+.comment-media {
+  margin-top: 8px;
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.comment-media img,
+.comment-media video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .comment-form {
@@ -716,6 +737,28 @@ mark {
   resize: vertical;
 }
 
+.comment-media-field {
+  display: grid;
+  gap: 5px;
+}
+
+.comment-media-label {
+  color: #142c72;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.comment-media-field input {
+  width: 100%;
+  font-size: 12px;
+}
+
+.comment-media-preview {
+  min-height: 14px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .comment-form button {
   align-self: flex-end;
   padding: 6px 12px;
@@ -725,6 +768,11 @@ mark {
   background: var(--teal);
   font-size: 12px;
   font-weight: 700;
+}
+
+.comment-form button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .map-cleanliness-survey {

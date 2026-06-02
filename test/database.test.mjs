@@ -98,8 +98,53 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(updatedComments[0].comment_text, commentText);
     assert.equal(updatedComments[0].toilet_id, toiletId);
     assert.equal(updatedComments[0].username, user.username);
+    assert.equal(updatedComments[0].media_type, null);
 
     const fetchedComments = await database.getComments(toiletId);
     assert.deepEqual(fetchedComments, updatedComments);
+  });
+});
+
+test("database saves image and video attachments with comments", async () => {
+  await withSeededDatabase(async (database) => {
+    const user = await database.getUserByUsername("demo");
+    const toiletId = "detail-test";
+
+    await database.saveComment({
+      toiletId,
+      userId: user.id,
+      username: user.username,
+      commentText: "Sink photo",
+      media: {
+        type: "image",
+        mimeType: "image/png",
+        name: "sink.png",
+        size: 5,
+        dataUrl: "data:image/png;base64,aW1hZ2U="
+      }
+    });
+
+    const updatedComments = await database.saveComment({
+      toiletId,
+      userId: user.id,
+      username: user.username,
+      commentText: "Queue video",
+      media: {
+        type: "video",
+        mimeType: "video/mp4",
+        name: "queue.mp4",
+        size: 5,
+        dataUrl: "data:video/mp4;base64,dmlkZW8="
+      }
+    });
+
+    assert.equal(updatedComments.length, 2);
+    assert.equal(updatedComments[0].comment_text, "Queue video");
+    assert.equal(updatedComments[0].media_type, "video");
+    assert.equal(updatedComments[0].media_mime_type, "video/mp4");
+    assert.equal(updatedComments[0].media_name, "queue.mp4");
+    assert.equal(updatedComments[0].media_url, "data:video/mp4;base64,dmlkZW8=");
+    assert.equal(updatedComments[1].media_type, "image");
+    assert.equal(updatedComments[1].media_mime_type, "image/png");
   });
 });

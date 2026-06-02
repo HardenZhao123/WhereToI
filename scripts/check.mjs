@@ -48,7 +48,8 @@ const requiredCopy = [
   "Cleanest",
   "Most facilities",
   "Confirm password",
-  "Create an account to unlock more features"
+  "Create an account to unlock more features",
+  "Attach image or video"
 ];
 const missingCopy = requiredCopy.filter((text) => !html.includes(text));
 
@@ -102,6 +103,17 @@ if (
   !css.includes(".details-section-link")
 ) {
   throw new Error("Expected toilet details to switch between linked detail sections.");
+}
+
+if (
+  !html.includes("accept=\"image/*,video/*\"") ||
+  !js.includes("readCommentMediaAttachment") ||
+  !js.includes("createCommentMediaElement") ||
+  !js.includes("isPlaceholderToiletComment") ||
+  !css.includes(".comment-media") ||
+  !css.includes("object-fit: contain")
+) {
+  throw new Error("Expected comments to support image or video attachments without cropped media or placeholder notes.");
 }
 
 if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {
