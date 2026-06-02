@@ -223,8 +223,10 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       sendJson(response, 201, result);
     },
     "POST /api/cleanliness-survey": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
       const body = await readJsonBody(request);
       const result = await database.recordCleanlinessSurvey({
+        userId,
         toiletId: normaliseOptionalToiletId(body.toiletId),
         toiletName: body.toiletName,
         rating: body.rating,

@@ -37,7 +37,9 @@ function mapUserRow(row, { includePasswordHash = false } = {}) {
     preferences:
       typeof row.preferences === "string"
         ? row.preferences
-        : JSON.stringify(row.preferences ?? [])
+        : JSON.stringify(row.preferences ?? []),
+    rating_total: row.rating_total ?? 0,
+    rating_count: row.rating_count ?? 0
   };
 
   if (includePasswordHash) {
@@ -73,6 +75,8 @@ async function ensureDemoUser(pool) {
 async function ensurePostgresUserSupport(pool) {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_total INTEGER NOT NULL DEFAULT 0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_count INTEGER NOT NULL DEFAULT 0");
 
   await pool.query(`
     DO $$
@@ -164,7 +168,9 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       password_hash TEXT NOT NULL,
       email TEXT,
       gender TEXT,
-      preferences JSONB
+      preferences JSONB,
+      rating_total INTEGER NOT NULL DEFAULT 0,
+      rating_count INTEGER NOT NULL DEFAULT 0
     );
   `);
 
@@ -364,7 +370,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     async getUserByUsername(username) {
       const result = await pool.query(
         `
-        SELECT id, username, password_hash, email, gender, preferences
+        SELECT id, username, password_hash, email, gender, preferences, rating_total, rating_count
         FROM users
         WHERE username = $1
         `,
@@ -376,7 +382,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     async getUserById(userId) {
       const result = await pool.query(
         `
-        SELECT id, username, email, gender, preferences
+        SELECT id, username, email, gender, preferences, rating_total, rating_count
         FROM users
         WHERE id = $1
         `,
@@ -461,13 +467,23 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return result.rows.map(mapRowToToilet);
     },
-    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", rating, answer }) {
+    async recordCleanlinessSurvey({ userId = null, toiletId = null, toiletName = "", rating, answer }) {
       const { safeToiletId, safeToiletName, safeRating } = normaliseCleanlinessSurveyPayload({
         toiletId,
         toiletName,
         rating,
         answer
       });
+
+      let userAverageRating = 3;
+      if (userId) {
+        const userResult = await pool.query("SELECT rating_total, rating_count FROM users WHERE id = $1", [userId]);
+        const userRow = userResult.rows[0];
+        if (userRow) {
+          userAverageRating = userRow.rating_count > 0 ? userRow.rating_total / userRow.rating_count : 3;
+          await pool.query("UPDATE users SET rating_total = rating_total + $1, rating_count = rating_count + 1 WHERE id = $2", [safeRating, userId]);
+        }
+      }
 
       const result = safeToiletId
         ? await pool.query(
@@ -492,6 +508,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       const { cleanliness, ratingTotal, ratingCount } = toCleanlinessUpdate({
         row,
         rating: safeRating,
+        userAverageRating,
         cleanlinessScoringModel
       });
 

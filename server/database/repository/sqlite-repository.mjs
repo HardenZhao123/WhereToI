@@ -70,7 +70,9 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       password_hash TEXT NOT NULL,
       email TEXT,
       gender TEXT,
-      preferences TEXT
+      preferences TEXT,
+      rating_total INTEGER NOT NULL DEFAULT 0,
+      rating_count INTEGER NOT NULL DEFAULT 0
     ) STRICT;
 
     CREATE TABLE IF NOT EXISTS app_account (
@@ -236,10 +238,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
     },
     async getUserByUsername(username) {
-      return db.prepare("SELECT id, username, password_hash, email, gender, preferences FROM users WHERE username = ?").get(username);
+      return db.prepare("SELECT id, username, password_hash, email, gender, preferences, rating_total, rating_count FROM users WHERE username = ?").get(username);
     },
     async getUserById(userId) {
-      return db.prepare("SELECT id, username, email, gender, preferences FROM users WHERE id = ?").get(userId);
+      return db.prepare("SELECT id, username, email, gender, preferences, rating_total, rating_count FROM users WHERE id = ?").get(userId);
     },
     async updateUserProfile(userId, { gender, preferences }) {
       db.prepare(
@@ -302,13 +304,23 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         );
       });
     },
-    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", rating, answer }) {
+    async recordCleanlinessSurvey({ userId = null, toiletId = null, toiletName = "", rating, answer }) {
       const { safeToiletId, safeToiletName, safeRating } = normaliseCleanlinessSurveyPayload({
         toiletId,
         toiletName,
         rating,
         answer
       });
+
+      let userAverageRating = 3;
+      if (userId) {
+        const userRow = db.prepare("SELECT rating_total, rating_count FROM users WHERE id = ?").get(userId);
+        if (userRow) {
+          userAverageRating = userRow.rating_count > 0 ? userRow.rating_total / userRow.rating_count : 3;
+          db.prepare("UPDATE users SET rating_total = rating_total + ?, rating_count = rating_count + 1 WHERE id = ?")
+            .run(safeRating, userId);
+        }
+      }
 
       const row = safeToiletId
         ? db
@@ -332,6 +344,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       const { cleanliness, ratingTotal, ratingCount } = toCleanlinessUpdate({
         row,
         rating: safeRating,
+        userAverageRating,
         cleanlinessScoringModel
       });
 

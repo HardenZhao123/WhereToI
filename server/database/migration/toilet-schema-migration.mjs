@@ -180,6 +180,12 @@ function ensureSqliteUserColumns(db) {
   if (!existingColumns.has("preferences")) {
     db.exec("ALTER TABLE users ADD COLUMN preferences TEXT;");
   }
+  if (!existingColumns.has("rating_total")) {
+    db.exec("ALTER TABLE users ADD COLUMN rating_total INTEGER NOT NULL DEFAULT 0;");
+  }
+  if (!existingColumns.has("rating_count")) {
+    db.exec("ALTER TABLE users ADD COLUMN rating_count INTEGER NOT NULL DEFAULT 0;");
+  }
 }
 
 function ensureSqliteUserSupport(db) {

@@ -28,6 +28,7 @@ export function normaliseCleanlinessSurveyPayload({ toiletId = null, toiletName 
 export function toCleanlinessUpdate({
   row,
   rating,
+  userAverageRating = 3,
   cleanlinessScoringModel
 }) {
   const legacyRatingTotal = Number(row.cleanliness_yes_count ?? 0) * 5 + Number(row.cleanliness_no_count ?? 0);
@@ -41,6 +42,7 @@ export function toCleanlinessUpdate({
     ratingTotal,
     ratingCount,
     previousCleanliness: row.cleanliness,
+    userAverageRating,
     scoringModel: cleanlinessScoringModel
   });
 
