@@ -15,5 +15,11 @@ services:
         value: production
       - key: WHERETOI_DATABASE_URL
         sync: false
+      - key: WHERETOI_RESEND_API_KEY
+        sync: false
+      - key: WHERETOI_EMAIL_FROM
+        sync: false
+      - key: WHERETOI_PUBLIC_APP_URL
+        value: https://wheretoi-webapp.onrender.com
       - key: PORT
         value: "10000"
