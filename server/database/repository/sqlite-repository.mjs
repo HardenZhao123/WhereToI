@@ -464,7 +464,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             created_at
           FROM toilet_comments
           WHERE toilet_id = ?
-          ORDER BY created_at DESC
+          ORDER BY created_at DESC, id DESC
           `
         )
         .all(toiletId);

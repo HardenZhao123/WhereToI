@@ -625,7 +625,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           created_at
         FROM toilet_comments
         WHERE toilet_id = $1
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, id DESC
         `,
         [toiletId]
       );
