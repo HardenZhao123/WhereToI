@@ -107,10 +107,13 @@ if (
 
 if (
   !html.includes("accept=\"image/*,video/*\"") ||
+  !html.includes("Remove attachment") ||
   !js.includes("readCommentMediaAttachment") ||
   !js.includes("createCommentMediaElement") ||
+  !js.includes("removeCommentMediaSelection") ||
   !js.includes("isPlaceholderToiletComment") ||
   !css.includes(".comment-media") ||
+  !css.includes(".comment-media-remove") ||
   !css.includes("object-fit: contain")
 ) {
   throw new Error("Expected comments to support image or video attachments without cropped media or placeholder notes.");

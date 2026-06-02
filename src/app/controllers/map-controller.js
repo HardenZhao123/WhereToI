@@ -38,6 +38,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     commentInput,
     commentMediaInput,
     commentMediaPreview,
+    commentMediaRemoveButton,
     featureFilterInputs = [],
     sortSelect,
     resultsSummary,
@@ -169,12 +170,20 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     commentMediaPreview.textContent = message;
   }
 
+  function setCommentMediaRemoveVisible(isVisible) {
+    if (!commentMediaRemoveButton) return;
+    commentMediaRemoveButton.hidden = !isVisible;
+  }
+
   function previewCommentMediaSelection() {
     const file = commentMediaInput?.files?.[0];
     if (!file) {
       setCommentMediaPreview("");
+      setCommentMediaRemoveVisible(false);
       return;
     }
+
+    setCommentMediaRemoveVisible(true);
 
     const mediaType = getCommentMediaType(file);
     if (!mediaType) {
@@ -227,6 +236,11 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       commentMediaInput.value = "";
     }
     setCommentMediaPreview("");
+    setCommentMediaRemoveVisible(false);
+  }
+
+  function removeCommentMediaSelection() {
+    resetCommentMediaAttachment();
   }
 
   function createCommentMediaElement(comment) {
@@ -944,6 +958,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     answerCleanlinessSurvey,
     postComment,
     previewCommentMediaSelection,
+    removeCommentMediaSelection,
     applyProfilePreferences
   };
 }
