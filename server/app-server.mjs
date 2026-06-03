@@ -16,13 +16,15 @@ const STATIC_CONTENT_TYPES = {
 };
 
 const TRUTHY_QUERY_FLAGS = new Set(["1", "true", "yes"]);
-const BODY_SIZE_LIMIT_BYTES = 1024 * 1024;
+const BODY_SIZE_LIMIT_BYTES = 110 * 1024 * 1024;
 const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "required",
   "non-negative",
   "integer from 1 to 5",
   "scoringModel",
   "Unsupported",
+  "comment media",
+  "too large",
   "not found"
 ];
 
@@ -224,6 +226,12 @@ function createApiRouteHandlers(database, { emailService, logger }) {
     },
     "POST /api/cleanliness-survey": async ({ request, response }) => {
       const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendJson(response, 401, { error: "Log in to rate cleanliness." });
+        return;
+      }
+
       const body = await readJsonBody(request);
       const result = await database.recordCleanlinessSurvey({
         userId,
@@ -244,13 +252,18 @@ function createApiRouteHandlers(database, { emailService, logger }) {
     "POST /api/comments": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendJson(response, 401, { error: "Log in to post comments." });
+        return;
+      }
 
       const body = await readJsonBody(request);
       const comments = await database.saveComment({
         toiletId: body.toiletId,
         userId: userId,
-        username: user?.username ?? "Anonymous",
-        commentText: body.commentText
+        username: user.username,
+        commentText: body.commentText,
+        media: body.mediaAttachments ?? body.media
       });
 
       sendJson(response, 201, { comments });

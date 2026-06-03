@@ -5,6 +5,154 @@ export function normaliseSearchQuery(search) {
   return normaliseText(search).toLowerCase();
 }
 
+const COMMENT_MEDIA_MAX_BYTES = 8 * 1024 * 1024;
+const COMMENT_MEDIA_MAX_ATTACHMENTS = 9;
+const COMMENT_MEDIA_MAX_VIDEOS = 3;
+const COMMENT_MEDIA_MAX_IMAGES = 9;
+const COMMENT_MEDIA_TYPES = new Set(["image", "video"]);
+const COMMENT_MEDIA_DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
+
+function normaliseCommentMediaAttachment(media) {
+  if (typeof media !== "object" || Array.isArray(media) || media === null) {
+    throw new Error("comment media must be an image or video attachment.");
+  }
+
+  const mediaType = normaliseText(media.type).toLowerCase();
+  const mediaMimeType = normaliseText(media.mimeType).toLowerCase();
+  const mediaName = normaliseText(media.name).replace(/[\\/]/g, "").slice(0, 120) || "attachment";
+  const mediaUrl = typeof media.dataUrl === "string" ? media.dataUrl.trim() : "";
+  const dataUrlMatch = mediaUrl.match(COMMENT_MEDIA_DATA_URL_PATTERN);
+
+  if (!COMMENT_MEDIA_TYPES.has(mediaType)) {
+    throw new Error("Unsupported comment media type.");
+  }
+
+  if (!mediaMimeType.startsWith(`${mediaType}/`)) {
+    throw new Error("comment media MIME type must match the selected image or video type.");
+  }
+
+  if (!dataUrlMatch || dataUrlMatch[1].toLowerCase() !== mediaMimeType) {
+    throw new Error("comment media must be a valid base64 data URL.");
+  }
+
+  const calculatedSize = Buffer.from(dataUrlMatch[2], "base64").byteLength;
+  const suppliedSize = Number(media.size);
+  const mediaSize = Number.isFinite(suppliedSize) && suppliedSize > 0
+    ? Math.floor(suppliedSize)
+    : calculatedSize;
+
+  if (mediaSize > COMMENT_MEDIA_MAX_BYTES || calculatedSize > COMMENT_MEDIA_MAX_BYTES) {
+    throw new Error("comment media file is too large.");
+  }
+
+  return {
+    type: mediaType,
+    mimeType: mediaMimeType,
+    name: mediaName,
+    size: mediaSize,
+    dataUrl: mediaUrl
+  };
+}
+
+function normaliseCommentMedia(media = null) {
+  const rawAttachments =
+    media === null || media === undefined
+      ? []
+      : Array.isArray(media) ? media : [media];
+
+  if (rawAttachments.length > COMMENT_MEDIA_MAX_ATTACHMENTS) {
+    throw new Error("comment media can include at most 9 attachments.");
+  }
+
+  const attachments = rawAttachments.map(normaliseCommentMediaAttachment);
+  const videoCount = attachments.filter((attachment) => attachment.type === "video").length;
+  const imageCount = attachments.filter((attachment) => attachment.type === "image").length;
+
+  if (videoCount > COMMENT_MEDIA_MAX_VIDEOS) {
+    throw new Error("comment media can include at most 3 videos.");
+  }
+
+  if (imageCount > COMMENT_MEDIA_MAX_IMAGES) {
+    throw new Error("comment media can include at most 9 images.");
+  }
+
+  const firstAttachment = attachments[0] ?? null;
+
+  if (!firstAttachment) {
+    return {
+      mediaAttachments: [],
+      mediaAttachmentsJson: null,
+      mediaType: null,
+      mediaMimeType: null,
+      mediaName: null,
+      mediaSize: null,
+      mediaUrl: null
+    };
+  }
+
+  return {
+    mediaAttachments: attachments,
+    mediaAttachmentsJson: JSON.stringify(attachments),
+    mediaType: firstAttachment.type,
+    mediaMimeType: firstAttachment.mimeType,
+    mediaName: firstAttachment.name,
+    mediaSize: firstAttachment.size,
+    mediaUrl: firstAttachment.dataUrl
+  };
+}
+
+function parseCommentMediaAttachments(row) {
+  if (Array.isArray(row.media_attachments)) {
+    return row.media_attachments;
+  }
+
+  if (typeof row.media_attachments === "string" && row.media_attachments.trim()) {
+    try {
+      const parsed = JSON.parse(row.media_attachments);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  if (row.media_url && row.media_type && row.media_mime_type) {
+    return [
+      {
+        type: row.media_type,
+        mimeType: row.media_mime_type,
+        name: row.media_name ?? "attachment",
+        size: Number(row.media_size ?? 0),
+        dataUrl: row.media_url
+      }
+    ];
+  }
+
+  return [];
+}
+
+export function mapCommentRow(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    media_attachments: parseCommentMediaAttachments(row)
+  };
+}
+
+export function normaliseCommentPayload({ toiletId, commentText, media = null }) {
+  const safeToiletId = normaliseText(toiletId);
+  const safeCommentText = typeof commentText === "string" ? commentText.trim() : "";
+
+  if (!safeToiletId || !safeCommentText) {
+    throw new Error("toiletId and commentText are required.");
+  }
+
+  return {
+    toiletId: safeToiletId,
+    commentText: safeCommentText,
+    ...normaliseCommentMedia(media)
+  };
+}
+
 function normaliseRating(value) {
   const rating = Number(value);
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {

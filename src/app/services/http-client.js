@@ -11,7 +11,9 @@ export async function fetchJson(url, options = {}) {
 
   if (!response.ok) {
     const message = typeof payload?.error === "string" ? payload.error : `Request failed with status ${response.status}`;
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   return payload;

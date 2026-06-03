@@ -196,6 +196,22 @@ test("API supports fetching and posting toilet comments", async () => {
     const { payload: initialPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
     assert.equal(initialPayload.comments.length, 0);
 
+    const anonymousCommentResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Anonymous comment should not save."
+      })
+    });
+    const anonymousCommentPayload = await anonymousCommentResponse.json();
+
+    assert.equal(anonymousCommentResponse.status, 401);
+    assert.equal(anonymousCommentPayload.error, "Log in to post comments.");
+
+    const { payload: afterAnonymousPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.equal(afterAnonymousPayload.comments.length, 0);
+
     // Login first
     const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
       method: "POST",
@@ -218,17 +234,140 @@ test("API supports fetching and posting toilet comments", async () => {
 
     assert.equal(postedPayload.comments.length, 1);
     assert.equal(postedPayload.comments[0].comment_text, "Great experience!");
+    assert.deepEqual(postedPayload.comments[0].media_attachments, []);
 
     const { payload: fetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
     assert.deepEqual(fetchedPayload, postedPayload);
   });
 });
 
-test("API records cleanliness survey as a star rating", async () => {
+test("API supports multiple image and video comment attachments", async () => {
   await withAppServer(async (baseUrl) => {
-    const { payload } = await fetchJson(`${baseUrl}/api/cleanliness-survey`, {
+    const toiletId = "detail-test";
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const authHeaders = {
+      "Content-Type": "application/json",
+      "Cookie": cookie
+    };
+
+    const media = [
+      {
+        type: "image",
+        mimeType: "image/png",
+        name: "door.png",
+        size: 5,
+        dataUrl: "data:image/png;base64,aW1hZ2U="
+      },
+      {
+        type: "video",
+        mimeType: "video/mp4",
+        name: "queue.mp4",
+        size: 5,
+        dataUrl: "data:video/mp4;base64,dmlkZW8="
+      },
+      {
+        type: "image",
+        mimeType: "image/jpeg",
+        name: "sink.jpg",
+        size: 6,
+        dataUrl: "data:image/jpeg;base64,aW1hZ2Uy"
+      }
+    ];
+
+    const { payload: mediaPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Photo and queue evidence",
+        media
+      })
+    });
+
+    assert.equal(mediaPayload.comments.length, 1);
+    assert.equal(mediaPayload.comments[0].media_type, "image");
+    assert.equal(mediaPayload.comments[0].media_mime_type, "image/png");
+    assert.equal(mediaPayload.comments[0].media_url, "data:image/png;base64,aW1hZ2U=");
+    assert.deepEqual(mediaPayload.comments[0].media_attachments, media);
+
+    const invalidResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Not media",
+        media: {
+          type: "file",
+          mimeType: "application/pdf",
+          name: "rules.pdf",
+          size: 5,
+          dataUrl: "data:application/pdf;base64,cGRm"
+        }
+      })
+    });
+    const invalidPayload = await invalidResponse.json();
+
+    assert.equal(invalidResponse.status, 400);
+    assert.match(invalidPayload.error, /Unsupported comment media type/);
+
+    const overVideoLimitResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Too many clips",
+        media: Array.from({ length: 4 }, (_, index) => ({
+          type: "video",
+          mimeType: "video/mp4",
+          name: `queue-${index}.mp4`,
+          size: 5,
+          dataUrl: "data:video/mp4;base64,dmlkZW8="
+        }))
+      })
+    });
+    const overVideoLimitPayload = await overVideoLimitResponse.json();
+
+    assert.equal(overVideoLimitResponse.status, 400);
+    assert.match(overVideoLimitPayload.error, /at most 3 videos/);
+  });
+});
+
+test("API records cleanliness survey as a star rating", async () => {
+  await withAppServer(async (baseUrl) => {
+    const anonymousResponse = await fetch(`${baseUrl}/api/cleanliness-survey`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toiletId: "detail-test",
+        toiletName: "Prayer room washroom",
+        rating: 5
+      })
+    });
+    const anonymousPayload = await anonymousResponse.json();
+
+    assert.equal(anonymousResponse.status, 401);
+    assert.equal(anonymousPayload.error, "Log in to rate cleanliness.");
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const { payload } = await fetchJson(`${baseUrl}/api/cleanliness-survey`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
       body: JSON.stringify({
         toiletId: "detail-test",
         toiletName: "Prayer room washroom",

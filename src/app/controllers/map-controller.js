@@ -1,6 +1,11 @@
 import { appConfig } from "../config/app-config.js";
 import { fetchComments, submitCleanlinessSurvey, submitComment } from "../services/toilets-service.js";
-import { formatCleanlinessRating, getCleanlinessScore, getCleanlinessStars } from "../utils/cleanliness.js";
+import {
+  formatCleanlinessRating,
+  formatCleanlinessRatingCount,
+  getCleanlinessScore,
+  getCleanlinessStars
+} from "../utils/cleanliness.js";
 import { distanceInMetres, formatDistance } from "../utils/geo.js";
 
 const featureFilterOptions = [
@@ -19,8 +24,12 @@ const featureFilterOptions = [
 
 const sortModes = new Set(["distance", "cleanliness", "free", "facilities"]);
 const resultRenderLimit = 8;
+const commentMediaMaxBytes = 8 * 1024 * 1024;
+const commentMediaMaxAttachments = 9;
+const commentMediaMaxImages = 9;
+const commentMediaMaxVideos = 3;
 
-export function createMapController(elements, onToiletSelected = () => {}) {
+export function createMapController(elements, onToiletSelected = () => {}, auth = {}) {
   const {
     statusText,
     searchInput,
@@ -30,16 +39,24 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     mapElement,
     mapSurveyRatingButtons = [],
     mapSurveyStatus,
+    submitCleanlinessSurveyButton,
     detailSectionLinks = [],
     detailPanels = [],
     commentsList,
     commentForm,
     commentInput,
+    commentMediaInput,
+    commentMediaPreview,
+    commentMediaStatus,
     featureFilterInputs = [],
     sortSelect,
     resultsSummary,
     resultsList
   } = elements;
+  const {
+    isAuthenticated = () => true,
+    showLoginPrompt = () => {}
+  } = auth;
 
   const surveyStorageKey = "wheretoi-map-cleanliness-survey";
 
@@ -57,6 +74,8 @@ export function createMapController(elements, onToiletSelected = () => {}) {
   let markerById = new Map();
   let hiddenByMarkerLimit = 0;
   let cleanlinessSurveyAnswers = loadSurveyAnswers();
+  let selectedRating = null;
+  let selectedCommentMedia = [];
 
   function loadSurveyAnswers() {
     try {
@@ -82,21 +101,50 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     const cleanlinessStars = document.querySelector("#cleanliness-stars");
     const starIcons = document.querySelector("#cleanliness-star-icons");
     const cleanlinessLabel = document.querySelector("#cleanliness-score");
+    const cleanlinessRatingCount = document.querySelector("#cleanliness-rating-count");
     const rating = getCleanlinessStars(toilet);
+    const ratingCountText = formatCleanlinessRatingCount(toilet);
 
     if (cleanlinessStars) {
       cleanlinessStars.setAttribute(
         "aria-label",
-        `Cleanliness rating ${rating.rating} out of ${rating.maxRating}`
+        `Cleanliness rating ${rating.displayRating} out of ${rating.maxRating}, based on ${ratingCountText}`
       );
     }
 
     if (starIcons) {
-      starIcons.textContent = `${rating.filled}${rating.empty}`;
+      const icons = [];
+
+      for (let index = 0; index < rating.full; index += 1) {
+        const icon = document.createElement("span");
+        icon.className = "star-icon is-full";
+        icon.textContent = "\u2605";
+        icons.push(icon);
+      }
+
+      if (rating.half) {
+        const icon = document.createElement("span");
+        icon.className = "star-icon is-half";
+        icon.textContent = "\u2606";
+        icons.push(icon);
+      }
+
+      for (let index = 0; index < rating.empty; index += 1) {
+        const icon = document.createElement("span");
+        icon.className = "star-icon is-empty";
+        icon.textContent = "\u2606";
+        icons.push(icon);
+      }
+
+      starIcons.replaceChildren(...icons);
     }
 
     if (cleanlinessLabel) {
-      cleanlinessLabel.textContent = `${rating.rating}/${rating.maxRating}`;
+      cleanlinessLabel.textContent = `${rating.displayRating}/${rating.maxRating}`;
+    }
+
+    if (cleanlinessRatingCount) {
+      cleanlinessRatingCount.textContent = ratingCountText;
     }
   }
 
@@ -107,7 +155,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
   function renderCleanlinessSurvey(toilet) {
     const storedRating = toilet ? cleanlinessSurveyAnswers[toilet.id]?.rating ?? cleanlinessSurveyAnswers[toilet.id] : null;
-    const rating = Number(storedRating);
+    const rating = Number(selectedRating ?? storedRating);
     const hasRating = Number.isInteger(rating) && rating >= 1 && rating <= 5;
 
     mapSurveyRatingButtons.forEach((button) => {
@@ -117,11 +165,288 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       button.setAttribute("aria-pressed", hasRating && buttonRating === rating ? "true" : "false");
     });
 
-    if (mapSurveyStatus) {
-      mapSurveyStatus.textContent = hasRating
-        ? `Thanks, your ${rating}/5 rating has been saved.`
-        : "Choose 1 to 5 stars to help others.";
+    if (submitCleanlinessSurveyButton) {
+      submitCleanlinessSurveyButton.disabled = selectedRating === null;
     }
+
+    if (mapSurveyStatus) {
+      if (selectedRating !== null) {
+        mapSurveyStatus.textContent = `You've selected ${selectedRating}/5 stars. Click submit to save.`;
+      } else {
+        mapSurveyStatus.textContent = hasRating
+          ? `Thanks, your ${rating}/5 rating has been saved.`
+          : isAuthenticated()
+            ? "Choose 1 to 5 stars to help others."
+            : "Log in or sign up to rate cleanliness.";
+      }
+    }
+  }
+
+  function isPlaceholderToiletComment(comment = "") {
+    const normalised = String(comment)
+      .replace(/^comment:\s*/i, "")
+      .trim()
+      .replace(/[.。]+$/, "")
+      .toLowerCase();
+
+    return ["", "no notes yet", "no comment yet", "no comments yet", "none", "n/a"].includes(normalised);
+  }
+
+  function renderToiletSourceComment(toilet) {
+    const toiletComment = document.querySelector("#toilet-comment");
+    const commentPanel = toiletComment?.closest(".comment-panel");
+    const hasUsefulComment = !isPlaceholderToiletComment(toilet?.comment);
+
+    if (commentPanel) {
+      commentPanel.hidden = !hasUsefulComment;
+    }
+
+    if (toiletComment && hasUsefulComment) {
+      toiletComment.textContent = toilet.comment;
+    }
+  }
+
+  function getCommentMediaType(file) {
+    if (!file?.type) return null;
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    return null;
+  }
+
+  function formatMediaSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "";
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+
+  function getSelectedCommentMediaCounts() {
+    return selectedCommentMedia.reduce(
+      (counts, media) => {
+        counts.total += 1;
+        if (media.type === "image") counts.images += 1;
+        if (media.type === "video") counts.videos += 1;
+        return counts;
+      },
+      { total: 0, images: 0, videos: 0 }
+    );
+  }
+
+  function getDefaultMediaStatus() {
+    const counts = getSelectedCommentMediaCounts();
+    if (counts.total === 0) {
+      return "Up to 9 attachments total, including up to 3 videos.";
+    }
+
+    return `${counts.total}/9 attachments selected. Images ${counts.images}/9, videos ${counts.videos}/3.`;
+  }
+
+  function setCommentMediaStatus(message = getDefaultMediaStatus()) {
+    if (!commentMediaStatus) return;
+    commentMediaStatus.textContent = message;
+  }
+
+  function createCommentMediaPreviewCard(media) {
+    const item = document.createElement("div");
+    item.className = "comment-media-preview-item";
+
+    const frame = document.createElement("div");
+    frame.className = "comment-media-preview-frame";
+
+    if (media.type === "image") {
+      const image = document.createElement("img");
+      image.src = media.previewUrl;
+      image.alt = media.file.name ? `Selected image: ${media.file.name}` : "Selected image";
+      frame.append(image);
+    } else {
+      const video = document.createElement("video");
+      video.src = media.previewUrl;
+      video.muted = true;
+      video.preload = "metadata";
+      video.playsInline = true;
+      frame.append(video);
+    }
+
+    const removeButton = document.createElement("button");
+    removeButton.className = "comment-media-remove";
+    removeButton.type = "button";
+    removeButton.textContent = "×";
+    removeButton.setAttribute("aria-label", `Remove ${media.file.name || "attachment"}`);
+    removeButton.addEventListener("click", () => removeCommentMediaSelection(media.id));
+
+    const caption = document.createElement("p");
+    caption.className = "comment-media-caption";
+    caption.textContent = `${media.file.name || "Attachment"} ${formatMediaSize(media.file.size)}`.trim();
+
+    item.append(frame, removeButton, caption);
+    return item;
+  }
+
+  function renderCommentMediaPreview(statusMessage = getDefaultMediaStatus()) {
+    if (commentMediaPreview) {
+      commentMediaPreview.replaceChildren();
+      selectedCommentMedia.forEach((media) => {
+        commentMediaPreview.append(createCommentMediaPreviewCard(media));
+      });
+    }
+
+    setCommentMediaStatus(statusMessage);
+  }
+
+  function validateCommentMediaFile(file) {
+    const mediaType = getCommentMediaType(file);
+    if (!mediaType) {
+      return { error: `${file?.name || "This file"} is not an image or video.` };
+    }
+
+    if (file.size > commentMediaMaxBytes) {
+      return { error: `${file.name} is over 8 MB.` };
+    }
+
+    const counts = getSelectedCommentMediaCounts();
+    if (counts.total >= commentMediaMaxAttachments) {
+      return { error: "You can attach up to 9 files total." };
+    }
+
+    if (mediaType === "video" && counts.videos >= commentMediaMaxVideos) {
+      return { error: "You can attach up to 3 videos." };
+    }
+
+    if (mediaType === "image" && counts.images >= commentMediaMaxImages) {
+      return { error: "You can attach up to 9 images." };
+    }
+
+    return { mediaType };
+  }
+
+  function previewCommentMediaSelection() {
+    const files = Array.from(commentMediaInput?.files ?? []);
+    let statusMessage = "";
+
+    for (const file of files) {
+      const { mediaType, error } = validateCommentMediaFile(file);
+      if (error) {
+        statusMessage = error;
+        continue;
+      }
+
+      selectedCommentMedia.push({
+        id: `comment-media-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        file,
+        type: mediaType,
+        previewUrl: URL.createObjectURL(file)
+      });
+    }
+
+    if (commentMediaInput) {
+      commentMediaInput.value = "";
+    }
+
+    renderCommentMediaPreview(statusMessage || getDefaultMediaStatus());
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
+      reader.addEventListener("error", () => reject(new Error("Could not read selected file.")));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function readCommentMediaAttachments() {
+    return Promise.all(
+      selectedCommentMedia.map(async (media) => ({
+        type: media.type,
+        mimeType: media.file.type,
+        name: media.file.name,
+        size: media.file.size,
+        dataUrl: await readFileAsDataUrl(media.file)
+      }))
+    );
+  }
+
+  function resetCommentMediaAttachment() {
+    if (commentMediaInput) {
+      commentMediaInput.value = "";
+    }
+
+    selectedCommentMedia.forEach((media) => URL.revokeObjectURL(media.previewUrl));
+    selectedCommentMedia = [];
+    renderCommentMediaPreview();
+  }
+
+  function removeCommentMediaSelection(mediaId) {
+    const media = selectedCommentMedia.find((item) => item.id === mediaId);
+    if (media) {
+      URL.revokeObjectURL(media.previewUrl);
+    }
+
+    selectedCommentMedia = selectedCommentMedia.filter((item) => item.id !== mediaId);
+    renderCommentMediaPreview();
+  }
+
+  function getCommentMediaAttachments(comment) {
+    if (Array.isArray(comment?.media_attachments)) {
+      return comment.media_attachments;
+    }
+
+    if (typeof comment?.media_attachments === "string" && comment.media_attachments.trim()) {
+      try {
+        const parsed = JSON.parse(comment.media_attachments);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        return [];
+      }
+    }
+
+    if (comment?.media_url && comment?.media_type && comment?.media_mime_type) {
+      return [
+        {
+          type: comment.media_type,
+          mimeType: comment.media_mime_type,
+          name: comment.media_name,
+          dataUrl: comment.media_url
+        }
+      ];
+    }
+
+    return [];
+  }
+
+  function createCommentMediaElement(comment) {
+    const attachments = getCommentMediaAttachments(comment);
+    if (attachments.length === 0) return null;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "comment-media";
+
+    attachments.forEach((attachment) => {
+      const item = document.createElement("div");
+      item.className = "comment-media-item";
+
+      if (attachment.type === "image" && attachment.mimeType?.startsWith("image/")) {
+        const image = document.createElement("img");
+        image.src = attachment.dataUrl;
+        image.alt = attachment.name ? `Attached image: ${attachment.name}` : "Attached image";
+        image.loading = "lazy";
+        item.append(image);
+      }
+
+      if (attachment.type === "video" && attachment.mimeType?.startsWith("video/")) {
+        const video = document.createElement("video");
+        video.src = attachment.dataUrl;
+        video.controls = true;
+        video.preload = "metadata";
+        video.playsInline = true;
+        item.append(video);
+      }
+
+      if (item.childElementCount > 0) {
+        wrapper.append(item);
+      }
+    });
+
+    return wrapper.childElementCount > 0 ? wrapper : null;
   }
 
   function renderComments(comments) {
@@ -144,11 +469,15 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       text.className = "comment-text";
       text.textContent = comment.comment_text;
 
+      const media = createCommentMediaElement(comment);
+
       const date = document.createElement("p");
       date.className = "comment-date";
       date.textContent = new Date(comment.created_at).toLocaleString();
 
-      item.append(text, date);
+      item.append(text);
+      if (media) item.append(media);
+      item.append(date);
       commentsList.append(item);
     });
   }
@@ -337,6 +666,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
   function hideToiletDetails() {
     selectedToilet = null;
+    selectedRating = null;
     detailsCard?.classList.add("is-hidden");
     mapPanel?.classList.remove("has-details");
 
@@ -385,6 +715,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     if (!toilet) return;
 
     selectedToilet = toilet;
+    selectedRating = null;
     setDetailSection("features");
     detailsCard?.classList.remove("is-hidden");
     mapPanel?.classList.add("has-details");
@@ -395,7 +726,7 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
     document.querySelector("#toilet-name").textContent = toilet.name;
     document.querySelector("#toilet-area").textContent = toilet.area;
-    document.querySelector("#toilet-comment").textContent = toilet.comment;
+    renderToiletSourceComment(toilet);
     setFeatureValue("#feature-women", toilet.features.women);
     setFeatureValue("#feature-men", toilet.features.men);
     setFeatureValue("#feature-accessible", toilet.features.accessible);
@@ -708,6 +1039,26 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     renderResults();
   }
 
+  function selectCleanlinessRating(rating) {
+    if (!selectedToilet) {
+      setStatus("Select a toilet marker before answering the survey.");
+      return;
+    }
+
+    const safeRating = Number(rating);
+    if (!Number.isInteger(safeRating) || safeRating < 1 || safeRating > 5) return;
+
+    selectedRating = safeRating;
+    renderCleanlinessSurvey(selectedToilet);
+  }
+
+  async function submitCleanlinessSurveySelection() {
+    if (selectedRating === null) return;
+    await answerCleanlinessSurvey(selectedRating);
+    selectedRating = null;
+    renderCleanlinessSurvey(selectedToilet);
+  }
+
   async function answerCleanlinessSurvey(rating) {
     if (!selectedToilet) {
       setStatus("Select a toilet marker before answering the survey.");
@@ -716,6 +1067,14 @@ export function createMapController(elements, onToiletSelected = () => {}) {
 
     const safeRating = Number(rating);
     if (!Number.isInteger(safeRating) || safeRating < 1 || safeRating > 5) return;
+
+    if (!isAuthenticated()) {
+      if (mapSurveyStatus) {
+        mapSurveyStatus.textContent = "Log in or sign up to rate cleanliness.";
+      }
+      showLoginPrompt("Log in or sign up to rate cleanliness.");
+      return;
+    }
 
     if (mapSurveyStatus) {
       mapSurveyStatus.textContent = "Saving rating to database...";
@@ -737,6 +1096,14 @@ export function createMapController(elements, onToiletSelected = () => {}) {
       }
     } catch (error) {
       console.error("Cleanliness survey failed:", error);
+      if (error.status === 401) {
+        if (mapSurveyStatus) {
+          mapSurveyStatus.textContent = "Log in or sign up to rate cleanliness.";
+        }
+        showLoginPrompt("Log in or sign up to rate cleanliness.");
+        return;
+      }
+
       if (mapSurveyStatus) {
         mapSurveyStatus.textContent = "Could not save to database. Saved on this device only.";
       }
@@ -767,13 +1134,33 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     const commentText = commentInput.value.trim();
     if (!commentText) return;
 
+    if (!isAuthenticated()) {
+      showLoginPrompt("Log in to post a comment.");
+      return;
+    }
+
+    const submitButton = commentForm?.querySelector("button[type='submit']");
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+
     try {
-      const updatedComments = await submitComment(selectedToilet.id, commentText);
+      const media = await readCommentMediaAttachments();
+      const updatedComments = await submitComment(selectedToilet.id, commentText, media);
       renderComments(updatedComments);
       commentInput.value = "";
+      resetCommentMediaAttachment();
     } catch (error) {
       console.error("Failed to post comment:", error);
-      alert("Could not post comment. Please try again later.");
+      if (error.status === 401) {
+        showLoginPrompt("Log in to post a comment.");
+        return;
+      }
+      alert(error?.message || "Could not post comment. Please try again later.");
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+      }
     }
   }
 
@@ -793,8 +1180,12 @@ export function createMapController(elements, onToiletSelected = () => {}) {
     refreshAfterTabVisible,
     getSelectedToilet,
     updateToiletCleanliness,
+    selectCleanlinessRating,
+    submitCleanlinessSurveySelection,
     answerCleanlinessSurvey,
     postComment,
+    previewCommentMediaSelection,
+    removeCommentMediaSelection,
     applyProfilePreferences
   };
 }

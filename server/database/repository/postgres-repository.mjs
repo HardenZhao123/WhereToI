@@ -1,13 +1,15 @@
 import { mapRowToToilet } from "../mapper/toilet-mapper.mjs";
-import { applyPostgresToiletMigrations } from "../migration/toilet-schema-migration.mjs";
+import { applyPostgresToiletMigrations, ensurePostgresCommentMediaColumns } from "../migration/toilet-schema-migration.mjs";
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import {
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
+  mapCommentRow,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
+  normaliseCommentPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
   toCleanlinessUpdate
@@ -113,6 +115,7 @@ async function ensurePostgresUserSupport(pool) {
   await pool.query("ALTER TABLE access_history ADD COLUMN IF NOT EXISTS user_id INTEGER");
   await pool.query("ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS user_id INTEGER");
   await pool.query("ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS username TEXT");
+  await ensurePostgresCommentMediaColumns(pool);
 
   const demoUserId = await ensureDemoUser(pool);
 
@@ -212,6 +215,12 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       username TEXT,
       comment_text TEXT NOT NULL,
+      media_type TEXT,
+      media_mime_type TEXT,
+      media_name TEXT,
+      media_size INTEGER,
+      media_url TEXT,
+      media_attachments JSONB,
       created_at TEXT NOT NULL
     );
   `);
@@ -656,31 +665,65 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       const result = await pool.query(
         `
-        SELECT id, toilet_id, user_id, username, comment_text, created_at
+        SELECT
+          id,
+          toilet_id,
+          user_id,
+          username,
+          comment_text,
+          media_type,
+          media_mime_type,
+          media_name,
+          media_size,
+          media_url,
+          media_attachments,
+          created_at
         FROM toilet_comments
         WHERE toilet_id = $1
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, id DESC
         `,
         [toiletId]
       );
 
-      return result.rows;
+      return result.rows.map(mapCommentRow);
     },
-    async saveComment({ toiletId, userId, username, commentText }) {
-      if (!toiletId || !commentText) {
-        throw new Error("toiletId and commentText are required");
-      }
+    async saveComment({ toiletId, userId, username, commentText, media }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media });
 
       const nowIso = new Date().toISOString();
       await pool.query(
         `
-        INSERT INTO toilet_comments (toilet_id, user_id, username, comment_text, created_at)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO toilet_comments (
+          toilet_id,
+          user_id,
+          username,
+          comment_text,
+          media_type,
+          media_mime_type,
+          media_name,
+          media_size,
+          media_url,
+          media_attachments,
+          created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
         `,
-        [toiletId, userId, username, commentText, nowIso]
+        [
+          comment.toiletId,
+          userId,
+          username,
+          comment.commentText,
+          comment.mediaType,
+          comment.mediaMimeType,
+          comment.mediaName,
+          comment.mediaSize,
+          comment.mediaUrl,
+          comment.mediaAttachmentsJson,
+          nowIso
+        ]
       );
 
-      return this.getComments(toiletId);
+      return this.getComments(comment.toiletId);
     }
   };
 }

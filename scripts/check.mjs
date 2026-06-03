@@ -48,7 +48,8 @@ const requiredCopy = [
   "Cleanest",
   "Most facilities",
   "Confirm password",
-  "Create an account to unlock more features"
+  "Create an account to unlock more features",
+  "Attach image or video"
 ];
 const missingCopy = requiredCopy.filter((text) => !html.includes(text));
 
@@ -85,8 +86,10 @@ if (
   js.includes("formatCleanlinessVotes") ||
   !html.includes("data-survey-rating=\"5\"") ||
   !html.includes("cleanliness-star-icons") ||
+  !html.includes("cleanliness-rating-count") ||
   !css.includes(".star-survey-actions") ||
-  !js.includes("formatCleanlinessRating")
+  !js.includes("formatCleanlinessRating") ||
+  !js.includes("formatCleanlinessRatingCount")
 ) {
   throw new Error("Expected cleanliness to display and submit 1-5 star ratings.");
 }
@@ -102,6 +105,25 @@ if (
   !css.includes(".details-section-link")
 ) {
   throw new Error("Expected toilet details to switch between linked detail sections.");
+}
+
+if (
+  !html.includes("accept=\"image/*,video/*\"") ||
+  !html.includes("multiple") ||
+  !html.includes("comment-media-status") ||
+  !js.includes("readCommentMediaAttachments") ||
+  !js.includes("createCommentMediaElement") ||
+  !js.includes("commentMediaMaxAttachments") ||
+  !js.includes("commentMediaMaxVideos") ||
+  !js.includes("removeCommentMediaSelection") ||
+  !js.includes("isPlaceholderToiletComment") ||
+  !css.includes(".comment-media") ||
+  !css.includes(".comment-media-item") ||
+  !css.includes(".comment-media-preview-item") ||
+  !css.includes(".comment-media-remove") ||
+  !css.includes("object-fit: contain")
+) {
+  throw new Error("Expected comments to support up to 9 image/video attachments with thumbnail removal and uncropped media.");
 }
 
 if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {
