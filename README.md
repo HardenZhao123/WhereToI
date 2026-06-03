@@ -46,14 +46,30 @@ Content-Type: application/json
 }
 ```
 
-Ratings are integers from 1 to 5 stars. The scoring model is configured server-side. By default, the API uses cumulative average scoring. To use exponential moving average scoring, set:
+Ratings are integers from 1 to 5 stars. The scoring model is configured server-side via environment variables.
 
-```bash
-WHERETOI_CLEANLINESS_SCORING_MODEL=ema
-WHERETOI_CLEANLINESS_EMA_ALPHA=0.35
-```
+### Supported Scoring Models
 
-Supported server-side models are `average` and `ema`.
+- **Cumulative Average** (`average`): The default model. Calculates the simple arithmetic mean of all ratings.
+- **Exponential Moving Average** (`ema`): Gives more weight to recent ratings.
+  ```bash
+  WHERETOI_CLEANLINESS_SCORING_MODEL=ema
+  WHERETOI_CLEANLINESS_EMA_ALPHA=0.35 # Default: 0.35
+  ```
+- **Mean Centering** (`mean_centering`): Normalizes ratings by adjusting for each user's personal average rating relative to the global average.
+  ```bash
+  WHERETOI_CLEANLINESS_SCORING_MODEL=mean_centering
+  ```
+- **Z-Score Normalization** (`z_score`): Normalizes ratings using both the user's average and standard deviation to account for varying rating scales and volatility between users.
+  ```bash
+  WHERETOI_CLEANLINESS_SCORING_MODEL=z_score
+  ```
+- **Bias Training** (`bias_training`): Uses a latent factor model to learn and subtract user and toilet biases (e.g., some users always rate low, some toilets are consistently overrated).
+  ```bash
+  WHERETOI_CLEANLINESS_SCORING_MODEL=bias_training
+  WHERETOI_CLEANLINESS_BIAS_LEARNING_RATE=0.01 # Default: 0.01
+  WHERETOI_CLEANLINESS_BIAS_REGULARIZATION=0.02 # Default: 0.02
+  ```
 
 ## Registration confirmation email
 
