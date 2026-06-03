@@ -14,7 +14,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./src/styles.css?v=comment-media-3" />
+    <link rel="stylesheet" href="./src/styles.css?v=comment-identity-1" />
   </head>
   <body>
     <main class="app-shell" aria-label="WhereToI web app">
@@ -106,7 +106,7 @@
                 <button class="details-section-link is-active" id="details-features-link" type="button" data-detail-section="features" aria-controls="details-features-panel" aria-selected="true">Features</button>
                 <button class="details-section-link" id="details-hours-link" type="button" data-detail-section="hours" aria-controls="details-hours-panel" aria-selected="false">Opening Hours</button>
                 <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Comment</button>
-                <button class="details-section-link" id="details-survey-link" type="button" data-detail-section="survey" aria-controls="details-survey-panel" aria-selected="false">Survey</button>
+                <button class="details-section-link" id="details-survey-link" type="button" data-detail-section="survey" aria-controls="details-survey-panel" aria-selected="false">Review</button>
               </nav>
               <div class="details-section-panels">
                 <section class="details-panel is-active" id="details-features-panel" data-detail-panel="features" aria-labelledby="details-features-link">
@@ -145,9 +145,14 @@
                     </div>
                     <form id="comment-form" class="comment-form">
                       <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
+                      <label class="comment-anonymous-option">
+                        <input id="comment-anonymous" type="checkbox" />
+                        Anonymous
+                      </label>
                       <div class="comment-media-field">
-                        <label class="comment-media-label" for="comment-media">Attach image or video</label>
-                        <input id="comment-media" type="file" accept="image/*,video/*" multiple />
+                        <span class="comment-media-label">Attach image or video</span>
+                        <label for="comment-media" class="comment-media-browse">Browse</label>
+                        <input id="comment-media" type="file" accept="image/*,video/*" multiple class="is-hidden" />
                         <div class="comment-media-preview" id="comment-media-preview" aria-live="polite"></div>
                         <p class="comment-media-status" id="comment-media-status" aria-live="polite">Up to 9 attachments total, including up to 3 videos.</p>
                       </div>
@@ -158,7 +163,7 @@
                 <section class="details-panel" id="details-survey-panel" data-detail-panel="survey" aria-labelledby="details-survey-link" hidden>
                   <section class="map-cleanliness-survey" aria-labelledby="map-cleanliness-survey-title">
                     <div>
-                      <h3 id="map-cleanliness-survey-title">Cleanliness survey</h3>
+                      <h3 id="map-cleanliness-survey-title">Cleanliness review</h3>
                       <p>How clean was this toilet?</p>
                     </div>
                     <div class="star-survey-actions" role="group" aria-label="Map cleanliness star rating">
@@ -245,7 +250,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./src/main.js?v=comment-media-3" type="module"></script>
+    <script src="./src/main.js?v=comment-identity-1" type="module"></script>
     <section class="auth-modal is-hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div class="auth-dialog">
         <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px;">

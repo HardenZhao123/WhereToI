@@ -26,6 +26,7 @@ export function getDomRefs() {
     commentsList: document.querySelector("#comments-list"),
     commentForm: document.querySelector("#comment-form"),
     commentInput: document.querySelector("#comment-input"),
+    commentAnonymousInput: document.querySelector("#comment-anonymous"),
     commentMediaInput: document.querySelector("#comment-media"),
     commentMediaPreview: document.querySelector("#comment-media-preview"),
     commentMediaStatus: document.querySelector("#comment-media-status"),

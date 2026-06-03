@@ -24,6 +24,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "scoringModel",
   "Unsupported",
   "comment media",
+  "comment visibility",
   "too large",
   "not found"
 ];
@@ -234,6 +235,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 
       const body = await readJsonBody(request);
       const result = await database.recordCleanlinessSurvey({
+        userId,
         toiletId: normaliseOptionalToiletId(body.toiletId),
         toiletName: body.toiletName,
         rating: body.rating,
@@ -242,9 +244,10 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 
       sendJson(response, 201, result);
     },
-    "GET /api/comments": async ({ response, url }) => {
+    "GET /api/comments": async ({ request, response, url }) => {
+      const userId = getSessionUserId(request);
       const toiletId = url.searchParams.get("toiletId");
-      const comments = await database.getComments(toiletId);
+      const comments = await database.getComments(toiletId, { viewerUserId: userId });
 
       sendJson(response, 200, { comments });
     },
@@ -262,10 +265,58 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         userId: userId,
         username: user.username,
         commentText: body.commentText,
+        commentVisibility: body.commentVisibility,
         media: body.mediaAttachments ?? body.media
       });
 
       sendJson(response, 201, { comments });
+    },
+    "DELETE /api/comments": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendJson(response, 401, { error: "Log in to delete comments." });
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const result = await database.deleteComment({
+        toiletId: body.toiletId,
+        commentId: body.commentId,
+        userId
+      });
+
+      if (!result.deleted) {
+        sendJson(response, 404, { error: "Comment not found." });
+        return;
+      }
+
+      sendJson(response, 200, { comments: result.comments });
+    },
+    "POST /api/comment-likes": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendJson(response, 401, { error: "Log in to like comments." });
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const result = await database.toggleCommentLike({
+        toiletId: body.toiletId,
+        commentId: body.commentId,
+        userId
+      });
+
+      if (!result.found) {
+        sendJson(response, 404, { error: "Comment not found." });
+        return;
+      }
+
+      sendJson(response, 200, {
+        liked: result.liked,
+        comments: result.comments
+      });
     }
   };
 }
@@ -337,10 +388,11 @@ export async function createAppServer({
   rootDirectory = ".",
   port = 4173,
   logger = console,
-  emailService = createRegistrationEmailService()
+  emailService = createRegistrationEmailService(),
+  databaseOptions = {}
 } = {}) {
   const root = resolve(rootDirectory);
-  const database = await createDatabase({ rootDirectory: root });
+  const database = await createDatabase({ rootDirectory: root, ...databaseOptions });
   const requestHandler = createRequestHandler({ root, port, database, emailService, logger });
 
   const server = createServer(requestHandler);

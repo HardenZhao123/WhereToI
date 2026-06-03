@@ -228,16 +228,190 @@ test("API supports fetching and posting toilet comments", async () => {
       },
       body: JSON.stringify({
         toiletId,
-        commentText: "Great experience!"
+        commentText: "Great experience!",
+        commentVisibility: "real"
       })
     });
 
     assert.equal(postedPayload.comments.length, 1);
     assert.equal(postedPayload.comments[0].comment_text, "Great experience!");
+    assert.equal(postedPayload.comments[0].author_name, "demo");
+    assert.equal(postedPayload.comments[0].username, "demo");
+    assert.equal(postedPayload.comments[0].comment_visibility, "real");
+    assert.equal(postedPayload.comments[0].is_anonymous, false);
+    assert.equal(postedPayload.comments[0].can_delete, true);
     assert.deepEqual(postedPayload.comments[0].media_attachments, []);
 
-    const { payload: fetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
-    assert.deepEqual(fetchedPayload, postedPayload);
+    const { payload: anonymousPostedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Posting without my username.",
+        commentVisibility: "anonymous"
+      })
+    });
+
+    assert.equal(anonymousPostedPayload.comments.length, 2);
+    assert.equal(anonymousPostedPayload.comments[0].comment_text, "Posting without my username.");
+    assert.equal(anonymousPostedPayload.comments[0].author_name, "Anonymous");
+    assert.equal(anonymousPostedPayload.comments[0].username, "Anonymous");
+    assert.equal(anonymousPostedPayload.comments[0].comment_visibility, "anonymous");
+    assert.equal(anonymousPostedPayload.comments[0].is_anonymous, true);
+    assert.equal(anonymousPostedPayload.comments[0].can_delete, true);
+    assert.equal(anonymousPostedPayload.comments[0].user_id, null);
+
+    const { payload: publicFetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.equal(publicFetchedPayload.comments[0].can_delete, false);
+    assert.equal(publicFetchedPayload.comments[1].can_delete, false);
+
+    const { payload: fetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`, {
+      headers: { "Cookie": cookie }
+    });
+    assert.deepEqual(fetchedPayload, anonymousPostedPayload);
+
+    const deleteWithoutLoginResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toiletId,
+        commentId: anonymousPostedPayload.comments[0].id
+      })
+    });
+    const deleteWithoutLoginPayload = await deleteWithoutLoginResponse.json();
+
+    assert.equal(deleteWithoutLoginResponse.status, 401);
+    assert.equal(deleteWithoutLoginPayload.error, "Log in to delete comments.");
+
+    await fetchJson(`${baseUrl}/api/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "other-comment-user",
+        password: "demo123",
+        email: "other-comment-user@example.com"
+      })
+    });
+    const { response: otherLoginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "other-comment-user", password: "demo123" })
+    });
+    const otherCookie = otherLoginRes.headers.get("set-cookie");
+
+    const deleteOtherUserResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": otherCookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentId: anonymousPostedPayload.comments[0].id
+      })
+    });
+    const deleteOtherUserPayload = await deleteOtherUserResponse.json();
+
+    assert.equal(deleteOtherUserResponse.status, 404);
+    assert.equal(deleteOtherUserPayload.error, "Comment not found.");
+
+    const { payload: deleteOwnerPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentId: anonymousPostedPayload.comments[0].id
+      })
+    });
+
+    assert.equal(deleteOwnerPayload.comments.length, 1);
+    assert.equal(deleteOwnerPayload.comments[0].comment_text, "Great experience!");
+    assert.equal(deleteOwnerPayload.comments[0].can_delete, true);
+  });
+});
+
+test("API toggles one like per logged-in user for comments", async () => {
+  await withAppServer(async (baseUrl) => {
+    const toiletId = "detail-test";
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const { payload: postedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "This deserves likes"
+      })
+    });
+    const commentId = postedPayload.comments[0].id;
+
+    const likeWithoutLoginResponse = await fetch(`${baseUrl}/api/comment-likes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toiletId, commentId })
+    });
+    const likeWithoutLoginPayload = await likeWithoutLoginResponse.json();
+
+    assert.equal(likeWithoutLoginResponse.status, 401);
+    assert.equal(likeWithoutLoginPayload.error, "Log in to like comments.");
+
+    const { payload: likedPayload } = await fetchJson(`${baseUrl}/api/comment-likes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId })
+    });
+
+    assert.equal(likedPayload.liked, true);
+    assert.equal(likedPayload.comments[0].like_count, 1);
+    assert.equal(likedPayload.comments[0].viewer_has_liked, true);
+
+    const { payload: publicFetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.equal(publicFetchedPayload.comments[0].like_count, 1);
+    assert.equal(publicFetchedPayload.comments[0].viewer_has_liked, false);
+
+    const { payload: unlikedPayload } = await fetchJson(`${baseUrl}/api/comment-likes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId })
+    });
+
+    assert.equal(unlikedPayload.liked, false);
+    assert.equal(unlikedPayload.comments[0].like_count, 0);
+    assert.equal(unlikedPayload.comments[0].viewer_has_liked, false);
+
+    const missingCommentResponse = await fetch(`${baseUrl}/api/comment-likes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId: 99999 })
+    });
+    const missingCommentPayload = await missingCommentResponse.json();
+
+    assert.equal(missingCommentResponse.status, 404);
+    assert.equal(missingCommentPayload.error, "Comment not found.");
   });
 });
 
@@ -379,5 +553,5 @@ test("API records cleanliness survey as a star rating", async () => {
     assert.equal(payload.toilet.cleanliness, 5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingTotal, 5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingCount, 1);
-  });
+  }, { databaseOptions: { cleanlinessScoringModel: { type: "average" } } });
 });

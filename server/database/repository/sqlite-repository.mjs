@@ -6,12 +6,15 @@ import { mapRowToToilet } from "../mapper/toilet-mapper.mjs";
 import { applySqliteToiletMigrations } from "../migration/toilet-schema-migration.mjs";
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
 import {
+  ANONYMOUS_COMMENT_AUTHOR,
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
   mapCommentRow,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
+  normaliseCommentDeletePayload,
+  normaliseCommentLikePayload,
   normaliseCommentPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
@@ -72,7 +75,9 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       password_hash TEXT NOT NULL,
       email TEXT,
       gender TEXT,
-      preferences TEXT
+      preferences TEXT,
+      rating_total INTEGER NOT NULL DEFAULT 0,
+      rating_count INTEGER NOT NULL DEFAULT 0
     ) STRICT;
 
     CREATE TABLE IF NOT EXISTS app_account (
@@ -102,6 +107,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       toilet_id TEXT NOT NULL,
       user_id INTEGER,
       username TEXT,
+      comment_visibility TEXT NOT NULL DEFAULT 'real',
       comment_text TEXT NOT NULL,
       media_type TEXT,
       media_mime_type TEXT,
@@ -114,11 +120,24 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     ) STRICT;
 
+    CREATE TABLE IF NOT EXISTS comment_likes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      comment_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (comment_id, user_id),
+      FOREIGN KEY (comment_id) REFERENCES toilet_comments(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) STRICT;
+
     CREATE INDEX IF NOT EXISTS idx_access_history_access_time
     ON access_history(access_time DESC);
 
     CREATE INDEX IF NOT EXISTS idx_toilet_comments_toilet_id
     ON toilet_comments(toilet_id);
+
+    CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id
+    ON comment_likes(comment_id);
   `);
 
   await applySqliteToiletMigrations({ db, seedCsvPath });
@@ -244,10 +263,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
     },
     async getUserByUsername(username) {
-      return db.prepare("SELECT id, username, password_hash, email, gender, preferences FROM users WHERE username = ?").get(username);
+      return db.prepare("SELECT id, username, password_hash, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias FROM users WHERE username = ?").get(username);
     },
     async getUserById(userId) {
-      return db.prepare("SELECT id, username, email, gender, preferences FROM users WHERE id = ?").get(userId);
+      return db.prepare("SELECT id, username, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias FROM users WHERE id = ?").get(userId);
     },
     async updateUserProfile(userId, { gender, preferences }) {
       db.prepare(
@@ -310,7 +329,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         );
       });
     },
-    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", rating, answer }) {
+    async recordCleanlinessSurvey({ userId = null, toiletId = null, toiletName = "", rating, answer }) {
       const { safeToiletId, safeToiletName, safeRating } = normaliseCleanlinessSurveyPayload({
         toiletId,
         toiletName,
@@ -318,14 +337,30 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         answer
       });
 
+      let userAverageRating = 3;
+      let userStandardDeviation = 1;
+      let userBias = 0.0;
+      if (userId) {
+        const userRow = db.prepare("SELECT rating_total, rating_count, rating_sum_squares, bias FROM users WHERE id = ?").get(userId);
+        if (userRow) {
+          userAverageRating = userRow.rating_count > 0 ? userRow.rating_total / userRow.rating_count : 3;
+          userBias = Number(userRow.bias ?? 0.0);
+          
+          if (userRow.rating_count > 1) {
+            const variance = (userRow.rating_sum_squares / userRow.rating_count) - (userAverageRating * userAverageRating);
+            userStandardDeviation = Math.sqrt(Math.max(variance, 0));
+          }
+        }
+      }
+
       const row = safeToiletId
         ? db
-            .prepare("SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count FROM toilets WHERE id = ?")
+            .prepare("SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias FROM toilets WHERE id = ?")
             .get(safeToiletId)
         : db
             .prepare(
               `
-              SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count
+              SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias
               FROM toilets
               WHERE LOWER(name) = LOWER(?)
               LIMIT 1
@@ -337,19 +372,37 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         throw new Error("toilet not found.");
       }
 
-      const { cleanliness, ratingTotal, ratingCount } = toCleanlinessUpdate({
+      const globalStats = db.prepare("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users").get();
+      const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
+      let globalStandardDeviation = 1;
+      if (globalStats.count > 1) {
+        const globalVariance = (globalStats.sum_squares / globalStats.count) - (globalAverageRating * globalAverageRating);
+        globalStandardDeviation = Math.sqrt(Math.max(globalVariance, 0));
+      }
+
+      const { cleanliness, ratingTotal, ratingCount, ratingSumSquares, newUserBias, newToiletBias } = toCleanlinessUpdate({
         row,
         rating: safeRating,
+        userAverageRating,
+        userStandardDeviation,
+        userBias,
+        globalAverageRating,
+        globalStandardDeviation,
         cleanlinessScoringModel
       });
+
+      if (userId) {
+        db.prepare("UPDATE users SET rating_total = rating_total + ?, rating_count = rating_count + 1, rating_sum_squares = rating_sum_squares + ?, bias = ? WHERE id = ?")
+          .run(safeRating, safeRating * safeRating, newUserBias ?? userBias, userId);
+      }
 
       db.prepare(
         `
         UPDATE toilets
-        SET cleanliness = ?, cleanliness_rating_total = ?, cleanliness_rating_count = ?
+        SET cleanliness = ?, cleanliness_rating_total = ?, cleanliness_rating_count = ?, cleanliness_rating_sum_squares = ?, bias = ?
         WHERE id = ?
         `
-      ).run(cleanliness, ratingTotal, ratingCount, row.id);
+      ).run(cleanliness, ratingTotal, ratingCount, ratingSumSquares, newToiletBias ?? row.bias ?? 0.0, row.id);
 
       return mapCleanlinessSurveyResponse({
         row,
@@ -446,7 +499,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         history: await this.getAccessHistory(userId, 10)
       };
     },
-    async getComments(toiletId) {
+    async getComments(toiletId, { viewerUserId = null } = {}) {
       if (!toiletId) return [];
 
       return db
@@ -457,6 +510,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             toilet_id,
             user_id,
             username,
+            comment_visibility,
             comment_text,
             media_type,
             media_mime_type,
@@ -464,17 +518,30 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             media_size,
             media_url,
             media_attachments,
-            created_at
+            created_at,
+            (
+              SELECT COUNT(*)
+              FROM comment_likes
+              WHERE comment_likes.comment_id = toilet_comments.id
+            ) AS like_count,
+            EXISTS (
+              SELECT 1
+              FROM comment_likes
+              WHERE comment_likes.comment_id = toilet_comments.id
+                AND comment_likes.user_id = ?
+            ) AS viewer_has_liked
           FROM toilet_comments
           WHERE toilet_id = ?
           ORDER BY created_at DESC, id DESC
           `
         )
-        .all(toiletId)
-        .map(mapCommentRow);
+        .all(viewerUserId, toiletId)
+        .map((row) => mapCommentRow(row, { viewerUserId }));
     },
-    async saveComment({ toiletId, userId, username, commentText, media }) {
-      const comment = normaliseCommentPayload({ toiletId, commentText, media });
+    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility });
+      const displayUsername =
+        comment.commentVisibility === "anonymous" ? ANONYMOUS_COMMENT_AUTHOR : username;
 
       const nowIso = new Date().toISOString();
       db.prepare(
@@ -483,6 +550,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
           toilet_id,
           user_id,
           username,
+          comment_visibility,
           comment_text,
           media_type,
           media_mime_type,
@@ -492,12 +560,13 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
           media_attachments,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       ).run(
         comment.toiletId,
         userId,
-        username,
+        displayUsername,
+        comment.commentVisibility,
         comment.commentText,
         comment.mediaType,
         comment.mediaMimeType,
@@ -508,7 +577,65 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         nowIso
       );
 
-      return this.getComments(comment.toiletId);
+      return this.getComments(comment.toiletId, { viewerUserId: userId });
+    },
+    async deleteComment({ toiletId, commentId, userId }) {
+      const comment = normaliseCommentDeletePayload({ toiletId, commentId });
+      const result = db
+        .prepare(
+          `
+          DELETE FROM toilet_comments
+          WHERE id = ?
+            AND toilet_id = ?
+            AND user_id = ?
+          `
+        )
+        .run(comment.commentId, comment.toiletId, userId);
+
+      return {
+        deleted: result.changes > 0,
+        comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+      };
+    },
+    async toggleCommentLike({ toiletId, commentId, userId }) {
+      const comment = normaliseCommentLikePayload({ toiletId, commentId });
+      const existingComment = db
+        .prepare("SELECT id FROM toilet_comments WHERE id = ? AND toilet_id = ?")
+        .get(comment.commentId, comment.toiletId);
+
+      if (!existingComment) {
+        return {
+          found: false,
+          liked: false,
+          comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+        };
+      }
+
+      const existingLike = db
+        .prepare("SELECT id FROM comment_likes WHERE comment_id = ? AND user_id = ?")
+        .get(comment.commentId, userId);
+
+      if (existingLike) {
+        db.prepare("DELETE FROM comment_likes WHERE id = ?").run(existingLike.id);
+        return {
+          found: true,
+          liked: false,
+          comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+        };
+      }
+
+      db.prepare(
+        `
+        INSERT INTO comment_likes (comment_id, user_id, created_at)
+        VALUES (?, ?, ?)
+        `
+      ).run(comment.commentId, userId, new Date().toISOString());
+
+      return {
+        found: true,
+        liked: true,
+        comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+      };
     }
   };
 }

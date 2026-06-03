@@ -3,12 +3,15 @@ import { applyPostgresToiletMigrations, ensurePostgresCommentMediaColumns } from
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import {
+  ANONYMOUS_COMMENT_AUTHOR,
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
   mapCommentRow,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
+  normaliseCommentDeletePayload,
+  normaliseCommentLikePayload,
   normaliseCommentPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
@@ -39,7 +42,11 @@ function mapUserRow(row, { includePasswordHash = false } = {}) {
     preferences:
       typeof row.preferences === "string"
         ? row.preferences
-        : JSON.stringify(row.preferences ?? [])
+        : JSON.stringify(row.preferences ?? []),
+    rating_total: row.rating_total ?? 0,
+    rating_count: row.rating_count ?? 0,
+    rating_sum_squares: row.rating_sum_squares ?? 0,
+    bias: row.bias ?? 0.0
   };
 
   if (includePasswordHash) {
@@ -75,6 +82,10 @@ async function ensureDemoUser(pool) {
 async function ensurePostgresUserSupport(pool) {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_total INTEGER NOT NULL DEFAULT 0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_count INTEGER NOT NULL DEFAULT 0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_sum_squares INTEGER NOT NULL DEFAULT 0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bias REAL NOT NULL DEFAULT 0.0");
 
   await pool.query(`
     DO $$
@@ -114,6 +125,7 @@ async function ensurePostgresUserSupport(pool) {
   await pool.query("UPDATE app_account SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
   await pool.query("UPDATE access_history SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
   await pool.query("UPDATE toilet_comments SET username = $1 WHERE username IS NULL", ["Anonymous"]);
+  await pool.query("UPDATE toilet_comments SET comment_visibility = $1 WHERE user_id IS NULL OR LOWER(COALESCE(username, '')) = $1", ["anonymous"]);
 
   await pool.query("CREATE INDEX IF NOT EXISTS idx_app_account_user_id ON app_account(user_id)");
   await pool.query("CREATE INDEX IF NOT EXISTS idx_access_history_user_id ON access_history(user_id)");
@@ -158,7 +170,8 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
       cleanliness_no_count INTEGER NOT NULL DEFAULT 0,
       cleanliness_rating_total INTEGER NOT NULL DEFAULT 0,
-      cleanliness_rating_count INTEGER NOT NULL DEFAULT 0
+      cleanliness_rating_count INTEGER NOT NULL DEFAULT 0,
+      cleanliness_rating_sum_squares INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS users (
@@ -167,7 +180,10 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       password_hash TEXT NOT NULL,
       email TEXT,
       gender TEXT,
-      preferences JSONB
+      preferences JSONB,
+      rating_total INTEGER NOT NULL DEFAULT 0,
+      rating_count INTEGER NOT NULL DEFAULT 0,
+      rating_sum_squares INTEGER NOT NULL DEFAULT 0
     );
   `);
 
@@ -202,6 +218,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       toilet_id TEXT NOT NULL REFERENCES toilets(id) ON DELETE CASCADE,
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       username TEXT,
+      comment_visibility TEXT NOT NULL DEFAULT 'real',
       comment_text TEXT NOT NULL,
       media_type TEXT,
       media_mime_type TEXT,
@@ -210,6 +227,16 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       media_url TEXT,
       media_attachments JSONB,
       created_at TEXT NOT NULL
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS comment_likes (
+      id SERIAL PRIMARY KEY,
+      comment_id INTEGER NOT NULL REFERENCES toilet_comments(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL,
+      UNIQUE (comment_id, user_id)
     );
   `);
 
@@ -223,6 +250,11 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_toilet_comments_toilet_id
     ON toilet_comments(toilet_id);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id
+    ON comment_likes(comment_id);
   `);
 
   const toiletCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM toilets")).rows[0]?.count ?? 0);
@@ -373,7 +405,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     async getUserByUsername(username) {
       const result = await pool.query(
         `
-        SELECT id, username, password_hash, email, gender, preferences
+        SELECT id, username, password_hash, email, gender, preferences, rating_total, rating_count
         FROM users
         WHERE username = $1
         `,
@@ -385,7 +417,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     async getUserById(userId) {
       const result = await pool.query(
         `
-        SELECT id, username, email, gender, preferences
+        SELECT id, username, email, gender, preferences, rating_total, rating_count
         FROM users
         WHERE id = $1
         `,
@@ -470,7 +502,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return result.rows.map(mapRowToToilet);
     },
-    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", rating, answer }) {
+    async recordCleanlinessSurvey({ userId = null, toiletId = null, toiletName = "", rating, answer }) {
       const { safeToiletId, safeToiletName, safeRating } = normaliseCleanlinessSurveyPayload({
         toiletId,
         toiletName,
@@ -478,14 +510,31 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         answer
       });
 
+      let userAverageRating = 3;
+      let userStandardDeviation = 1;
+      let userBias = 0.0;
+      if (userId) {
+        const userResult = await pool.query("SELECT rating_total, rating_count, rating_sum_squares, bias FROM users WHERE id = $1", [userId]);
+        const userRow = userResult.rows[0];
+        if (userRow) {
+          userAverageRating = userRow.rating_count > 0 ? userRow.rating_total / userRow.rating_count : 3;
+          userBias = Number(userRow.bias ?? 0.0);
+
+          if (userRow.rating_count > 1) {
+            const variance = (userRow.rating_sum_squares / userRow.rating_count) - (userAverageRating * userAverageRating);
+            userStandardDeviation = Math.sqrt(Math.max(variance, 0));
+          }
+        }
+      }
+
       const result = safeToiletId
         ? await pool.query(
-            "SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count FROM toilets WHERE id = $1",
+            "SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias FROM toilets WHERE id = $1",
             [safeToiletId]
           )
         : await pool.query(
             `
-            SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count
+            SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias
             FROM toilets
             WHERE LOWER(name) = LOWER($1)
             LIMIT 1
@@ -498,19 +547,42 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         throw new Error("toilet not found.");
       }
 
-      const { cleanliness, ratingTotal, ratingCount } = toCleanlinessUpdate({
+      const globalStatsResult = await pool.query("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users");
+      const globalStats = globalStatsResult.rows[0];
+      const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
+      let globalStandardDeviation = 1;
+      if (globalStats.count > 1) {
+        const globalVariance = (globalStats.sum_squares / globalStats.count) - (globalAverageRating * globalAverageRating);
+        globalStandardDeviation = Math.sqrt(Math.max(globalVariance, 0));
+      }
+
+      const { cleanliness, ratingTotal, ratingCount, ratingSumSquares, newUserBias, newToiletBias } = toCleanlinessUpdate({
         row,
         rating: safeRating,
+        userAverageRating,
+        userStandardDeviation,
+        userBias,
+        globalAverageRating,
+        globalStandardDeviation,
         cleanlinessScoringModel
       });
+
+      if (userId) {
+        await pool.query("UPDATE users SET rating_total = rating_total + $1, rating_count = rating_count + 1, rating_sum_squares = rating_sum_squares + $2, bias = $3 WHERE id = $4", [
+          safeRating,
+          safeRating * safeRating,
+          newUserBias ?? userBias,
+          userId
+        ]);
+      }
 
       await pool.query(
         `
         UPDATE toilets
-        SET cleanliness = $1, cleanliness_rating_total = $2, cleanliness_rating_count = $3
-        WHERE id = $4
+        SET cleanliness = $1, cleanliness_rating_total = $2, cleanliness_rating_count = $3, cleanliness_rating_sum_squares = $4, bias = $5
+        WHERE id = $6
         `,
-        [cleanliness, ratingTotal, ratingCount, row.id]
+        [cleanliness, ratingTotal, ratingCount, ratingSumSquares, newToiletBias ?? row.bias ?? 0.0, row.id]
       );
 
       return mapCleanlinessSurveyResponse({
@@ -608,7 +680,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         history: await this.getAccessHistory(userId, 10)
       };
     },
-    async getComments(toiletId) {
+    async getComments(toiletId, { viewerUserId = null } = {}) {
       if (!toiletId) return [];
 
       const result = await pool.query(
@@ -618,6 +690,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_id,
           user_id,
           username,
+          comment_visibility,
           comment_text,
           media_type,
           media_mime_type,
@@ -625,18 +698,31 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_size,
           media_url,
           media_attachments,
-          created_at
+          created_at,
+          (
+            SELECT COUNT(*)::int
+            FROM comment_likes
+            WHERE comment_likes.comment_id = toilet_comments.id
+          ) AS like_count,
+          EXISTS (
+            SELECT 1
+            FROM comment_likes
+            WHERE comment_likes.comment_id = toilet_comments.id
+              AND comment_likes.user_id = $2
+          ) AS viewer_has_liked
         FROM toilet_comments
         WHERE toilet_id = $1
         ORDER BY created_at DESC, id DESC
         `,
-        [toiletId]
+        [toiletId, viewerUserId]
       );
 
-      return result.rows.map(mapCommentRow);
+      return result.rows.map((row) => mapCommentRow(row, { viewerUserId }));
     },
-    async saveComment({ toiletId, userId, username, commentText, media }) {
-      const comment = normaliseCommentPayload({ toiletId, commentText, media });
+    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility });
+      const displayUsername =
+        comment.commentVisibility === "anonymous" ? ANONYMOUS_COMMENT_AUTHOR : username;
 
       const nowIso = new Date().toISOString();
       await pool.query(
@@ -645,6 +731,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_id,
           user_id,
           username,
+          comment_visibility,
           comment_text,
           media_type,
           media_mime_type,
@@ -654,12 +741,13 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_attachments,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
         `,
         [
           comment.toiletId,
           userId,
-          username,
+          displayUsername,
+          comment.commentVisibility,
           comment.commentText,
           comment.mediaType,
           comment.mediaMimeType,
@@ -671,7 +759,66 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         ]
       );
 
-      return this.getComments(comment.toiletId);
+      return this.getComments(comment.toiletId, { viewerUserId: userId });
+    },
+    async deleteComment({ toiletId, commentId, userId }) {
+      const comment = normaliseCommentDeletePayload({ toiletId, commentId });
+      const result = await pool.query(
+        `
+        DELETE FROM toilet_comments
+        WHERE id = $1
+          AND toilet_id = $2
+          AND user_id = $3
+        `,
+        [comment.commentId, comment.toiletId, userId]
+      );
+
+      return {
+        deleted: result.rowCount > 0,
+        comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+      };
+    },
+    async toggleCommentLike({ toiletId, commentId, userId }) {
+      const comment = normaliseCommentLikePayload({ toiletId, commentId });
+      const existingLike = await pool.query(
+        `
+        DELETE FROM comment_likes
+        USING toilet_comments
+        WHERE comment_likes.comment_id = toilet_comments.id
+          AND toilet_comments.id = $1
+          AND toilet_comments.toilet_id = $2
+          AND comment_likes.user_id = $3
+        RETURNING comment_likes.id
+        `,
+        [comment.commentId, comment.toiletId, userId]
+      );
+
+      if (existingLike.rowCount > 0) {
+        return {
+          found: true,
+          liked: false,
+          comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+        };
+      }
+
+      const insertLike = await pool.query(
+        `
+        INSERT INTO comment_likes (comment_id, user_id, created_at)
+        SELECT id, $3, $4
+        FROM toilet_comments
+        WHERE id = $1
+          AND toilet_id = $2
+        ON CONFLICT (comment_id, user_id) DO NOTHING
+        RETURNING id
+        `,
+        [comment.commentId, comment.toiletId, userId, new Date().toISOString()]
+      );
+
+      return {
+        found: insertLike.rowCount > 0,
+        liked: insertLike.rowCount > 0,
+        comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+      };
     }
   };
 }

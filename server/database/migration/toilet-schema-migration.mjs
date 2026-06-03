@@ -16,7 +16,9 @@ const EXTENDED_CLEANLINESS_COLUMNS = [
   { name: "cleanliness_yes_count", definition: "INTEGER NOT NULL DEFAULT 0" },
   { name: "cleanliness_no_count", definition: "INTEGER NOT NULL DEFAULT 0" },
   { name: "cleanliness_rating_total", definition: "INTEGER NOT NULL DEFAULT 0" },
-  { name: "cleanliness_rating_count", definition: "INTEGER NOT NULL DEFAULT 0" }
+  { name: "cleanliness_rating_count", definition: "INTEGER NOT NULL DEFAULT 0" },
+  { name: "cleanliness_rating_sum_squares", definition: "INTEGER NOT NULL DEFAULT 0" },
+  { name: "bias", definition: "REAL NOT NULL DEFAULT 0.0" }
 ];
 
 const COMMENT_MEDIA_COLUMNS = [
@@ -27,6 +29,12 @@ const COMMENT_MEDIA_COLUMNS = [
   { name: "media_url", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
   { name: "media_attachments", sqliteDefinition: "TEXT", postgresDefinition: "JSONB" }
 ];
+
+const COMMENT_VISIBILITY_COLUMN = {
+  name: "comment_visibility",
+  sqliteDefinition: "TEXT NOT NULL DEFAULT 'real'",
+  postgresDefinition: "TEXT NOT NULL DEFAULT 'real'"
+};
 
 function getFeatureColumnValues(toilet) {
   return [
@@ -68,7 +76,8 @@ function ensureSqliteCleanlinessColumns(db) {
     UPDATE toilets
     SET
       cleanliness_rating_total = cleanliness_yes_count * 5 + cleanliness_no_count,
-      cleanliness_rating_count = cleanliness_yes_count + cleanliness_no_count
+      cleanliness_rating_count = cleanliness_yes_count + cleanliness_no_count,
+      cleanliness_rating_sum_squares = cleanliness_yes_count * 25 + cleanliness_no_count
     WHERE cleanliness_rating_count = 0
       AND (cleanliness_yes_count > 0 OR cleanliness_no_count > 0);
   `);
@@ -129,7 +138,8 @@ async function ensurePostgresCleanlinessColumns(pool) {
     UPDATE toilets
     SET
       cleanliness_rating_total = cleanliness_yes_count * 5 + cleanliness_no_count,
-      cleanliness_rating_count = cleanliness_yes_count + cleanliness_no_count
+      cleanliness_rating_count = cleanliness_yes_count + cleanliness_no_count,
+      cleanliness_rating_sum_squares = cleanliness_yes_count * 25 + cleanliness_no_count
     WHERE cleanliness_rating_count = 0
       AND (cleanliness_yes_count > 0 OR cleanliness_no_count > 0)
   `);
@@ -189,6 +199,18 @@ function ensureSqliteUserColumns(db) {
   if (!existingColumns.has("preferences")) {
     db.exec("ALTER TABLE users ADD COLUMN preferences TEXT;");
   }
+  if (!existingColumns.has("rating_total")) {
+    db.exec("ALTER TABLE users ADD COLUMN rating_total INTEGER NOT NULL DEFAULT 0;");
+  }
+  if (!existingColumns.has("rating_count")) {
+    db.exec("ALTER TABLE users ADD COLUMN rating_count INTEGER NOT NULL DEFAULT 0;");
+  }
+  if (!existingColumns.has("rating_sum_squares")) {
+    db.exec("ALTER TABLE users ADD COLUMN rating_sum_squares INTEGER NOT NULL DEFAULT 0;");
+  }
+  if (!existingColumns.has("bias")) {
+    db.exec("ALTER TABLE users ADD COLUMN bias REAL NOT NULL DEFAULT 0.0;");
+  }
 }
 
 function ensureSqliteUserSupport(db) {
@@ -220,7 +242,11 @@ function ensureSqliteUserSupport(db) {
     db.exec("ALTER TABLE toilet_comments ADD COLUMN user_id INTEGER;");
   }
   if (!commentCols.has("username")) {
-    db.exec("ALTER TABLE toilet_comments ADD COLUMN username TEXT;");
+    db.exec("ALTER TABLE ADD COLUMN username TEXT;");
+  }
+  if (!commentCols.has(COMMENT_VISIBILITY_COLUMN.name)) {
+    db.exec(`ALTER TABLE toilet_comments ADD COLUMN ${COMMENT_VISIBILITY_COLUMN.name} ${COMMENT_VISIBILITY_COLUMN.sqliteDefinition};`);
+    db.exec("UPDATE toilet_comments SET comment_visibility = 'anonymous' WHERE user_id IS NULL OR LOWER(COALESCE(username, '')) = 'anonymous';");
   }
   for (const column of COMMENT_MEDIA_COLUMNS) {
     if (!commentCols.has(column.name)) {
@@ -255,6 +281,9 @@ export async function applyPostgresToiletMigrations({ pool, seedCsvPath }) {
 }
 
 export async function ensurePostgresCommentMediaColumns(pool) {
+  await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${COMMENT_VISIBILITY_COLUMN.name} ${COMMENT_VISIBILITY_COLUMN.postgresDefinition}`);
+  await pool.query("UPDATE toilet_comments SET comment_visibility = 'anonymous' WHERE user_id IS NULL OR LOWER(COALESCE(username, '')) = 'anonymous'");
+
   for (const column of COMMENT_MEDIA_COLUMNS) {
     await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${column.name} ${column.postgresDefinition}`);
   }
