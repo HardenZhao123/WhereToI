@@ -336,6 +336,85 @@ test("API supports fetching and posting toilet comments", async () => {
   });
 });
 
+test("API toggles one like per logged-in user for comments", async () => {
+  await withAppServer(async (baseUrl) => {
+    const toiletId = "detail-test";
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const { payload: postedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "This deserves likes"
+      })
+    });
+    const commentId = postedPayload.comments[0].id;
+
+    const likeWithoutLoginResponse = await fetch(`${baseUrl}/api/comment-likes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toiletId, commentId })
+    });
+    const likeWithoutLoginPayload = await likeWithoutLoginResponse.json();
+
+    assert.equal(likeWithoutLoginResponse.status, 401);
+    assert.equal(likeWithoutLoginPayload.error, "Log in to like comments.");
+
+    const { payload: likedPayload } = await fetchJson(`${baseUrl}/api/comment-likes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId })
+    });
+
+    assert.equal(likedPayload.liked, true);
+    assert.equal(likedPayload.comments[0].like_count, 1);
+    assert.equal(likedPayload.comments[0].viewer_has_liked, true);
+
+    const { payload: publicFetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.equal(publicFetchedPayload.comments[0].like_count, 1);
+    assert.equal(publicFetchedPayload.comments[0].viewer_has_liked, false);
+
+    const { payload: unlikedPayload } = await fetchJson(`${baseUrl}/api/comment-likes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId })
+    });
+
+    assert.equal(unlikedPayload.liked, false);
+    assert.equal(unlikedPayload.comments[0].like_count, 0);
+    assert.equal(unlikedPayload.comments[0].viewer_has_liked, false);
+
+    const missingCommentResponse = await fetch(`${baseUrl}/api/comment-likes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId: 99999 })
+    });
+    const missingCommentPayload = await missingCommentResponse.json();
+
+    assert.equal(missingCommentResponse.status, 404);
+    assert.equal(missingCommentPayload.error, "Comment not found.");
+  });
+});
+
 test("API supports multiple image and video comment attachments", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletId = "detail-test";

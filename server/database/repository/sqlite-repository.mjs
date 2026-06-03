@@ -14,6 +14,7 @@ import {
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
   normaliseCommentDeletePayload,
+  normaliseCommentLikePayload,
   normaliseCommentPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
@@ -117,11 +118,24 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     ) STRICT;
 
+    CREATE TABLE IF NOT EXISTS comment_likes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      comment_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (comment_id, user_id),
+      FOREIGN KEY (comment_id) REFERENCES toilet_comments(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) STRICT;
+
     CREATE INDEX IF NOT EXISTS idx_access_history_access_time
     ON access_history(access_time DESC);
 
     CREATE INDEX IF NOT EXISTS idx_toilet_comments_toilet_id
     ON toilet_comments(toilet_id);
+
+    CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id
+    ON comment_likes(comment_id);
   `);
 
   await applySqliteToiletMigrations({ db, seedCsvPath });
@@ -468,13 +482,24 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             media_size,
             media_url,
             media_attachments,
-            created_at
+            created_at,
+            (
+              SELECT COUNT(*)
+              FROM comment_likes
+              WHERE comment_likes.comment_id = toilet_comments.id
+            ) AS like_count,
+            EXISTS (
+              SELECT 1
+              FROM comment_likes
+              WHERE comment_likes.comment_id = toilet_comments.id
+                AND comment_likes.user_id = ?
+            ) AS viewer_has_liked
           FROM toilet_comments
           WHERE toilet_id = ?
           ORDER BY created_at DESC, id DESC
           `
         )
-        .all(toiletId)
+        .all(viewerUserId, toiletId)
         .map((row) => mapCommentRow(row, { viewerUserId }));
     },
     async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
@@ -533,6 +558,46 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
 
       return {
         deleted: result.changes > 0,
+        comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+      };
+    },
+    async toggleCommentLike({ toiletId, commentId, userId }) {
+      const comment = normaliseCommentLikePayload({ toiletId, commentId });
+      const existingComment = db
+        .prepare("SELECT id FROM toilet_comments WHERE id = ? AND toilet_id = ?")
+        .get(comment.commentId, comment.toiletId);
+
+      if (!existingComment) {
+        return {
+          found: false,
+          liked: false,
+          comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+        };
+      }
+
+      const existingLike = db
+        .prepare("SELECT id FROM comment_likes WHERE comment_id = ? AND user_id = ?")
+        .get(comment.commentId, userId);
+
+      if (existingLike) {
+        db.prepare("DELETE FROM comment_likes WHERE id = ?").run(existingLike.id);
+        return {
+          found: true,
+          liked: false,
+          comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+        };
+      }
+
+      db.prepare(
+        `
+        INSERT INTO comment_likes (comment_id, user_id, created_at)
+        VALUES (?, ?, ?)
+        `
+      ).run(comment.commentId, userId, new Date().toISOString());
+
+      return {
+        found: true,
+        liked: true,
         comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
       };
     }

@@ -11,6 +11,7 @@ import {
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
   normaliseCommentDeletePayload,
+  normaliseCommentLikePayload,
   normaliseCommentPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
@@ -217,6 +218,16 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS comment_likes (
+      id SERIAL PRIMARY KEY,
+      comment_id INTEGER NOT NULL REFERENCES toilet_comments(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL,
+      UNIQUE (comment_id, user_id)
+    );
+  `);
+
   const demoUserId = await ensurePostgresUserSupport(pool);
 
   await pool.query(`
@@ -227,6 +238,11 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_toilet_comments_toilet_id
     ON toilet_comments(toilet_id);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id
+    ON comment_likes(comment_id);
   `);
 
   const toiletCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM toilets")).rows[0]?.count ?? 0);
@@ -630,12 +646,23 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_size,
           media_url,
           media_attachments,
-          created_at
+          created_at,
+          (
+            SELECT COUNT(*)::int
+            FROM comment_likes
+            WHERE comment_likes.comment_id = toilet_comments.id
+          ) AS like_count,
+          EXISTS (
+            SELECT 1
+            FROM comment_likes
+            WHERE comment_likes.comment_id = toilet_comments.id
+              AND comment_likes.user_id = $2
+          ) AS viewer_has_liked
         FROM toilet_comments
         WHERE toilet_id = $1
         ORDER BY created_at DESC, id DESC
         `,
-        [toiletId]
+        [toiletId, viewerUserId]
       );
 
       return result.rows.map((row) => mapCommentRow(row, { viewerUserId }));
@@ -696,6 +723,48 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return {
         deleted: result.rowCount > 0,
+        comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+      };
+    },
+    async toggleCommentLike({ toiletId, commentId, userId }) {
+      const comment = normaliseCommentLikePayload({ toiletId, commentId });
+      const existingLike = await pool.query(
+        `
+        DELETE FROM comment_likes
+        USING toilet_comments
+        WHERE comment_likes.comment_id = toilet_comments.id
+          AND toilet_comments.id = $1
+          AND toilet_comments.toilet_id = $2
+          AND comment_likes.user_id = $3
+        RETURNING comment_likes.id
+        `,
+        [comment.commentId, comment.toiletId, userId]
+      );
+
+      if (existingLike.rowCount > 0) {
+        return {
+          found: true,
+          liked: false,
+          comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+        };
+      }
+
+      const insertLike = await pool.query(
+        `
+        INSERT INTO comment_likes (comment_id, user_id, created_at)
+        SELECT id, $3, $4
+        FROM toilet_comments
+        WHERE id = $1
+          AND toilet_id = $2
+        ON CONFLICT (comment_id, user_id) DO NOTHING
+        RETURNING id
+        `,
+        [comment.commentId, comment.toiletId, userId, new Date().toISOString()]
+      );
+
+      return {
+        found: insertLike.rowCount > 0,
+        liked: insertLike.rowCount > 0,
         comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
       };
     }

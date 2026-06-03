@@ -51,3 +51,11 @@ export async function deleteComment(toiletId, commentId) {
   });
   return payload.comments || [];
 }
+
+export async function toggleCommentLike(toiletId, commentId) {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/comment-likes`, {
+    method: "POST",
+    body: JSON.stringify({ toiletId, commentId })
+  });
+  return payload.comments || [];
+}

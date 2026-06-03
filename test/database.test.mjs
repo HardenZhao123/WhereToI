@@ -102,6 +102,8 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(updatedComments[0].comment_visibility, "real");
     assert.equal(updatedComments[0].is_anonymous, false);
     assert.equal(updatedComments[0].can_delete, true);
+    assert.equal(updatedComments[0].like_count, 0);
+    assert.equal(updatedComments[0].viewer_has_liked, false);
     assert.equal(updatedComments[0].user_id, userId);
     assert.equal(updatedComments[0].media_type, null);
     assert.deepEqual(updatedComments[0].media_attachments, []);
@@ -129,6 +131,55 @@ test("database saves and retrieves comments for toilets", async () => {
 
     const fetchedComments = await database.getComments(toiletId, { viewerUserId: userId });
     assert.deepEqual(fetchedComments, anonymousComments);
+  });
+});
+
+test("database toggles one like per user for comments", async () => {
+  await withSeededDatabase(async (database) => {
+    const user = await database.getUserByUsername("demo");
+    const toiletId = "detail-test";
+    const comments = await database.saveComment({
+      toiletId,
+      userId: user.id,
+      username: user.username,
+      commentText: "Likeable comment"
+    });
+    const commentId = comments[0].id;
+
+    const liked = await database.toggleCommentLike({
+      toiletId,
+      commentId,
+      userId: user.id
+    });
+
+    assert.equal(liked.found, true);
+    assert.equal(liked.liked, true);
+    assert.equal(liked.comments[0].like_count, 1);
+    assert.equal(liked.comments[0].viewer_has_liked, true);
+
+    const publicComments = await database.getComments(toiletId);
+    assert.equal(publicComments[0].like_count, 1);
+    assert.equal(publicComments[0].viewer_has_liked, false);
+
+    const unliked = await database.toggleCommentLike({
+      toiletId,
+      commentId,
+      userId: user.id
+    });
+
+    assert.equal(unliked.found, true);
+    assert.equal(unliked.liked, false);
+    assert.equal(unliked.comments[0].like_count, 0);
+    assert.equal(unliked.comments[0].viewer_has_liked, false);
+
+    const missing = await database.toggleCommentLike({
+      toiletId,
+      commentId: 99999,
+      userId: user.id
+    });
+
+    assert.equal(missing.found, false);
+    assert.equal(missing.liked, false);
   });
 });
 

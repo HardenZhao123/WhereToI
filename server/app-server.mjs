@@ -291,6 +291,31 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       }
 
       sendJson(response, 200, { comments: result.comments });
+    },
+    "POST /api/comment-likes": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendJson(response, 401, { error: "Log in to like comments." });
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const result = await database.toggleCommentLike({
+        toiletId: body.toiletId,
+        commentId: body.commentId,
+        userId
+      });
+
+      if (!result.found) {
+        sendJson(response, 404, { error: "Comment not found." });
+        return;
+      }
+
+      sendJson(response, 200, {
+        liked: result.liked,
+        comments: result.comments
+      });
     }
   };
 }

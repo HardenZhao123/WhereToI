@@ -742,7 +742,45 @@ mark {
 
 .comment-actions {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   flex: 0 0 auto;
+}
+
+.comment-like-button {
+  display: inline-flex;
+  min-width: 42px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.comment-like-button:hover,
+.comment-like-button:focus-visible,
+.comment-like-button.is-liked {
+  border-color: #c9ddcf;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.comment-like-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.comment-like-icon {
+  font-size: 14px;
+  line-height: 1;
 }
 
 .comment-menu-button {

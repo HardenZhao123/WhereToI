@@ -151,6 +151,19 @@ if (
   throw new Error("Expected users to delete their own comments through a three-dot comment menu.");
 }
 
+if (
+  !server.includes("\"POST /api/comment-likes\"") ||
+  !server.includes("toggleCommentLike") ||
+  !js.includes("toggleCommentLikeRequest") ||
+  !js.includes("comment.viewer_has_liked") ||
+  !js.includes("comment.like_count") ||
+  !css.includes(".comment-like-button") ||
+  !css.includes(".comment-like-icon") ||
+  !css.includes(".comment-like-button.is-liked")
+) {
+  throw new Error("Expected logged-in users to toggle one like per comment with a right-side thumbs-up button.");
+}
+
 if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {
   throw new Error("QR access UI and activation flow should not be present.");
 }

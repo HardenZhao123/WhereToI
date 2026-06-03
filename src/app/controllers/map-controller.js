@@ -3,7 +3,8 @@ import {
   deleteComment as deleteCommentRequest,
   fetchComments,
   submitCleanlinessSurvey,
-  submitComment
+  submitComment,
+  toggleCommentLike as toggleCommentLikeRequest
 } from "../services/toilets-service.js";
 import {
   formatCleanlinessRating,
@@ -481,10 +482,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       author.textContent = comment.author_name || comment.username || "Anonymous";
 
       header.append(author);
-
-      if (comment.can_delete) {
-        header.append(createCommentActions(comment));
-      }
+      header.append(createCommentActions(comment));
 
       const text = document.createElement("p");
       text.className = "comment-text";
@@ -517,6 +515,33 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   function createCommentActions(comment) {
     const actions = document.createElement("div");
     actions.className = "comment-actions";
+
+    const likeButton = document.createElement("button");
+    likeButton.className = "comment-like-button";
+    likeButton.type = "button";
+    likeButton.setAttribute("aria-label", comment.viewer_has_liked ? "Unlike comment" : "Like comment");
+    likeButton.setAttribute("aria-pressed", comment.viewer_has_liked ? "true" : "false");
+    likeButton.classList.toggle("is-liked", Boolean(comment.viewer_has_liked));
+
+    const likeIcon = document.createElement("span");
+    likeIcon.className = "comment-like-icon";
+    likeIcon.textContent = "\u{1F44D}";
+
+    const likeCount = document.createElement("span");
+    likeCount.className = "comment-like-count";
+    likeCount.textContent = String(comment.like_count ?? 0);
+
+    likeButton.append(likeIcon, likeCount);
+    likeButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleCommentLike(comment, likeButton);
+    });
+
+    actions.append(likeButton);
+
+    if (!comment.can_delete) {
+      return actions;
+    }
 
     const menuButton = document.createElement("button");
     menuButton.className = "comment-menu-button";
@@ -552,6 +577,36 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     menu.append(deleteButton);
     actions.append(menuButton, menu);
     return actions;
+  }
+
+  async function toggleCommentLike(comment, button) {
+    if (!selectedToilet || !comment?.id) return;
+    closeOpenCommentMenus();
+
+    if (!isAuthenticated()) {
+      showLoginPrompt("Log in to like a comment.");
+      return;
+    }
+
+    if (button) {
+      button.disabled = true;
+    }
+
+    try {
+      const updatedComments = await toggleCommentLikeRequest(selectedToilet.id, comment.id);
+      renderComments(updatedComments);
+    } catch (error) {
+      console.error("Failed to like comment:", error);
+      if (error.status === 401) {
+        showLoginPrompt("Log in to like a comment.");
+        return;
+      }
+      alert(error?.message || "Could not update like. Please try again later.");
+    } finally {
+      if (button) {
+        button.disabled = false;
+      }
+    }
   }
 
   async function deleteOwnComment(comment) {

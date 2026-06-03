@@ -159,6 +159,8 @@ export function mapCommentRow(row, { viewerUserId = null } = {}) {
     author_name: authorName,
     is_anonymous: isAnonymous,
     can_delete: canDelete,
+    like_count: Number(row.like_count ?? 0),
+    viewer_has_liked: Boolean(row.viewer_has_liked),
     media_attachments: parseCommentMediaAttachments(row)
   };
 }
@@ -207,6 +209,10 @@ export function normaliseCommentDeletePayload({ toiletId, commentId }) {
     toiletId: safeToiletId,
     commentId: safeCommentId
   };
+}
+
+export function normaliseCommentLikePayload({ toiletId, commentId }) {
+  return normaliseCommentDeletePayload({ toiletId, commentId });
 }
 
 function normaliseRating(value) {
