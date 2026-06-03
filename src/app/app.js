@@ -36,7 +36,7 @@ export function createApp() {
     const activeSectionLink = elements.detailSectionLinks ? Array.from(elements.detailSectionLinks).find(link => link.classList.contains("is-active")) : null;
     const currentSection = activeSectionLink ? activeSectionLink.dataset.detailSection : null;
 
-    function setLoadedToilets(toilets, { hideDetails = true } = {}) {
+    function setLoadedToilets(toilets, { hideDetails = true, status = "" } = {}) {
       const southKen = appConfig.initialView;
       const sorted = [...toilets].sort((a, b) => {
         const distA = distanceInMetres(southKen.lat, southKen.lng, a.lat, a.lng);
@@ -53,34 +53,52 @@ export function createApp() {
           defaultSection: currentSection 
         });
       }
+
+      if (status) {
+        mapController.setStatus(status);
+      }
     }
 
     try {
       const loadedFromApi = await loadToiletsFromApi(range);
 
       if (loadedFromApi.length > 0) {
-        setLoadedToilets(loadedFromApi, { hideDetails: !currentSelectedId });
-        mapController.setStatus(`Loaded ${loadedFromApi.length} toilets from database.`);
+        setLoadedToilets(loadedFromApi, { 
+          hideDetails: !currentSelectedId,
+          status: `Loaded ${loadedFromApi.length} toilets from database.`
+        });
         return;
       }
     } catch (error) {
       console.error("Toilets API loading failed:", error);
     }
 
+    // If API fails, try CSV fallback but schedule another API attempt in 5 seconds
     try {
       const loadedFromCsv = await loadToiletsFromCsv();
       if (loadedFromCsv.length > 0) {
-        setLoadedToilets(loadedFromCsv, { hideDetails: !currentSelectedId });
-        mapController.setStatus(`Database unavailable. Loaded ${loadedFromCsv.length} toilets from CSV fallback.`);
+        setLoadedToilets(loadedFromCsv, { 
+          hideDetails: !currentSelectedId,
+          status: `Using local cache. Connecting to database...`
+        });
+        
+        // Background retry to get real data once server wakes up
+        setTimeout(() => initializeToilets(range), 5000);
         return;
       }
 
-      setLoadedToilets(fallbackToilets, { hideDetails: !currentSelectedId });
-      mapController.setStatus("Dataset was empty. Showing sample toilets instead.");
+      setLoadedToilets(fallbackToilets, { 
+        hideDetails: !currentSelectedId,
+        status: "Dataset loading... Connecting to database."
+      });
+      setTimeout(() => initializeToilets(range), 5000);
     } catch (error) {
       console.error("CSV loading failed:", error);
-      setLoadedToilets(fallbackToilets, { hideDetails: !currentSelectedId });
-      mapController.setStatus("Could not load API or CSV data. Showing sample toilets instead.");
+      setLoadedToilets(fallbackToilets, { 
+        hideDetails: !currentSelectedId,
+        status: "Connecting to database..."
+      });
+      setTimeout(() => initializeToilets(range), 5000);
     }
   }
 

@@ -298,7 +298,26 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       return null;
     },
     async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days" } = {}) {
+      const query = normaliseSearchQuery(search);
       const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
+      const params = [];
+      const conditions = [];
+
+      params.push(startDate);
+      const startDateIndex = params.length;
+      params.push(startDate); // SQLite needs two params for the same value if not using named ones, but we'll use indexed
+
+      if (accessibleOnly) {
+        conditions.push("t.accessible = 'Y'");
+      }
+
+      if (query) {
+        params.push(`%${query}%`);
+        conditions.push(`(LOWER(t.name) LIKE ? OR LOWER(t.area) LIKE ?)`);
+        params.push(`%${query}%`);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
       const rows = db
         .prepare(
@@ -339,21 +358,12 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             WHERE ? IS NULL OR created_at >= ?
             GROUP BY toilet_id
           ) s ON t.id = s.toilet_id
+          ${whereClause}
           `
         )
-        .all(startDate, startDate);
+        .all(startDate, startDate, ...params.slice(2));
 
-      const query = normaliseSearchQuery(search);
-
-      return rows.map(mapRowToToilet).filter((toilet) => {
-        if (accessibleOnly && toilet.features.accessible !== "Y") return false;
-        if (!query) return true;
-
-        return (
-          toilet.name.toLowerCase().includes(query) ||
-          toilet.area.toLowerCase().includes(query)
-        );
-      });
+      return rows.map(mapRowToToilet);
     },
     async recordCleanlinessSurvey({ userId = null, toiletId = null, toiletName = "", rating, answer }) {
       const { safeToiletId, safeToiletName, safeRating } = normaliseCleanlinessSurveyPayload({
