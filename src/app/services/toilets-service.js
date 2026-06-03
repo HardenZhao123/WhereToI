@@ -3,7 +3,7 @@ import { parseCsv, rowsToObjects } from "../utils/csv.js";
 import { mapRecordToToilet } from "../toilets/toilet-record-mapper.js";
 import { fetchJson } from "./http-client.js";
 
-export async function loadToiletsFromApi(cleanlinessRange = "3days", retryCount = 1) {
+export async function loadToiletsFromApi(cleanlinessRange = "3days", retryCount = 2) {
   const url = `${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`;
   
   for (let attempt = 0; attempt <= retryCount; attempt++) {
@@ -16,8 +16,8 @@ export async function loadToiletsFromApi(cleanlinessRange = "3days", retryCount 
       if (attempt >= retryCount) {
         throw error;
       }
-      // Wait 1 second before retrying
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait 2 seconds before retrying (Render cold start can be slow)
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 
