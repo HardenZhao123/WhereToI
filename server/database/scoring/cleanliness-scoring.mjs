@@ -31,6 +31,12 @@ export function normaliseScoringModel(scoringModel = null) {
     return { type: "z_score" };
   }
 
+  if (modelType === "bias_training") {
+    const learningRate = Number(scoringModel?.learningRate ?? 0.01);
+    const regularization = Number(scoringModel?.regularization ?? 0.02);
+    return { type: "bias_training", learningRate, regularization };
+  }
+
   throw new Error("Unsupported scoringModel type.");
 }
 
@@ -52,6 +58,14 @@ export function getConfiguredCleanlinessScoringModel() {
     return { type: "z_score" };
   }
 
+  if (modelType === "bias_training") {
+    return normaliseScoringModel({
+      type: "bias_training",
+      learningRate: process.env.WHERETOI_CLEANLINESS_BIAS_LEARNING_RATE,
+      regularization: process.env.WHERETOI_CLEANLINESS_BIAS_REGULARIZATION
+    });
+  }
+
   return normaliseScoringModel(modelType || "average");
 }
 
@@ -60,6 +74,18 @@ WHERETOI_CLEANLINESS_SCORING_MODEL=mean_centering
 in environment
 */
 
+/* To use z-score, set
+WHERETOI_CLEANLINESS_SCORING_MODEL=z_score
+in environment
+*/
+
+/* To use bias model set 
+WHERETOI_CLEANLINESS_SCORING_MODEL=bias_training
+in environment
+*/
+
+
+
 export function calculateCleanlinessScore({
   rating,
   ratingTotal,
@@ -67,6 +93,8 @@ export function calculateCleanlinessScore({
   previousCleanliness = 3,
   userAverageRating = 3,
   userStandardDeviation = 1,
+  userBias = 0,
+  toiletBias = 0,
   globalAverageRating = 3,
   globalStandardDeviation = 1,
   scoringModel = null
@@ -105,6 +133,20 @@ export function calculateCleanlinessScore({
 
     const previousTotal = safeRatingTotal - safeRating;
     return clampCleanlinessScore((previousTotal + adjustedRating) / safeRatingCount);
+  }
+
+  if (model.type === "bias_training") {
+    const error = safeRating - (globalAverageRating + userBias + toiletBias);
+    const newUserBias = userBias + model.learningRate * (error - model.regularization * userBias);
+    const newToiletBias = toiletBias + model.learningRate * (error - model.regularization * toiletBias);
+    
+    const adjustedRating = globalAverageRating + newToiletBias;
+
+    return {
+      cleanliness: clampCleanlinessScore(adjustedRating),
+      newUserBias,
+      newToiletBias
+    };
   }
 
   const safeRatingTotal = Number(ratingTotal);

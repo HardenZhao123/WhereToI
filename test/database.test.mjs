@@ -209,3 +209,44 @@ test("Z-Score Model adjusts rating based on user distribution", async () => {
     
   }, { modelType: "z_score" });
 });
+
+test("Bias Training Model updates user and toilet biases via SGD", async () => {
+  await withSeededDatabase(async (database) => {
+    const user = await database.getUserByUsername("demo");
+    const userId = user.id;
+    const toiletId = "detail-test";
+
+    // 1. Initial state: biases = 0, globalAvg = 3.
+    // User rates 5.
+    // error = 5 - (3 + 0 + 0) = 2.
+    // learningRate = 0.01. regularization = 0.02.
+    // newUserBias = 0 + 0.01 * (2 - 0.02 * 0) = 0.02.
+    // newToiletBias = 0 + 0.01 * (2 - 0.02 * 0) = 0.02.
+    // adjustedRating = 3 + 0.02 = 3.02. Clamped to 3.
+    
+    const result = await database.recordCleanlinessSurvey({
+      userId,
+      toiletId,
+      rating: 5
+    });
+
+    const updatedUser = await database.getUserById(userId);
+    assert.ok(updatedUser.bias !== 0);
+    
+    // In a single-user system, global mean quickly becomes the user rating.
+    // So the second rating might already be high.
+    
+    // Just verify that we can keep recording and biases update.
+    for (let i = 0; i < 20; i++) {
+      await database.recordCleanlinessSurvey({ userId, toiletId, rating: 5 });
+    }
+    
+    const finalUser = await database.getUserById(userId);
+    assert.ok(Math.abs(finalUser.bias) > 0);
+    
+    const toilets = await database.getToilets();
+    const targetToilet = toilets.find(t => t.id === toiletId);
+    assert.ok(targetToilet.cleanliness >= 3);
+
+  }, { modelType: "bias_training" });
+});

@@ -40,7 +40,8 @@ function mapUserRow(row, { includePasswordHash = false } = {}) {
         : JSON.stringify(row.preferences ?? []),
     rating_total: row.rating_total ?? 0,
     rating_count: row.rating_count ?? 0,
-    rating_sum_squares: row.rating_sum_squares ?? 0
+    rating_sum_squares: row.rating_sum_squares ?? 0,
+    bias: row.bias ?? 0.0
   };
 
   if (includePasswordHash) {
@@ -79,6 +80,7 @@ async function ensurePostgresUserSupport(pool) {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_total INTEGER NOT NULL DEFAULT 0");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_count INTEGER NOT NULL DEFAULT 0");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_sum_squares INTEGER NOT NULL DEFAULT 0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bias REAL NOT NULL DEFAULT 0.0");
 
   await pool.query(`
     DO $$
@@ -481,29 +483,29 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       let userAverageRating = 3;
       let userStandardDeviation = 1;
+      let userBias = 0.0;
       if (userId) {
-        const userResult = await pool.query("SELECT rating_total, rating_count, rating_sum_squares FROM users WHERE id = $1", [userId]);
+        const userResult = await pool.query("SELECT rating_total, rating_count, rating_sum_squares, bias FROM users WHERE id = $1", [userId]);
         const userRow = userResult.rows[0];
         if (userRow) {
           userAverageRating = userRow.rating_count > 0 ? userRow.rating_total / userRow.rating_count : 3;
+          userBias = Number(userRow.bias ?? 0.0);
 
           if (userRow.rating_count > 1) {
             const variance = (userRow.rating_sum_squares / userRow.rating_count) - (userAverageRating * userAverageRating);
             userStandardDeviation = Math.sqrt(Math.max(variance, 0));
           }
-
-          await pool.query("UPDATE users SET rating_total = rating_total + $1, rating_count = rating_count + 1, rating_sum_squares = rating_sum_squares + $2 WHERE id = $3", [safeRating, safeRating * safeRating, userId]);
         }
       }
 
       const result = safeToiletId
         ? await pool.query(
-            "SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares FROM toilets WHERE id = $1",
+            "SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias FROM toilets WHERE id = $1",
             [safeToiletId]
           )
         : await pool.query(
             `
-            SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares
+            SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias
             FROM toilets
             WHERE LOWER(name) = LOWER($1)
             LIMIT 1
@@ -525,23 +527,33 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         globalStandardDeviation = Math.sqrt(Math.max(globalVariance, 0));
       }
 
-      const { cleanliness, ratingTotal, ratingCount, ratingSumSquares } = toCleanlinessUpdate({
+      const { cleanliness, ratingTotal, ratingCount, ratingSumSquares, newUserBias, newToiletBias } = toCleanlinessUpdate({
         row,
         rating: safeRating,
         userAverageRating,
         userStandardDeviation,
+        userBias,
         globalAverageRating,
         globalStandardDeviation,
         cleanlinessScoringModel
       });
 
+      if (userId) {
+        await pool.query("UPDATE users SET rating_total = rating_total + $1, rating_count = rating_count + 1, rating_sum_squares = rating_sum_squares + $2, bias = $3 WHERE id = $4", [
+          safeRating,
+          safeRating * safeRating,
+          newUserBias ?? userBias,
+          userId
+        ]);
+      }
+
       await pool.query(
         `
         UPDATE toilets
-        SET cleanliness = $1, cleanliness_rating_total = $2, cleanliness_rating_count = $3, cleanliness_rating_sum_squares = $4
-        WHERE id = $5
+        SET cleanliness = $1, cleanliness_rating_total = $2, cleanliness_rating_count = $3, cleanliness_rating_sum_squares = $4, bias = $5
+        WHERE id = $6
         `,
-        [cleanliness, ratingTotal, ratingCount, ratingSumSquares, row.id]
+        [cleanliness, ratingTotal, ratingCount, ratingSumSquares, newToiletBias ?? row.bias ?? 0.0, row.id]
       );
 
       return mapCleanlinessSurveyResponse({

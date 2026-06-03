@@ -17,7 +17,8 @@ const EXTENDED_CLEANLINESS_COLUMNS = [
   { name: "cleanliness_no_count", definition: "INTEGER NOT NULL DEFAULT 0" },
   { name: "cleanliness_rating_total", definition: "INTEGER NOT NULL DEFAULT 0" },
   { name: "cleanliness_rating_count", definition: "INTEGER NOT NULL DEFAULT 0" },
-  { name: "cleanliness_rating_sum_squares", definition: "INTEGER NOT NULL DEFAULT 0" }
+  { name: "cleanliness_rating_sum_squares", definition: "INTEGER NOT NULL DEFAULT 0" },
+  { name: "bias", definition: "REAL NOT NULL DEFAULT 0.0" }
 ];
 
 function getFeatureColumnValues(toilet) {
@@ -191,6 +192,9 @@ function ensureSqliteUserColumns(db) {
   }
   if (!existingColumns.has("rating_sum_squares")) {
     db.exec("ALTER TABLE users ADD COLUMN rating_sum_squares INTEGER NOT NULL DEFAULT 0;");
+  }
+  if (!existingColumns.has("bias")) {
+    db.exec("ALTER TABLE users ADD COLUMN bias REAL NOT NULL DEFAULT 0.0;");
   }
 }
 
