@@ -905,7 +905,8 @@ mark {
 
 .comment-media-field {
   display: grid;
-  gap: 5px;
+  gap: 8px;
+  justify-items: start;
 }
 
 .comment-media-label {
@@ -914,9 +915,40 @@ mark {
   font-weight: 700;
 }
 
-.comment-media-field input {
-  width: 100%;
-  font-size: 12px;
+.comment-media-browse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding-inline: 16px;
+  border: 1px solid #b8c1ba;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  background: white;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.comment-media-browse:hover {
+  background: #f8faf9;
+}
+
+.comment-media-browse:active {
+  background: #f0f4f2;
+}
+
+.comment-media-field input.is-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 .comment-media-preview {

@@ -1192,7 +1192,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function selectCleanlinessRating(rating) {
     if (!selectedToilet) {
-      setStatus("Select a toilet marker before answering the survey.");
+      setStatus("Select a toilet marker before writing a review.");
       return;
     }
 
@@ -1212,7 +1212,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   async function answerCleanlinessSurvey(rating) {
     if (!selectedToilet) {
-      setStatus("Select a toilet marker before answering the survey.");
+      setStatus("Select a toilet marker before writing a review.");
       return;
     }
 
