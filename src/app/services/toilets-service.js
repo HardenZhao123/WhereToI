@@ -3,13 +3,25 @@ import { parseCsv, rowsToObjects } from "../utils/csv.js";
 import { mapRecordToToilet } from "../toilets/toilet-record-mapper.js";
 import { fetchJson } from "./http-client.js";
 
-export async function loadToiletsFromApi(cleanlinessRange = "3days") {
-  const payload = await fetchJson(`${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`);
-  if (!Array.isArray(payload.toilets)) {
-    throw new Error("Invalid toilets API response.");
+export async function loadToiletsFromApi(cleanlinessRange = "3days", retryCount = 1) {
+  const url = `${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`;
+  
+  for (let attempt = 0; attempt <= retryCount; attempt++) {
+    try {
+      const payload = await fetchJson(url);
+      if (Array.isArray(payload.toilets)) {
+        return payload.toilets;
+      }
+    } catch (error) {
+      if (attempt >= retryCount) {
+        throw error;
+      }
+      // Wait 1 second before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 
-  return payload.toilets;
+  throw new Error("Invalid toilets API response.");
 }
 
 export async function loadToiletsFromCsv() {
