@@ -553,5 +553,5 @@ test("API records cleanliness survey as a star rating", async () => {
     assert.equal(payload.toilet.cleanliness, 5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingTotal, 5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingCount, 1);
-  });
+  }, { databaseOptions: { cleanlinessScoringModel: { type: "average" } } });
 });

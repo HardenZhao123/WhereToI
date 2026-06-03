@@ -40,6 +40,8 @@ jobs:
     name: Test stage
     needs: static_checks
     runs-on: ubuntu-latest
+    env:
+      WHERETOI_CLEANLINESS_SCORING_MODEL: bias_training
 
     steps:
       - name: Checkout repository

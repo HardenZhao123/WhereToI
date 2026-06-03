@@ -388,10 +388,11 @@ export async function createAppServer({
   rootDirectory = ".",
   port = 4173,
   logger = console,
-  emailService = createRegistrationEmailService()
+  emailService = createRegistrationEmailService(),
+  databaseOptions = {}
 } = {}) {
   const root = resolve(rootDirectory);
-  const database = await createDatabase({ rootDirectory: root });
+  const database = await createDatabase({ rootDirectory: root, ...databaseOptions });
   const requestHandler = createRequestHandler({ root, port, database, emailService, logger });
 
   const server = createServer(requestHandler);
