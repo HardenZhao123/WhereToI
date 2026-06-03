@@ -483,6 +483,16 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       const result = await pool.query(
         `
+        WITH survey_stats AS (
+          SELECT
+            toilet_id,
+            AVG(rating) AS avg_rating,
+            SUM(rating) AS total_rating,
+            COUNT(rating) AS count_rating
+          FROM cleanliness_surveys
+          WHERE ${startDateParam} IS NULL OR created_at >= ${startDateParam}
+          GROUP BY toilet_id
+        )
         SELECT
           t.id,
           t.name,
@@ -503,23 +513,14 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           t.radar_key,
           t.free_access,
           t.opening_times,
-          COALESCE(
-            (SELECT AVG(rating) FROM cleanliness_surveys WHERE toilet_id = t.id AND (${startDateParam} IS NULL OR created_at >= ${startDateParam})),
-            t.cleanliness
-          ) AS cleanliness,
+          COALESCE(s.avg_rating, t.cleanliness) AS cleanliness,
           t.cleanliness_yes_count,
           t.cleanliness_no_count,
-          COALESCE(
-            (SELECT SUM(rating) FROM cleanliness_surveys WHERE toilet_id = t.id AND (${startDateParam} IS NULL OR created_at >= ${startDateParam})),
-            t.cleanliness_rating_total
-          ) AS cleanliness_rating_total,
-          COALESCE(
-            (SELECT COUNT(rating) FROM cleanliness_surveys WHERE toilet_id = t.id AND (${startDateParam} IS NULL OR created_at >= ${startDateParam})),
-            t.cleanliness_rating_count
-          ) AS cleanliness_rating_count
+          COALESCE(s.total_rating, t.cleanliness_rating_total) AS cleanliness_rating_total,
+          COALESCE(s.count_rating, t.cleanliness_rating_count) AS cleanliness_rating_count
         FROM toilets t
+        LEFT JOIN survey_stats s ON t.id = s.toilet_id
         ${whereClause}
-        ORDER BY t.name ASC
         `,
         params
       );
