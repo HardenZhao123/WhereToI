@@ -6,6 +6,7 @@ import { mapRowToToilet } from "../mapper/toilet-mapper.mjs";
 import { applySqliteToiletMigrations } from "../migration/toilet-schema-migration.mjs";
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
 import {
+  ANONYMOUS_COMMENT_AUTHOR,
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
@@ -102,6 +103,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       toilet_id TEXT NOT NULL,
       user_id INTEGER,
       username TEXT,
+      comment_visibility TEXT NOT NULL DEFAULT 'real',
       comment_text TEXT NOT NULL,
       media_type TEXT,
       media_mime_type TEXT,
@@ -457,6 +459,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             toilet_id,
             user_id,
             username,
+            comment_visibility,
             comment_text,
             media_type,
             media_mime_type,
@@ -473,8 +476,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         .all(toiletId)
         .map(mapCommentRow);
     },
-    async saveComment({ toiletId, userId, username, commentText, media }) {
-      const comment = normaliseCommentPayload({ toiletId, commentText, media });
+    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility });
+      const displayUsername =
+        comment.commentVisibility === "anonymous" ? ANONYMOUS_COMMENT_AUTHOR : username;
 
       const nowIso = new Date().toISOString();
       db.prepare(
@@ -483,6 +488,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
           toilet_id,
           user_id,
           username,
+          comment_visibility,
           comment_text,
           media_type,
           media_mime_type,
@@ -492,12 +498,13 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
           media_attachments,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       ).run(
         comment.toiletId,
         userId,
-        username,
+        displayUsername,
+        comment.commentVisibility,
         comment.commentText,
         comment.mediaType,
         comment.mediaMimeType,

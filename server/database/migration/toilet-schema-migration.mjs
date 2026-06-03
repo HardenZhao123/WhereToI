@@ -28,6 +28,12 @@ const COMMENT_MEDIA_COLUMNS = [
   { name: "media_attachments", sqliteDefinition: "TEXT", postgresDefinition: "JSONB" }
 ];
 
+const COMMENT_VISIBILITY_COLUMN = {
+  name: "comment_visibility",
+  sqliteDefinition: "TEXT NOT NULL DEFAULT 'real'",
+  postgresDefinition: "TEXT NOT NULL DEFAULT 'real'"
+};
+
 function getFeatureColumnValues(toilet) {
   return [
     toilet.features.children,
@@ -222,6 +228,10 @@ function ensureSqliteUserSupport(db) {
   if (!commentCols.has("username")) {
     db.exec("ALTER TABLE toilet_comments ADD COLUMN username TEXT;");
   }
+  if (!commentCols.has(COMMENT_VISIBILITY_COLUMN.name)) {
+    db.exec(`ALTER TABLE toilet_comments ADD COLUMN ${COMMENT_VISIBILITY_COLUMN.name} ${COMMENT_VISIBILITY_COLUMN.sqliteDefinition};`);
+    db.exec("UPDATE toilet_comments SET comment_visibility = 'anonymous' WHERE user_id IS NULL OR LOWER(COALESCE(username, '')) = 'anonymous';");
+  }
   for (const column of COMMENT_MEDIA_COLUMNS) {
     if (!commentCols.has(column.name)) {
       db.exec(`ALTER TABLE toilet_comments ADD COLUMN ${column.name} ${column.sqliteDefinition};`);
@@ -255,6 +265,9 @@ export async function applyPostgresToiletMigrations({ pool, seedCsvPath }) {
 }
 
 export async function ensurePostgresCommentMediaColumns(pool) {
+  await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${COMMENT_VISIBILITY_COLUMN.name} ${COMMENT_VISIBILITY_COLUMN.postgresDefinition}`);
+  await pool.query("UPDATE toilet_comments SET comment_visibility = 'anonymous' WHERE user_id IS NULL OR LOWER(COALESCE(username, '')) = 'anonymous'");
+
   for (const column of COMMENT_MEDIA_COLUMNS) {
     await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${column.name} ${column.postgresDefinition}`);
   }

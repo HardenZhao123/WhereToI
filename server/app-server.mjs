@@ -24,6 +24,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "scoringModel",
   "Unsupported",
   "comment media",
+  "comment visibility",
   "too large",
   "not found"
 ];
@@ -262,6 +263,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         userId: userId,
         username: user.username,
         commentText: body.commentText,
+        commentVisibility: body.commentVisibility,
         media: body.mediaAttachments ?? body.media
       });
 

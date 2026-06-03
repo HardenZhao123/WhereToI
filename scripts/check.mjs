@@ -126,6 +126,18 @@ if (
   throw new Error("Expected comments to support up to 9 image/video attachments with thumbnail removal and uncropped media.");
 }
 
+if (
+  !html.includes("id=\"comment-anonymous\"") ||
+  !html.includes("Anonymous") ||
+  html.includes("id=\"comment-anonymous\" type=\"checkbox\" checked") ||
+  !js.includes("getCommentVisibility") ||
+  !js.includes("author_name") ||
+  !css.includes(".comment-author") ||
+  !css.includes(".comment-anonymous-option")
+) {
+  throw new Error("Expected comments to support a non-default Anonymous checkbox and public author display.");
+}
+
 if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {
   throw new Error("QR access UI and activation flow should not be present.");
 }

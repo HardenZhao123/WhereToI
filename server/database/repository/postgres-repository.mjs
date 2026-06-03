@@ -3,6 +3,7 @@ import { applyPostgresToiletMigrations, ensurePostgresCommentMediaColumns } from
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import {
+  ANONYMOUS_COMMENT_AUTHOR,
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
@@ -114,6 +115,7 @@ async function ensurePostgresUserSupport(pool) {
   await pool.query("UPDATE app_account SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
   await pool.query("UPDATE access_history SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
   await pool.query("UPDATE toilet_comments SET username = $1 WHERE username IS NULL", ["Anonymous"]);
+  await pool.query("UPDATE toilet_comments SET comment_visibility = $1 WHERE user_id IS NULL OR LOWER(COALESCE(username, '')) = $1", ["anonymous"]);
 
   await pool.query("CREATE INDEX IF NOT EXISTS idx_app_account_user_id ON app_account(user_id)");
   await pool.query("CREATE INDEX IF NOT EXISTS idx_access_history_user_id ON access_history(user_id)");
@@ -202,6 +204,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       toilet_id TEXT NOT NULL REFERENCES toilets(id) ON DELETE CASCADE,
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       username TEXT,
+      comment_visibility TEXT NOT NULL DEFAULT 'real',
       comment_text TEXT NOT NULL,
       media_type TEXT,
       media_mime_type TEXT,
@@ -618,6 +621,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_id,
           user_id,
           username,
+          comment_visibility,
           comment_text,
           media_type,
           media_mime_type,
@@ -635,8 +639,10 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return result.rows.map(mapCommentRow);
     },
-    async saveComment({ toiletId, userId, username, commentText, media }) {
-      const comment = normaliseCommentPayload({ toiletId, commentText, media });
+    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility });
+      const displayUsername =
+        comment.commentVisibility === "anonymous" ? ANONYMOUS_COMMENT_AUTHOR : username;
 
       const nowIso = new Date().toISOString();
       await pool.query(
@@ -645,6 +651,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_id,
           user_id,
           username,
+          comment_visibility,
           comment_text,
           media_type,
           media_mime_type,
@@ -654,12 +661,13 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_attachments,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
         `,
         [
           comment.toiletId,
           userId,
-          username,
+          displayUsername,
+          comment.commentVisibility,
           comment.commentText,
           comment.mediaType,
           comment.mediaMimeType,

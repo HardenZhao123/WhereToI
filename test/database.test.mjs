@@ -98,11 +98,31 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(updatedComments[0].comment_text, commentText);
     assert.equal(updatedComments[0].toilet_id, toiletId);
     assert.equal(updatedComments[0].username, user.username);
+    assert.equal(updatedComments[0].author_name, user.username);
+    assert.equal(updatedComments[0].comment_visibility, "real");
+    assert.equal(updatedComments[0].is_anonymous, false);
+    assert.equal(updatedComments[0].user_id, userId);
     assert.equal(updatedComments[0].media_type, null);
     assert.deepEqual(updatedComments[0].media_attachments, []);
 
+    const anonymousComments = await database.saveComment({
+      toiletId,
+      userId,
+      username: user.username,
+      commentText: "Anonymous test comment",
+      commentVisibility: "anonymous"
+    });
+
+    assert.equal(anonymousComments.length, 2);
+    assert.equal(anonymousComments[0].comment_text, "Anonymous test comment");
+    assert.equal(anonymousComments[0].username, "Anonymous");
+    assert.equal(anonymousComments[0].author_name, "Anonymous");
+    assert.equal(anonymousComments[0].comment_visibility, "anonymous");
+    assert.equal(anonymousComments[0].is_anonymous, true);
+    assert.equal(anonymousComments[0].user_id, null);
+
     const fetchedComments = await database.getComments(toiletId);
-    assert.deepEqual(fetchedComments, updatedComments);
+    assert.deepEqual(fetchedComments, anonymousComments);
   });
 });
 

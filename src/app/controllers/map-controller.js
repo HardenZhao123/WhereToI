@@ -45,6 +45,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentsList,
     commentForm,
     commentInput,
+    commentAnonymousInput,
     commentMediaInput,
     commentMediaPreview,
     commentMediaStatus,
@@ -465,6 +466,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       const item = document.createElement("div");
       item.className = "comment-item";
 
+      const author = document.createElement("p");
+      author.className = "comment-author";
+      author.textContent = comment.author_name || comment.username || "Anonymous";
+
       const text = document.createElement("p");
       text.className = "comment-text";
       text.textContent = comment.comment_text;
@@ -475,11 +480,16 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       date.className = "comment-date";
       date.textContent = new Date(comment.created_at).toLocaleString();
 
+      item.append(author);
       item.append(text);
       if (media) item.append(media);
       item.append(date);
       commentsList.append(item);
     });
+  }
+
+  function getCommentVisibility() {
+    return commentAnonymousInput?.checked ? "anonymous" : "real";
   }
 
   function setDetailSection(sectionName = "features") {
@@ -1146,7 +1156,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     try {
       const media = await readCommentMediaAttachments();
-      const updatedComments = await submitComment(selectedToilet.id, commentText, media);
+      const commentVisibility = getCommentVisibility();
+      const updatedComments = await submitComment(selectedToilet.id, commentText, media, commentVisibility);
       renderComments(updatedComments);
       commentInput.value = "";
       resetCommentMediaAttachment();

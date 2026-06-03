@@ -228,16 +228,42 @@ test("API supports fetching and posting toilet comments", async () => {
       },
       body: JSON.stringify({
         toiletId,
-        commentText: "Great experience!"
+        commentText: "Great experience!",
+        commentVisibility: "real"
       })
     });
 
     assert.equal(postedPayload.comments.length, 1);
     assert.equal(postedPayload.comments[0].comment_text, "Great experience!");
+    assert.equal(postedPayload.comments[0].author_name, "demo");
+    assert.equal(postedPayload.comments[0].username, "demo");
+    assert.equal(postedPayload.comments[0].comment_visibility, "real");
+    assert.equal(postedPayload.comments[0].is_anonymous, false);
     assert.deepEqual(postedPayload.comments[0].media_attachments, []);
 
+    const { payload: anonymousPostedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Posting without my username.",
+        commentVisibility: "anonymous"
+      })
+    });
+
+    assert.equal(anonymousPostedPayload.comments.length, 2);
+    assert.equal(anonymousPostedPayload.comments[0].comment_text, "Posting without my username.");
+    assert.equal(anonymousPostedPayload.comments[0].author_name, "Anonymous");
+    assert.equal(anonymousPostedPayload.comments[0].username, "Anonymous");
+    assert.equal(anonymousPostedPayload.comments[0].comment_visibility, "anonymous");
+    assert.equal(anonymousPostedPayload.comments[0].is_anonymous, true);
+    assert.equal(anonymousPostedPayload.comments[0].user_id, null);
+
     const { payload: fetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
-    assert.deepEqual(fetchedPayload, postedPayload);
+    assert.deepEqual(fetchedPayload, anonymousPostedPayload);
   });
 });
 
