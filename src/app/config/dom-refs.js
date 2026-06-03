@@ -15,6 +15,7 @@ export function getDomRefs() {
     locateButtons: [document.querySelector("#locate-button"), document.querySelector("#find-near-me")],
     featureFilterInputs: document.querySelectorAll("#feature-filters input[type='checkbox']"),
     sortSelect: document.querySelector("#toilet-sort"),
+    cleanlinessRangeSelect: document.querySelector("#cleanliness-range"),
     resultsSummary: document.querySelector("#results-summary"),
     resultsList: document.querySelector("#toilet-results"),
     resetMapButton: document.querySelector("#reset-map"),

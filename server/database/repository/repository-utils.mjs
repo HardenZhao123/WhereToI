@@ -347,6 +347,15 @@ export function normaliseHistoryLimit(limit = 10) {
   return Number.isFinite(limit) ? Math.min(Math.max(Math.floor(limit), 1), 50) : 10;
 }
 
+export function getCleanlinessRangeStartDate(range = "3days") {
+  const now = new Date();
+  if (range === "1day") return new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  if (range === "3days") return new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
+  if (range === "1week") return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  if (range === "1month") return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  return null;
+}
+
 export function mapAccessHistoryRow(row) {
   return {
     id: Number(row.id),

@@ -51,7 +51,7 @@ test("API preserves accessible filtering and access-history write behavior", asy
     const { payload: accessiblePayload } = await fetchJson(`${baseUrl}/api/toilets?accessibleOnly=true`);
     assert.deepEqual(
       accessiblePayload.toilets.map((toilet) => toilet.id),
-      ["detail-test"]
+      ["detail-test", "extra-test-1", "extra-test-2", "extra-test-3", "extra-test-4", "extra-test-5"]
     );
 
     // Login first

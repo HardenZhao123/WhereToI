@@ -11,6 +11,7 @@ import {
   mapAccountRow,
   mapCleanlinessSurveyResponse,
   mapCommentRow,
+  getCleanlinessRangeStartDate,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
   normaliseCommentDeletePayload,
@@ -115,6 +116,16 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       media_size INTEGER,
       media_url TEXT,
       media_attachments TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    ) STRICT;
+
+    CREATE TABLE IF NOT EXISTS cleanliness_surveys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      toilet_id TEXT NOT NULL,
+      user_id INTEGER,
+      rating INTEGER NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -283,39 +294,51 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
       return null;
     },
-    async getToilets({ search = "", accessibleOnly = false } = {}) {
+    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days" } = {}) {
+      const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
+
       const rows = db
         .prepare(
           `
           SELECT
-            id,
-            name,
-            area,
-            lat,
-            lng,
-            paid,
-            comment,
-            women,
-            men,
-            accessible,
-            neutral,
-            children,
-            baby_changing,
-            bidet,
-            automatic,
-            urinal_only,
-            radar_key,
-            free_access,
-            opening_times,
-            cleanliness,
-            cleanliness_yes_count,
-            cleanliness_no_count,
-            cleanliness_rating_total,
-            cleanliness_rating_count
-          FROM toilets
+            t.id,
+            t.name,
+            t.area,
+            t.lat,
+            t.lng,
+            t.paid,
+            t.comment,
+            t.women,
+            t.men,
+            t.accessible,
+            t.neutral,
+            t.children,
+            t.baby_changing,
+            t.bidet,
+            t.automatic,
+            t.urinal_only,
+            t.radar_key,
+            t.free_access,
+            t.opening_times,
+            COALESCE(s.avg_rating, t.cleanliness) AS cleanliness,
+            t.cleanliness_yes_count,
+            t.cleanliness_no_count,
+            COALESCE(s.total_rating, t.cleanliness_rating_total) AS cleanliness_rating_total,
+            COALESCE(s.count_rating, t.cleanliness_rating_count) AS cleanliness_rating_count
+          FROM toilets t
+          LEFT JOIN (
+            SELECT
+              toilet_id,
+              AVG(rating) AS avg_rating,
+              SUM(rating) AS total_rating,
+              COUNT(rating) AS count_rating
+            FROM cleanliness_surveys
+            WHERE ? IS NULL OR created_at >= ?
+            GROUP BY toilet_id
+          ) s ON t.id = s.toilet_id
           `
         )
-        .all();
+        .all(startDate, startDate);
 
       const query = normaliseSearchQuery(search);
 
@@ -372,6 +395,17 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         throw new Error("toilet not found.");
       }
 
+      if (userId) {
+        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        const recentSurvey = db.prepare(
+          "SELECT id FROM cleanliness_surveys WHERE toilet_id = ? AND user_id = ? AND created_at >= ? LIMIT 1"
+        ).get(row.id, userId, thirtyMinutesAgo);
+
+        if (recentSurvey) {
+          throw new Error("You can only rate this toilet once every 30 minutes.");
+        }
+      }
+
       const globalStats = db.prepare("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users").get();
       const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
       let globalStandardDeviation = 1;
@@ -403,6 +437,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         WHERE id = ?
         `
       ).run(cleanliness, ratingTotal, ratingCount, ratingSumSquares, newToiletBias ?? row.bias ?? 0.0, row.id);
+
+      db.prepare(
+        "INSERT INTO cleanliness_surveys (toilet_id, user_id, rating, created_at) VALUES (?, ?, ?, ?)"
+      ).run(row.id, userId, safeRating, new Date().toISOString());
 
       return mapCleanlinessSurveyResponse({
         row,
