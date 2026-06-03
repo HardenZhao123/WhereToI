@@ -14,7 +14,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./src/styles.css?v=comment-media-2" />
+    <link rel="stylesheet" href="./src/styles.css?v=comment-media-3" />
   </head>
   <body>
     <main class="app-shell" aria-label="WhereToI web app">
@@ -91,6 +91,7 @@
                     <div class="star-rating-display" id="cleanliness-stars" aria-label="Cleanliness rating 0 out of 5">
                       <span class="star-rating-icons" id="cleanliness-star-icons" aria-hidden="true">☆☆☆☆☆</span>
                       <span class="cleanliness-score" id="cleanliness-score">0/5</span>
+                      <span class="cleanliness-rating-count" id="cleanliness-rating-count">0 ratings</span>
                     </div>
                   </div>
                   <p id="toilet-area">Imperial College London</p>
@@ -146,9 +147,9 @@
                       <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
                       <div class="comment-media-field">
                         <label class="comment-media-label" for="comment-media">Attach image or video</label>
-                        <input id="comment-media" type="file" accept="image/*,video/*" />
-                        <p class="comment-media-preview" id="comment-media-preview" aria-live="polite"></p>
-                        <button class="comment-media-remove" id="comment-media-remove" type="button" hidden>Remove attachment</button>
+                        <input id="comment-media" type="file" accept="image/*,video/*" multiple />
+                        <div class="comment-media-preview" id="comment-media-preview" aria-live="polite"></div>
+                        <p class="comment-media-status" id="comment-media-status" aria-live="polite">Up to 9 attachments total, including up to 3 videos.</p>
                       </div>
                       <button type="submit" id="submit-comment">Post Comment</button>
                     </form>
@@ -168,6 +169,7 @@
                       <button type="button" data-survey-rating="5" aria-label="Rate 5 stars" aria-pressed="false">★</button>
                     </div>
                     <p class="survey-status" id="map-survey-status" aria-live="polite">Choose 1 to 5 stars to help others.</p>
+                    <button type="button" class="solid-button" id="submit-cleanliness-survey" disabled>Submit Review</button>
                   </section>
                 </section>
               </div>
@@ -243,7 +245,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./src/main.js?v=comment-media-2" type="module"></script>
+    <script src="./src/main.js?v=comment-media-3" type="module"></script>
     <section class="auth-modal is-hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div class="auth-dialog">
         <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px;">

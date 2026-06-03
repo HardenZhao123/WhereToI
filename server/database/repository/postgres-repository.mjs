@@ -6,6 +6,7 @@ import {
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
+  mapCommentRow,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
   normaliseCommentPayload,
@@ -207,6 +208,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       media_name TEXT,
       media_size INTEGER,
       media_url TEXT,
+      media_attachments JSONB,
       created_at TEXT NOT NULL
     );
   `);
@@ -622,6 +624,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_name,
           media_size,
           media_url,
+          media_attachments,
           created_at
         FROM toilet_comments
         WHERE toilet_id = $1
@@ -630,7 +633,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         [toiletId]
       );
 
-      return result.rows;
+      return result.rows.map(mapCommentRow);
     },
     async saveComment({ toiletId, userId, username, commentText, media }) {
       const comment = normaliseCommentPayload({ toiletId, commentText, media });
@@ -648,9 +651,10 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_name,
           media_size,
           media_url,
+          media_attachments,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
         `,
         [
           comment.toiletId,
@@ -662,6 +666,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           comment.mediaName,
           comment.mediaSize,
           comment.mediaUrl,
+          comment.mediaAttachmentsJson,
           nowIso
         ]
       );

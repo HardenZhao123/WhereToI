@@ -99,52 +99,98 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(updatedComments[0].toilet_id, toiletId);
     assert.equal(updatedComments[0].username, user.username);
     assert.equal(updatedComments[0].media_type, null);
+    assert.deepEqual(updatedComments[0].media_attachments, []);
 
     const fetchedComments = await database.getComments(toiletId);
     assert.deepEqual(fetchedComments, updatedComments);
   });
 });
 
-test("database saves image and video attachments with comments", async () => {
+test("database saves multiple image and video attachments with comments", async () => {
   await withSeededDatabase(async (database) => {
     const user = await database.getUserByUsername("demo");
     const toiletId = "detail-test";
 
-    await database.saveComment({
-      toiletId,
-      userId: user.id,
-      username: user.username,
-      commentText: "Sink photo",
-      media: {
+    const media = [
+      {
         type: "image",
         mimeType: "image/png",
         name: "sink.png",
         size: 5,
         dataUrl: "data:image/png;base64,aW1hZ2U="
-      }
-    });
-
-    const updatedComments = await database.saveComment({
-      toiletId,
-      userId: user.id,
-      username: user.username,
-      commentText: "Queue video",
-      media: {
+      },
+      {
         type: "video",
         mimeType: "video/mp4",
         name: "queue.mp4",
         size: 5,
         dataUrl: "data:video/mp4;base64,dmlkZW8="
+      },
+      {
+        type: "image",
+        mimeType: "image/jpeg",
+        name: "door.jpg",
+        size: 6,
+        dataUrl: "data:image/jpeg;base64,aW1hZ2Uy"
       }
+    ];
+
+    const updatedComments = await database.saveComment({
+      toiletId,
+      userId: user.id,
+      username: user.username,
+      commentText: "Mixed evidence",
+      media
     });
 
-    assert.equal(updatedComments.length, 2);
-    assert.equal(updatedComments[0].comment_text, "Queue video");
-    assert.equal(updatedComments[0].media_type, "video");
-    assert.equal(updatedComments[0].media_mime_type, "video/mp4");
-    assert.equal(updatedComments[0].media_name, "queue.mp4");
-    assert.equal(updatedComments[0].media_url, "data:video/mp4;base64,dmlkZW8=");
-    assert.equal(updatedComments[1].media_type, "image");
-    assert.equal(updatedComments[1].media_mime_type, "image/png");
+    assert.equal(updatedComments.length, 1);
+    assert.equal(updatedComments[0].comment_text, "Mixed evidence");
+    assert.equal(updatedComments[0].media_type, "image");
+    assert.equal(updatedComments[0].media_mime_type, "image/png");
+    assert.equal(updatedComments[0].media_name, "sink.png");
+    assert.equal(updatedComments[0].media_url, "data:image/png;base64,aW1hZ2U=");
+    assert.deepEqual(updatedComments[0].media_attachments, media);
+  });
+});
+
+test("database rejects comment media over attachment limits", async () => {
+  await withSeededDatabase(async (database) => {
+    const user = await database.getUserByUsername("demo");
+    const commonComment = {
+      toiletId: "detail-test",
+      userId: user.id,
+      username: user.username,
+      commentText: "Too much media"
+    };
+    const imageAttachment = {
+      type: "image",
+      mimeType: "image/png",
+      name: "sink.png",
+      size: 5,
+      dataUrl: "data:image/png;base64,aW1hZ2U="
+    };
+    const videoAttachment = {
+      type: "video",
+      mimeType: "video/mp4",
+      name: "queue.mp4",
+      size: 5,
+      dataUrl: "data:video/mp4;base64,dmlkZW8="
+    };
+
+    await assert.rejects(
+      () => database.saveComment({
+        ...commonComment,
+        media: Array.from({ length: 10 }, () => imageAttachment)
+      }),
+      /at most 9 attachments/
+    );
+
+    await assert.rejects(
+      () => database.saveComment({
+        ...commonComment,
+        media: Array.from({ length: 4 }, () => videoAttachment)
+      }),
+      /at most 3 videos/
+    );
   });
 });

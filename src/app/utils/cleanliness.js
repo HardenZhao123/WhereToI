@@ -65,7 +65,18 @@ export function getCleanlinessStars(toilet) {
   };
 }
 
+export function getCleanlinessRatingCount(toilet) {
+  const ratingCount = Number(toilet?.cleanlinessSurvey?.ratingCount);
+  if (!Number.isFinite(ratingCount) || ratingCount <= 0) return 0;
+  return Math.floor(ratingCount);
+}
+
+export function formatCleanlinessRatingCount(toilet) {
+  const ratingCount = getCleanlinessRatingCount(toilet);
+  return `${ratingCount} ${ratingCount === 1 ? "rating" : "ratings"}`;
+}
+
 export function formatCleanlinessRating(toilet) {
   const { displayRating, maxRating, text } = getCleanlinessStars(toilet);
-  return `${text} ${displayRating}/${maxRating}`;
+  return `${text} ${displayRating}/${maxRating} · ${formatCleanlinessRatingCount(toilet)}`;
 }
