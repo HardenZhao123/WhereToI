@@ -177,7 +177,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function renderCleanlinessSurvey(toilet) {
-    const storedRating = toilet ? cleanlinessSurveyAnswers[toilet.id]?.rating ?? cleanlinessSurveyAnswers[toilet.id] : null;
+    const stored = toilet ? cleanlinessSurveyAnswers[toilet.id] : null;
+    const storedRating = typeof stored === "object" ? stored.rating : stored;
+    const submittedAt = stored?.submittedAt ? new Date(stored.submittedAt).getTime() : null;
+    const now = Date.now();
+    const isWithinCooldown = submittedAt && now - submittedAt < 30 * 60 * 1000;
+
     const rating = Number(selectedRating ?? storedRating);
     const hasRating = Number.isInteger(rating) && rating >= 1 && rating <= 5;
 
@@ -196,7 +201,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       if (selectedRating !== null) {
         mapSurveyStatus.textContent = `You've selected ${selectedRating}/5 stars. Click submit to save.`;
       } else {
-        mapSurveyStatus.textContent = hasRating
+        mapSurveyStatus.textContent = isWithinCooldown
           ? `Thanks! You can rate this toilet again in 30 minutes.`
           : isAuthenticated()
             ? "Choose 1 to 5 stars to help others."
@@ -995,6 +1000,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       document.querySelector("#distance-line").textContent = formatToiletDistance(toilet);
     }
 
+    if (mapSurveyStatus) {
+      mapSurveyStatus.classList.remove("warning");
+    }
+    
     renderCleanlinessSurvey(toilet);
     renderCleanlinessRating(toilet);
 
