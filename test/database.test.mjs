@@ -368,6 +368,7 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
     assert.ok(targetToilet.cleanliness >= 3);
 
   }, { modelType: "bias_training" });
+});
 test("database saves multiple image and video attachments with comments", async () => {
   await withSeededDatabase(async (database) => {
     const user = await database.getUserByUsername("demo");
