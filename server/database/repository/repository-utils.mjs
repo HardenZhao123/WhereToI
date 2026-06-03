@@ -29,24 +29,36 @@ export function toCleanlinessUpdate({
   row,
   rating,
   userAverageRating = 3,
+  userStandardDeviation = 1,
+  globalAverageRating = 3,
+  globalStandardDeviation = 1,
   cleanlinessScoringModel
 }) {
   const legacyRatingTotal = Number(row.cleanliness_yes_count ?? 0) * 5 + Number(row.cleanliness_no_count ?? 0);
   const legacyRatingCount = Number(row.cleanliness_yes_count ?? 0) + Number(row.cleanliness_no_count ?? 0);
+  const legacyRatingSumSquares = Number(row.cleanliness_yes_count ?? 0) * 25 + Number(row.cleanliness_no_count ?? 0);
+
   const previousRatingTotal = Number(row.cleanliness_rating_total ?? legacyRatingTotal);
   const previousRatingCount = Number(row.cleanliness_rating_count ?? legacyRatingCount);
+  const previousRatingSumSquares = Number(row.cleanliness_rating_sum_squares ?? legacyRatingSumSquares);
+
   const ratingTotal = Math.max(previousRatingTotal, 0) + rating;
   const ratingCount = Math.max(previousRatingCount, 0) + 1;
+  const ratingSumSquares = Math.max(previousRatingSumSquares, 0) + (rating * rating);
+
   const cleanliness = calculateCleanlinessScore({
     rating,
     ratingTotal,
     ratingCount,
     previousCleanliness: row.cleanliness,
     userAverageRating,
+    userStandardDeviation,
+    globalAverageRating,
+    globalStandardDeviation,
     scoringModel: cleanlinessScoringModel
   });
 
-  return { cleanliness, ratingTotal, ratingCount };
+  return { cleanliness, ratingTotal, ratingCount, ratingSumSquares };
 }
 
 export function mapCleanlinessSurveyResponse({ row, cleanliness, ratingTotal, ratingCount, cleanlinessScoringModel }) {

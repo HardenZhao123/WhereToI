@@ -27,6 +27,10 @@ export function normaliseScoringModel(scoringModel = null) {
     return { type: "mean_centering" };
   }
 
+  if (modelType === "z_score") {
+    return { type: "z_score" };
+  }
+
   throw new Error("Unsupported scoringModel type.");
 }
 
@@ -44,8 +48,17 @@ export function getConfiguredCleanlinessScoringModel() {
     return { type: "mean_centering" };
   }
 
+  if (modelType === "z_score") {
+    return { type: "z_score" };
+  }
+
   return normaliseScoringModel(modelType || "average");
 }
+
+/* To use mean centering, set
+WHERETOI_CLEANLINESS_SCORING_MODEL=mean_centering
+in environment
+*/
 
 export function calculateCleanlinessScore({
   rating,
@@ -53,6 +66,9 @@ export function calculateCleanlinessScore({
   ratingCount,
   previousCleanliness = 3,
   userAverageRating = 3,
+  userStandardDeviation = 1,
+  globalAverageRating = 3,
+  globalStandardDeviation = 1,
   scoringModel = null
 }) {
   const model = normaliseScoringModel(scoringModel);
@@ -67,6 +83,20 @@ export function calculateCleanlinessScore({
     const globalAverage = 3;
     const adjustedRating = safeRating - (userAverageRating - globalAverage);
     
+    const safeRatingTotal = Number(ratingTotal);
+    const safeRatingCount = Number(ratingCount);
+    if (!Number.isFinite(safeRatingTotal) || !Number.isFinite(safeRatingCount) || safeRatingCount <= 0) {
+      return clampCleanlinessScore(adjustedRating);
+    }
+
+    const previousTotal = safeRatingTotal - safeRating;
+    return clampCleanlinessScore((previousTotal + adjustedRating) / safeRatingCount);
+  }
+
+  if (model.type === "z_score") {
+    const z = (safeRating - userAverageRating) / (userStandardDeviation || 1);
+    const adjustedRating = globalStandardDeviation * z + globalAverageRating;
+
     const safeRatingTotal = Number(ratingTotal);
     const safeRatingCount = Number(ratingCount);
     if (!Number.isFinite(safeRatingTotal) || !Number.isFinite(safeRatingCount) || safeRatingCount <= 0) {

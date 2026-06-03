@@ -16,7 +16,8 @@ const EXTENDED_CLEANLINESS_COLUMNS = [
   { name: "cleanliness_yes_count", definition: "INTEGER NOT NULL DEFAULT 0" },
   { name: "cleanliness_no_count", definition: "INTEGER NOT NULL DEFAULT 0" },
   { name: "cleanliness_rating_total", definition: "INTEGER NOT NULL DEFAULT 0" },
-  { name: "cleanliness_rating_count", definition: "INTEGER NOT NULL DEFAULT 0" }
+  { name: "cleanliness_rating_count", definition: "INTEGER NOT NULL DEFAULT 0" },
+  { name: "cleanliness_rating_sum_squares", definition: "INTEGER NOT NULL DEFAULT 0" }
 ];
 
 function getFeatureColumnValues(toilet) {
@@ -59,7 +60,8 @@ function ensureSqliteCleanlinessColumns(db) {
     UPDATE toilets
     SET
       cleanliness_rating_total = cleanliness_yes_count * 5 + cleanliness_no_count,
-      cleanliness_rating_count = cleanliness_yes_count + cleanliness_no_count
+      cleanliness_rating_count = cleanliness_yes_count + cleanliness_no_count,
+      cleanliness_rating_sum_squares = cleanliness_yes_count * 25 + cleanliness_no_count
     WHERE cleanliness_rating_count = 0
       AND (cleanliness_yes_count > 0 OR cleanliness_no_count > 0);
   `);
@@ -120,7 +122,8 @@ async function ensurePostgresCleanlinessColumns(pool) {
     UPDATE toilets
     SET
       cleanliness_rating_total = cleanliness_yes_count * 5 + cleanliness_no_count,
-      cleanliness_rating_count = cleanliness_yes_count + cleanliness_no_count
+      cleanliness_rating_count = cleanliness_yes_count + cleanliness_no_count,
+      cleanliness_rating_sum_squares = cleanliness_yes_count * 25 + cleanliness_no_count
     WHERE cleanliness_rating_count = 0
       AND (cleanliness_yes_count > 0 OR cleanliness_no_count > 0)
   `);
@@ -186,6 +189,9 @@ function ensureSqliteUserColumns(db) {
   if (!existingColumns.has("rating_count")) {
     db.exec("ALTER TABLE users ADD COLUMN rating_count INTEGER NOT NULL DEFAULT 0;");
   }
+  if (!existingColumns.has("rating_sum_squares")) {
+    db.exec("ALTER TABLE users ADD COLUMN rating_sum_squares INTEGER NOT NULL DEFAULT 0;");
+  }
 }
 
 function ensureSqliteUserSupport(db) {
@@ -217,7 +223,7 @@ function ensureSqliteUserSupport(db) {
     db.exec("ALTER TABLE toilet_comments ADD COLUMN user_id INTEGER;");
   }
   if (!commentCols.has("username")) {
-    db.exec("ALTER TABLE toilet_comments ADD COLUMN username TEXT;");
+    db.exec("ALTER TABLE ADD COLUMN username TEXT;");
   }
 
   // 5. If we have orphaned records and no users, we need to create a default user and link them.
