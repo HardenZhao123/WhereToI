@@ -238,6 +238,9 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       created_at TEXT NOT NULL
     );
 
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_toilet_id ON cleanliness_surveys(toilet_id);
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_created_at ON cleanliness_surveys(created_at);
+
     CREATE TABLE IF NOT EXISTS comment_likes (
       id SERIAL PRIMARY KEY,
       comment_id INTEGER NOT NULL REFERENCES toilet_comments(id) ON DELETE CASCADE,
@@ -500,23 +503,23 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           t.radar_key,
           t.free_access,
           t.opening_times,
-          COALESCE(s.avg_rating, t.cleanliness) AS cleanliness,
+          COALESCE(
+            (SELECT AVG(rating) FROM cleanliness_surveys WHERE toilet_id = t.id AND (${startDateParam} IS NULL OR created_at >= ${startDateParam})),
+            t.cleanliness
+          ) AS cleanliness,
           t.cleanliness_yes_count,
           t.cleanliness_no_count,
-          COALESCE(s.total_rating, t.cleanliness_rating_total) AS cleanliness_rating_total,
-          COALESCE(s.count_rating, t.cleanliness_rating_count) AS cleanliness_rating_count
+          COALESCE(
+            (SELECT SUM(rating) FROM cleanliness_surveys WHERE toilet_id = t.id AND (${startDateParam} IS NULL OR created_at >= ${startDateParam})),
+            t.cleanliness_rating_total
+          ) AS cleanliness_rating_total,
+          COALESCE(
+            (SELECT COUNT(rating) FROM cleanliness_surveys WHERE toilet_id = t.id AND (${startDateParam} IS NULL OR created_at >= ${startDateParam})),
+            t.cleanliness_rating_count
+          ) AS cleanliness_rating_count
         FROM toilets t
-        LEFT JOIN (
-          SELECT
-            toilet_id,
-            AVG(rating) AS avg_rating,
-            SUM(rating) AS total_rating,
-            COUNT(rating) AS count_rating
-          FROM cleanliness_surveys
-          WHERE ${startDateParam} IS NULL OR created_at >= ${startDateParam}
-          GROUP BY toilet_id
-        ) s ON t.id = s.toilet_id
         ${whereClause}
+        ORDER BY t.name ASC
         `,
         params
       );
