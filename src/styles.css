@@ -714,6 +714,76 @@ mark {
   border-top: 1px solid var(--line);
 }
 
+.comments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.comments-header h3 {
+  min-width: 0;
+}
+
+.comment-sort-control {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: #142c72;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.comment-sort-control select {
+  max-width: 112px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--ink);
+  font-size: 11px;
+}
+
+.comment-filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.comment-filter-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 1px solid #d8dfd6;
+  border-radius: 999px;
+  color: #142c72;
+  background: #fbfdf8;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.comment-filter-tag:has(input:checked) {
+  border-color: var(--teal);
+  color: white;
+  background: var(--teal);
+}
+
+.comment-filter-tag input {
+  display: none;
+}
+
+.comments-summary {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
 .comments-list {
   display: grid;
   gap: 8px;

@@ -12,6 +12,12 @@ import {
   getCleanlinessScore,
   getCleanlinessStars
 } from "../utils/cleanliness.js";
+import {
+  commentFilterKeys,
+  filterAndSortComments,
+  getCommentMediaAttachments,
+  normaliseCommentSortMode
+} from "../utils/comments.js";
 import { distanceInMetres, formatDistance } from "../utils/geo.js";
 
 const featureFilterOptions = [
@@ -49,6 +55,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     detailSectionLinks = [],
     detailPanels = [],
     commentsList,
+    commentsSummary,
+    commentSortSelect,
+    commentFilterInputs = [],
     commentComposer,
     commentComposerToggle,
     commentForm,
@@ -85,6 +94,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let cleanlinessSurveyAnswers = loadSurveyAnswers();
   let selectedRating = null;
   let selectedCommentMedia = [];
+  let currentComments = [];
+  let commentSortMode = "newest";
+  let selectedCommentFilters = new Set();
 
   document.addEventListener("click", closeOpenCommentMenus);
 
@@ -396,34 +408,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     renderCommentMediaPreview();
   }
 
-  function getCommentMediaAttachments(comment) {
-    if (Array.isArray(comment?.media_attachments)) {
-      return comment.media_attachments;
-    }
-
-    if (typeof comment?.media_attachments === "string" && comment.media_attachments.trim()) {
-      try {
-        const parsed = JSON.parse(comment.media_attachments);
-        if (Array.isArray(parsed)) return parsed;
-      } catch {
-        return [];
-      }
-    }
-
-    if (comment?.media_url && comment?.media_type && comment?.media_mime_type) {
-      return [
-        {
-          type: comment.media_type,
-          mimeType: comment.media_mime_type,
-          name: comment.media_name,
-          dataUrl: comment.media_url
-        }
-      ];
-    }
-
-    return [];
-  }
-
   function createCommentMediaElement(comment) {
     const attachments = getCommentMediaAttachments(comment);
     if (attachments.length === 0) return null;
@@ -461,18 +445,47 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function renderComments(comments) {
+    currentComments = Array.isArray(comments) ? [...comments] : [];
+    renderCommentList();
+  }
+
+  function updateCommentsSummary(totalCount, visibleCount) {
+    if (!commentsSummary) return;
+
+    const sortLabel = commentSortSelect?.selectedOptions?.[0]?.textContent ?? "Newest";
+    const countLabel =
+      selectedCommentFilters.size > 0
+        ? `${visibleCount} of ${totalCount} comments`
+        : `${totalCount} comment${totalCount === 1 ? "" : "s"}`;
+    commentsSummary.textContent = `${countLabel} - ${sortLabel}`;
+  }
+
+  function renderCommentList() {
+    const visibleComments = filterAndSortComments(currentComments, {
+      sortMode: commentSortMode,
+      filters: selectedCommentFilters
+    });
+    updateCommentsSummary(currentComments.length, visibleComments.length);
+
     if (!commentsList) return;
 
     commentsList.replaceChildren();
 
-    if (!Array.isArray(comments) || comments.length === 0) {
+    if (currentComments.length === 0) {
       const empty = document.createElement("p");
       empty.textContent = "No comments yet. Be the first to write one!";
       commentsList.append(empty);
       return;
     }
 
-    comments.forEach((comment) => {
+    if (visibleComments.length === 0) {
+      const empty = document.createElement("p");
+      empty.textContent = "No comments match the selected tags.";
+      commentsList.append(empty);
+      return;
+    }
+
+    visibleComments.forEach((comment) => {
       const item = document.createElement("div");
       item.className = "comment-item";
 
@@ -502,6 +515,24 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       item.append(date);
       commentsList.append(item);
     });
+  }
+
+  function setCommentSortMode(nextSortMode) {
+    commentSortMode = normaliseCommentSortMode(nextSortMode);
+    renderCommentList();
+  }
+
+  function setCommentFilter(filterKey, checked) {
+    if (!commentFilterKeys.has(filterKey)) return;
+
+    selectedCommentFilters = new Set(selectedCommentFilters);
+    if (checked) {
+      selectedCommentFilters.add(filterKey);
+    } else {
+      selectedCommentFilters.delete(filterKey);
+    }
+
+    renderCommentList();
   }
 
   function closeOpenCommentMenus() {
@@ -960,6 +991,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     renderCleanlinessRating(toilet);
 
     if (commentsList) {
+      currentComments = [];
+      updateCommentsSummary(0, 0);
       commentsList.replaceChildren();
       const loading = document.createElement("p");
       loading.textContent = "Loading comments...";
@@ -1400,6 +1433,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     submitCleanlinessSurveySelection,
     answerCleanlinessSurvey,
     postComment,
+    setCommentSortMode,
+    setCommentFilter,
     toggleCommentComposer,
     closeCommentComposer,
     applyCommentPreset,
