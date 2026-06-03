@@ -11,6 +11,8 @@ const COMMENT_MEDIA_MAX_VIDEOS = 3;
 const COMMENT_MEDIA_MAX_IMAGES = 9;
 const COMMENT_MEDIA_TYPES = new Set(["image", "video"]);
 const COMMENT_MEDIA_DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
+const COMMENT_VISIBILITIES = new Set(["real", "anonymous"]);
+export const ANONYMOUS_COMMENT_AUTHOR = "Anonymous";
 
 function normaliseCommentMediaAttachment(media) {
   if (typeof media !== "object" || Array.isArray(media) || media === null) {
@@ -130,15 +132,56 @@ function parseCommentMediaAttachments(row) {
   return [];
 }
 
-export function mapCommentRow(row) {
+export function mapCommentRow(row, { viewerUserId = null } = {}) {
   if (!row) return row;
+
+  const commentVisibility = normaliseStoredCommentVisibility(row);
+  const isAnonymous = commentVisibility === "anonymous";
+  const hasOwnerUserId = row.user_id !== null && row.user_id !== undefined;
+  const hasViewerUserId = viewerUserId !== null && viewerUserId !== undefined;
+  const ownerUserId = Number(row.user_id);
+  const currentViewerUserId = Number(viewerUserId);
+  const canDelete =
+    hasOwnerUserId &&
+    hasViewerUserId &&
+    Number.isInteger(ownerUserId) &&
+    Number.isInteger(currentViewerUserId) &&
+    ownerUserId === currentViewerUserId;
+  const authorName = isAnonymous
+    ? ANONYMOUS_COMMENT_AUTHOR
+    : normaliseText(row.username) || ANONYMOUS_COMMENT_AUTHOR;
+
   return {
     ...row,
+    user_id: isAnonymous ? null : row.user_id,
+    username: authorName,
+    comment_visibility: commentVisibility,
+    author_name: authorName,
+    is_anonymous: isAnonymous,
+    can_delete: canDelete,
+    like_count: Number(row.like_count ?? 0),
+    viewer_has_liked: Boolean(row.viewer_has_liked),
     media_attachments: parseCommentMediaAttachments(row)
   };
 }
 
-export function normaliseCommentPayload({ toiletId, commentText, media = null }) {
+function normaliseStoredCommentVisibility(row) {
+  const visibility = normaliseText(row.comment_visibility).toLowerCase();
+  if (COMMENT_VISIBILITIES.has(visibility)) return visibility;
+  return row.user_id ? "real" : "anonymous";
+}
+
+export function normaliseCommentVisibility(value = "real") {
+  const visibility = normaliseText(value).toLowerCase() || "real";
+
+  if (!COMMENT_VISIBILITIES.has(visibility)) {
+    throw new Error("comment visibility must be real or anonymous.");
+  }
+
+  return visibility;
+}
+
+export function normaliseCommentPayload({ toiletId, commentText, media = null, commentVisibility = "real" }) {
   const safeToiletId = normaliseText(toiletId);
   const safeCommentText = typeof commentText === "string" ? commentText.trim() : "";
 
@@ -149,8 +192,27 @@ export function normaliseCommentPayload({ toiletId, commentText, media = null })
   return {
     toiletId: safeToiletId,
     commentText: safeCommentText,
+    commentVisibility: normaliseCommentVisibility(commentVisibility),
     ...normaliseCommentMedia(media)
   };
+}
+
+export function normaliseCommentDeletePayload({ toiletId, commentId }) {
+  const safeToiletId = normaliseText(toiletId);
+  const safeCommentId = Number(commentId);
+
+  if (!safeToiletId || !Number.isInteger(safeCommentId) || safeCommentId <= 0) {
+    throw new Error("toiletId and commentId are required.");
+  }
+
+  return {
+    toiletId: safeToiletId,
+    commentId: safeCommentId
+  };
+}
+
+export function normaliseCommentLikePayload({ toiletId, commentId }) {
+  return normaliseCommentDeletePayload({ toiletId, commentId });
 }
 
 function normaliseRating(value) {

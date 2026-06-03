@@ -36,10 +36,26 @@ export async function fetchComments(toiletId) {
   return payload.comments || [];
 }
 
-export async function submitComment(toiletId, commentText, media = []) {
+export async function submitComment(toiletId, commentText, media = [], commentVisibility = "real") {
   const payload = await fetchJson(`${appConfig.apiBasePath}/comments`, {
     method: "POST",
-    body: JSON.stringify({ toiletId, commentText, media })
+    body: JSON.stringify({ toiletId, commentText, media, commentVisibility })
+  });
+  return payload.comments || [];
+}
+
+export async function deleteComment(toiletId, commentId) {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/comments`, {
+    method: "DELETE",
+    body: JSON.stringify({ toiletId, commentId })
+  });
+  return payload.comments || [];
+}
+
+export async function toggleCommentLike(toiletId, commentId) {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/comment-likes`, {
+    method: "POST",
+    body: JSON.stringify({ toiletId, commentId })
   });
   return payload.comments || [];
 }

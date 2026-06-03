@@ -14,7 +14,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./src/styles.css?v=comment-media-3" />
+    <link rel="stylesheet" href="./src/styles.css?v=comment-identity-1" />
   </head>
   <body>
     <main class="app-shell" aria-label="WhereToI web app">
@@ -145,6 +145,10 @@
                     </div>
                     <form id="comment-form" class="comment-form">
                       <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
+                      <label class="comment-anonymous-option">
+                        <input id="comment-anonymous" type="checkbox" />
+                        Anonymous
+                      </label>
                       <div class="comment-media-field">
                         <label class="comment-media-label" for="comment-media">Attach image or video</label>
                         <input id="comment-media" type="file" accept="image/*,video/*" multiple />
@@ -245,7 +249,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./src/main.js?v=comment-media-3" type="module"></script>
+    <script src="./src/main.js?v=comment-identity-1" type="module"></script>
     <section class="auth-modal is-hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div class="auth-dialog">
         <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px;">

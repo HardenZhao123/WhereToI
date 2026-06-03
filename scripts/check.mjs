@@ -33,6 +33,7 @@ await Promise.all(requiredFiles.map((file) => access(resolve(file))));
 
 const html = await readFile("index.html", "utf8");
 const css = await readFile("src/styles.css", "utf8");
+const server = await readFile("server/app-server.mjs", "utf8");
 const jsFiles = requiredFiles.filter((file) => file.startsWith("src/") && file.endsWith(".js"));
 const js = (await Promise.all(jsFiles.map((file) => readFile(file, "utf8")))).join("\n");
 
@@ -124,6 +125,43 @@ if (
   !css.includes("object-fit: contain")
 ) {
   throw new Error("Expected comments to support up to 9 image/video attachments with thumbnail removal and uncropped media.");
+}
+
+if (
+  !html.includes("id=\"comment-anonymous\"") ||
+  !html.includes("Anonymous") ||
+  html.includes("id=\"comment-anonymous\" type=\"checkbox\" checked") ||
+  !js.includes("getCommentVisibility") ||
+  !js.includes("author_name") ||
+  !css.includes(".comment-author") ||
+  !css.includes(".comment-anonymous-option")
+) {
+  throw new Error("Expected comments to support a non-default Anonymous checkbox and public author display.");
+}
+
+if (
+  !server.includes("\"DELETE /api/comments\"") ||
+  !server.includes("deleteComment") ||
+  !js.includes("createCommentActions") ||
+  !js.includes("comment.can_delete") ||
+  !js.includes("deleteOwnComment") ||
+  !css.includes(".comment-menu-button") ||
+  !css.includes(".comment-delete-button")
+) {
+  throw new Error("Expected users to delete their own comments through a three-dot comment menu.");
+}
+
+if (
+  !server.includes("\"POST /api/comment-likes\"") ||
+  !server.includes("toggleCommentLike") ||
+  !js.includes("toggleCommentLikeRequest") ||
+  !js.includes("comment.viewer_has_liked") ||
+  !js.includes("comment.like_count") ||
+  !css.includes(".comment-like-button") ||
+  !css.includes(".comment-like-icon") ||
+  !css.includes(".comment-like-button.is-liked")
+) {
+  throw new Error("Expected logged-in users to toggle one like per comment with a right-side thumbs-up button.");
 }
 
 if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {

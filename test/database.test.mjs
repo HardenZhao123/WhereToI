@@ -98,11 +98,128 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(updatedComments[0].comment_text, commentText);
     assert.equal(updatedComments[0].toilet_id, toiletId);
     assert.equal(updatedComments[0].username, user.username);
+    assert.equal(updatedComments[0].author_name, user.username);
+    assert.equal(updatedComments[0].comment_visibility, "real");
+    assert.equal(updatedComments[0].is_anonymous, false);
+    assert.equal(updatedComments[0].can_delete, true);
+    assert.equal(updatedComments[0].like_count, 0);
+    assert.equal(updatedComments[0].viewer_has_liked, false);
+    assert.equal(updatedComments[0].user_id, userId);
     assert.equal(updatedComments[0].media_type, null);
     assert.deepEqual(updatedComments[0].media_attachments, []);
 
-    const fetchedComments = await database.getComments(toiletId);
-    assert.deepEqual(fetchedComments, updatedComments);
+    const anonymousComments = await database.saveComment({
+      toiletId,
+      userId,
+      username: user.username,
+      commentText: "Anonymous test comment",
+      commentVisibility: "anonymous"
+    });
+
+    assert.equal(anonymousComments.length, 2);
+    assert.equal(anonymousComments[0].comment_text, "Anonymous test comment");
+    assert.equal(anonymousComments[0].username, "Anonymous");
+    assert.equal(anonymousComments[0].author_name, "Anonymous");
+    assert.equal(anonymousComments[0].comment_visibility, "anonymous");
+    assert.equal(anonymousComments[0].is_anonymous, true);
+    assert.equal(anonymousComments[0].can_delete, true);
+    assert.equal(anonymousComments[0].user_id, null);
+
+    const publicComments = await database.getComments(toiletId);
+    assert.equal(publicComments[0].can_delete, false);
+    assert.equal(publicComments[1].can_delete, false);
+
+    const fetchedComments = await database.getComments(toiletId, { viewerUserId: userId });
+    assert.deepEqual(fetchedComments, anonymousComments);
+  });
+});
+
+test("database toggles one like per user for comments", async () => {
+  await withSeededDatabase(async (database) => {
+    const user = await database.getUserByUsername("demo");
+    const toiletId = "detail-test";
+    const comments = await database.saveComment({
+      toiletId,
+      userId: user.id,
+      username: user.username,
+      commentText: "Likeable comment"
+    });
+    const commentId = comments[0].id;
+
+    const liked = await database.toggleCommentLike({
+      toiletId,
+      commentId,
+      userId: user.id
+    });
+
+    assert.equal(liked.found, true);
+    assert.equal(liked.liked, true);
+    assert.equal(liked.comments[0].like_count, 1);
+    assert.equal(liked.comments[0].viewer_has_liked, true);
+
+    const publicComments = await database.getComments(toiletId);
+    assert.equal(publicComments[0].like_count, 1);
+    assert.equal(publicComments[0].viewer_has_liked, false);
+
+    const unliked = await database.toggleCommentLike({
+      toiletId,
+      commentId,
+      userId: user.id
+    });
+
+    assert.equal(unliked.found, true);
+    assert.equal(unliked.liked, false);
+    assert.equal(unliked.comments[0].like_count, 0);
+    assert.equal(unliked.comments[0].viewer_has_liked, false);
+
+    const missing = await database.toggleCommentLike({
+      toiletId,
+      commentId: 99999,
+      userId: user.id
+    });
+
+    assert.equal(missing.found, false);
+    assert.equal(missing.liked, false);
+  });
+});
+
+test("database only deletes comments owned by the current user", async () => {
+  await withSeededDatabase(async (database) => {
+    const owner = await database.getUserByUsername("demo");
+    const other = await database.createUser({
+      username: "other-delete-user",
+      password: "demo123",
+      email: "other-delete-user@example.com"
+    });
+    const toiletId = "detail-test";
+
+    const ownerComments = await database.saveComment({
+      toiletId,
+      userId: owner.id,
+      username: owner.username,
+      commentText: "Delete my anonymous comment",
+      commentVisibility: "anonymous"
+    });
+    const commentId = ownerComments[0].id;
+
+    const otherDelete = await database.deleteComment({
+      toiletId,
+      commentId,
+      userId: other.id
+    });
+
+    assert.equal(otherDelete.deleted, false);
+    assert.equal(otherDelete.comments.length, 1);
+    assert.equal(otherDelete.comments[0].can_delete, false);
+
+    const ownerDelete = await database.deleteComment({
+      toiletId,
+      commentId,
+      userId: owner.id
+    });
+
+    assert.equal(ownerDelete.deleted, true);
+    assert.equal(ownerDelete.comments.length, 0);
   });
 });
 
