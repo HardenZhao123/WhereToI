@@ -139,7 +139,20 @@
                     <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
                   </div>
                   <section class="comments-section">
-                    <h3>Comments</h3>
+                    <div class="comments-header">
+                      <h3>Comments</h3>
+                      <label class="comment-sort-control" for="comment-sort" aria-label="Sort comments">
+                        <select id="comment-sort" aria-label="Sort comments">
+                          <option value="newest">Newest</option>
+                          <option value="liked">Most liked</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div class="comment-filter-tags" id="comment-filters" aria-label="Comment tags">
+                      <label class="comment-filter-tag"><input type="checkbox" value="media" /> Photo/video</label>
+                      <label class="comment-filter-tag"><input type="checkbox" value="long" /> Long</label>
+                    </div>
+                    <p class="comments-summary" id="comments-summary" aria-live="polite">0 comments - Newest</p>
                     <div id="comments-list" class="comments-list">
                       <p>Loading comments...</p>
                     </div>

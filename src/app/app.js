@@ -116,6 +116,10 @@ export function createApp() {
     elements.commentPresetButtons.forEach((button) => {
       button?.addEventListener("click", () => mapController.applyCommentPreset(button.dataset.commentPreset));
     });
+    elements.commentSortSelect?.addEventListener("change", (event) => mapController.setCommentSortMode(event.target.value));
+    elements.commentFilterInputs.forEach((input) => {
+      input?.addEventListener("change", () => mapController.setCommentFilter(input.value, input.checked));
+    });
     elements.commentForm?.addEventListener("submit", (event) => mapController.postComment(event));
     elements.detailSectionLinks.forEach((link) => {
       link?.addEventListener("click", () => mapController.setDetailSection(link.dataset.detailSection));
