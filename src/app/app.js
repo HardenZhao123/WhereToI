@@ -32,59 +32,54 @@ export function createApp() {
   async function initializeToilets(range = elements.cleanlinessRangeSelect?.value ?? "3days") {
     mapController.setStatus("Loading toilets data...");
 
-    let apiLoadFailed = false;
+    const currentSelectedId = mapController.getSelectedToilet()?.id;
+    const activeSectionLink = elements.detailSectionLinks ? Array.from(elements.detailSectionLinks).find(link => link.classList.contains("is-active")) : null;
+    const currentSection = activeSectionLink ? activeSectionLink.dataset.detailSection : null;
 
-    function setLoadedToilets(toilets) {
+    function setLoadedToilets(toilets, { hideDetails = true } = {}) {
       const southKen = appConfig.initialView;
       const sorted = [...toilets].sort((a, b) => {
         const distA = distanceInMetres(southKen.lat, southKen.lng, a.lat, a.lng);
         const distB = distanceInMetres(southKen.lat, southKen.lng, b.lat, b.lng);
         return distA - distB;
       });
-      mapController.setToilets(sorted);
+
+      mapController.setToilets(sorted, { hideDetails });
+
+      if (currentSelectedId) {
+        mapController.setToilet(currentSelectedId, { 
+          fly: false, 
+          updateDistance: false,
+          defaultSection: currentSection 
+        });
+      }
     }
 
     try {
       const loadedFromApi = await loadToiletsFromApi(range);
 
       if (loadedFromApi.length > 0) {
-        const currentSelectedId = mapController.getSelectedToilet()?.id;
-        const activeSectionLink = elements.detailSectionLinks ? Array.from(elements.detailSectionLinks).find(link => link.classList.contains("is-active")) : null;
-        const currentSection = activeSectionLink ? activeSectionLink.dataset.detailSection : null;
-
-        mapController.setToilets(loadedFromApi, { hideDetails: !currentSelectedId });
-        if (currentSelectedId) {
-          mapController.setToilet(currentSelectedId, { 
-            fly: false, 
-            updateDistance: false,
-            defaultSection: currentSection 
-          });
-        }
+        setLoadedToilets(loadedFromApi, { hideDetails: !currentSelectedId });
         mapController.setStatus(`Loaded ${loadedFromApi.length} toilets from database.`);
         return;
       }
-
-      apiLoadFailed = true;
     } catch (error) {
-      apiLoadFailed = true;
       console.error("Toilets API loading failed:", error);
     }
-
-    if (!apiLoadFailed) return;
 
     try {
       const loadedFromCsv = await loadToiletsFromCsv();
       if (loadedFromCsv.length > 0) {
-        setLoadedToilets(loadedFromCsv);
+        setLoadedToilets(loadedFromCsv, { hideDetails: !currentSelectedId });
         mapController.setStatus(`Database unavailable. Loaded ${loadedFromCsv.length} toilets from CSV fallback.`);
         return;
       }
 
-      setLoadedToilets(fallbackToilets);
+      setLoadedToilets(fallbackToilets, { hideDetails: !currentSelectedId });
       mapController.setStatus("Dataset was empty. Showing sample toilets instead.");
     } catch (error) {
       console.error("CSV loading failed:", error);
-      setLoadedToilets(fallbackToilets);
+      setLoadedToilets(fallbackToilets, { hideDetails: !currentSelectedId });
       mapController.setStatus("Could not load API or CSV data. Showing sample toilets instead.");
     }
   }
