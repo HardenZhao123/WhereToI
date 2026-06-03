@@ -10,6 +10,7 @@ import {
   mapCommentRow,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
+  normaliseCommentDeletePayload,
   normaliseCommentPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
@@ -611,7 +612,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         history: await this.getAccessHistory(userId, 10)
       };
     },
-    async getComments(toiletId) {
+    async getComments(toiletId, { viewerUserId = null } = {}) {
       if (!toiletId) return [];
 
       const result = await pool.query(
@@ -637,7 +638,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         [toiletId]
       );
 
-      return result.rows.map(mapCommentRow);
+      return result.rows.map((row) => mapCommentRow(row, { viewerUserId }));
     },
     async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
       const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility });
@@ -679,7 +680,24 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         ]
       );
 
-      return this.getComments(comment.toiletId);
+      return this.getComments(comment.toiletId, { viewerUserId: userId });
+    },
+    async deleteComment({ toiletId, commentId, userId }) {
+      const comment = normaliseCommentDeletePayload({ toiletId, commentId });
+      const result = await pool.query(
+        `
+        DELETE FROM toilet_comments
+        WHERE id = $1
+          AND toilet_id = $2
+          AND user_id = $3
+        `,
+        [comment.commentId, comment.toiletId, userId]
+      );
+
+      return {
+        deleted: result.rowCount > 0,
+        comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+      };
     }
   };
 }

@@ -33,6 +33,7 @@ await Promise.all(requiredFiles.map((file) => access(resolve(file))));
 
 const html = await readFile("index.html", "utf8");
 const css = await readFile("src/styles.css", "utf8");
+const server = await readFile("server/app-server.mjs", "utf8");
 const jsFiles = requiredFiles.filter((file) => file.startsWith("src/") && file.endsWith(".js"));
 const js = (await Promise.all(jsFiles.map((file) => readFile(file, "utf8")))).join("\n");
 
@@ -136,6 +137,18 @@ if (
   !css.includes(".comment-anonymous-option")
 ) {
   throw new Error("Expected comments to support a non-default Anonymous checkbox and public author display.");
+}
+
+if (
+  !server.includes("\"DELETE /api/comments\"") ||
+  !server.includes("deleteComment") ||
+  !js.includes("createCommentActions") ||
+  !js.includes("comment.can_delete") ||
+  !js.includes("deleteOwnComment") ||
+  !css.includes(".comment-menu-button") ||
+  !css.includes(".comment-delete-button")
+) {
+  throw new Error("Expected users to delete their own comments through a three-dot comment menu.");
 }
 
 if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {

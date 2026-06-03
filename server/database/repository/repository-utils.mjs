@@ -132,11 +132,21 @@ function parseCommentMediaAttachments(row) {
   return [];
 }
 
-export function mapCommentRow(row) {
+export function mapCommentRow(row, { viewerUserId = null } = {}) {
   if (!row) return row;
 
   const commentVisibility = normaliseStoredCommentVisibility(row);
   const isAnonymous = commentVisibility === "anonymous";
+  const hasOwnerUserId = row.user_id !== null && row.user_id !== undefined;
+  const hasViewerUserId = viewerUserId !== null && viewerUserId !== undefined;
+  const ownerUserId = Number(row.user_id);
+  const currentViewerUserId = Number(viewerUserId);
+  const canDelete =
+    hasOwnerUserId &&
+    hasViewerUserId &&
+    Number.isInteger(ownerUserId) &&
+    Number.isInteger(currentViewerUserId) &&
+    ownerUserId === currentViewerUserId;
   const authorName = isAnonymous
     ? ANONYMOUS_COMMENT_AUTHOR
     : normaliseText(row.username) || ANONYMOUS_COMMENT_AUTHOR;
@@ -148,6 +158,7 @@ export function mapCommentRow(row) {
     comment_visibility: commentVisibility,
     author_name: authorName,
     is_anonymous: isAnonymous,
+    can_delete: canDelete,
     media_attachments: parseCommentMediaAttachments(row)
   };
 }
@@ -181,6 +192,20 @@ export function normaliseCommentPayload({ toiletId, commentText, media = null, c
     commentText: safeCommentText,
     commentVisibility: normaliseCommentVisibility(commentVisibility),
     ...normaliseCommentMedia(media)
+  };
+}
+
+export function normaliseCommentDeletePayload({ toiletId, commentId }) {
+  const safeToiletId = normaliseText(toiletId);
+  const safeCommentId = Number(commentId);
+
+  if (!safeToiletId || !Number.isInteger(safeCommentId) || safeCommentId <= 0) {
+    throw new Error("toiletId and commentId are required.");
+  }
+
+  return {
+    toiletId: safeToiletId,
+    commentId: safeCommentId
   };
 }
 

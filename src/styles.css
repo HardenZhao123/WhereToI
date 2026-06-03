@@ -726,11 +726,81 @@ mark {
   background: #f6f8f4;
 }
 
+.comment-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .comment-author {
   margin-bottom: 4px;
   font-size: 11px;
   font-weight: 700;
   color: var(--ink);
+}
+
+.comment-actions {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.comment-menu-button {
+  display: inline-flex;
+  min-width: 28px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.comment-menu-button:hover,
+.comment-menu-button:focus-visible {
+  border-color: var(--line);
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.comment-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 96px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.comment-menu[hidden] {
+  display: none;
+}
+
+.comment-delete-button {
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.comment-delete-button:hover,
+.comment-delete-button:focus-visible {
+  background: #fff1f0;
 }
 
 .comment-text {

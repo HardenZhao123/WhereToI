@@ -1,5 +1,10 @@
 import { appConfig } from "../config/app-config.js";
-import { fetchComments, submitCleanlinessSurvey, submitComment } from "../services/toilets-service.js";
+import {
+  deleteComment as deleteCommentRequest,
+  fetchComments,
+  submitCleanlinessSurvey,
+  submitComment
+} from "../services/toilets-service.js";
 import {
   formatCleanlinessRating,
   formatCleanlinessRatingCount,
@@ -77,6 +82,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let cleanlinessSurveyAnswers = loadSurveyAnswers();
   let selectedRating = null;
   let selectedCommentMedia = [];
+
+  document.addEventListener("click", closeOpenCommentMenus);
 
   function loadSurveyAnswers() {
     try {
@@ -466,9 +473,18 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       const item = document.createElement("div");
       item.className = "comment-item";
 
+      const header = document.createElement("div");
+      header.className = "comment-header";
+
       const author = document.createElement("p");
       author.className = "comment-author";
       author.textContent = comment.author_name || comment.username || "Anonymous";
+
+      header.append(author);
+
+      if (comment.can_delete) {
+        header.append(createCommentActions(comment));
+      }
 
       const text = document.createElement("p");
       text.className = "comment-text";
@@ -480,12 +496,82 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       date.className = "comment-date";
       date.textContent = new Date(comment.created_at).toLocaleString();
 
-      item.append(author);
+      item.append(header);
       item.append(text);
       if (media) item.append(media);
       item.append(date);
       commentsList.append(item);
     });
+  }
+
+  function closeOpenCommentMenus() {
+    commentsList?.querySelectorAll(".comment-menu").forEach((menu) => {
+      menu.hidden = true;
+    });
+
+    commentsList?.querySelectorAll(".comment-menu-button").forEach((button) => {
+      button.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  function createCommentActions(comment) {
+    const actions = document.createElement("div");
+    actions.className = "comment-actions";
+
+    const menuButton = document.createElement("button");
+    menuButton.className = "comment-menu-button";
+    menuButton.type = "button";
+    menuButton.textContent = "...";
+    menuButton.setAttribute("aria-label", "Comment options");
+    menuButton.setAttribute("aria-haspopup", "menu");
+    menuButton.setAttribute("aria-expanded", "false");
+
+    const menu = document.createElement("div");
+    menu.className = "comment-menu";
+    menu.hidden = true;
+    menu.setAttribute("role", "menu");
+
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "comment-delete-button";
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete";
+    deleteButton.setAttribute("role", "menuitem");
+    deleteButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteOwnComment(comment);
+    });
+
+    menuButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const shouldOpen = menu.hidden;
+      closeOpenCommentMenus();
+      menu.hidden = !shouldOpen;
+      menuButton.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+    });
+
+    menu.append(deleteButton);
+    actions.append(menuButton, menu);
+    return actions;
+  }
+
+  async function deleteOwnComment(comment) {
+    if (!selectedToilet || !comment?.id) return;
+    closeOpenCommentMenus();
+
+    const confirmed = window.confirm("Delete this comment?");
+    if (!confirmed) return;
+
+    try {
+      const updatedComments = await deleteCommentRequest(selectedToilet.id, comment.id);
+      renderComments(updatedComments);
+    } catch (error) {
+      console.error("Failed to delete comment:", error);
+      if (error.status === 401) {
+        showLoginPrompt("Log in to delete a comment.");
+        return;
+      }
+      alert(error?.message || "Could not delete comment. Please try again later.");
+    }
   }
 
   function getCommentVisibility() {

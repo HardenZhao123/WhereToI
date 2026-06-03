@@ -13,6 +13,7 @@ import {
   mapCommentRow,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
+  normaliseCommentDeletePayload,
   normaliseCommentPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
@@ -448,7 +449,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         history: await this.getAccessHistory(userId, 10)
       };
     },
-    async getComments(toiletId) {
+    async getComments(toiletId, { viewerUserId = null } = {}) {
       if (!toiletId) return [];
 
       return db
@@ -474,7 +475,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
           `
         )
         .all(toiletId)
-        .map(mapCommentRow);
+        .map((row) => mapCommentRow(row, { viewerUserId }));
     },
     async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
       const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility });
@@ -515,7 +516,25 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         nowIso
       );
 
-      return this.getComments(comment.toiletId);
+      return this.getComments(comment.toiletId, { viewerUserId: userId });
+    },
+    async deleteComment({ toiletId, commentId, userId }) {
+      const comment = normaliseCommentDeletePayload({ toiletId, commentId });
+      const result = db
+        .prepare(
+          `
+          DELETE FROM toilet_comments
+          WHERE id = ?
+            AND toilet_id = ?
+            AND user_id = ?
+          `
+        )
+        .run(comment.commentId, comment.toiletId, userId);
+
+      return {
+        deleted: result.changes > 0,
+        comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+      };
     }
   };
 }

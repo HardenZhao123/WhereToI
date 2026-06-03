@@ -243,9 +243,10 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 
       sendJson(response, 201, result);
     },
-    "GET /api/comments": async ({ response, url }) => {
+    "GET /api/comments": async ({ request, response, url }) => {
+      const userId = getSessionUserId(request);
       const toiletId = url.searchParams.get("toiletId");
-      const comments = await database.getComments(toiletId);
+      const comments = await database.getComments(toiletId, { viewerUserId: userId });
 
       sendJson(response, 200, { comments });
     },
@@ -268,6 +269,28 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       });
 
       sendJson(response, 201, { comments });
+    },
+    "DELETE /api/comments": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendJson(response, 401, { error: "Log in to delete comments." });
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const result = await database.deleteComment({
+        toiletId: body.toiletId,
+        commentId: body.commentId,
+        userId
+      });
+
+      if (!result.deleted) {
+        sendJson(response, 404, { error: "Comment not found." });
+        return;
+      }
+
+      sendJson(response, 200, { comments: result.comments });
     }
   };
 }

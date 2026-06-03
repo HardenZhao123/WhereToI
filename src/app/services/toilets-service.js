@@ -43,3 +43,11 @@ export async function submitComment(toiletId, commentText, media = [], commentVi
   });
   return payload.comments || [];
 }
+
+export async function deleteComment(toiletId, commentId) {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/comments`, {
+    method: "DELETE",
+    body: JSON.stringify({ toiletId, commentId })
+  });
+  return payload.comments || [];
+}
