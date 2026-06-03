@@ -49,6 +49,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     detailSectionLinks = [],
     detailPanels = [],
     commentsList,
+    commentComposer,
+    commentComposerToggle,
     commentForm,
     commentInput,
     commentAnonymousInput,
@@ -633,6 +635,64 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return commentAnonymousInput?.checked ? "anonymous" : "real";
   }
 
+  function setCommentComposerOpen(open) {
+    const shouldOpen = Boolean(open && selectedToilet && commentComposer);
+
+    if (commentComposer) {
+      commentComposer.hidden = !shouldOpen;
+      commentComposer.classList.toggle("is-hidden", !shouldOpen);
+    }
+
+    if (commentComposerToggle) {
+      commentComposerToggle.classList.toggle("is-active", shouldOpen);
+      commentComposerToggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+      commentComposerToggle.textContent = shouldOpen ? "Hide editor" : "Write comment";
+    }
+
+    mapPanel?.classList.toggle("has-comment-composer", shouldOpen);
+
+    if (shouldOpen) {
+      requestAnimationFrame(() => commentInput?.focus());
+    }
+  }
+
+  function setCommentComposerAvailable(available) {
+    const shouldShow = Boolean(available && selectedToilet && commentComposerToggle);
+
+    if (commentComposerToggle) {
+      commentComposerToggle.hidden = !shouldShow;
+      commentComposerToggle.classList.toggle("is-hidden", !shouldShow);
+    }
+
+    if (!shouldShow) {
+      setCommentComposerOpen(false);
+    }
+  }
+
+  function toggleCommentComposer() {
+    setCommentComposerOpen(commentComposer?.hidden ?? true);
+  }
+
+  function closeCommentComposer() {
+    setCommentComposerOpen(false);
+  }
+
+  function applyCommentPreset(presetText) {
+    const preset = String(presetText ?? "").trim();
+    if (!commentInput || !preset) return;
+
+    const currentText = commentInput.value.trim();
+    if (currentText.includes(preset)) {
+      commentInput.focus();
+      return;
+    }
+
+    commentInput.value = currentText ? `${currentText}\n${preset}` : preset;
+    commentInput.dispatchEvent(new Event("input", { bubbles: true }));
+    commentInput.focus();
+    commentInput.setSelectionRange?.(commentInput.value.length, commentInput.value.length);
+  }
+
   function setDetailSection(sectionName = "features") {
     const hasPanel = [...detailPanels].some((panel) => panel.dataset.detailPanel === sectionName);
     const nextSection = hasPanel ? sectionName : "features";
@@ -818,6 +878,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   function hideToiletDetails() {
     selectedToilet = null;
     selectedRating = null;
+    setCommentComposerAvailable(false);
     detailsCard?.classList.add("is-hidden");
     mapPanel?.classList.remove("has-details");
 
@@ -867,6 +928,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     selectedToilet = toilet;
     selectedRating = null;
+    closeCommentComposer();
+    setCommentComposerAvailable(true);
     setDetailSection("features");
     detailsCard?.classList.remove("is-hidden");
     mapPanel?.classList.add("has-details");
@@ -1302,6 +1365,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       renderComments(updatedComments);
       commentInput.value = "";
       resetCommentMediaAttachment();
+      closeCommentComposer();
     } catch (error) {
       console.error("Failed to post comment:", error);
       if (error.status === 401) {
@@ -1336,6 +1400,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     submitCleanlinessSurveySelection,
     answerCleanlinessSurvey,
     postComment,
+    toggleCommentComposer,
+    closeCommentComposer,
+    applyCommentPreset,
     previewCommentMediaSelection,
     removeCommentMediaSelection,
     applyProfilePreferences
