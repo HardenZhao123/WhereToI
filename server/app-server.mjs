@@ -235,6 +235,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 
       const body = await readJsonBody(request);
       const result = await database.recordCleanlinessSurvey({
+        userId,
         toiletId: normaliseOptionalToiletId(body.toiletId),
         toiletName: body.toiletName,
         rating: body.rating,

@@ -75,7 +75,9 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       password_hash TEXT NOT NULL,
       email TEXT,
       gender TEXT,
-      preferences TEXT
+      preferences TEXT,
+      rating_total INTEGER NOT NULL DEFAULT 0,
+      rating_count INTEGER NOT NULL DEFAULT 0
     ) STRICT;
 
     CREATE TABLE IF NOT EXISTS app_account (
@@ -261,10 +263,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
     },
     async getUserByUsername(username) {
-      return db.prepare("SELECT id, username, password_hash, email, gender, preferences FROM users WHERE username = ?").get(username);
+      return db.prepare("SELECT id, username, password_hash, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias FROM users WHERE username = ?").get(username);
     },
     async getUserById(userId) {
-      return db.prepare("SELECT id, username, email, gender, preferences FROM users WHERE id = ?").get(userId);
+      return db.prepare("SELECT id, username, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias FROM users WHERE id = ?").get(userId);
     },
     async updateUserProfile(userId, { gender, preferences }) {
       db.prepare(
@@ -327,7 +329,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         );
       });
     },
-    async recordCleanlinessSurvey({ toiletId = null, toiletName = "", rating, answer }) {
+    async recordCleanlinessSurvey({ userId = null, toiletId = null, toiletName = "", rating, answer }) {
       const { safeToiletId, safeToiletName, safeRating } = normaliseCleanlinessSurveyPayload({
         toiletId,
         toiletName,
@@ -335,14 +337,30 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         answer
       });
 
+      let userAverageRating = 3;
+      let userStandardDeviation = 1;
+      let userBias = 0.0;
+      if (userId) {
+        const userRow = db.prepare("SELECT rating_total, rating_count, rating_sum_squares, bias FROM users WHERE id = ?").get(userId);
+        if (userRow) {
+          userAverageRating = userRow.rating_count > 0 ? userRow.rating_total / userRow.rating_count : 3;
+          userBias = Number(userRow.bias ?? 0.0);
+          
+          if (userRow.rating_count > 1) {
+            const variance = (userRow.rating_sum_squares / userRow.rating_count) - (userAverageRating * userAverageRating);
+            userStandardDeviation = Math.sqrt(Math.max(variance, 0));
+          }
+        }
+      }
+
       const row = safeToiletId
         ? db
-            .prepare("SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count FROM toilets WHERE id = ?")
+            .prepare("SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias FROM toilets WHERE id = ?")
             .get(safeToiletId)
         : db
             .prepare(
               `
-              SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count
+              SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias
               FROM toilets
               WHERE LOWER(name) = LOWER(?)
               LIMIT 1
@@ -354,19 +372,37 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         throw new Error("toilet not found.");
       }
 
-      const { cleanliness, ratingTotal, ratingCount } = toCleanlinessUpdate({
+      const globalStats = db.prepare("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users").get();
+      const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
+      let globalStandardDeviation = 1;
+      if (globalStats.count > 1) {
+        const globalVariance = (globalStats.sum_squares / globalStats.count) - (globalAverageRating * globalAverageRating);
+        globalStandardDeviation = Math.sqrt(Math.max(globalVariance, 0));
+      }
+
+      const { cleanliness, ratingTotal, ratingCount, ratingSumSquares, newUserBias, newToiletBias } = toCleanlinessUpdate({
         row,
         rating: safeRating,
+        userAverageRating,
+        userStandardDeviation,
+        userBias,
+        globalAverageRating,
+        globalStandardDeviation,
         cleanlinessScoringModel
       });
+
+      if (userId) {
+        db.prepare("UPDATE users SET rating_total = rating_total + ?, rating_count = rating_count + 1, rating_sum_squares = rating_sum_squares + ?, bias = ? WHERE id = ?")
+          .run(safeRating, safeRating * safeRating, newUserBias ?? userBias, userId);
+      }
 
       db.prepare(
         `
         UPDATE toilets
-        SET cleanliness = ?, cleanliness_rating_total = ?, cleanliness_rating_count = ?
+        SET cleanliness = ?, cleanliness_rating_total = ?, cleanliness_rating_count = ?, cleanliness_rating_sum_squares = ?, bias = ?
         WHERE id = ?
         `
-      ).run(cleanliness, ratingTotal, ratingCount, row.id);
+      ).run(cleanliness, ratingTotal, ratingCount, ratingSumSquares, newToiletBias ?? row.bias ?? 0.0, row.id);
 
       return mapCleanlinessSurveyResponse({
         row,
