@@ -110,7 +110,12 @@ export function createApp() {
       mapController.submitCleanlinessSurveySelection()
     );
 
+    elements.commentComposerToggle?.addEventListener("click", () => mapController.toggleCommentComposer());
+    elements.closeCommentComposerButton?.addEventListener("click", () => mapController.closeCommentComposer());
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
+    elements.commentPresetButtons.forEach((button) => {
+      button?.addEventListener("click", () => mapController.applyCommentPreset(button.dataset.commentPreset));
+    });
     elements.commentForm?.addEventListener("submit", (event) => mapController.postComment(event));
     elements.detailSectionLinks.forEach((link) => {
       link?.addEventListener("click", () => mapController.setDetailSection(link.dataset.detailSection));

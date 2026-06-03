@@ -14,7 +14,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./src/styles.css?v=comment-identity-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=comment-presets-1" />
   </head>
   <body>
     <main class="app-shell" aria-label="WhereToI web app">
@@ -143,21 +143,6 @@
                     <div id="comments-list" class="comments-list">
                       <p>Loading comments...</p>
                     </div>
-                    <form id="comment-form" class="comment-form">
-                      <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
-                      <label class="comment-anonymous-option">
-                        <input id="comment-anonymous" type="checkbox" />
-                        Anonymous
-                      </label>
-                      <div class="comment-media-field">
-                        <span class="comment-media-label">Attach image or video</span>
-                        <label for="comment-media" class="comment-media-browse">Browse</label>
-                        <input id="comment-media" type="file" accept="image/*,video/*" multiple class="is-hidden" />
-                        <div class="comment-media-preview" id="comment-media-preview" aria-live="polite"></div>
-                        <p class="comment-media-status" id="comment-media-status" aria-live="polite">Up to 9 attachments total, including up to 3 videos.</p>
-                      </div>
-                      <button type="submit" id="submit-comment">Post Comment</button>
-                    </form>
                   </section>
                 </section>
                 <section class="details-panel" id="details-survey-panel" data-detail-panel="survey" aria-labelledby="details-survey-link" hidden>
@@ -179,6 +164,49 @@
                 </section>
               </div>
             </article>
+            <button class="comment-composer-toggle is-hidden" id="comment-composer-toggle" type="button" aria-controls="comment-composer" aria-expanded="false">
+              Write comment
+            </button>
+            <section class="comment-composer is-hidden" id="comment-composer" aria-labelledby="comment-composer-title" hidden>
+              <header class="comment-composer-header">
+                <h3 id="comment-composer-title">Write comment</h3>
+                <button class="close-button" id="close-comment-composer" type="button" aria-label="Close comment editor">X</button>
+              </header>
+              <form id="comment-form" class="comment-form">
+                <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
+                <div class="comment-preset-tags" aria-label="Quick comment tags">
+                  <span class="comment-preset-label">Quick tags</span>
+                  <button type="button" data-comment-preset="The space is roomy enough to turn around and place a bag.">Spacious</button>
+                  <button type="button" data-comment-preset="Toilet seat covers are available.">Seat covers</button>
+                  <button type="button" data-comment-preset="The entrance is easy to find from the signs.">Easy to find</button>
+                  <button type="button" data-comment-preset="Period products or hygiene supplies are available.">Hygiene supplies</button>
+                  <button type="button" data-comment-preset="This toilet is free to use without making a purchase.">Free</button>
+                  <button type="button" data-comment-preset="The queue was short when I visited.">Short queue</button>
+                  <button type="button" data-comment-preset="It felt clean overall and did not have a strong smell.">Clean</button>
+                  <button type="button" data-comment-preset="It was open when the app said it would be.">Open as listed</button>
+                  <button type="button" data-comment-preset="There is an accessible stall.">Accessible stall</button>
+                  <button type="button" data-comment-preset="Baby changing facilities are available.">Baby changing</button>
+                  <button type="button" data-comment-preset="Gender-neutral access is available.">Gender-neutral</button>
+                  <button type="button" data-comment-preset="There is washing or bidet support.">Washing support</button>
+                  <button type="button" data-comment-preset="Soap was available at the sink.">Soap available</button>
+                  <button type="button" data-comment-preset="The hand dryer or paper towels were working.">Drying works</button>
+                  <button type="button" data-comment-preset="The lighting felt safe and clear.">Good lighting</button>
+                  <button type="button" data-comment-preset="It felt private enough to use comfortably.">Private enough</button>
+                </div>
+                <label class="comment-anonymous-option">
+                  <input id="comment-anonymous" type="checkbox" />
+                  Anonymous
+                </label>
+                <div class="comment-media-field">
+                  <span class="comment-media-label">Attach image or video</span>
+                  <label for="comment-media" class="comment-media-browse">Browse</label>
+                  <input id="comment-media" type="file" accept="image/*,video/*" multiple class="is-hidden" />
+                  <div class="comment-media-preview" id="comment-media-preview" aria-live="polite"></div>
+                  <p class="comment-media-status" id="comment-media-status" aria-live="polite">Up to 9 attachments total, including up to 3 videos.</p>
+                </div>
+                <button type="submit" id="submit-comment">Post Comment</button>
+              </form>
+            </section>
           </section>
 
             <section class="view view-account" id="account-panel" aria-labelledby="account-tab">
@@ -250,7 +278,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./src/main.js?v=comment-identity-1" type="module"></script>
+    <script src="./src/main.js?v=comment-presets-1" type="module"></script>
     <section class="auth-modal is-hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div class="auth-dialog">
         <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px;">

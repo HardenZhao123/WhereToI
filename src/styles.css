@@ -877,7 +877,7 @@ mark {
 }
 
 .comment-form {
-  margin-top: 12px;
+  margin-top: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -891,6 +891,109 @@ mark {
   border-radius: 8px;
   font-size: 12px;
   resize: vertical;
+}
+
+.comment-preset-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.comment-preset-label {
+  flex: 1 0 100%;
+  color: #142c72;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.comment-preset-tags button {
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid #d8dfd6;
+  border-radius: 999px;
+  color: #142c72;
+  background: #fbfdf8;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.comment-preset-tags button:hover,
+.comment-preset-tags button:focus-visible {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+}
+
+.comment-preset-tags button:active {
+  color: white;
+  background: var(--teal);
+}
+
+.comment-composer-toggle {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  z-index: 7;
+  min-height: 42px;
+  min-width: 150px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  color: white;
+  background: var(--teal);
+  box-shadow: 0 10px 26px rgb(31 42 51 / 18%);
+  font-size: 13px;
+  font-weight: 800;
+  transform: translateX(-50%);
+}
+
+.comment-composer-toggle:hover,
+.comment-composer-toggle:focus-visible {
+  background: #1f6357;
+}
+
+.comment-composer-toggle.is-hidden,
+.comment-composer.is-hidden {
+  display: none;
+}
+
+.comment-composer {
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+  left: 18px;
+  z-index: 8;
+  max-height: min(410px, 52vh);
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 18px 48px rgb(31 42 51 / 16%);
+}
+
+.comment-composer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.comment-composer-header h3 {
+  color: #142c72;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.comment-composer .close-button {
+  width: 28px;
+  height: 28px;
+}
+
+.view-map.has-comment-composer .comment-composer-toggle {
+  display: none;
 }
 
 .comment-anonymous-option {
