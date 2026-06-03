@@ -29,7 +29,7 @@ export function createApp() {
     onMapTabActivated: () => mapController.refreshAfterTabVisible()
   });
 
-  async function initializeToilets() {
+  async function initializeToilets(range = elements.cleanlinessRangeSelect?.value ?? "3days") {
     mapController.setStatus("Loading toilets data...");
 
     let apiLoadFailed = false;
@@ -45,10 +45,21 @@ export function createApp() {
     }
 
     try {
-      const loadedFromApi = await loadToiletsFromApi();
+      const loadedFromApi = await loadToiletsFromApi(range);
 
       if (loadedFromApi.length > 0) {
-        setLoadedToilets(loadedFromApi);
+        const currentSelectedId = mapController.getSelectedToilet()?.id;
+        const activeSectionLink = elements.detailSectionLinks ? Array.from(elements.detailSectionLinks).find(link => link.classList.contains("is-active")) : null;
+        const currentSection = activeSectionLink ? activeSectionLink.dataset.detailSection : null;
+
+        mapController.setToilets(loadedFromApi, { hideDetails: !currentSelectedId });
+        if (currentSelectedId) {
+          mapController.setToilet(currentSelectedId, { 
+            fly: false, 
+            updateDistance: false,
+            defaultSection: currentSection 
+          });
+        }
         mapController.setStatus(`Loaded ${loadedFromApi.length} toilets from database.`);
         return;
       }
@@ -97,6 +108,7 @@ export function createApp() {
       mapController.setSearchQuery(event.target.value);
     });
     elements.sortSelect?.addEventListener("change", (event) => mapController.setSortMode(event.target.value));
+    elements.cleanlinessRangeSelect?.addEventListener("change", (event) => initializeToilets(event.target.value));
     elements.featureFilterInputs.forEach((input) => {
       input?.addEventListener("change", () => mapController.setFeatureFilter(input.value, input.checked));
     });

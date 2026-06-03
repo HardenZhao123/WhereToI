@@ -1206,6 +1206,42 @@ mark {
   opacity: 0.65;
 }
 
+.star-rating-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cleanliness-range-select {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background-color: var(--teal-soft);
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23287666' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+
+.cleanliness-range-select:hover {
+  border-color: var(--teal);
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.cleanliness-range-select:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 2px var(--teal-soft);
+}
+
 .map-cleanliness-survey {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1252,6 +1288,11 @@ mark {
 
 .survey-status {
   grid-column: 1 / -1;
+}
+
+.survey-status.warning {
+  color: #d93025; /* Red color for warnings */
+  font-weight: 500;
 }
 
 .view-account {

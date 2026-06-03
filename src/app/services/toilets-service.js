@@ -3,8 +3,8 @@ import { parseCsv, rowsToObjects } from "../utils/csv.js";
 import { mapRecordToToilet } from "../toilets/toilet-record-mapper.js";
 import { fetchJson } from "./http-client.js";
 
-export async function loadToiletsFromApi() {
-  const payload = await fetchJson(`${appConfig.apiBasePath}/toilets`);
+export async function loadToiletsFromApi(cleanlinessRange = "3days") {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`);
   if (!Array.isArray(payload.toilets)) {
     throw new Error("Invalid toilets API response.");
   }

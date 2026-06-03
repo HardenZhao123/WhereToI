@@ -197,7 +197,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         mapSurveyStatus.textContent = `You've selected ${selectedRating}/5 stars. Click submit to save.`;
       } else {
         mapSurveyStatus.textContent = hasRating
-          ? `Thanks, your ${rating}/5 rating has been saved.`
+          ? `Thanks! You can rate this toilet again in 30 minutes.`
           : isAuthenticated()
             ? "Choose 1 to 5 stars to help others."
             : "Log in or sign up to rate cleanliness.";
@@ -953,7 +953,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function setToilet(toiletId) {
+  function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "features" } = {}) {
     const toilet = allToilets.find((item) => item.id === toiletId);
     if (!toilet) return;
 
@@ -961,7 +961,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     selectedRating = null;
     closeCommentComposer();
     setCommentComposerAvailable(true);
-    setDetailSection("features");
+    
+    if (defaultSection) {
+      setDetailSection(defaultSection);
+    }
+
     detailsCard?.classList.remove("is-hidden");
     mapPanel?.classList.add("has-details");
 
@@ -986,7 +990,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     document.querySelector("#hours-today").textContent = toilet.hours.today;
     document.querySelector("#hours-sat").textContent = toilet.hours.sat;
     document.querySelector("#hours-sun").textContent = toilet.hours.sun;
-    document.querySelector("#distance-line").textContent = formatToiletDistance(toilet);
+    
+    if (updateDistance) {
+      document.querySelector("#distance-line").textContent = formatToiletDistance(toilet);
+    }
+
     renderCleanlinessSurvey(toilet);
     renderCleanlinessRating(toilet);
 
@@ -1008,9 +1016,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         });
     }
 
-    const marker = markerById.get(toilet.id);
-    if (marker && map) {
-      map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 16), { duration: 0.45 });
+    if (fly) {
+      const marker = markerById.get(toilet.id);
+      if (marker && map) {
+        map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 16), { duration: 0.45 });
+      }
     }
 
     renderResults();
@@ -1155,11 +1165,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return true;
   }
 
-  function setToilets(nextToilets) {
+  function setToilets(nextToilets, { hideDetails = true } = {}) {
     allToilets = [...nextToilets];
     filteredToilets = [...allToilets];
     refreshFilteredDisplay();
-    hideToiletDetails();
+
+    if (hideDetails) {
+      hideToiletDetails();
+    }
   }
 
   function refreshAfterTabVisible() {
@@ -1296,6 +1309,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (!Number.isInteger(safeRating) || safeRating < 1 || safeRating > 5) return;
 
     selectedRating = safeRating;
+    if (mapSurveyStatus) {
+      mapSurveyStatus.classList.remove("warning");
+    }
     renderCleanlinessSurvey(selectedToilet);
   }
 
@@ -1324,6 +1340,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     if (mapSurveyStatus) {
+      mapSurveyStatus.classList.remove("warning");
       mapSurveyStatus.textContent = "Saving rating to database...";
     }
 
@@ -1345,6 +1362,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       console.error("Cleanliness survey failed:", error);
       if (error.status === 401) {
         if (mapSurveyStatus) {
+          mapSurveyStatus.classList.add("warning");
           mapSurveyStatus.textContent = "Log in or sign up to rate cleanliness.";
         }
         showLoginPrompt("Log in or sign up to rate cleanliness.");
@@ -1352,7 +1370,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       }
 
       if (mapSurveyStatus) {
-        mapSurveyStatus.textContent = "Could not save to database. Saved on this device only.";
+        mapSurveyStatus.classList.add("warning");
+        mapSurveyStatus.textContent = error.message || "Could not save to database. Saved on this device only.";
       }
     }
 
@@ -1428,6 +1447,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     hideToiletDetails,
     refreshAfterTabVisible,
     getSelectedToilet,
+    setToilet,
     updateToiletCleanliness,
     selectCleanlinessRating,
     submitCleanlinessSurveySelection,

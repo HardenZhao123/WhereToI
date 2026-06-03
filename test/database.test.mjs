@@ -41,7 +41,7 @@ test("SQLite database seeds and returns expanded toilet feature data", async () 
     const toilets = await database.getToilets();
     const detailToilet = toilets.find((toilet) => toilet.id === "detail-test");
 
-    assert.equal(toilets.length, 2);
+    assert.equal(toilets.length, 7);
     assert.equal(detailToilet.features.babyChanging, "Y");
     assert.equal(detailToilet.features.bidet, "Y");
     assert.equal(detailToilet.features.radarKey, "Y");
@@ -55,7 +55,7 @@ test("SQLite database keeps accessible-only filtering behavior", async () => {
 
     assert.deepEqual(
       toilets.map((toilet) => toilet.id),
-      ["detail-test"]
+      ["detail-test", "extra-test-1", "extra-test-2", "extra-test-3", "extra-test-4", "extra-test-5"]
     );
   });
 });
@@ -295,23 +295,13 @@ test("Z-Score Model adjusts rating based on user distribution", async () => {
     // 1. Establish a distribution for the user: ratings 1 and 5.
     // userAvg = 3. userSumSquares = 1^2 + 5^2 = 26.
     // userVar = 26/2 - 3^2 = 13 - 9 = 4. userStd = 2.
-    await database.recordCleanlinessSurvey({ userId, toiletId: otherToiletId, rating: 1 });
-    await database.recordCleanlinessSurvey({ userId, toiletId: otherToiletId, rating: 5 });
+    await database.recordCleanlinessSurvey({ userId, toiletId: "extra-test-1", rating: 1 });
+    await database.recordCleanlinessSurvey({ userId, toiletId: "extra-test-2", rating: 5 });
 
     // 2. Submit a 5-star rating for our target toilet.
-    // userAvg = 3. userStd = 2.
-    // Global stats will be same as user if they are the only one: globalAvg = 3, globalStd = 2.
-    // z = (5 - 3) / 2 = 1.
-    // adjustedRating = globalStd * z + globalAvg = 2 * 1 + 3 = 5.
-    
-    // Wait, if I want to see an ADJUSTMENT, I need different global stats or a different rating.
-    // Let's say we want to see it pull towards a global mean of 3 with global std of 1.
-    // If I add another user who is very "average" (3, 3), then global stats change.
-    
-    // For simplicity, let's just check if it calculates SOMETHING reasonable.
     const result = await database.recordCleanlinessSurvey({
       userId,
-      toiletId,
+      toiletId: "extra-test-3",
       rating: 5
     });
 
@@ -345,7 +335,7 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
     
     const result = await database.recordCleanlinessSurvey({
       userId,
-      toiletId,
+      toiletId: "extra-test-4",
       rating: 5
     });
 
@@ -356,9 +346,8 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
     // So the second rating might already be high.
     
     // Just verify that we can keep recording and biases update.
-    for (let i = 0; i < 20; i++) {
-      await database.recordCleanlinessSurvey({ userId, toiletId, rating: 5 });
-    }
+    // We need to use different toilets to avoid the 30-minute cooldown
+    await database.recordCleanlinessSurvey({ userId, toiletId: "extra-test-5", rating: 5 });
     
     const finalUser = await database.getUserById(userId);
     assert.ok(Math.abs(finalUser.bias) > 0);
