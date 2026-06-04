@@ -42,6 +42,12 @@ const COMMENT_PROFILE_VISIBILITY_COLUMN = {
   postgresDefinition: "TEXT NOT NULL DEFAULT 'private'"
 };
 
+const COMMENT_CLEANLINESS_RATING_COLUMN = {
+  name: "cleanliness_rating",
+  sqliteDefinition: "INTEGER",
+  postgresDefinition: "INTEGER"
+};
+
 function getFeatureColumnValues(toilet) {
   return [
     toilet.features.children,
@@ -257,6 +263,9 @@ function ensureSqliteUserSupport(db) {
   if (!commentCols.has(COMMENT_PROFILE_VISIBILITY_COLUMN.name)) {
     db.exec(`ALTER TABLE toilet_comments ADD COLUMN ${COMMENT_PROFILE_VISIBILITY_COLUMN.name} ${COMMENT_PROFILE_VISIBILITY_COLUMN.sqliteDefinition};`);
   }
+  if (!commentCols.has(COMMENT_CLEANLINESS_RATING_COLUMN.name)) {
+    db.exec(`ALTER TABLE toilet_comments ADD COLUMN ${COMMENT_CLEANLINESS_RATING_COLUMN.name} ${COMMENT_CLEANLINESS_RATING_COLUMN.sqliteDefinition};`);
+  }
   for (const column of COMMENT_MEDIA_COLUMNS) {
     if (!commentCols.has(column.name)) {
       db.exec(`ALTER TABLE toilet_comments ADD COLUMN ${column.name} ${column.sqliteDefinition};`);
@@ -293,6 +302,7 @@ export async function ensurePostgresCommentMediaColumns(pool) {
   await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${COMMENT_VISIBILITY_COLUMN.name} ${COMMENT_VISIBILITY_COLUMN.postgresDefinition}`);
   await pool.query("UPDATE toilet_comments SET comment_visibility = 'anonymous' WHERE user_id IS NULL OR LOWER(COALESCE(username, '')) = 'anonymous'");
   await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${COMMENT_PROFILE_VISIBILITY_COLUMN.name} ${COMMENT_PROFILE_VISIBILITY_COLUMN.postgresDefinition}`);
+  await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${COMMENT_CLEANLINESS_RATING_COLUMN.name} ${COMMENT_CLEANLINESS_RATING_COLUMN.postgresDefinition}`);
 
   for (const column of COMMENT_MEDIA_COLUMNS) {
     await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${column.name} ${column.postgresDefinition}`);

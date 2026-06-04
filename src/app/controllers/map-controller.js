@@ -197,19 +197,23 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       button.setAttribute("aria-pressed", hasRating && buttonRating === rating ? "true" : "false");
     });
 
+    const feedbackSubmitButton = commentForm?.querySelector("button[type='submit']");
     if (submitCleanlinessSurveyButton) {
       submitCleanlinessSurveyButton.disabled = selectedRating === null;
+    }
+    if (feedbackSubmitButton) {
+      feedbackSubmitButton.disabled = selectedRating === null;
     }
 
     if (mapSurveyStatus) {
       if (selectedRating !== null) {
-        mapSurveyStatus.textContent = `You've selected ${selectedRating}/5 stars. Click submit to save.`;
+        mapSurveyStatus.textContent = `Selected ${selectedRating}/5 stars. Add details or submit rating only.`;
       } else {
         mapSurveyStatus.textContent = isWithinCooldown
           ? `Thanks! You can rate this toilet again in 30 minutes.`
           : isAuthenticated()
-            ? "Choose 1 to 5 stars to help others."
-            : "Log in or sign up to rate cleanliness.";
+            ? "Choose 1 to 5 stars to continue."
+            : "Log in or sign up to leave feedback.";
       }
     }
   }
@@ -472,6 +476,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return author;
   }
 
+  function createCommentRatingElement(comment) {
+    const rating = Number(comment?.cleanliness_rating);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return null;
+
+    const ratingElement = document.createElement("span");
+    ratingElement.className = "comment-rating";
+    ratingElement.setAttribute("aria-label", `Cleanliness rating ${rating} out of 5`);
+    ratingElement.textContent = `${"★".repeat(rating)}${"☆".repeat(5 - rating)}`;
+    return ratingElement;
+  }
+
   function renderComments(comments) {
     currentComments = Array.isArray(comments) ? [...comments] : [];
     renderCommentList();
@@ -483,8 +498,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const sortLabel = commentSortSelect?.selectedOptions?.[0]?.textContent ?? "Newest";
     const countLabel =
       selectedCommentFilters.size > 0
-        ? `${visibleCount} of ${totalCount} comments`
-        : `${totalCount} comment${totalCount === 1 ? "" : "s"}`;
+        ? `${visibleCount} of ${totalCount} feedback`
+        : `${totalCount} feedback`;
     commentsSummary.textContent = `${countLabel} - ${sortLabel}`;
   }
 
@@ -501,14 +516,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     if (currentComments.length === 0) {
       const empty = document.createElement("p");
-      empty.textContent = "No comments yet. Be the first to write one!";
+      empty.textContent = "No feedback yet.";
       commentsList.append(empty);
       return;
     }
 
     if (visibleComments.length === 0) {
       const empty = document.createElement("p");
-      empty.textContent = "No comments match the selected tags.";
+      empty.textContent = "No feedback matches the selected tags.";
       commentsList.append(empty);
       return;
     }
@@ -524,9 +539,15 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       const header = document.createElement("div");
       header.className = "comment-header";
 
+      const authorLine = document.createElement("div");
+      authorLine.className = "comment-author-line";
       const author = createCommentAuthorElement(comment);
+      const rating = createCommentRatingElement(comment);
 
-      header.append(author);
+      authorLine.append(author);
+      if (rating) authorLine.append(rating);
+
+      header.append(authorLine);
       header.append(createCommentActions(comment));
 
       const text = document.createElement("p");
@@ -596,7 +617,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const likeButton = document.createElement("button");
     likeButton.className = "comment-like-button";
     likeButton.type = "button";
-    likeButton.setAttribute("aria-label", comment.viewer_has_liked ? "Unlike comment" : "Like comment");
+    likeButton.setAttribute("aria-label", comment.viewer_has_liked ? "Unlike feedback" : "Like feedback");
     likeButton.setAttribute("aria-pressed", comment.viewer_has_liked ? "true" : "false");
     likeButton.classList.toggle("is-liked", Boolean(comment.viewer_has_liked));
 
@@ -624,7 +645,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     menuButton.className = "comment-menu-button";
     menuButton.type = "button";
     menuButton.textContent = "...";
-    menuButton.setAttribute("aria-label", "Comment options");
+    menuButton.setAttribute("aria-label", "Feedback options");
     menuButton.setAttribute("aria-haspopup", "menu");
     menuButton.setAttribute("aria-expanded", "false");
 
@@ -661,7 +682,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     closeOpenCommentMenus();
 
     if (!isAuthenticated()) {
-      showLoginPrompt("Log in to like a comment.");
+      showLoginPrompt("Log in to like feedback.");
       return;
     }
 
@@ -673,9 +694,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       const updatedComments = await toggleCommentLikeRequest(selectedToilet.id, comment.id);
       renderComments(updatedComments);
     } catch (error) {
-      console.error("Failed to like comment:", error);
+      console.error("Failed to like feedback:", error);
       if (error.status === 401) {
-        showLoginPrompt("Log in to like a comment.");
+        showLoginPrompt("Log in to like feedback.");
         return;
       }
       alert(error?.message || "Could not update like. Please try again later.");
@@ -690,7 +711,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (!selectedToilet || !comment?.id) return;
     closeOpenCommentMenus();
 
-    const confirmed = window.confirm("Delete this comment?");
+    const confirmed = window.confirm("Delete this feedback?");
     if (!confirmed) return;
 
     try {
@@ -699,10 +720,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     } catch (error) {
       console.error("Failed to delete comment:", error);
       if (error.status === 401) {
-        showLoginPrompt("Log in to delete a comment.");
+        showLoginPrompt("Log in to delete feedback.");
         return;
       }
-      alert(error?.message || "Could not delete comment. Please try again later.");
+      alert(error?.message || "Could not delete feedback. Please try again later.");
     }
   }
 
@@ -721,12 +742,13 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (commentComposerToggle) {
       commentComposerToggle.classList.toggle("is-active", shouldOpen);
       commentComposerToggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
-      commentComposerToggle.textContent = shouldOpen ? "Hide editor" : "Write comment";
+      commentComposerToggle.textContent = shouldOpen ? "Hide feedback" : "Write feedback";
     }
 
     mapPanel?.classList.toggle("has-comment-composer", shouldOpen);
 
     if (shouldOpen) {
+      renderCleanlinessSurvey(selectedToilet);
       requestAnimationFrame(() => commentInput?.focus());
     }
   }
@@ -1053,15 +1075,15 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       updateCommentsSummary(0, 0);
       commentsList.replaceChildren();
       const loading = document.createElement("p");
-      loading.textContent = "Loading comments...";
+      loading.textContent = "Loading feedback...";
       commentsList.append(loading);
 
       fetchComments(toilet.id)
         .then((comments) => renderComments(comments))
         .catch((error) => {
-          console.error("Failed to fetch comments:", error);
+          console.error("Failed to fetch feedback:", error);
           if (commentsList) {
-            commentsList.textContent = "Could not load comments.";
+            commentsList.textContent = "Could not load feedback.";
           }
         });
     }
@@ -1399,7 +1421,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function selectCleanlinessRating(rating) {
     if (!selectedToilet) {
-      setStatus("Select a toilet marker before writing a review.");
+      setStatus("Select a toilet marker before leaving feedback.");
       return;
     }
 
@@ -1410,6 +1432,32 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (mapSurveyStatus) {
       mapSurveyStatus.classList.remove("warning");
     }
+    renderCleanlinessSurvey(selectedToilet);
+  }
+
+  async function applySavedCleanlinessResult(result, rating) {
+    if (!result?.toilet?.id) {
+      throw new Error("Cleanliness response did not include the updated toilet.");
+    }
+
+    updateToiletCleanliness(result.toilet, { store: false });
+
+    try {
+      await onCleanlinessSaved();
+    } catch (error) {
+      console.error("Failed to refresh cleanliness period:", error);
+    }
+
+    cleanlinessSurveyAnswers = {
+      ...cleanlinessSurveyAnswers,
+      [result.toilet.id]: {
+        rating,
+        toiletName: result.toilet.name ?? selectedToilet?.name,
+        submittedAt: new Date().toISOString()
+      }
+    };
+
+    saveSurveyAnswers();
     renderCleanlinessSurvey(selectedToilet);
   }
 
@@ -1424,7 +1472,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   async function answerCleanlinessSurvey(rating) {
     if (!selectedToilet) {
-      setStatus("Select a toilet marker before writing a review.");
+      setStatus("Select a toilet marker before leaving feedback.");
       return false;
     }
 
@@ -1433,9 +1481,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     if (!isAuthenticated()) {
       if (mapSurveyStatus) {
-        mapSurveyStatus.textContent = "Log in or sign up to rate cleanliness.";
+        mapSurveyStatus.textContent = "Log in or sign up to leave feedback.";
       }
-      showLoginPrompt("Log in or sign up to rate cleanliness.");
+      showLoginPrompt("Log in or sign up to leave feedback.");
       return false;
     }
 
@@ -1444,8 +1492,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       mapSurveyStatus.textContent = "Saving rating to database...";
     }
 
-    let savedToDatabase = false;
-
     try {
       const result = await submitCleanlinessSurvey({
         toiletId: selectedToilet.id,
@@ -1453,20 +1499,15 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         rating: safeRating
       });
 
-      if (!result.toilet?.id) {
-        throw new Error("Cleanliness survey response did not include the updated toilet.");
-      }
-
-      savedToDatabase = true;
-      updateToiletCleanliness(result.toilet, { store: false });
+      await applySavedCleanlinessResult(result, safeRating);
     } catch (error) {
       console.error("Cleanliness survey failed:", error);
       if (error.status === 401) {
         if (mapSurveyStatus) {
           mapSurveyStatus.classList.add("warning");
-          mapSurveyStatus.textContent = "Log in or sign up to rate cleanliness.";
+          mapSurveyStatus.textContent = "Log in or sign up to leave feedback.";
         }
-        showLoginPrompt("Log in or sign up to rate cleanliness.");
+        showLoginPrompt("Log in or sign up to leave feedback.");
         return false;
       }
 
@@ -1477,25 +1518,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       return false;
     }
 
-    if (!savedToDatabase) return false;
-
-    try {
-      await onCleanlinessSaved();
-    } catch (error) {
-      console.error("Failed to refresh cleanliness period:", error);
-    }
-
-    cleanlinessSurveyAnswers = {
-      ...cleanlinessSurveyAnswers,
-      [selectedToilet.id]: {
-        rating: safeRating,
-        toiletName: selectedToilet.name,
-        submittedAt: new Date().toISOString()
-      }
-    };
-
-    saveSurveyAnswers();
-    renderCleanlinessSurvey(selectedToilet);
     return true;
   }
 
@@ -1504,11 +1526,21 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     if (!selectedToilet || !commentInput) return;
 
+    const feedbackRating = Number(selectedRating);
+    if (!Number.isInteger(feedbackRating) || feedbackRating < 1 || feedbackRating > 5) {
+      if (mapSurveyStatus) {
+        mapSurveyStatus.classList.add("warning");
+        mapSurveyStatus.textContent = "Choose a rating before submitting feedback.";
+      }
+      return;
+    }
+
     const commentText = commentInput.value.trim();
-    if (!commentText) return;
+    const hasCommentText = commentText.length > 0;
+    const hasMedia = selectedCommentMedia.length > 0;
 
     if (!isAuthenticated()) {
-      showLoginPrompt("Log in to post a comment.");
+      showLoginPrompt("Log in to leave feedback.");
       return;
     }
 
@@ -1518,23 +1550,50 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     try {
-      const media = await readCommentMediaAttachments();
-      const commentVisibility = getCommentVisibility();
-      const updatedComments = await submitComment(selectedToilet.id, commentText, media, commentVisibility);
-      renderComments(updatedComments);
-      commentInput.value = "";
-      resetCommentMediaAttachment();
-      closeCommentComposer();
-    } catch (error) {
-      console.error("Failed to post comment:", error);
-      if (error.status === 401) {
-        showLoginPrompt("Log in to post a comment.");
+      if (!hasCommentText && !hasMedia) {
+        const saved = await answerCleanlinessSurvey(feedbackRating);
+        if (saved) {
+          selectedRating = null;
+          closeCommentComposer();
+          renderCleanlinessSurvey(selectedToilet);
+        }
         return;
       }
-      alert(error?.message || "Could not post comment. Please try again later.");
+
+      if (!hasCommentText) {
+        if (mapSurveyStatus) {
+          mapSurveyStatus.classList.add("warning");
+          mapSurveyStatus.textContent = "Add a short comment before posting media.";
+        }
+        return;
+      }
+
+      const media = await readCommentMediaAttachments();
+      const commentVisibility = getCommentVisibility();
+      const result = await submitComment(
+        selectedToilet.id,
+        commentText,
+        media,
+        commentVisibility,
+        feedbackRating
+      );
+      await applySavedCleanlinessResult(result, feedbackRating);
+      renderComments(result.comments);
+      commentInput.value = "";
+      selectedRating = null;
+      resetCommentMediaAttachment();
+      closeCommentComposer();
+      renderCleanlinessSurvey(selectedToilet);
+    } catch (error) {
+      console.error("Failed to submit feedback:", error);
+      if (error.status === 401) {
+        showLoginPrompt("Log in to leave feedback.");
+        return;
+      }
+      alert(error?.message || "Could not submit feedback. Please try again later.");
     } finally {
       if (submitButton) {
-        submitButton.disabled = false;
+        submitButton.disabled = selectedRating === null;
       }
     }
   }

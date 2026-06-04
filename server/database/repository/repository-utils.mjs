@@ -146,6 +146,7 @@ export function mapCommentRow(row, { viewerUserId = null } = {}) {
 
   const commentVisibility = normaliseStoredCommentVisibility(row);
   const isAnonymous = commentVisibility === "anonymous";
+  const cleanlinessRating = Number(row.cleanliness_rating);
   const hasOwnerUserId = row.user_id !== null && row.user_id !== undefined;
   const hasViewerUserId = viewerUserId !== null && viewerUserId !== undefined;
   const ownerUserId = Number(row.user_id);
@@ -169,6 +170,10 @@ export function mapCommentRow(row, { viewerUserId = null } = {}) {
     author_name: authorName,
     is_anonymous: isAnonymous,
     can_delete: canDelete,
+    cleanliness_rating:
+      Number.isInteger(cleanlinessRating) && cleanlinessRating >= 1 && cleanlinessRating <= 5
+        ? cleanlinessRating
+        : null,
     like_count: Number(row.like_count ?? 0),
     viewer_has_liked: Boolean(row.viewer_has_liked),
     media_attachments: parseCommentMediaAttachments(row)
@@ -206,7 +211,13 @@ export function normaliseCommentProfileVisibility(value = "private") {
   return visibility;
 }
 
-export function normaliseCommentPayload({ toiletId, commentText, media = null, commentVisibility = "real" }) {
+export function normaliseCommentPayload({
+  toiletId,
+  commentText,
+  media = null,
+  commentVisibility = "real",
+  cleanlinessRating
+}) {
   const safeToiletId = normaliseText(toiletId);
   const safeCommentText = typeof commentText === "string" ? commentText.trim() : "";
 
@@ -218,6 +229,7 @@ export function normaliseCommentPayload({ toiletId, commentText, media = null, c
     toiletId: safeToiletId,
     commentText: safeCommentText,
     commentVisibility: normaliseCommentVisibility(commentVisibility),
+    cleanlinessRating: normaliseRating(cleanlinessRating),
     ...normaliseCommentMedia(media)
   };
 }
@@ -240,7 +252,7 @@ export function normaliseCommentLikePayload({ toiletId, commentId }) {
   return normaliseCommentDeletePayload({ toiletId, commentId });
 }
 
-function normaliseRating(value) {
+export function normaliseRating(value) {
   const rating = Number(value);
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     throw new Error("rating must be an integer from 1 to 5.");

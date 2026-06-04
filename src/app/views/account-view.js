@@ -73,6 +73,49 @@ function getCommentProfileVisibilityLabel(comment) {
   return `Profile: ${comment?.profile_visibility === "public" ? "Public" : "Private"}`;
 }
 
+function getCommentRating(comment) {
+  const rating = Number(comment?.cleanliness_rating ?? comment?.cleanlinessRating);
+  return Number.isInteger(rating) && rating >= 1 && rating <= 5 ? rating : null;
+}
+
+function createCommentRatingElement(comment) {
+  const rating = getCommentRating(comment);
+  if (!rating) return null;
+
+  const ratingElement = document.createElement("span");
+  ratingElement.className = "profile-feedback-rating";
+  ratingElement.setAttribute("aria-label", `Cleanliness rating ${rating} out of 5`);
+  ratingElement.textContent = `${"\u2605".repeat(rating)}${"\u2606".repeat(5 - rating)}`;
+  return ratingElement;
+}
+
+function createCommentHeading(comment) {
+  const heading = document.createElement("span");
+  heading.className = "profile-feedback-heading";
+
+  const toiletName = document.createElement("strong");
+  toiletName.textContent = comment.toilet_name || comment.toiletName || "Unknown toilet";
+
+  const ratingElement = createCommentRatingElement(comment);
+  heading.append(toiletName);
+  if (ratingElement) {
+    heading.append(ratingElement);
+  }
+
+  return heading;
+}
+
+function renderCommentMeta(meta, parts) {
+  const metaText = parts.filter(Boolean).join(" - ");
+
+  meta.replaceChildren();
+  if (metaText) {
+    const text = document.createElement("span");
+    text.textContent = metaText;
+    meta.append(text);
+  }
+}
+
 function createCommentMediaPreview(comment) {
   const attachments = getCommentMediaAttachments(comment);
   if (attachments.length === 0) return null;
@@ -124,7 +167,7 @@ export function renderMyComments(commentsContainer, comments, { onOpenComment = 
 
   if (!Array.isArray(comments) || comments.length === 0) {
     const empty = document.createElement("p");
-    empty.textContent = "No comments yet.";
+    empty.textContent = "No feedback yet.";
     commentsContainer.append(empty);
     return;
   }
@@ -138,8 +181,7 @@ export function renderMyComments(commentsContainer, comments, { onOpenComment = 
     openButton.type = "button";
     openButton.addEventListener("click", () => onOpenComment(comment));
 
-    const toiletName = document.createElement("strong");
-    toiletName.textContent = comment.toilet_name || comment.toiletName || "Unknown toilet";
+    const heading = createCommentHeading(comment);
 
     const text = document.createElement("span");
     text.className = "my-comment-text";
@@ -147,14 +189,14 @@ export function renderMyComments(commentsContainer, comments, { onOpenComment = 
 
     const meta = document.createElement("span");
     meta.className = "my-comment-meta";
-    meta.textContent = [
+    renderCommentMeta(meta, [
       getCommentIdentityLabel(comment),
       getCommentProfileVisibilityLabel(comment),
       `${Number(comment.like_count ?? 0)} likes`,
       formatAccessTime(comment.created_at)
-    ].join(" - ");
+    ]);
 
-    openButton.append(toiletName, text, meta);
+    openButton.append(heading, text, meta);
 
     const visibilityButton = document.createElement("button");
     visibilityButton.className = "my-comment-visibility";
@@ -188,8 +230,8 @@ export function renderPublicProfile(
   if (publicProfileSummary) {
     publicProfileSummary.textContent =
       comments.length === 1
-        ? "1 public comment"
-        : `${comments.length} public comments`;
+        ? "1 public feedback"
+        : `${comments.length} public feedback`;
   }
 
   if (!publicProfileCommentsList) return;
@@ -197,7 +239,7 @@ export function renderPublicProfile(
 
   if (comments.length === 0) {
     const empty = document.createElement("p");
-    empty.textContent = "No public comments yet.";
+    empty.textContent = "No public feedback yet.";
     publicProfileCommentsList.append(empty);
     return;
   }
@@ -211,8 +253,7 @@ export function renderPublicProfile(
     openButton.type = "button";
     openButton.addEventListener("click", () => onOpenComment(comment));
 
-    const toiletName = document.createElement("strong");
-    toiletName.textContent = comment.toilet_name || comment.toiletName || "Unknown toilet";
+    const heading = createCommentHeading(comment);
 
     const text = document.createElement("span");
     text.className = "public-profile-comment-text";
@@ -220,12 +261,12 @@ export function renderPublicProfile(
 
     const meta = document.createElement("span");
     meta.className = "public-profile-comment-meta";
-    meta.textContent = [
+    renderCommentMeta(meta, [
       `${Number(comment.like_count ?? 0)} likes`,
       formatAccessTime(comment.created_at)
-    ].join(" - ");
+    ]);
 
-    openButton.append(toiletName, text, meta);
+    openButton.append(heading, text, meta);
 
     const mediaPreview = createCommentMediaPreview(comment);
     item.append(openButton);

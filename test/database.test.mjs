@@ -134,7 +134,8 @@ test("database saves and retrieves comments for toilets", async () => {
       toiletId,
       userId,
       username: user.username,
-      commentText
+      commentText,
+      cleanlinessRating: 4
     });
 
     assert.equal(updatedComments.length, 1);
@@ -143,6 +144,7 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(updatedComments[0].username, user.username);
     assert.equal(updatedComments[0].author_name, user.username);
     assert.equal(updatedComments[0].comment_visibility, "real");
+    assert.equal(updatedComments[0].cleanliness_rating, 4);
     assert.equal(updatedComments[0].profile_visibility, "private");
     assert.equal(updatedComments[0].is_anonymous, false);
     assert.equal(updatedComments[0].can_delete, true);
@@ -157,7 +159,8 @@ test("database saves and retrieves comments for toilets", async () => {
       userId,
       username: user.username,
       commentText: "Anonymous test comment",
-      commentVisibility: "anonymous"
+      commentVisibility: "anonymous",
+      cleanlinessRating: 2
     });
 
     assert.equal(anonymousComments.length, 2);
@@ -165,6 +168,7 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(anonymousComments[0].username, "Anonymous");
     assert.equal(anonymousComments[0].author_name, "Anonymous");
     assert.equal(anonymousComments[0].comment_visibility, "anonymous");
+    assert.equal(anonymousComments[0].cleanliness_rating, 2);
     assert.equal(anonymousComments[0].profile_visibility, "private");
     assert.equal(anonymousComments[0].is_anonymous, true);
     assert.equal(anonymousComments[0].can_delete, true);
@@ -194,7 +198,8 @@ test("database lists own comments and updates profile visibility", async () => {
       userId: owner.id,
       username: owner.username,
       commentText: "Show this in my account",
-      commentVisibility: "anonymous"
+      commentVisibility: "anonymous",
+      cleanlinessRating: 3
     });
     const commentId = comments[0].id;
 
@@ -233,6 +238,47 @@ test("database lists own comments and updates profile visibility", async () => {
   });
 });
 
+test("database exposes public profile feedback ratings with survey fallback", async () => {
+  await withSeededDatabase(async (database, { dbFilePath }) => {
+    const owner = await database.getUserByUsername("demo");
+    const toiletId = "detail-test";
+
+    await database.recordCleanlinessSurvey({
+      userId: owner.id,
+      toiletId,
+      rating: 4
+    });
+
+    const comments = await database.saveComment({
+      toiletId,
+      userId: owner.id,
+      username: owner.username,
+      commentText: "Public profile should show stars",
+      commentVisibility: "real",
+      cleanlinessRating: 4
+    });
+    const commentId = comments[0].id;
+
+    await database.updateCommentProfileVisibility({
+      commentId,
+      userId: owner.id,
+      profileVisibility: "public"
+    });
+
+    const db = new DatabaseSync(dbFilePath);
+    try {
+      db.prepare("UPDATE toilet_comments SET cleanliness_rating = NULL WHERE id = ?").run(commentId);
+    } finally {
+      db.close();
+    }
+
+    const profile = await database.getPublicProfile(owner.id);
+    assert.equal(profile.comments.length, 1);
+    assert.equal(profile.comments[0].id, commentId);
+    assert.equal(profile.comments[0].cleanliness_rating, 4);
+  });
+});
+
 test("database toggles one like per user for comments", async () => {
   await withSeededDatabase(async (database) => {
     const user = await database.getUserByUsername("demo");
@@ -241,7 +287,8 @@ test("database toggles one like per user for comments", async () => {
       toiletId,
       userId: user.id,
       username: user.username,
-      commentText: "Likeable comment"
+      commentText: "Likeable comment",
+      cleanlinessRating: 4
     });
     const commentId = comments[0].id;
 
@@ -297,7 +344,8 @@ test("database only deletes comments owned by the current user", async () => {
       userId: owner.id,
       username: owner.username,
       commentText: "Delete my anonymous comment",
-      commentVisibility: "anonymous"
+      commentVisibility: "anonymous",
+      cleanlinessRating: 2
     });
     const commentId = ownerComments[0].id;
 
@@ -481,6 +529,7 @@ test("database saves multiple image and video attachments with comments", async 
       userId: user.id,
       username: user.username,
       commentText: "Mixed evidence",
+      cleanlinessRating: 5,
       media
     });
 
@@ -501,7 +550,8 @@ test("database rejects comment media over attachment limits", async () => {
       toiletId: "detail-test",
       userId: user.id,
       username: user.username,
-      commentText: "Too much media"
+      commentText: "Too much media",
+      cleanlinessRating: 4
     };
     const imageAttachment = {
       type: "image",

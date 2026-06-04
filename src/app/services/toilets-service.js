@@ -53,12 +53,15 @@ export async function fetchComments(toiletId) {
   return payload.comments || [];
 }
 
-export async function submitComment(toiletId, commentText, media = [], commentVisibility = "real") {
+export async function submitComment(toiletId, commentText, media = [], commentVisibility = "real", cleanlinessRating) {
   const payload = await fetchJson(`${appConfig.apiBasePath}/comments`, {
     method: "POST",
-    body: JSON.stringify({ toiletId, commentText, media, commentVisibility })
+    body: JSON.stringify({ toiletId, commentText, media, commentVisibility, cleanlinessRating })
   });
-  return payload.comments || [];
+  return {
+    comments: payload.comments || [],
+    toilet: payload.toilet || null
+  };
 }
 
 export async function deleteComment(toiletId, commentId) {

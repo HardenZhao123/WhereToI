@@ -229,62 +229,20 @@ test("API supports fetching and posting toilet comments", async () => {
       body: JSON.stringify({
         toiletId,
         commentText: "Great experience!",
-        commentVisibility: "real"
+        commentVisibility: "real",
+        cleanlinessRating: 4
       })
     });
 
     assert.equal(postedPayload.comments.length, 1);
     assert.equal(postedPayload.comments[0].comment_text, "Great experience!");
+    assert.equal(postedPayload.comments[0].cleanliness_rating, 4);
     assert.equal(postedPayload.comments[0].author_name, "demo");
     assert.equal(postedPayload.comments[0].username, "demo");
     assert.equal(postedPayload.comments[0].comment_visibility, "real");
     assert.equal(postedPayload.comments[0].is_anonymous, false);
     assert.equal(postedPayload.comments[0].can_delete, true);
     assert.deepEqual(postedPayload.comments[0].media_attachments, []);
-
-    const { payload: anonymousPostedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Cookie": cookie
-      },
-      body: JSON.stringify({
-        toiletId,
-        commentText: "Posting without my username.",
-        commentVisibility: "anonymous"
-      })
-    });
-
-    assert.equal(anonymousPostedPayload.comments.length, 2);
-    assert.equal(anonymousPostedPayload.comments[0].comment_text, "Posting without my username.");
-    assert.equal(anonymousPostedPayload.comments[0].author_name, "Anonymous");
-    assert.equal(anonymousPostedPayload.comments[0].username, "Anonymous");
-    assert.equal(anonymousPostedPayload.comments[0].comment_visibility, "anonymous");
-    assert.equal(anonymousPostedPayload.comments[0].is_anonymous, true);
-    assert.equal(anonymousPostedPayload.comments[0].can_delete, true);
-    assert.equal(anonymousPostedPayload.comments[0].user_id, null);
-
-    const { payload: publicFetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
-    assert.equal(publicFetchedPayload.comments[0].can_delete, false);
-    assert.equal(publicFetchedPayload.comments[1].can_delete, false);
-
-    const { payload: fetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`, {
-      headers: { "Cookie": cookie }
-    });
-    assert.deepEqual(fetchedPayload, anonymousPostedPayload);
-
-    const deleteWithoutLoginResponse = await fetch(`${baseUrl}/api/comments`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        toiletId,
-        commentId: anonymousPostedPayload.comments[0].id
-      })
-    });
-    const deleteWithoutLoginPayload = await deleteWithoutLoginResponse.json();
-
-    assert.equal(deleteWithoutLoginResponse.status, 401);
-    assert.equal(deleteWithoutLoginPayload.error, "Log in to delete comments.");
 
     await fetchJson(`${baseUrl}/api/register`, {
       method: "POST",
@@ -301,15 +259,63 @@ test("API supports fetching and posting toilet comments", async () => {
       body: JSON.stringify({ username: "other-comment-user", password: "demo123" })
     });
     const otherCookie = otherLoginRes.headers.get("set-cookie");
+    const anonymousToiletId = "limited-test";
 
-    const deleteOtherUserResponse = await fetch(`${baseUrl}/api/comments`, {
-      method: "DELETE",
+    const { payload: anonymousPostedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Cookie": otherCookie
       },
       body: JSON.stringify({
-        toiletId,
+        toiletId: anonymousToiletId,
+        commentText: "Posting without my username.",
+        commentVisibility: "anonymous",
+        cleanlinessRating: 2
+      })
+    });
+
+    assert.equal(anonymousPostedPayload.comments.length, 1);
+    assert.equal(anonymousPostedPayload.comments[0].comment_text, "Posting without my username.");
+    assert.equal(anonymousPostedPayload.comments[0].cleanliness_rating, 2);
+    assert.equal(anonymousPostedPayload.comments[0].author_name, "Anonymous");
+    assert.equal(anonymousPostedPayload.comments[0].username, "Anonymous");
+    assert.equal(anonymousPostedPayload.comments[0].comment_visibility, "anonymous");
+    assert.equal(anonymousPostedPayload.comments[0].is_anonymous, true);
+    assert.equal(anonymousPostedPayload.comments[0].can_delete, true);
+    assert.equal(anonymousPostedPayload.comments[0].user_id, null);
+
+    const { payload: publicFetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.equal(publicFetchedPayload.comments[0].can_delete, false);
+
+    const { payload: fetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`, {
+      headers: { "Cookie": cookie }
+    });
+    assert.deepEqual(fetchedPayload.comments, postedPayload.comments);
+    assert.equal(postedPayload.toilet.id, toiletId);
+    assert.equal(postedPayload.toilet.cleanlinessSurvey.ratingCount, 1);
+
+    const deleteWithoutLoginResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        toiletId: anonymousToiletId,
+        commentId: anonymousPostedPayload.comments[0].id
+      })
+    });
+    const deleteWithoutLoginPayload = await deleteWithoutLoginResponse.json();
+
+    assert.equal(deleteWithoutLoginResponse.status, 401);
+    assert.equal(deleteWithoutLoginPayload.error, "Log in to delete comments.");
+
+    const deleteOtherUserResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId: anonymousToiletId,
         commentId: anonymousPostedPayload.comments[0].id
       })
     });
@@ -322,17 +328,15 @@ test("API supports fetching and posting toilet comments", async () => {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
-        "Cookie": cookie
+        "Cookie": otherCookie
       },
       body: JSON.stringify({
-        toiletId,
+        toiletId: anonymousToiletId,
         commentId: anonymousPostedPayload.comments[0].id
       })
     });
 
-    assert.equal(deleteOwnerPayload.comments.length, 1);
-    assert.equal(deleteOwnerPayload.comments[0].comment_text, "Great experience!");
-    assert.equal(deleteOwnerPayload.comments[0].can_delete, true);
+    assert.equal(deleteOwnerPayload.comments.length, 0);
   });
 });
 
@@ -355,7 +359,8 @@ test("API toggles one like per logged-in user for comments", async () => {
       },
       body: JSON.stringify({
         toiletId,
-        commentText: "This deserves likes"
+        commentText: "This deserves likes",
+        cleanlinessRating: 4
       })
     });
     const commentId = postedPayload.comments[0].id;
@@ -435,7 +440,8 @@ test("API exposes own comments in account and updates profile visibility", async
       body: JSON.stringify({
         toiletId,
         commentText: "Account should show this comment",
-        commentVisibility: "anonymous"
+        commentVisibility: "anonymous",
+        cleanlinessRating: 3
       })
     });
     const commentId = postedPayload.comments[0].id;
@@ -521,9 +527,10 @@ test("API exposes public profiles without leaking anonymous or private comments"
       method: "POST",
       headers: authHeaders,
       body: JSON.stringify({
-        toiletId,
+        toiletId: "limited-test",
         commentText: "Real but private",
-        commentVisibility: "real"
+        commentVisibility: "real",
+        cleanlinessRating: 3
       })
     });
 
@@ -533,7 +540,8 @@ test("API exposes public profiles without leaking anonymous or private comments"
       body: JSON.stringify({
         toiletId,
         commentText: "Real and public",
-        commentVisibility: "real"
+        commentVisibility: "real",
+        cleanlinessRating: 5
       })
     });
     const publicRealComment = publicRealPayload.comments.find((comment) => comment.comment_text === "Real and public");
@@ -542,9 +550,10 @@ test("API exposes public profiles without leaking anonymous or private comments"
       method: "POST",
       headers: authHeaders,
       body: JSON.stringify({
-        toiletId,
+        toiletId: "extra-test-1",
         commentText: "Anonymous but public",
-        commentVisibility: "anonymous"
+        commentVisibility: "anonymous",
+        cleanlinessRating: 2
       })
     });
     const anonymousComment = anonymousPayload.comments.find((comment) => comment.comment_text === "Anonymous but public");
@@ -570,6 +579,7 @@ test("API exposes public profiles without leaking anonymous or private comments"
     assert.equal(publicProfilePayload.profile.comments[0].profile_visibility, "public");
     assert.equal(publicProfilePayload.profile.comments[0].is_anonymous, false);
     assert.equal(publicProfilePayload.profile.comments[0].can_delete, false);
+    assert.equal(publicProfilePayload.profile.comments[0].cleanliness_rating, 5);
     assert.equal(publicProfilePayload.profile.comments[0].toilet_name, "Prayer room washroom");
   });
 });
@@ -620,6 +630,7 @@ test("API supports multiple image and video comment attachments", async () => {
       body: JSON.stringify({
         toiletId,
         commentText: "Photo and queue evidence",
+        cleanlinessRating: 4,
         media
       })
     });
@@ -636,6 +647,7 @@ test("API supports multiple image and video comment attachments", async () => {
       body: JSON.stringify({
         toiletId,
         commentText: "Not media",
+        cleanlinessRating: 4,
         media: {
           type: "file",
           mimeType: "application/pdf",
@@ -656,6 +668,7 @@ test("API supports multiple image and video comment attachments", async () => {
       body: JSON.stringify({
         toiletId,
         commentText: "Too many clips",
+        cleanlinessRating: 4,
         media: Array.from({ length: 4 }, (_, index) => ({
           type: "video",
           mimeType: "video/mp4",
