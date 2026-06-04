@@ -3,7 +3,7 @@ import { parseCsv, rowsToObjects } from "../utils/csv.js";
 import { mapRecordToToilet } from "../toilets/toilet-record-mapper.js";
 import { fetchJson } from "./http-client.js";
 
-export async function loadToiletsFromApi(cleanlinessRange = "3days", retryCount = 2, timeoutMs = 10000) {
+export async function loadToiletsFromApi(cleanlinessRange = "3days", retryCount = 2, timeoutMs = 30000) {
   const url = `${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`;
 
   for (let attempt = 0; attempt <= retryCount; attempt++) {
