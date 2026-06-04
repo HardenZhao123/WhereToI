@@ -42,6 +42,7 @@ export function getDomRefs() {
     subscriptionPlan: document.querySelector("#subscription-plan"),
     monthlyTicketsLeft: document.querySelector("#monthly-tickets-left"),
     accessHistoryList: document.querySelector("#access-history-list"),
+    myCommentsList: document.querySelector("#my-comments-list"),
     accountWelcome: document.querySelector("#account-welcome"),
     accountUsername: document.querySelector("#account-username"),
     authModal: document.querySelector("#auth-modal"),

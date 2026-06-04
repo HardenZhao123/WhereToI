@@ -17,6 +17,7 @@ import {
   normaliseCommentDeletePayload,
   normaliseCommentLikePayload,
   normaliseCommentPayload,
+  normaliseCommentProfileVisibility,
   normaliseHistoryLimit,
   normaliseSearchQuery,
   toCleanlinessUpdate
@@ -109,6 +110,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       user_id INTEGER,
       username TEXT,
       comment_visibility TEXT NOT NULL DEFAULT 'real',
+      profile_visibility TEXT NOT NULL DEFAULT 'private',
       comment_text TEXT NOT NULL,
       media_type TEXT,
       media_mime_type TEXT,
@@ -150,6 +152,9 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
 
     CREATE INDEX IF NOT EXISTS idx_toilet_comments_toilet_id
     ON toilet_comments(toilet_id);
+
+    CREATE INDEX IF NOT EXISTS idx_toilet_comments_user_id
+    ON toilet_comments(user_id);
 
     CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id
     ON comment_likes(comment_id);
@@ -568,6 +573,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             user_id,
             username,
             comment_visibility,
+            profile_visibility,
             comment_text,
             media_type,
             media_mime_type,
@@ -594,6 +600,50 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         )
         .all(viewerUserId, toiletId)
         .map((row) => mapCommentRow(row, { viewerUserId }));
+    },
+    async getUserComments(userId, limit = 30) {
+      const safeLimit = normaliseHistoryLimit(limit);
+
+      return db
+        .prepare(
+          `
+          SELECT
+            toilet_comments.id,
+            toilet_comments.toilet_id,
+            toilet_comments.user_id,
+            toilet_comments.username,
+            toilet_comments.comment_visibility,
+            toilet_comments.profile_visibility,
+            toilet_comments.comment_text,
+            toilet_comments.media_type,
+            toilet_comments.media_mime_type,
+            toilet_comments.media_name,
+            toilet_comments.media_size,
+            toilet_comments.media_url,
+            toilet_comments.media_attachments,
+            toilet_comments.created_at,
+            toilets.name AS toilet_name,
+            toilets.area AS toilet_area,
+            (
+              SELECT COUNT(*)
+              FROM comment_likes
+              WHERE comment_likes.comment_id = toilet_comments.id
+            ) AS like_count,
+            EXISTS (
+              SELECT 1
+              FROM comment_likes
+              WHERE comment_likes.comment_id = toilet_comments.id
+                AND comment_likes.user_id = ?
+            ) AS viewer_has_liked
+          FROM toilet_comments
+          LEFT JOIN toilets ON toilets.id = toilet_comments.toilet_id
+          WHERE toilet_comments.user_id = ?
+          ORDER BY toilet_comments.created_at DESC, toilet_comments.id DESC
+          LIMIT ?
+          `
+        )
+        .all(userId, userId, safeLimit)
+        .map((row) => mapCommentRow(row, { viewerUserId: userId }));
     },
     async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
       const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility });
@@ -652,6 +702,29 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       return {
         deleted: result.changes > 0,
         comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+      };
+    },
+    async updateCommentProfileVisibility({ commentId, userId, profileVisibility }) {
+      const safeCommentId = Number(commentId);
+      if (!Number.isInteger(safeCommentId) || safeCommentId <= 0) {
+        throw new Error("commentId is required.");
+      }
+
+      const safeProfileVisibility = normaliseCommentProfileVisibility(profileVisibility);
+      const result = db
+        .prepare(
+          `
+          UPDATE toilet_comments
+          SET profile_visibility = ?
+          WHERE id = ?
+            AND user_id = ?
+          `
+        )
+        .run(safeProfileVisibility, safeCommentId, userId);
+
+      return {
+        updated: result.changes > 0,
+        comments: await this.getUserComments(userId, 30)
       };
     },
     async toggleCommentLike({ toiletId, commentId, userId }) {
