@@ -12,6 +12,7 @@ export function getDomRefs() {
     mapPanel: document.querySelector("#map-panel"),
     mapElement: document.querySelector("#map"),
     closeDetailsButton: document.querySelector("#close-details"),
+    headerLocateButton: document.querySelector("#locate-button"),
     locateButtons: [document.querySelector("#locate-button"), document.querySelector("#find-near-me")],
     featureFilterInputs: document.querySelectorAll("#feature-filters input[type='checkbox']"),
     sortSelect: document.querySelector("#toilet-sort"),

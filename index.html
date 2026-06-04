@@ -14,7 +14,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./src/styles.css?v=feedback-rating-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=locate-button-2" />
   </head>
   <body>
     <main class="app-shell" aria-label="WhereToI web app">
@@ -25,8 +25,11 @@
               <p class="eyebrow">WhereToI</p>
               <h1 id="view-title">My Map</h1>
             </div>
-            <button class="icon-button" id="locate-button" type="button" aria-label="Find my location">
-              <span aria-hidden="true">LOC</span>
+            <button class="locate-button" id="locate-button" type="button" aria-label="Find my location" aria-pressed="false">
+              <svg class="locate-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path class="locate-icon-pin" d="M12 21c2.7-3.1 6-6.9 6-10.2A6 6 0 0 0 6 10.8C6 14.1 9.3 17.9 12 21Z" />
+                <circle class="locate-icon-dot" cx="12" cy="10.5" r="2.1" />
+              </svg>
             </button>
           </header>
 
@@ -49,15 +52,6 @@
                 <div class="filter-header">
                   <strong>Needs</strong>
                   <div class="filter-controls">
-                    <label class="sort-control" for="cleanliness-range">
-                      Rating period
-                      <select id="cleanliness-range" class="cleanliness-range-select">
-                        <option value="1day">1 Day</option>
-                        <option value="3days" selected>3 Days</option>
-                        <option value="1week">1 Week</option>
-                        <option value="all">All Time</option>
-                      </select>
-                    </label>
                     <label class="sort-control" for="toilet-sort">
                       Sort
                       <select id="toilet-sort">
@@ -99,10 +93,21 @@
                   <h2 id="toilet-name">City and Guilds building</h2>
                   <div class="cleanliness-section" aria-label="Cleanliness">
                     <span class="cleanliness-label">Cleanliness</span>
-                    <div class="star-rating-display" id="cleanliness-stars" aria-label="Cleanliness rating 0 out of 5">
-                      <span class="star-rating-icons" id="cleanliness-star-icons" aria-hidden="true">☆☆☆☆☆</span>
-                      <span class="cleanliness-score" id="cleanliness-score">0/5</span>
-                      <span class="cleanliness-rating-count" id="cleanliness-rating-count">0 ratings</span>
+                    <div class="cleanliness-rating-row">
+                      <div class="star-rating-display" id="cleanliness-stars" aria-label="Cleanliness rating 0 out of 5">
+                        <span class="star-rating-icons" id="cleanliness-star-icons" aria-hidden="true">☆☆☆☆☆</span>
+                        <span class="cleanliness-score" id="cleanliness-score">0/5</span>
+                        <span class="cleanliness-rating-count" id="cleanliness-rating-count">0 ratings</span>
+                      </div>
+                      <label class="rating-period-control" for="cleanliness-range">
+                        Rating period
+                        <select id="cleanliness-range" class="cleanliness-range-select">
+                          <option value="1day">1 Day</option>
+                          <option value="3days" selected>3 Days</option>
+                          <option value="1week">1 Week</option>
+                          <option value="all">All Time</option>
+                        </select>
+                      </label>
                     </div>
                   </div>
                   <p id="toilet-area">Imperial College London</p>
@@ -335,7 +340,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./src/main.js?v=comment-presets-1" type="module"></script>
+    <script src="./src/main.js?v=locate-button-2" type="module"></script>
     <section class="auth-modal is-hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div class="auth-dialog">
         <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px;">

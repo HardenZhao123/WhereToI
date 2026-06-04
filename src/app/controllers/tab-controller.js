@@ -4,7 +4,8 @@ export function createTabController({
   titleElement,
   titles,
   onMapTabActivated = () => {},
-  onAccountTabActivated = () => {}
+  onAccountTabActivated = () => {},
+  onTabChanged = () => {}
 }) {
   function setTab(nextTab) {
     tabs.forEach((tab) => {
@@ -20,6 +21,8 @@ export function createTabController({
     if (titleElement) {
       titleElement.textContent = titles[nextTab] ?? "";
     }
+
+    onTabChanged(nextTab);
 
     if (nextTab === "map") {
       onMapTabActivated();

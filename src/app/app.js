@@ -43,7 +43,12 @@ export function createApp() {
     titleElement: elements.title,
     titles: appConfig.titles,
     onMapTabActivated: () => mapController.refreshAfterTabVisible(),
-    onAccountTabActivated: () => accountController?.loadPanelData()
+    onAccountTabActivated: () => accountController?.loadPanelData(),
+    onTabChanged: (nextTab) => {
+      if (elements.headerLocateButton) {
+        elements.headerLocateButton.hidden = nextTab !== "map";
+      }
+    }
   });
 
   let toiletLoadRequestId = 0;

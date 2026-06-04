@@ -10,6 +10,29 @@ function createClassList() {
   };
 }
 
+function createRecordingClassList() {
+  const classes = new Set();
+
+  return {
+    add(className) {
+      classes.add(className);
+    },
+    remove(className) {
+      classes.delete(className);
+    },
+    toggle(className, enabled) {
+      if (enabled) {
+        classes.add(className);
+      } else {
+        classes.delete(className);
+      }
+    },
+    contains(className) {
+      return classes.has(className);
+    }
+  };
+}
+
 function createTextElement() {
   return {
     textContent: "",
@@ -169,6 +192,135 @@ test("map controller keeps submitted rating count after a stale toilet reload", 
     assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "1 rating");
   } finally {
     globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test("locate button returns to hollow state when the map is moved away from the user", () => {
+  const originalDocument = globalThis.document;
+  const originalNavigator = globalThis.navigator;
+  const originalWindow = globalThis.window;
+
+  const eventHandlers = new Map();
+  let mapCenter = { lat: 51.4974, lng: -0.1751 };
+  const markerLayer = {
+    addTo() {
+      return markerLayer;
+    },
+    clearLayers() {}
+  };
+  const fakeMap = {
+    setView(center) {
+      mapCenter = { lat: center[0], lng: center[1] };
+      return fakeMap;
+    },
+    getCenter() {
+      return mapCenter;
+    },
+    getBounds() {
+      return {
+        contains() {
+          return true;
+        }
+      };
+    },
+    getZoom() {
+      return 15;
+    },
+    flyTo(center) {
+      mapCenter = { lat: center[0], lng: center[1] };
+      return fakeMap;
+    },
+    on(eventNames, handler) {
+      eventNames.split(" ").forEach((eventName) => eventHandlers.set(eventName, handler));
+      return fakeMap;
+    }
+  };
+
+  globalThis.document = {
+    addEventListener() {},
+    querySelector() {
+      return null;
+    }
+  };
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: {
+      geolocation: {
+        getCurrentPosition(onSuccess) {
+          onSuccess({
+            coords: {
+              latitude: 51.5,
+              longitude: -0.17
+            }
+          });
+        }
+      }
+    }
+  });
+  globalThis.window = {
+    L: {
+      map() {
+        return fakeMap;
+      },
+      tileLayer() {
+        return {
+          addTo() {}
+        };
+      },
+      layerGroup() {
+        return markerLayer;
+      },
+      divIcon(options) {
+        return options;
+      },
+      marker() {
+        return {
+          addTo() {
+            return this;
+          },
+          remove() {},
+          setLatLng() {}
+        };
+      }
+    },
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const locateButton = {
+      id: "locate-button",
+      classList: createRecordingClassList(),
+      attributes: {},
+      setAttribute(name, value) {
+        this.attributes[name] = value;
+      }
+    };
+    const controller = createMapController({
+      statusText: { textContent: "" },
+      mapElement: {},
+      locateButtons: [locateButton]
+    });
+
+    assert.equal(controller.createInteractiveMap(), true);
+    controller.requestLocation();
+    assert.equal(locateButton.classList.contains("is-located"), true);
+
+    mapCenter = { lat: 51.3, lng: -0.4 };
+    eventHandlers.get("moveend")();
+    assert.equal(locateButton.classList.contains("is-located"), false);
+    assert.equal(locateButton.attributes["aria-pressed"], "false");
+  } finally {
+    globalThis.document = originalDocument;
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: originalNavigator
+    });
     globalThis.window = originalWindow;
   }
 });

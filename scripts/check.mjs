@@ -75,8 +75,42 @@ if (!js.includes("zoomControl: false") || js.includes("L.control.zoom") || css.i
   throw new Error("Expected map zoom to use native map gestures without visible +/- controls.");
 }
 
+if (
+  html.includes(">LOC<") ||
+  !html.includes("class=\"locate-button\"") ||
+  !html.includes("class=\"locate-icon\"") ||
+  !css.includes(".locate-button.is-located") ||
+  !js.includes("setLocateButtonState") ||
+  !js.includes("updateLocateButtonStateFromMap") ||
+  !js.includes("locateActiveCenterToleranceMetres") ||
+  !js.includes("headerLocateButton.hidden = nextTab !== \"map\"")
+) {
+  throw new Error("Expected the top location control to use an icon, hide outside Map, and turn blue only while the map is centered on the user's location.");
+}
+
 if (!html.includes("close-details") || !js.includes("closeDetailsButton")) {
   throw new Error("Expected closable toilet details panel.");
+}
+
+const filterHeaderStart = html.indexOf("<div class=\"filter-header\">");
+const filterHeaderEnd = html.indexOf("<div class=\"filter-options\"", filterHeaderStart);
+const filterHeaderHtml =
+  filterHeaderStart >= 0 && filterHeaderEnd > filterHeaderStart
+    ? html.slice(filterHeaderStart, filterHeaderEnd)
+    : "";
+const cleanlinessSectionStart = html.indexOf("<div class=\"cleanliness-section\"");
+const cleanlinessSectionEnd = html.indexOf("<p id=\"toilet-area\"", cleanlinessSectionStart);
+const cleanlinessSectionHtml =
+  cleanlinessSectionStart >= 0 && cleanlinessSectionEnd > cleanlinessSectionStart
+    ? html.slice(cleanlinessSectionStart, cleanlinessSectionEnd)
+    : "";
+
+if (
+  filterHeaderHtml.includes("cleanliness-range") ||
+  !cleanlinessSectionHtml.includes("rating-period-control") ||
+  !cleanlinessSectionHtml.includes("id=\"cleanliness-range\"")
+) {
+  throw new Error("Expected rating period control beside the toilet detail cleanliness rating, not in the filter header.");
 }
 
 if (!html.includes("feature-baby-changing") || !html.includes("feature-bidet") || !js.includes("babyChanging")) {
