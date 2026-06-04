@@ -343,23 +343,15 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             t.radar_key,
             t.free_access,
             t.opening_times,
-            COALESCE(s.avg_rating, t.cleanliness) AS cleanliness,
+            COALESCE(AVG(s.rating), t.cleanliness) AS cleanliness,
             t.cleanliness_yes_count,
             t.cleanliness_no_count,
-            COALESCE(s.total_rating, t.cleanliness_rating_total) AS cleanliness_rating_total,
-            COALESCE(s.count_rating, t.cleanliness_rating_count) AS cleanliness_rating_count
+            COALESCE(SUM(s.rating), t.cleanliness_rating_total) AS cleanliness_rating_total,
+            CASE WHEN COUNT(s.rating) > 0 THEN COUNT(s.rating) ELSE t.cleanliness_rating_count END AS cleanliness_rating_count
           FROM toilets t
-          LEFT JOIN (
-            SELECT
-              toilet_id,
-              AVG(rating) AS avg_rating,
-              SUM(rating) AS total_rating,
-              COUNT(rating) AS count_rating
-            FROM cleanliness_surveys
-            WHERE ? IS NULL OR created_at >= ?
-            GROUP BY toilet_id
-          ) s ON t.id = s.toilet_id
+          LEFT JOIN cleanliness_surveys s ON t.id = s.toilet_id AND (? IS NULL OR s.created_at >= ?)
           ${whereClause}
+          GROUP BY t.id
           `
         )
         .all(startDate, startDate, ...params.slice(2));

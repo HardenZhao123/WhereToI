@@ -1176,8 +1176,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function setToilets(nextToilets, { hideDetails = true } = {}) {
     allToilets = [...nextToilets];
-    filteredToilets = [...allToilets];
-    refreshFilteredDisplay();
+    applyFilters();
 
     if (hideDetails) {
       hideToiletDetails();

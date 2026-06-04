@@ -31,7 +31,9 @@ export function createApp() {
 
   let toiletLoadRequestId = 0;
   let toiletRetryTimerId = null;
+  let hasLoadedAnyToilets = false;
   let hasLoadedApiToilets = false;
+  let lastLoadedRange = null;
 
   function clearToiletRetry() {
     if (toiletRetryTimerId) {
@@ -102,10 +104,27 @@ export function createApp() {
     range = elements.cleanlinessRangeSelect?.value ?? "3days",
     { allowFallback = true } = {}
   ) {
+    if (range === lastLoadedRange && hasLoadedApiToilets) {
+      return;
+    }
+
+    if (allowFallback && !hasLoadedAnyToilets) {
+      try {
+        const localData = await loadLocalToilets();
+        if (!hasLoadedApiToilets) {
+          setLoadedToilets(localData.toilets, {
+            status: localData.status
+          });
+          hasLoadedAnyToilets = true;
+        }
+      } catch (error) {
+        console.warn("Initial local load failed:", error);
+      }
+    }
+
     const requestId = toiletLoadRequestId + 1;
     toiletLoadRequestId = requestId;
     clearToiletRetry();
-    mapController.setStatus("Connecting to database...");
 
     const currentSelectedId = mapController.getSelectedToilet()?.id;
     const currentSection = getCurrentDetailSection();
@@ -113,7 +132,9 @@ export function createApp() {
     try {
       const loadedFromApi = await loadToiletsFromApi(range);
 
-      if (requestId !== toiletLoadRequestId) return;
+      if (requestId !== toiletLoadRequestId) {
+        return;
+      }
 
       if (loadedFromApi.length > 0) {
         setLoadedToilets(loadedFromApi, {
@@ -123,40 +144,17 @@ export function createApp() {
           status: `Loaded ${loadedFromApi.length} toilets from database.`
         });
         hasLoadedApiToilets = true;
+        hasLoadedAnyToilets = true;
+        lastLoadedRange = range;
         return;
       }
 
       throw new Error("Toilets API returned no toilets.");
     } catch (error) {
-      if (requestId !== toiletLoadRequestId) return;
-      console.warn("Toilets API loading failed:", error);
-    }
-
-    if (allowFallback && !hasLoadedApiToilets) {
-      try {
-        const localData = await loadLocalToilets();
-
-        if (requestId !== toiletLoadRequestId) return;
-
-        setLoadedToilets(localData.toilets, {
-          currentSelectedId,
-          currentSection,
-          hideDetails: !currentSelectedId,
-          status: localData.status
-        });
-      } catch (error) {
-        if (requestId !== toiletLoadRequestId) return;
-
-        console.warn("Local toilets loading failed:", error);
-        setLoadedToilets(fallbackToilets, {
-          currentSelectedId,
-          currentSection,
-          hideDetails: !currentSelectedId,
-          status: "Using starter toilet data. Reconnecting to database..."
-        });
+      if (requestId !== toiletLoadRequestId) {
+        return;
       }
-    } else {
-      mapController.setStatus("Could not refresh from database. Keeping current toilets and retrying...");
+      console.warn("Toilets API loading failed:", error);
     }
 
     if (requestId === toiletLoadRequestId) {
