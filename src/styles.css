@@ -104,16 +104,74 @@ h3 {
   font-weight: 600;
 }
 
-.icon-button {
-  min-width: 44px;
-  height: 38px;
-  padding-inline: 10px;
+.locate-button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  padding: 0;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 50%;
+  color: #4f5d68;
+  background: #fff;
+  box-shadow: 0 5px 14px rgb(31 42 51 / 10%);
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.locate-button[hidden] {
+  display: none;
+}
+
+.locate-button:hover,
+.locate-button:focus-visible {
+  border-color: rgb(54 111 171 / 38%);
+  box-shadow: 0 6px 16px rgb(31 42 51 / 16%);
+}
+
+.locate-button:focus-visible {
+  outline: 3px solid rgb(54 111 171 / 24%);
+  outline-offset: 2px;
+}
+
+.locate-button:active {
+  transform: scale(0.96);
+}
+
+.locate-icon {
+  width: 24px;
+  height: 24px;
+  overflow: visible;
+}
+
+.locate-icon-pin,
+.locate-icon-dot {
+  fill: #fff;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  transition:
+    fill 0.16s ease,
+    stroke 0.16s ease;
+}
+
+.locate-button.is-located {
+  border-color: rgb(54 111 171 / 34%);
   color: var(--blue);
-  font-size: 11px;
-  font-weight: 800;
-  background: var(--panel);
+  box-shadow: 0 6px 18px rgb(54 111 171 / 24%);
+}
+
+.locate-button.is-located .locate-icon-pin {
+  fill: var(--blue);
+  stroke: var(--blue);
+}
+
+.locate-button.is-located .locate-icon-dot {
+  fill: #fff;
+  stroke: #fff;
 }
 
 .view {
@@ -337,10 +395,6 @@ h3 {
   border-radius: 999px;
   color: var(--ink);
   background: white;
-}
-
-.sort-control .cleanliness-range-select {
-  max-width: 118px;
 }
 
 .filter-options {
@@ -633,6 +687,14 @@ h3 {
 .cleanliness-score {
   font-size: 12px;
   line-height: 1;
+}
+
+.cleanliness-rating-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
 }
 
 .star-rating-display {
@@ -1265,6 +1327,36 @@ mark {
   align-items: center;
   gap: 8px;
   margin-top: 4px;
+}
+
+.cleanliness-rating-row .star-rating-display {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 0;
+}
+
+.rating-period-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rating-period-control select {
+  max-width: 118px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: white;
+  font-size: 11px;
 }
 
 .cleanliness-range-select {

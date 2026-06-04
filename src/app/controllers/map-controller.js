@@ -40,6 +40,7 @@ const commentMediaMaxBytes = 8 * 1024 * 1024;
 const commentMediaMaxAttachments = 9;
 const commentMediaMaxImages = 9;
 const commentMediaMaxVideos = 3;
+const locateActiveCenterToleranceMetres = 20;
 
 export function createMapController(elements, onToiletSelected = () => {}, auth = {}) {
   const {
@@ -69,7 +70,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     featureFilterInputs = [],
     sortSelect,
     resultsSummary,
-    resultsList
+    resultsList,
+    locateButtons = []
   } = elements;
   const {
     isAuthenticated = () => true,
@@ -178,6 +180,32 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   function setStatus(message) {
     if (!statusText) return;
     statusText.textContent = message;
+  }
+
+  function setLocateButtonState(isLocated) {
+    locateButtons.forEach((button) => {
+      if (!button || button.id !== "locate-button") return;
+
+      button.classList.toggle("is-located", isLocated);
+      button.setAttribute("aria-pressed", String(isLocated));
+      button.setAttribute("aria-label", isLocated ? "Update my location" : "Find my location");
+    });
+  }
+
+  function isMapCenteredOnUserLocation() {
+    if (!map || !userLocation) return false;
+
+    const center = map.getCenter?.();
+    if (!center) return false;
+
+    return (
+      distanceInMetres(userLocation.lat, userLocation.lng, center.lat, center.lng) <=
+      locateActiveCenterToleranceMetres
+    );
+  }
+
+  function updateLocateButtonStateFromMap() {
+    setLocateButtonState(isMapCenteredOnUserLocation());
   }
 
   function renderCleanlinessSurvey(toilet) {
@@ -1184,6 +1212,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function requestLocation() {
     if (!navigator.geolocation) {
+      setLocateButtonState(false);
       setStatus("Your browser does not support location.");
       return;
     }
@@ -1205,11 +1234,15 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
         if (map) {
           map.flyTo([userLocation.lat, userLocation.lng], Math.max(map.getZoom(), 15), { duration: 0.5 });
+          setLocateButtonState(true);
+        } else {
+          updateLocateButtonStateFromMap();
         }
 
         setStatus("Location found. Distances are now updated.");
       },
       () => {
+        updateLocateButtonStateFromMap();
         setStatus("Location permission was denied or unavailable.");
       },
       {
@@ -1253,6 +1286,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     map.on("moveend zoomend", () => {
       refreshFilteredDisplay();
+      updateLocateButtonStateFromMap();
     });
 
     return true;
