@@ -301,12 +301,9 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
     async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days" } = {}) {
       const query = normaliseSearchQuery(search);
       const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
+      const isAllTime = startDate === null;
       const params = [];
       const conditions = [];
-
-      params.push(startDate);
-      const startDateIndex = params.length;
-      params.push(startDate); // SQLite needs two params for the same value if not using named ones, but we'll use indexed
 
       if (accessibleOnly) {
         conditions.push("t.accessible = 'Y'");
@@ -319,6 +316,26 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+      const joinClause = isAllTime
+        ? ""
+        : "LEFT JOIN cleanliness_surveys s ON t.id = s.toilet_id AND s.created_at >= ?";
+      const cleanlinessColumns = isAllTime
+        ? `
+            t.cleanliness AS cleanliness,
+            t.cleanliness_yes_count,
+            t.cleanliness_no_count,
+            t.cleanliness_rating_total AS cleanliness_rating_total,
+            t.cleanliness_rating_count AS cleanliness_rating_count
+          `
+        : `
+            CASE WHEN COUNT(s.rating) > 0 THEN AVG(s.rating) ELSE NULL END AS cleanliness,
+            t.cleanliness_yes_count,
+            t.cleanliness_no_count,
+            COALESCE(SUM(s.rating), 0) AS cleanliness_rating_total,
+            COUNT(s.rating) AS cleanliness_rating_count
+          `;
+      const groupClause = isAllTime ? "" : "GROUP BY t.id";
+      const queryParams = isAllTime ? params : [startDate, ...params];
 
       const rows = db
         .prepare(
@@ -343,18 +360,14 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             t.radar_key,
             t.free_access,
             t.opening_times,
-            COALESCE(AVG(s.rating), t.cleanliness) AS cleanliness,
-            t.cleanliness_yes_count,
-            t.cleanliness_no_count,
-            COALESCE(SUM(s.rating), t.cleanliness_rating_total) AS cleanliness_rating_total,
-            CASE WHEN COUNT(s.rating) > 0 THEN COUNT(s.rating) ELSE t.cleanliness_rating_count END AS cleanliness_rating_count
+            ${cleanlinessColumns}
           FROM toilets t
-          LEFT JOIN cleanliness_surveys s ON t.id = s.toilet_id AND (? IS NULL OR s.created_at >= ?)
+          ${joinClause}
           ${whereClause}
-          GROUP BY t.id
+          ${groupClause}
           `
         )
-        .all(startDate, startDate, ...params.slice(2));
+        .all(...queryParams);
 
       return rows.map(mapRowToToilet);
     },

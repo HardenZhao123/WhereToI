@@ -73,7 +73,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   } = elements;
   const {
     isAuthenticated = () => true,
-    showLoginPrompt = () => {}
+    showLoginPrompt = () => {},
+    onCleanlinessSaved = async () => {}
   } = auth;
 
   const surveyStorageKey = "wheretoi-map-cleanliness-survey";
@@ -1304,14 +1305,16 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     };
   }
 
-  function updateToiletCleanliness(toiletUpdate) {
+  function updateToiletCleanliness(toiletUpdate, { store = true } = {}) {
     if (!toiletUpdate?.id) return;
 
-    cleanlinessUpdateById = new Map(cleanlinessUpdateById);
-    cleanlinessUpdateById.set(toiletUpdate.id, {
-      cleanliness: toiletUpdate.cleanliness,
-      cleanlinessSurvey: toiletUpdate.cleanlinessSurvey
-    });
+    if (store) {
+      cleanlinessUpdateById = new Map(cleanlinessUpdateById);
+      cleanlinessUpdateById.set(toiletUpdate.id, {
+        cleanliness: toiletUpdate.cleanliness,
+        cleanlinessSurvey: toiletUpdate.cleanlinessSurvey
+      });
+    }
 
     const applyUpdate = (toilet) =>
       toilet.id === toiletUpdate.id
@@ -1395,7 +1398,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       }
 
       savedToDatabase = true;
-      updateToiletCleanliness(result.toilet);
+      updateToiletCleanliness(result.toilet, { store: false });
     } catch (error) {
       console.error("Cleanliness survey failed:", error);
       if (error.status === 401) {
@@ -1415,6 +1418,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     if (!savedToDatabase) return false;
+
+    try {
+      await onCleanlinessSaved();
+    } catch (error) {
+      console.error("Failed to refresh cleanliness period:", error);
+    }
 
     cleanlinessSurveyAnswers = {
       ...cleanlinessSurveyAnswers,

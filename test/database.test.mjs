@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { createDatabase } from "../server/database.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
@@ -24,7 +25,7 @@ async function withSeededDatabase(callback, options = {}) {
       dbFilePath,
       seedCsvPath
     });
-    await callback(database);
+    await callback(database, { dbFilePath, seedCsvPath });
   } finally {
     await database?.close?.();
     await rm(directory, { recursive: true, force: true });
@@ -38,7 +39,7 @@ async function withSeededDatabase(callback, options = {}) {
 
 test("SQLite database seeds and returns expanded toilet feature data", async () => {
   await withSeededDatabase(async (database) => {
-    const toilets = await database.getToilets();
+    const toilets = await database.getToilets({ cleanlinessRange: "all" });
     const detailToilet = toilets.find((toilet) => toilet.id === "detail-test");
 
     assert.equal(toilets.length, 7);
@@ -57,6 +58,38 @@ test("SQLite database keeps accessible-only filtering behavior", async () => {
       toilets.map((toilet) => toilet.id),
       ["detail-test", "extra-test-1", "extra-test-2", "extra-test-3", "extra-test-4", "extra-test-5"]
     );
+  });
+});
+
+test("cleanliness time ranges exclude older ratings except all time", async () => {
+  await withSeededDatabase(async (database, { dbFilePath }) => {
+    const user = await database.getUserByUsername("demo");
+
+    await database.recordCleanlinessSurvey({
+      userId: user.id,
+      toiletId: "detail-test",
+      rating: 5
+    });
+
+    const db = new DatabaseSync(dbFilePath);
+    try {
+      const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+      db.prepare("UPDATE cleanliness_surveys SET created_at = ? WHERE toilet_id = ?").run(tenDaysAgo, "detail-test");
+    } finally {
+      db.close();
+    }
+
+    const recentToilets = await database.getToilets({ cleanlinessRange: "1day" });
+    const recentToilet = recentToilets.find((toilet) => toilet.id === "detail-test");
+    assert.equal(recentToilet.cleanliness, null);
+    assert.equal(recentToilet.cleanlinessSurvey.ratingTotal, 0);
+    assert.equal(recentToilet.cleanlinessSurvey.ratingCount, 0);
+
+    const allTimeToilets = await database.getToilets({ cleanlinessRange: "all" });
+    const allTimeToilet = allTimeToilets.find((toilet) => toilet.id === "detail-test");
+    assert.equal(allTimeToilet.cleanliness, 5);
+    assert.equal(allTimeToilet.cleanlinessSurvey.ratingTotal, 5);
+    assert.equal(allTimeToilet.cleanlinessSurvey.ratingCount, 1);
   });
 });
 
@@ -352,7 +385,7 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
     const finalUser = await database.getUserById(userId);
     assert.ok(Math.abs(finalUser.bias) > 0);
     
-    const toilets = await database.getToilets();
+    const toilets = await database.getToilets({ cleanlinessRange: "all" });
     const targetToilet = toilets.find(t => t.id === toiletId);
     assert.ok(targetToilet.cleanliness >= 3);
 

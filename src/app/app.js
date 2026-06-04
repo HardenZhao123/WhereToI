@@ -13,7 +13,12 @@ export function createApp() {
 
   const mapController = createMapController(elements, () => {}, {
     isAuthenticated: () => accountController?.isAuthenticated() ?? false,
-    showLoginPrompt: (message) => accountController?.showAuthModal("login", message)
+    showLoginPrompt: (message) => accountController?.showAuthModal("login", message),
+    onCleanlinessSaved: () =>
+      initializeToilets(elements.cleanlinessRangeSelect?.value ?? "3days", {
+        allowFallback: false,
+        force: true
+      })
   });
 
   accountController = createAccountController(
@@ -101,9 +106,9 @@ export function createApp() {
 
   async function initializeToilets(
     range = elements.cleanlinessRangeSelect?.value ?? "3days",
-    { allowFallback = true } = {}
+    { allowFallback = true, force = false } = {}
   ) {
-    if (range === lastLoadedRange && hasLoadedApiToilets) {
+    if (!force && range === lastLoadedRange && hasLoadedApiToilets) {
       return;
     }
 

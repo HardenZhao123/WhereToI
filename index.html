@@ -48,15 +48,26 @@
               <div class="filter-panel" aria-label="Toilet filters">
                 <div class="filter-header">
                   <strong>Needs</strong>
-                  <label class="sort-control" for="toilet-sort">
-                    Sort
-                    <select id="toilet-sort">
-                      <option value="distance">Nearest</option>
-                      <option value="cleanliness">Cleanest</option>
-                      <option value="free">Free first</option>
-                      <option value="facilities">Most facilities</option>
-                    </select>
-                  </label>
+                  <div class="filter-controls">
+                    <label class="sort-control" for="cleanliness-range">
+                      Rating period
+                      <select id="cleanliness-range" class="cleanliness-range-select">
+                        <option value="1day">1 Day</option>
+                        <option value="3days" selected>3 Days</option>
+                        <option value="1week">1 Week</option>
+                        <option value="all">All Time</option>
+                      </select>
+                    </label>
+                    <label class="sort-control" for="toilet-sort">
+                      Sort
+                      <select id="toilet-sort">
+                        <option value="distance">Nearest</option>
+                        <option value="cleanliness">Cleanest</option>
+                        <option value="free">Free first</option>
+                        <option value="facilities">Most facilities</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
                 <div class="filter-options" id="feature-filters">
                   <label class="filter-option"><input type="checkbox" value="women" /> Women</label>
@@ -93,13 +104,6 @@
                       <span class="cleanliness-score" id="cleanliness-score">0/5</span>
                       <span class="cleanliness-rating-count" id="cleanliness-rating-count">0 ratings</span>
                     </div>
-                    <select id="cleanliness-range" class="cleanliness-range-select" aria-label="Select cleanliness rating time range">
-                      <option value="1day">1 Day</option>
-                      <option value="3days" selected>3 Days</option>
-                      <option value="1week">1 Week</option>
-                      <option value="1month">1 Month</option>
-                      <option value="all">All Time</option>
-                    </select>
                   </div>
                   <p id="toilet-area">Imperial College London</p>
                 </div>
