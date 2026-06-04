@@ -5,6 +5,14 @@ export function normaliseSearchQuery(search) {
   return normaliseText(search).toLowerCase();
 }
 
+export function normaliseUserId(value) {
+  const userId = Number(value);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    throw new Error("userId is required.");
+  }
+  return userId;
+}
+
 const COMMENT_MEDIA_MAX_BYTES = 8 * 1024 * 1024;
 const COMMENT_MEDIA_MAX_ATTACHMENTS = 9;
 const COMMENT_MEDIA_MAX_VIDEOS = 3;

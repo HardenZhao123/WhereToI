@@ -5,6 +5,10 @@ export function fetchAccountSnapshot() {
   return fetchJson(`${appConfig.apiBasePath}/account`);
 }
 
+export function fetchPublicProfile(userId) {
+  return fetchJson(`${appConfig.apiBasePath}/public-profile?userId=${encodeURIComponent(userId)}`);
+}
+
 export function registerUser(payload) {
   return fetchJson(`${appConfig.apiBasePath}/register`, {
     method: "POST",

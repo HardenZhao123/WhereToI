@@ -172,3 +172,64 @@ export function renderMyComments(commentsContainer, comments, { onOpenComment = 
     commentsContainer.append(item);
   });
 }
+
+export function renderPublicProfile(
+  { publicProfileUsername, publicProfileSummary, publicProfileCommentsList },
+  profile,
+  { onOpenComment = () => {} } = {}
+) {
+  const username = profile?.user?.username || "Profile";
+  const comments = Array.isArray(profile?.comments) ? profile.comments : [];
+
+  if (publicProfileUsername) {
+    publicProfileUsername.textContent = username;
+  }
+
+  if (publicProfileSummary) {
+    publicProfileSummary.textContent =
+      comments.length === 1
+        ? "1 public comment"
+        : `${comments.length} public comments`;
+  }
+
+  if (!publicProfileCommentsList) return;
+  publicProfileCommentsList.textContent = "";
+
+  if (comments.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent = "No public comments yet.";
+    publicProfileCommentsList.append(empty);
+    return;
+  }
+
+  comments.forEach((comment) => {
+    const item = document.createElement("div");
+    item.className = "public-profile-comment-item";
+
+    const openButton = document.createElement("button");
+    openButton.className = "public-profile-comment-open";
+    openButton.type = "button";
+    openButton.addEventListener("click", () => onOpenComment(comment));
+
+    const toiletName = document.createElement("strong");
+    toiletName.textContent = comment.toilet_name || comment.toiletName || "Unknown toilet";
+
+    const text = document.createElement("span");
+    text.className = "public-profile-comment-text";
+    text.textContent = comment.comment_text || "";
+
+    const meta = document.createElement("span");
+    meta.className = "public-profile-comment-meta";
+    meta.textContent = [
+      `${Number(comment.like_count ?? 0)} likes`,
+      formatAccessTime(comment.created_at)
+    ].join(" - ");
+
+    openButton.append(toiletName, text, meta);
+
+    const mediaPreview = createCommentMediaPreview(comment);
+    item.append(openButton);
+    if (mediaPreview) item.append(mediaPreview);
+    publicProfileCommentsList.append(item);
+  });
+}

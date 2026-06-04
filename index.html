@@ -234,6 +234,19 @@
           </section>
 
             <section class="view view-account" id="account-panel" aria-labelledby="account-tab">
+              <section class="public-profile-view is-hidden" id="public-profile-view" aria-labelledby="public-profile-username">
+                <button class="text-button public-profile-back" id="public-profile-back" type="button">Back</button>
+                <p class="section-kicker">Public profile</p>
+                <h2 id="public-profile-username">Profile</h2>
+                <article class="account-card public-profile-card">
+                  <h3>Public comments</h3>
+                  <p id="public-profile-summary">Only comments this user chose to show on their profile appear here.</p>
+                  <div id="public-profile-comments-list" aria-live="polite">
+                    <p>Loading profile...</p>
+                  </div>
+                </article>
+              </section>
+              <div class="account-own-view" id="account-own-view">
               <p class="section-kicker" id="account-welcome">Welcome</p>
               <h2 id="account-username">Your Account</h2>
               <article class="account-card account-unlock-card" id="account-unlock-card">
@@ -288,6 +301,7 @@
                 <p>Let users hide or delete sensitive visit history.</p>
               </article>
               <button id="logout-button" class="logout-button" type="button">Log out</button>
+              </div>
             </section>
         </div>
 

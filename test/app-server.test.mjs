@@ -503,6 +503,77 @@ test("API exposes own comments in account and updates profile visibility", async
   });
 });
 
+test("API exposes public profiles without leaking anonymous or private comments", async () => {
+  await withAppServer(async (baseUrl) => {
+    const toiletId = "detail-test";
+    const { payload: loginPayload, response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+    const authHeaders = {
+      "Content-Type": "application/json",
+      "Cookie": cookie
+    };
+
+    await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Real but private",
+        commentVisibility: "real"
+      })
+    });
+
+    const { payload: publicRealPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Real and public",
+        commentVisibility: "real"
+      })
+    });
+    const publicRealComment = publicRealPayload.comments.find((comment) => comment.comment_text === "Real and public");
+
+    const { payload: anonymousPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Anonymous but public",
+        commentVisibility: "anonymous"
+      })
+    });
+    const anonymousComment = anonymousPayload.comments.find((comment) => comment.comment_text === "Anonymous but public");
+
+    await fetchJson(`${baseUrl}/api/account/comment-profile-visibility`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ commentId: publicRealComment.id, profileVisibility: "public" })
+    });
+    await fetchJson(`${baseUrl}/api/account/comment-profile-visibility`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ commentId: anonymousComment.id, profileVisibility: "public" })
+    });
+
+    const { payload: publicProfilePayload } = await fetchJson(`${baseUrl}/api/public-profile?userId=${loginPayload.user.id}`);
+
+    assert.deepEqual(Object.keys(publicProfilePayload.profile.user), ["id", "username"]);
+    assert.equal(publicProfilePayload.profile.user.username, "demo");
+    assert.equal(publicProfilePayload.profile.comments.length, 1);
+    assert.equal(publicProfilePayload.profile.comments[0].comment_text, "Real and public");
+    assert.equal(publicProfilePayload.profile.comments[0].comment_visibility, "real");
+    assert.equal(publicProfilePayload.profile.comments[0].profile_visibility, "public");
+    assert.equal(publicProfilePayload.profile.comments[0].is_anonymous, false);
+    assert.equal(publicProfilePayload.profile.comments[0].can_delete, false);
+    assert.equal(publicProfilePayload.profile.comments[0].toilet_name, "Prayer room washroom");
+  });
+});
+
 test("API supports multiple image and video comment attachments", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletId = "detail-test";

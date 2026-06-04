@@ -1,5 +1,6 @@
 import {
   fetchAccountSnapshot,
+  fetchPublicProfile,
   loginUser,
   registerUser,
   logoutUser,
@@ -7,7 +8,7 @@ import {
   updateUserProfile,
   updateCommentProfileVisibility
 } from "../services/account-service.js";
-import { renderAccessHistory, renderAccount, renderMyComments } from "../views/account-view.js";
+import { renderAccessHistory, renderAccount, renderMyComments, renderPublicProfile } from "../views/account-view.js";
 
 export function createAccountController(elements, onProfilePreferenceToggled = () => {}, callbacks = {}) {
   const {
@@ -16,6 +17,12 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     monthlyTicketsLeft,
     accessHistoryList,
     myCommentsList,
+    accountOwnView,
+    publicProfileView,
+    publicProfileBackButton,
+    publicProfileUsername,
+    publicProfileSummary,
+    publicProfileCommentsList,
     accountWelcome,
     accountUsername,
     authModal,
@@ -51,6 +58,8 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   const autoFilterStorageKey = "wheretoi-auto-filter-enabled";
   let currentUser = null;
   let isRegisterMode = false;
+  let publicProfileActive = false;
+  let activePublicProfileUserId = null;
 
   function loadAutoFilterState() {
     return window.localStorage?.getItem(autoFilterStorageKey) === "true";
@@ -58,6 +67,28 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
   function saveAutoFilterState(enabled) {
     window.localStorage?.setItem(autoFilterStorageKey, enabled ? "true" : "false");
+  }
+
+  function showOwnAccountView() {
+    publicProfileActive = false;
+    activePublicProfileUserId = null;
+    publicProfileView?.classList.add("is-hidden");
+    accountOwnView?.classList.remove("is-hidden");
+  }
+
+  function showPublicProfileView(userId) {
+    publicProfileActive = true;
+    activePublicProfileUserId = String(userId);
+    accountOwnView?.classList.add("is-hidden");
+    publicProfileView?.classList.remove("is-hidden");
+  }
+
+  function showPublicProfileMessage(message) {
+    if (!publicProfileCommentsList) return;
+    publicProfileCommentsList.textContent = "";
+    const info = document.createElement("p");
+    info.textContent = message;
+    publicProfileCommentsList.append(info);
   }
 
   function handleAutoFilterToggle() {
@@ -164,12 +195,12 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
         if (authStatus) authStatus.textContent = "Account created! Now logging in...";
         await loginUser({ username: payload.username, password: payload.password });
         hideAuthModal();
-        await loadPanelData();
+        await loadPanelData({ forceOwn: true });
         showProfileModal();
       } else {
         await loginUser(payload);
         hideAuthModal();
-        await loadPanelData();
+        await loadPanelData({ forceOwn: true });
       }
     } catch (error) {
       console.error("Auth failed:", error);
@@ -191,7 +222,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
         preferences: preferences
       });
       hideProfileModal();
-      await loadPanelData();
+      await loadPanelData({ forceOwn: true });
     } catch (error) {
       console.error("Profile update failed:", error);
       alert("Could not save profile. You can try again later in the Account settings.");
@@ -261,11 +292,46 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     }
   }
 
-  async function loadPanelData() {
+  async function loadPublicProfile(userId) {
+    if (!userId) return;
+
+    const requestUserId = String(userId);
+    showPublicProfileView(requestUserId);
+    if (publicProfileUsername) publicProfileUsername.textContent = "Profile";
+    if (publicProfileSummary) publicProfileSummary.textContent = "Loading public comments...";
+    showPublicProfileMessage("Loading profile...");
+
+    try {
+      const payload = await fetchPublicProfile(requestUserId);
+      if (!publicProfileActive || activePublicProfileUserId !== requestUserId) return;
+      renderPublicProfile(
+        { publicProfileUsername, publicProfileSummary, publicProfileCommentsList },
+        payload.profile,
+        { onOpenComment: handleOpenComment }
+      );
+    } catch (error) {
+      console.error("Public profile loading failed:", error);
+      if (!publicProfileActive || activePublicProfileUserId !== requestUserId) return;
+      if (publicProfileUsername) publicProfileUsername.textContent = "Profile unavailable";
+      if (publicProfileSummary) publicProfileSummary.textContent = "Public comments could not be loaded.";
+      showPublicProfileMessage(error?.message || "Could not load this profile.");
+    }
+  }
+
+  async function handlePublicProfileBack() {
+    showOwnAccountView();
+    await loadPanelData({ forceOwn: true });
+  }
+
+  async function loadPanelData({ forceOwn = false } = {}) {
+    if (publicProfileActive && !forceOwn) return;
+    if (forceOwn) showOwnAccountView();
+
     try {
       // First, check if we are logged in
       const me = await getCurrentUser();
       currentUser = me.user;
+      if (publicProfileActive && !forceOwn) return;
       accountUnlockCard?.classList.add("is-hidden");
       logoutButton?.classList.remove("is-hidden");
 
@@ -282,6 +348,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
       }
 
       const payload = await fetchAccountSnapshot();
+      if (publicProfileActive && !forceOwn) return;
       renderAccount(
         { walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome, displayGender, displayNeeds },
         payload.account,
@@ -294,6 +361,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
       });
     } catch (error) {
       console.error("Account API failed:", error);
+      if (publicProfileActive && !forceOwn) return;
       if (error.message?.includes("authenticated") || error.status === 401) {
         renderGuestAccount();
       }
@@ -307,6 +375,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     logoutButton?.addEventListener("click", handleLogout);
     accountSignupButton?.addEventListener("click", () => showAuthModal("register"));
     accountLoginButton?.addEventListener("click", () => showAuthModal("login"));
+    publicProfileBackButton?.addEventListener("click", () => handlePublicProfileBack());
 
     profileForm?.addEventListener("submit", handleProfileSubmit);
     skipProfileButton?.addEventListener("click", hideProfileModal);
@@ -317,6 +386,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   return {
     bindEvents,
     loadPanelData,
+    loadPublicProfile,
     showAuthModal,
     isAuthenticated: () => Boolean(currentUser)
   };
