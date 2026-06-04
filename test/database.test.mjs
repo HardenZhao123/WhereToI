@@ -90,7 +90,7 @@ test("cleanliness time ranges exclude older ratings except all time", async () =
     assert.equal(allTimeToilet.cleanliness, 5);
     assert.equal(allTimeToilet.cleanlinessSurvey.ratingTotal, 5);
     assert.equal(allTimeToilet.cleanlinessSurvey.ratingCount, 1);
-  });
+  }, { modelType: "average" });
 });
 
 test("recordAccess validates inputs and persists wallet/history changes", async () => {
