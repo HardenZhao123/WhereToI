@@ -1,4 +1,11 @@
-export function createTabController({ tabs, views, titleElement, titles, onMapTabActivated }) {
+export function createTabController({
+  tabs,
+  views,
+  titleElement,
+  titles,
+  onMapTabActivated = () => {},
+  onAccountTabActivated = () => {}
+}) {
   function setTab(nextTab) {
     tabs.forEach((tab) => {
       const isActive = tab.dataset.tab === nextTab;
@@ -16,6 +23,10 @@ export function createTabController({ tabs, views, titleElement, titles, onMapTa
 
     if (nextTab === "map") {
       onMapTabActivated();
+    }
+
+    if (nextTab === "account") {
+      onAccountTabActivated();
     }
   }
 

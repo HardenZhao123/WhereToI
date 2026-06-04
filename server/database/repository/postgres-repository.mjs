@@ -14,6 +14,7 @@ import {
   normaliseCommentDeletePayload,
   normaliseCommentLikePayload,
   normaliseCommentPayload,
+  normaliseCommentProfileVisibility,
   normaliseHistoryLimit,
   normaliseSearchQuery,
   toCleanlinessUpdate
@@ -220,6 +221,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       username TEXT,
       comment_visibility TEXT NOT NULL DEFAULT 'real',
+      profile_visibility TEXT NOT NULL DEFAULT 'private',
       comment_text TEXT NOT NULL,
       media_type TEXT,
       media_mime_type TEXT,
@@ -261,6 +263,11 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_toilet_comments_toilet_id
     ON toilet_comments(toilet_id);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_toilet_comments_user_id
+    ON toilet_comments(user_id);
   `);
 
   await pool.query(`
@@ -740,6 +747,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           user_id,
           username,
           comment_visibility,
+          profile_visibility,
           comment_text,
           media_type,
           media_mime_type,
@@ -767,6 +775,49 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       );
 
       return result.rows.map((row) => mapCommentRow(row, { viewerUserId }));
+    },
+    async getUserComments(userId, limit = 30) {
+      const safeLimit = normaliseHistoryLimit(limit);
+      const result = await pool.query(
+        `
+        SELECT
+          toilet_comments.id,
+          toilet_comments.toilet_id,
+          toilet_comments.user_id,
+          toilet_comments.username,
+          toilet_comments.comment_visibility,
+          toilet_comments.profile_visibility,
+          toilet_comments.comment_text,
+          toilet_comments.media_type,
+          toilet_comments.media_mime_type,
+          toilet_comments.media_name,
+          toilet_comments.media_size,
+          toilet_comments.media_url,
+          toilet_comments.media_attachments,
+          toilet_comments.created_at,
+          toilets.name AS toilet_name,
+          toilets.area AS toilet_area,
+          (
+            SELECT COUNT(*)::int
+            FROM comment_likes
+            WHERE comment_likes.comment_id = toilet_comments.id
+          ) AS like_count,
+          EXISTS (
+            SELECT 1
+            FROM comment_likes
+            WHERE comment_likes.comment_id = toilet_comments.id
+              AND comment_likes.user_id = $1
+          ) AS viewer_has_liked
+        FROM toilet_comments
+        LEFT JOIN toilets ON toilets.id = toilet_comments.toilet_id
+        WHERE toilet_comments.user_id = $1
+        ORDER BY toilet_comments.created_at DESC, toilet_comments.id DESC
+        LIMIT $2
+        `,
+        [userId, safeLimit]
+      );
+
+      return result.rows.map((row) => mapCommentRow(row, { viewerUserId: userId }));
     },
     async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
       const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility });
@@ -825,6 +876,28 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       return {
         deleted: result.rowCount > 0,
         comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+      };
+    },
+    async updateCommentProfileVisibility({ commentId, userId, profileVisibility }) {
+      const safeCommentId = Number(commentId);
+      if (!Number.isInteger(safeCommentId) || safeCommentId <= 0) {
+        throw new Error("commentId is required.");
+      }
+
+      const safeProfileVisibility = normaliseCommentProfileVisibility(profileVisibility);
+      const result = await pool.query(
+        `
+        UPDATE toilet_comments
+        SET profile_visibility = $1
+        WHERE id = $2
+          AND user_id = $3
+        `,
+        [safeProfileVisibility, safeCommentId, userId]
+      );
+
+      return {
+        updated: result.rowCount > 0,
+        comments: await this.getUserComments(userId, 30)
       };
     },
     async toggleCommentLike({ toiletId, commentId, userId }) {

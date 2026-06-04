@@ -10,6 +10,7 @@ import { distanceInMetres } from "./utils/geo.js";
 export function createApp() {
   const elements = getDomRefs();
   let accountController = null;
+  let tabController = null;
 
   const mapController = createMapController(elements, () => {}, {
     isAuthenticated: () => accountController?.isAuthenticated() ?? false,
@@ -23,15 +24,22 @@ export function createApp() {
 
   accountController = createAccountController(
     elements,
-    (user, enabled) => mapController.applyProfilePreferences(user, enabled)
+    (user, enabled) => mapController.applyProfilePreferences(user, enabled),
+    {
+      onCommentSelected: ({ toiletId, commentId }) => {
+        tabController?.setTab("map");
+        mapController.openCommentThread(toiletId, commentId);
+      }
+    }
   );
 
-  const tabController = createTabController({
+  tabController = createTabController({
     tabs: elements.tabs,
     views: elements.views,
     titleElement: elements.title,
     titles: appConfig.titles,
-    onMapTabActivated: () => mapController.refreshAfterTabVisible()
+    onMapTabActivated: () => mapController.refreshAfterTabVisible(),
+    onAccountTabActivated: () => accountController?.loadPanelData()
   });
 
   let toiletLoadRequestId = 0;

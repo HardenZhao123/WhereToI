@@ -99,6 +99,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let currentComments = [];
   let commentSortMode = "newest";
   let selectedCommentFilters = new Set();
+  let pendingFocusedCommentId = null;
 
   document.addEventListener("click", closeOpenCommentMenus);
 
@@ -495,6 +496,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     visibleComments.forEach((comment) => {
       const item = document.createElement("div");
       item.className = "comment-item";
+      item.dataset.commentId = String(comment.id);
+      if (pendingFocusedCommentId === Number(comment.id)) {
+        item.classList.add("is-highlighted");
+      }
 
       const header = document.createElement("div");
       header.className = "comment-header";
@@ -522,6 +527,20 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       item.append(date);
       commentsList.append(item);
     });
+
+    focusPendingComment();
+  }
+
+  function focusPendingComment() {
+    if (!commentsList || pendingFocusedCommentId === null) return;
+
+    const target = commentsList.querySelector(`[data-comment-id="${pendingFocusedCommentId}"]`);
+    if (!target) return;
+
+    target.scrollIntoView({ block: "center", behavior: "smooth" });
+    target.classList.add("is-highlighted");
+    window.setTimeout(() => target.classList.remove("is-highlighted"), 2400);
+    pendingFocusedCommentId = null;
   }
 
   function setCommentSortMode(nextSortMode) {
@@ -960,12 +979,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "features" } = {}) {
+  function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "features", focusCommentId = null } = {}) {
     const toilet = allToilets.find((item) => item.id === toiletId);
-    if (!toilet) return;
+    if (!toilet) return false;
 
     selectedToilet = toilet;
     selectedRating = null;
+    const focusId = Number(focusCommentId);
+    pendingFocusedCommentId = Number.isInteger(focusId) && focusId > 0 ? focusId : null;
     closeCommentComposer();
     setCommentComposerAvailable(true);
     
@@ -1037,6 +1058,27 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     renderResults();
     updateSelectedMarkerAppearance();
     onToiletSelected(toilet);
+    return true;
+  }
+
+  function openCommentThread(toiletId, commentId) {
+    selectedCommentFilters = new Set();
+    commentFilterInputs.forEach((input) => {
+      input.checked = false;
+    });
+    commentSortMode = "newest";
+    if (commentSortSelect) {
+      commentSortSelect.value = "newest";
+    }
+
+    const opened = setToilet(toiletId, {
+      defaultSection: "comment",
+      focusCommentId: commentId
+    });
+
+    if (!opened) {
+      setStatus("Could not find that toilet in the current map data.");
+    }
   }
 
   function renderMarkers() {
@@ -1495,6 +1537,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     refreshAfterTabVisible,
     getSelectedToilet,
     setToilet,
+    openCommentThread,
     updateToiletCleanliness,
     selectCleanlinessRating,
     submitCleanlinessSurveySelection,

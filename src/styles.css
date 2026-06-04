@@ -808,6 +808,10 @@ mark {
   background: #f6f8f4;
 }
 
+.comment-item.is-highlighted {
+  box-shadow: 0 0 0 3px rgba(42, 128, 111, 0.18);
+}
+
 .comment-header {
   display: flex;
   align-items: flex-start;
@@ -1369,6 +1373,118 @@ mark {
 .history-card div {
   padding: 12px 0;
   border-top: 1px solid #b8c6b9;
+}
+
+.my-comments-card {
+  padding-bottom: 8px;
+}
+
+.my-comment-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid #b8c6b9;
+}
+
+.my-comment-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.my-comment-open {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+}
+
+.my-comment-open strong {
+  font-size: 12px;
+}
+
+.my-comment-text,
+.my-comment-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-comment-text {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.my-comment-meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.my-comment-visibility {
+  inline-size: 116px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--teal);
+  background: white;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.my-comment-media {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.my-comment-media-item,
+.my-comment-media-more {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #edf2ee;
+}
+
+.my-comment-media-item img,
+.my-comment-media-item video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.my-comment-media-more {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.my-comment-open:hover strong,
+.my-comment-open:focus-visible strong {
+  color: var(--teal);
+}
+
+.my-comment-open:focus-visible,
+.my-comment-visibility:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.my-comment-visibility:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 #access-history-list > div:first-child {

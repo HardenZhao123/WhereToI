@@ -35,3 +35,10 @@ export function updateUserProfile(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export function updateCommentProfileVisibility(commentId, profileVisibility) {
+  return fetchJson(`${appConfig.apiBasePath}/account/comment-profile-visibility`, {
+    method: "POST",
+    body: JSON.stringify({ commentId, profileVisibility })
+  });
+}

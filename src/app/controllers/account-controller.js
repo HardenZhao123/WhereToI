@@ -1,12 +1,21 @@
-import { fetchAccountSnapshot, loginUser, registerUser, logoutUser, getCurrentUser, updateUserProfile } from "../services/account-service.js";
-import { renderAccessHistory, renderAccount } from "../views/account-view.js";
+import {
+  fetchAccountSnapshot,
+  loginUser,
+  registerUser,
+  logoutUser,
+  getCurrentUser,
+  updateUserProfile,
+  updateCommentProfileVisibility
+} from "../services/account-service.js";
+import { renderAccessHistory, renderAccount, renderMyComments } from "../views/account-view.js";
 
-export function createAccountController(elements, onProfilePreferenceToggled = () => {}) {
+export function createAccountController(elements, onProfilePreferenceToggled = () => {}, callbacks = {}) {
   const {
     walletBalance,
     subscriptionPlan,
     monthlyTicketsLeft,
     accessHistoryList,
+    myCommentsList,
     accountWelcome,
     accountUsername,
     authModal,
@@ -37,6 +46,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     autoFilterToggle,
     editProfileButton
   } = elements;
+  const { onCommentSelected = () => {} } = callbacks;
 
   const autoFilterStorageKey = "wheretoi-auto-filter-enabled";
   let currentUser = null;
@@ -112,6 +122,13 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
       info.textContent = "Create an account to save and view toilet access history.";
       empty.append(info);
       accessHistoryList.append(empty);
+    }
+
+    if (myCommentsList) {
+      myCommentsList.replaceChildren();
+      const info = document.createElement("p");
+      info.textContent = "Create an account to see and manage your comments.";
+      myCommentsList.append(info);
     }
 
     if (autoFilterToggle) {
@@ -213,6 +230,37 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     }
   }
 
+  function handleOpenComment(comment) {
+    if (!comment?.toilet_id || !comment?.id) return;
+    onCommentSelected({
+      toiletId: comment.toilet_id,
+      commentId: comment.id
+    });
+  }
+
+  async function handleSetCommentProfileVisibility(comment, profileVisibility, button) {
+    if (!comment?.id) return;
+
+    if (button) {
+      button.disabled = true;
+    }
+
+    try {
+      const payload = await updateCommentProfileVisibility(comment.id, profileVisibility);
+      renderMyComments(myCommentsList, payload.comments, {
+        onOpenComment: handleOpenComment,
+        onSetProfileVisibility: handleSetCommentProfileVisibility
+      });
+    } catch (error) {
+      console.error("Comment profile visibility update failed:", error);
+      alert(error?.message || "Could not update comment visibility. Please try again later.");
+    } finally {
+      if (button) {
+        button.disabled = false;
+      }
+    }
+  }
+
   async function loadPanelData() {
     try {
       // First, check if we are logged in
@@ -240,6 +288,10 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
         currentUser
       );
       renderAccessHistory(accessHistoryList, payload.history);
+      renderMyComments(myCommentsList, payload.comments, {
+        onOpenComment: handleOpenComment,
+        onSetProfileVisibility: handleSetCommentProfileVisibility
+      });
     } catch (error) {
       console.error("Account API failed:", error);
       if (error.message?.includes("authenticated") || error.status === 401) {

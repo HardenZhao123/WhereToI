@@ -415,6 +415,94 @@ test("API toggles one like per logged-in user for comments", async () => {
   });
 });
 
+test("API exposes own comments in account and updates profile visibility", async () => {
+  await withAppServer(async (baseUrl) => {
+    const toiletId = "detail-test";
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const { payload: postedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Account should show this comment",
+        commentVisibility: "anonymous"
+      })
+    });
+    const commentId = postedPayload.comments[0].id;
+
+    const { payload: accountPayload } = await fetchJson(`${baseUrl}/api/account`, {
+      headers: { "Cookie": cookie }
+    });
+
+    assert.equal(accountPayload.comments.length, 1);
+    assert.equal(accountPayload.comments[0].id, commentId);
+    assert.equal(accountPayload.comments[0].toilet_name, "Prayer room washroom");
+    assert.equal(accountPayload.comments[0].author_name, "Anonymous");
+    assert.equal(accountPayload.comments[0].profile_visibility, "private");
+
+    const anonymousUpdateResponse = await fetch(`${baseUrl}/api/account/comment-profile-visibility`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commentId, profileVisibility: "public" })
+    });
+    const anonymousUpdatePayload = await anonymousUpdateResponse.json();
+
+    assert.equal(anonymousUpdateResponse.status, 401);
+    assert.equal(anonymousUpdatePayload.error, "Not authenticated");
+
+    await fetchJson(`${baseUrl}/api/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "other-profile-user",
+        password: "demo123",
+        email: "other-profile-user@example.com"
+      })
+    });
+    const { response: otherLoginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "other-profile-user", password: "demo123" })
+    });
+    const otherCookie = otherLoginRes.headers.get("set-cookie");
+
+    const otherUpdateResponse = await fetch(`${baseUrl}/api/account/comment-profile-visibility`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": otherCookie
+      },
+      body: JSON.stringify({ commentId, profileVisibility: "public" })
+    });
+    const otherUpdatePayload = await otherUpdateResponse.json();
+
+    assert.equal(otherUpdateResponse.status, 404);
+    assert.equal(otherUpdatePayload.error, "Comment not found.");
+
+    const { payload: updatedPayload } = await fetchJson(`${baseUrl}/api/account/comment-profile-visibility`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ commentId, profileVisibility: "public" })
+    });
+
+    assert.equal(updatedPayload.comments.length, 1);
+    assert.equal(updatedPayload.comments[0].profile_visibility, "public");
+  });
+});
+
 test("API supports multiple image and video comment attachments", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletId = "detail-test";

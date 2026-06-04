@@ -143,6 +143,7 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(updatedComments[0].username, user.username);
     assert.equal(updatedComments[0].author_name, user.username);
     assert.equal(updatedComments[0].comment_visibility, "real");
+    assert.equal(updatedComments[0].profile_visibility, "private");
     assert.equal(updatedComments[0].is_anonymous, false);
     assert.equal(updatedComments[0].can_delete, true);
     assert.equal(updatedComments[0].like_count, 0);
@@ -164,6 +165,7 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(anonymousComments[0].username, "Anonymous");
     assert.equal(anonymousComments[0].author_name, "Anonymous");
     assert.equal(anonymousComments[0].comment_visibility, "anonymous");
+    assert.equal(anonymousComments[0].profile_visibility, "private");
     assert.equal(anonymousComments[0].is_anonymous, true);
     assert.equal(anonymousComments[0].can_delete, true);
     assert.equal(anonymousComments[0].user_id, null);
@@ -174,6 +176,60 @@ test("database saves and retrieves comments for toilets", async () => {
 
     const fetchedComments = await database.getComments(toiletId, { viewerUserId: userId });
     assert.deepEqual(fetchedComments, anonymousComments);
+  });
+});
+
+test("database lists own comments and updates profile visibility", async () => {
+  await withSeededDatabase(async (database) => {
+    const owner = await database.getUserByUsername("demo");
+    const liker = await database.createUser({
+      username: "comment-liker",
+      password: "demo123",
+      email: "comment-liker@example.com"
+    });
+    const toiletId = "detail-test";
+
+    const comments = await database.saveComment({
+      toiletId,
+      userId: owner.id,
+      username: owner.username,
+      commentText: "Show this in my account",
+      commentVisibility: "anonymous"
+    });
+    const commentId = comments[0].id;
+
+    await database.toggleCommentLike({
+      toiletId,
+      commentId,
+      userId: liker.id
+    });
+
+    const ownComments = await database.getUserComments(owner.id);
+    assert.equal(ownComments.length, 1);
+    assert.equal(ownComments[0].id, commentId);
+    assert.equal(ownComments[0].toilet_id, toiletId);
+    assert.equal(ownComments[0].toilet_name, "Prayer room washroom");
+    assert.equal(ownComments[0].author_name, "Anonymous");
+    assert.equal(ownComments[0].profile_visibility, "private");
+    assert.equal(ownComments[0].like_count, 1);
+    assert.equal(ownComments[0].can_delete, true);
+
+    const otherUpdate = await database.updateCommentProfileVisibility({
+      commentId,
+      userId: liker.id,
+      profileVisibility: "public"
+    });
+
+    assert.equal(otherUpdate.updated, false);
+
+    const ownerUpdate = await database.updateCommentProfileVisibility({
+      commentId,
+      userId: owner.id,
+      profileVisibility: "public"
+    });
+
+    assert.equal(ownerUpdate.updated, true);
+    assert.equal(ownerUpdate.comments[0].profile_visibility, "public");
   });
 });
 

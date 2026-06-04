@@ -12,6 +12,7 @@ const COMMENT_MEDIA_MAX_IMAGES = 9;
 const COMMENT_MEDIA_TYPES = new Set(["image", "video"]);
 const COMMENT_MEDIA_DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
 const COMMENT_VISIBILITIES = new Set(["real", "anonymous"]);
+const COMMENT_PROFILE_VISIBILITIES = new Set(["private", "public"]);
 export const ANONYMOUS_COMMENT_AUTHOR = "Anonymous";
 
 function normaliseCommentMediaAttachment(media) {
@@ -156,6 +157,7 @@ export function mapCommentRow(row, { viewerUserId = null } = {}) {
     user_id: isAnonymous ? null : row.user_id,
     username: authorName,
     comment_visibility: commentVisibility,
+    profile_visibility: normaliseStoredCommentProfileVisibility(row),
     author_name: authorName,
     is_anonymous: isAnonymous,
     can_delete: canDelete,
@@ -171,11 +173,26 @@ function normaliseStoredCommentVisibility(row) {
   return row.user_id ? "real" : "anonymous";
 }
 
+function normaliseStoredCommentProfileVisibility(row) {
+  const visibility = normaliseText(row.profile_visibility).toLowerCase();
+  return COMMENT_PROFILE_VISIBILITIES.has(visibility) ? visibility : "private";
+}
+
 export function normaliseCommentVisibility(value = "real") {
   const visibility = normaliseText(value).toLowerCase() || "real";
 
   if (!COMMENT_VISIBILITIES.has(visibility)) {
     throw new Error("comment visibility must be real or anonymous.");
+  }
+
+  return visibility;
+}
+
+export function normaliseCommentProfileVisibility(value = "private") {
+  const visibility = normaliseText(value).toLowerCase() || "private";
+
+  if (!COMMENT_PROFILE_VISIBILITIES.has(visibility)) {
+    throw new Error("comment profile visibility must be private or public.");
   }
 
   return visibility;

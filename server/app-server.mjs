@@ -25,6 +25,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "Unsupported",
   "comment media",
   "comment visibility",
+  "comment profile visibility",
   "too large",
   "not found",
   "once every 30 minutes"
@@ -195,8 +196,30 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       }
       const account = await database.getAccount(userId);
       const history = await database.getAccessHistory(userId, 10);
+      const comments = await database.getUserComments(userId, 30);
 
-      sendJson(response, 200, { account, history });
+      sendJson(response, 200, { account, history, comments });
+    },
+    "POST /api/account/comment-profile-visibility": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      if (!userId) {
+        sendJson(response, 401, { error: "Not authenticated" });
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const result = await database.updateCommentProfileVisibility({
+        commentId: body.commentId,
+        userId,
+        profileVisibility: body.profileVisibility
+      });
+
+      if (!result.updated) {
+        sendJson(response, 404, { error: "Comment not found." });
+        return;
+      }
+
+      sendJson(response, 200, { comments: result.comments });
     },
     "GET /api/access-history": async ({ request, response, url }) => {
       const userId = getSessionUserId(request);
