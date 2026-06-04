@@ -158,7 +158,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     if (myCommentsList) {
       myCommentsList.replaceChildren();
       const info = document.createElement("p");
-      info.textContent = "Create an account to see and manage your comments.";
+      info.textContent = "Create an account to see and manage your feedback.";
       myCommentsList.append(info);
     }
 
@@ -298,7 +298,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     const requestUserId = String(userId);
     showPublicProfileView(requestUserId);
     if (publicProfileUsername) publicProfileUsername.textContent = "Profile";
-    if (publicProfileSummary) publicProfileSummary.textContent = "Loading public comments...";
+    if (publicProfileSummary) publicProfileSummary.textContent = "Loading public feedback...";
     showPublicProfileMessage("Loading profile...");
 
     try {
@@ -313,7 +313,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
       console.error("Public profile loading failed:", error);
       if (!publicProfileActive || activePublicProfileUserId !== requestUserId) return;
       if (publicProfileUsername) publicProfileUsername.textContent = "Profile unavailable";
-      if (publicProfileSummary) publicProfileSummary.textContent = "Public comments could not be loaded.";
+      if (publicProfileSummary) publicProfileSummary.textContent = "Public feedback could not be loaded.";
       showPublicProfileMessage(error?.message || "Could not load this profile.");
     }
   }

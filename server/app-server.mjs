@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { createDatabase } from "./database.mjs";
+import { normaliseCommentPayload } from "./database/repository/repository-utils.mjs";
 import { createRegistrationEmailService } from "./email-service.mjs";
 
 const STATIC_CONTENT_TYPES = {
@@ -299,16 +300,30 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       }
 
       const body = await readJsonBody(request);
-      const comments = await database.saveComment({
+      const media = body.mediaAttachments ?? body.media;
+      const comment = normaliseCommentPayload({
         toiletId: body.toiletId,
-        userId: userId,
-        username: user.username,
         commentText: body.commentText,
         commentVisibility: body.commentVisibility,
-        media: body.mediaAttachments ?? body.media
+        cleanlinessRating: body.cleanlinessRating,
+        media
+      });
+      const cleanlinessResult = await database.recordCleanlinessSurvey({
+        userId,
+        toiletId: comment.toiletId,
+        rating: comment.cleanlinessRating
+      });
+      const comments = await database.saveComment({
+        toiletId: comment.toiletId,
+        userId: userId,
+        username: user.username,
+        commentText: comment.commentText,
+        commentVisibility: comment.commentVisibility,
+        cleanlinessRating: comment.cleanlinessRating,
+        media
       });
 
-      sendJson(response, 201, { comments });
+      sendJson(response, 201, { comments, toilet: cleanlinessResult.toilet });
     },
     "DELETE /api/comments": async ({ request, response }) => {
       const userId = getSessionUserId(request);

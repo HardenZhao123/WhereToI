@@ -819,11 +819,28 @@ mark {
   gap: 8px;
 }
 
+.comment-author-line {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .comment-author {
   margin-bottom: 4px;
   font-size: 11px;
   font-weight: 700;
   color: var(--ink);
+}
+
+.comment-rating {
+  flex: 0 0 auto;
+  color: var(--gold);
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .comment-author-link {
@@ -1277,6 +1294,16 @@ mark {
   background: white;
 }
 
+.feedback-rating-field {
+  margin-bottom: 2px;
+}
+
+.map-cleanliness-survey h4 {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
 .map-cleanliness-survey p {
   color: var(--muted);
   font-size: 12px;
@@ -1445,6 +1472,21 @@ mark {
   font-size: 12px;
 }
 
+.profile-feedback-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profile-feedback-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .my-comment-text,
 .my-comment-meta {
   overflow: hidden;
@@ -1460,6 +1502,14 @@ mark {
 .my-comment-meta {
   color: var(--muted);
   font-size: 11px;
+}
+
+.profile-feedback-rating {
+  flex: 0 0 auto;
+  color: var(--gold);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .my-comment-visibility {

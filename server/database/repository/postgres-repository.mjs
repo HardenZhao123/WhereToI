@@ -223,6 +223,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       username TEXT,
       comment_visibility TEXT NOT NULL DEFAULT 'real',
       profile_visibility TEXT NOT NULL DEFAULT 'private',
+      cleanliness_rating INTEGER,
       comment_text TEXT NOT NULL,
       media_type TEXT,
       media_mime_type TEXT,
@@ -749,6 +750,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           username,
           comment_visibility,
           profile_visibility,
+          cleanliness_rating,
           comment_text,
           media_type,
           media_mime_type,
@@ -788,6 +790,17 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_comments.username,
           toilet_comments.comment_visibility,
           toilet_comments.profile_visibility,
+          COALESCE(
+            toilet_comments.cleanliness_rating,
+            (
+              SELECT cleanliness_surveys.rating
+              FROM cleanliness_surveys
+              WHERE cleanliness_surveys.toilet_id = toilet_comments.toilet_id
+                AND cleanliness_surveys.user_id = toilet_comments.user_id
+              ORDER BY cleanliness_surveys.created_at DESC, cleanliness_surveys.id DESC
+              LIMIT 1
+            )
+          ) AS cleanliness_rating,
           toilet_comments.comment_text,
           toilet_comments.media_type,
           toilet_comments.media_mime_type,
@@ -840,6 +853,17 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_comments.username,
           toilet_comments.comment_visibility,
           toilet_comments.profile_visibility,
+          COALESCE(
+            toilet_comments.cleanliness_rating,
+            (
+              SELECT cleanliness_surveys.rating
+              FROM cleanliness_surveys
+              WHERE cleanliness_surveys.toilet_id = toilet_comments.toilet_id
+                AND cleanliness_surveys.user_id = toilet_comments.user_id
+              ORDER BY cleanliness_surveys.created_at DESC, cleanliness_surveys.id DESC
+              LIMIT 1
+            )
+          ) AS cleanliness_rating,
           toilet_comments.comment_text,
           toilet_comments.media_type,
           toilet_comments.media_mime_type,
@@ -880,8 +904,8 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         comments: commentsResult.rows.map((row) => mapCommentRow(row, { viewerUserId }))
       };
     },
-    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
-      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility });
+    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility, cleanlinessRating }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility, cleanlinessRating });
       const displayUsername =
         comment.commentVisibility === "anonymous" ? ANONYMOUS_COMMENT_AUTHOR : username;
 
@@ -893,6 +917,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           user_id,
           username,
           comment_visibility,
+          cleanliness_rating,
           comment_text,
           media_type,
           media_mime_type,
@@ -902,13 +927,14 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_attachments,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
         `,
         [
           comment.toiletId,
           userId,
           displayUsername,
           comment.commentVisibility,
+          comment.cleanlinessRating,
           comment.commentText,
           comment.mediaType,
           comment.mediaMimeType,

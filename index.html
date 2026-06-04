@@ -14,7 +14,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./src/styles.css?v=comment-presets-1" />
+    <link rel="stylesheet" href="./src/styles.css?v=feedback-rating-1" />
   </head>
   <body>
     <main class="app-shell" aria-label="WhereToI web app">
@@ -116,8 +116,7 @@
               <nav class="details-section-nav" aria-label="Toilet detail sections">
                 <button class="details-section-link is-active" id="details-features-link" type="button" data-detail-section="features" aria-controls="details-features-panel" aria-selected="true">Features</button>
                 <button class="details-section-link" id="details-hours-link" type="button" data-detail-section="hours" aria-controls="details-hours-panel" aria-selected="false">Opening Hours</button>
-                <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Comment</button>
-                <button class="details-section-link" id="details-survey-link" type="button" data-detail-section="survey" aria-controls="details-survey-panel" aria-selected="false">Review</button>
+                <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Feedback</button>
               </nav>
               <div class="details-section-panels">
                 <section class="details-panel is-active" id="details-features-panel" data-detail-panel="features" aria-labelledby="details-features-link">
@@ -146,58 +145,72 @@
                 </section>
                 <section class="details-panel" id="details-comment-panel" data-detail-panel="comment" aria-labelledby="details-comment-link" hidden>
                   <div class="comment-panel">
-                    <h3>Comment</h3>
+                    <h3>Venue note</h3>
                     <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
                   </div>
                   <section class="comments-section">
                     <div class="comments-header">
-                      <h3>Comments</h3>
-                      <label class="comment-sort-control" for="comment-sort" aria-label="Sort comments">
-                        <select id="comment-sort" aria-label="Sort comments">
+                      <h3>Feedback</h3>
+                      <label class="comment-sort-control" for="comment-sort" aria-label="Sort feedback">
+                        <select id="comment-sort" aria-label="Sort feedback">
                           <option value="newest">Newest</option>
                           <option value="liked">Most liked</option>
                         </select>
                       </label>
                     </div>
-                    <div class="comment-filter-tags" id="comment-filters" aria-label="Comment tags">
+                    <div class="comment-filter-tags" id="comment-filters" aria-label="Feedback tags">
                       <label class="comment-filter-tag"><input type="checkbox" value="media" /> Photo/video</label>
                       <label class="comment-filter-tag"><input type="checkbox" value="long" /> Long</label>
                     </div>
-                    <p class="comments-summary" id="comments-summary" aria-live="polite">0 comments - Newest</p>
+                    <p class="comments-summary" id="comments-summary" aria-live="polite">0 feedback - Newest</p>
                     <div id="comments-list" class="comments-list">
-                      <p>Loading comments...</p>
+                      <p>Loading feedback...</p>
                     </div>
                   </section>
                 </section>
                 <section class="details-panel" id="details-survey-panel" data-detail-panel="survey" aria-labelledby="details-survey-link" hidden>
-                  <section class="map-cleanliness-survey" aria-labelledby="map-cleanliness-survey-title">
+                  <section class="map-cleanliness-survey" aria-labelledby="retired-map-cleanliness-survey-title">
                     <div>
-                      <h3 id="map-cleanliness-survey-title">Cleanliness review</h3>
+                      <h3 id="retired-map-cleanliness-survey-title">Retired cleanliness input</h3>
                       <p>How clean was this toilet?</p>
                     </div>
                     <div class="star-survey-actions" role="group" aria-label="Map cleanliness star rating">
-                      <button type="button" data-survey-rating="1" aria-label="Rate 1 star" aria-pressed="false">★</button>
-                      <button type="button" data-survey-rating="2" aria-label="Rate 2 stars" aria-pressed="false">★</button>
-                      <button type="button" data-survey-rating="3" aria-label="Rate 3 stars" aria-pressed="false">★</button>
-                      <button type="button" data-survey-rating="4" aria-label="Rate 4 stars" aria-pressed="false">★</button>
-                      <button type="button" data-survey-rating="5" aria-label="Rate 5 stars" aria-pressed="false">★</button>
+                      <button type="button" data-retired-survey-rating="1" aria-label="Rate 1 star" aria-pressed="false">★</button>
+                      <button type="button" data-retired-survey-rating="2" aria-label="Rate 2 stars" aria-pressed="false">★</button>
+                      <button type="button" data-retired-survey-rating="3" aria-label="Rate 3 stars" aria-pressed="false">★</button>
+                      <button type="button" data-retired-survey-rating="4" aria-label="Rate 4 stars" aria-pressed="false">★</button>
+                      <button type="button" data-retired-survey-rating="5" aria-label="Rate 5 stars" aria-pressed="false">★</button>
                     </div>
-                    <p class="survey-status" id="map-survey-status" aria-live="polite">Choose 1 to 5 stars to help others.</p>
-                    <button type="button" class="solid-button" id="submit-cleanliness-survey" disabled>Submit Review</button>
+                    <p class="survey-status" id="retired-map-survey-status" aria-live="polite">Choose 1 to 5 stars to help others.</p>
+                    <button type="button" class="solid-button" id="retired-submit-cleanliness-survey" disabled>Retired</button>
                   </section>
                 </section>
               </div>
             </article>
             <button class="comment-composer-toggle is-hidden" id="comment-composer-toggle" type="button" aria-controls="comment-composer" aria-expanded="false">
-              Write comment
+              Write feedback
             </button>
             <section class="comment-composer is-hidden" id="comment-composer" aria-labelledby="comment-composer-title" hidden>
               <header class="comment-composer-header">
-                <h3 id="comment-composer-title">Write comment</h3>
-                <button class="close-button" id="close-comment-composer" type="button" aria-label="Close comment editor">X</button>
+                <h3 id="comment-composer-title">Write feedback</h3>
+                <button class="close-button" id="close-comment-composer" type="button" aria-label="Close feedback editor">X</button>
               </header>
               <form id="comment-form" class="comment-form">
-                <textarea id="comment-input" placeholder="Write a comment..." required></textarea>
+                <section class="map-cleanliness-survey feedback-rating-field" aria-labelledby="map-cleanliness-survey-title">
+                  <div>
+                    <h4 id="map-cleanliness-survey-title">Cleanliness rating</h4>
+                    <p>Required for feedback. You can submit rating only.</p>
+                  </div>
+                  <div class="star-survey-actions" role="group" aria-label="Feedback cleanliness star rating">
+                    <button type="button" data-survey-rating="1" aria-label="Rate 1 star" aria-pressed="false">★</button>
+                    <button type="button" data-survey-rating="2" aria-label="Rate 2 stars" aria-pressed="false">★</button>
+                    <button type="button" data-survey-rating="3" aria-label="Rate 3 stars" aria-pressed="false">★</button>
+                    <button type="button" data-survey-rating="4" aria-label="Rate 4 stars" aria-pressed="false">★</button>
+                    <button type="button" data-survey-rating="5" aria-label="Rate 5 stars" aria-pressed="false">★</button>
+                  </div>
+                  <p class="survey-status" id="map-survey-status" aria-live="polite">Choose 1 to 5 stars to continue.</p>
+                </section>
+                <textarea id="comment-input" placeholder="Add details if useful..."></textarea>
                 <div class="comment-preset-tags" aria-label="Quick comment tags">
                   <span class="comment-preset-label">Quick tags</span>
                   <button type="button" data-comment-preset="The space is roomy enough to turn around and place a bag.">Spacious</button>
@@ -228,7 +241,7 @@
                   <div class="comment-media-preview" id="comment-media-preview" aria-live="polite"></div>
                   <p class="comment-media-status" id="comment-media-status" aria-live="polite">Up to 9 attachments total, including up to 3 videos.</p>
                 </div>
-                <button type="submit" id="submit-comment">Post Comment</button>
+                <button type="submit" id="submit-comment" disabled>Submit feedback</button>
               </form>
             </section>
           </section>
@@ -239,8 +252,8 @@
                 <p class="section-kicker">Public profile</p>
                 <h2 id="public-profile-username">Profile</h2>
                 <article class="account-card public-profile-card">
-                  <h3>Public comments</h3>
-                  <p id="public-profile-summary">Only comments this user chose to show on their profile appear here.</p>
+                  <h3>Public feedback</h3>
+                  <p id="public-profile-summary">Only feedback this user chose to show on their profile appears here.</p>
                   <div id="public-profile-comments-list" aria-live="polite">
                     <p>Loading profile...</p>
                   </div>
@@ -278,9 +291,9 @@
                 <button type="button" id="edit-profile" style="background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; margin-top: 12px; cursor: pointer; font-size: 12px;">Edit Profile</button>
               </article>
               <article class="account-card my-comments-card">
-                <h3>My comments</h3>
+                <h3>My feedback</h3>
                 <div id="my-comments-list" aria-live="polite">
-                  <p>No comments yet.</p>
+                  <p>No feedback yet.</p>
                 </div>
               </article>
               <article class="account-card history-card">
