@@ -1352,7 +1352,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   async function submitCleanlinessSurveySelection() {
     if (selectedRating === null) return;
-    await answerCleanlinessSurvey(selectedRating);
+    const saved = await answerCleanlinessSurvey(selectedRating);
+    if (!saved) return;
+
     selectedRating = null;
     renderCleanlinessSurvey(selectedToilet);
   }
@@ -1360,18 +1362,18 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   async function answerCleanlinessSurvey(rating) {
     if (!selectedToilet) {
       setStatus("Select a toilet marker before writing a review.");
-      return;
+      return false;
     }
 
     const safeRating = Number(rating);
-    if (!Number.isInteger(safeRating) || safeRating < 1 || safeRating > 5) return;
+    if (!Number.isInteger(safeRating) || safeRating < 1 || safeRating > 5) return false;
 
     if (!isAuthenticated()) {
       if (mapSurveyStatus) {
         mapSurveyStatus.textContent = "Log in or sign up to rate cleanliness.";
       }
       showLoginPrompt("Log in or sign up to rate cleanliness.");
-      return;
+      return false;
     }
 
     if (mapSurveyStatus) {
@@ -1388,11 +1390,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         rating: safeRating
       });
 
-      savedToDatabase = true;
-
-      if (result.toilet?.id) {
-        updateToiletCleanliness(result.toilet);
+      if (!result.toilet?.id) {
+        throw new Error("Cleanliness survey response did not include the updated toilet.");
       }
+
+      savedToDatabase = true;
+      updateToiletCleanliness(result.toilet);
     } catch (error) {
       console.error("Cleanliness survey failed:", error);
       if (error.status === 401) {
@@ -1401,14 +1404,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
           mapSurveyStatus.textContent = "Log in or sign up to rate cleanliness.";
         }
         showLoginPrompt("Log in or sign up to rate cleanliness.");
-        return;
+        return false;
       }
 
       if (mapSurveyStatus) {
         mapSurveyStatus.classList.add("warning");
-        mapSurveyStatus.textContent = error.message || "Could not save to database. Saved on this device only.";
+        mapSurveyStatus.textContent = error.message || "Could not save rating to database.";
       }
+      return false;
     }
+
+    if (!savedToDatabase) return false;
 
     cleanlinessSurveyAnswers = {
       ...cleanlinessSurveyAnswers,
@@ -1421,10 +1427,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     saveSurveyAnswers();
     renderCleanlinessSurvey(selectedToilet);
-
-    if (!savedToDatabase && mapSurveyStatus) {
-      mapSurveyStatus.textContent = "Could not save to database. Saved on this device only.";
-    }
+    return true;
   }
 
   async function postComment(event) {
