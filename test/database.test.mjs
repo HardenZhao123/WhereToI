@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { createDatabase } from "../server/database.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
@@ -24,7 +25,7 @@ async function withSeededDatabase(callback, options = {}) {
       dbFilePath,
       seedCsvPath
     });
-    await callback(database);
+    await callback(database, { dbFilePath, seedCsvPath });
   } finally {
     await database?.close?.();
     await rm(directory, { recursive: true, force: true });
@@ -38,10 +39,10 @@ async function withSeededDatabase(callback, options = {}) {
 
 test("SQLite database seeds and returns expanded toilet feature data", async () => {
   await withSeededDatabase(async (database) => {
-    const toilets = await database.getToilets();
+    const toilets = await database.getToilets({ cleanlinessRange: "all" });
     const detailToilet = toilets.find((toilet) => toilet.id === "detail-test");
 
-    assert.equal(toilets.length, 2);
+    assert.equal(toilets.length, 7);
     assert.equal(detailToilet.features.babyChanging, "Y");
     assert.equal(detailToilet.features.bidet, "Y");
     assert.equal(detailToilet.features.radarKey, "Y");
@@ -55,9 +56,41 @@ test("SQLite database keeps accessible-only filtering behavior", async () => {
 
     assert.deepEqual(
       toilets.map((toilet) => toilet.id),
-      ["detail-test"]
+      ["detail-test", "extra-test-1", "extra-test-2", "extra-test-3", "extra-test-4", "extra-test-5"]
     );
   });
+});
+
+test("cleanliness time ranges exclude older ratings except all time", async () => {
+  await withSeededDatabase(async (database, { dbFilePath }) => {
+    const user = await database.getUserByUsername("demo");
+
+    await database.recordCleanlinessSurvey({
+      userId: user.id,
+      toiletId: "detail-test",
+      rating: 5
+    });
+
+    const db = new DatabaseSync(dbFilePath);
+    try {
+      const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+      db.prepare("UPDATE cleanliness_surveys SET created_at = ? WHERE toilet_id = ?").run(tenDaysAgo, "detail-test");
+    } finally {
+      db.close();
+    }
+
+    const recentToilets = await database.getToilets({ cleanlinessRange: "1day" });
+    const recentToilet = recentToilets.find((toilet) => toilet.id === "detail-test");
+    assert.equal(recentToilet.cleanliness, null);
+    assert.equal(recentToilet.cleanlinessSurvey.ratingTotal, 0);
+    assert.equal(recentToilet.cleanlinessSurvey.ratingCount, 0);
+
+    const allTimeToilets = await database.getToilets({ cleanlinessRange: "all" });
+    const allTimeToilet = allTimeToilets.find((toilet) => toilet.id === "detail-test");
+    assert.equal(allTimeToilet.cleanliness, 5);
+    assert.equal(allTimeToilet.cleanlinessSurvey.ratingTotal, 5);
+    assert.equal(allTimeToilet.cleanlinessSurvey.ratingCount, 1);
+  }, { modelType: "average" });
 });
 
 test("recordAccess validates inputs and persists wallet/history changes", async () => {
@@ -295,23 +328,13 @@ test("Z-Score Model adjusts rating based on user distribution", async () => {
     // 1. Establish a distribution for the user: ratings 1 and 5.
     // userAvg = 3. userSumSquares = 1^2 + 5^2 = 26.
     // userVar = 26/2 - 3^2 = 13 - 9 = 4. userStd = 2.
-    await database.recordCleanlinessSurvey({ userId, toiletId: otherToiletId, rating: 1 });
-    await database.recordCleanlinessSurvey({ userId, toiletId: otherToiletId, rating: 5 });
+    await database.recordCleanlinessSurvey({ userId, toiletId: "extra-test-1", rating: 1 });
+    await database.recordCleanlinessSurvey({ userId, toiletId: "extra-test-2", rating: 5 });
 
     // 2. Submit a 5-star rating for our target toilet.
-    // userAvg = 3. userStd = 2.
-    // Global stats will be same as user if they are the only one: globalAvg = 3, globalStd = 2.
-    // z = (5 - 3) / 2 = 1.
-    // adjustedRating = globalStd * z + globalAvg = 2 * 1 + 3 = 5.
-    
-    // Wait, if I want to see an ADJUSTMENT, I need different global stats or a different rating.
-    // Let's say we want to see it pull towards a global mean of 3 with global std of 1.
-    // If I add another user who is very "average" (3, 3), then global stats change.
-    
-    // For simplicity, let's just check if it calculates SOMETHING reasonable.
     const result = await database.recordCleanlinessSurvey({
       userId,
-      toiletId,
+      toiletId: "extra-test-3",
       rating: 5
     });
 
@@ -345,7 +368,7 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
     
     const result = await database.recordCleanlinessSurvey({
       userId,
-      toiletId,
+      toiletId: "extra-test-4",
       rating: 5
     });
 
@@ -356,14 +379,13 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
     // So the second rating might already be high.
     
     // Just verify that we can keep recording and biases update.
-    for (let i = 0; i < 20; i++) {
-      await database.recordCleanlinessSurvey({ userId, toiletId, rating: 5 });
-    }
+    // We need to use different toilets to avoid the 30-minute cooldown
+    await database.recordCleanlinessSurvey({ userId, toiletId: "extra-test-5", rating: 5 });
     
     const finalUser = await database.getUserById(userId);
     assert.ok(Math.abs(finalUser.bias) > 0);
     
-    const toilets = await database.getToilets();
+    const toilets = await database.getToilets({ cleanlinessRange: "all" });
     const targetToilet = toilets.find(t => t.id === toiletId);
     assert.ok(targetToilet.cleanliness >= 3);
 

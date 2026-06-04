@@ -26,7 +26,8 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "comment media",
   "comment visibility",
   "too large",
-  "not found"
+  "not found",
+  "once every 30 minutes"
 ];
 
 function sendJson(response, statusCode, payload, headers = {}) {
@@ -181,7 +182,8 @@ function createApiRouteHandlers(database, { emailService, logger }) {
     "GET /api/toilets": async ({ response, url }) => {
       const search = url.searchParams.get("search") ?? "";
       const accessibleOnly = parseAccessibleOnly(url.searchParams.get("accessibleOnly"));
-      const toilets = await database.getToilets({ search, accessibleOnly });
+      const cleanlinessRange = url.searchParams.get("cleanlinessRange") ?? "3days";
+      const toilets = await database.getToilets({ search, accessibleOnly, cleanlinessRange });
 
       sendJson(response, 200, { toilets });
     },

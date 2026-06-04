@@ -11,6 +11,7 @@ import {
   mapAccountRow,
   mapCleanlinessSurveyResponse,
   mapCommentRow,
+  getCleanlinessRangeStartDate,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
   normaliseCommentDeletePayload,
@@ -119,6 +120,20 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     ) STRICT;
+
+    CREATE TABLE IF NOT EXISTS cleanliness_surveys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      toilet_id TEXT NOT NULL,
+      user_id INTEGER,
+      rating INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    ) STRICT;
+
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_toilet_id ON cleanliness_surveys(toilet_id);
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_created_at ON cleanliness_surveys(created_at);
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_created_at_toilet_id ON cleanliness_surveys(created_at, toilet_id, rating);
 
     CREATE TABLE IF NOT EXISTS comment_likes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -283,51 +298,78 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
       return null;
     },
-    async getToilets({ search = "", accessibleOnly = false } = {}) {
+    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days" } = {}) {
+      const query = normaliseSearchQuery(search);
+      const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
+      const isAllTime = startDate === null;
+      const params = [];
+      const conditions = [];
+
+      if (accessibleOnly) {
+        conditions.push("t.accessible = 'Y'");
+      }
+
+      if (query) {
+        params.push(`%${query}%`);
+        conditions.push(`(LOWER(t.name) LIKE ? OR LOWER(t.area) LIKE ?)`);
+        params.push(`%${query}%`);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+      const joinClause = isAllTime
+        ? ""
+        : "LEFT JOIN cleanliness_surveys s ON t.id = s.toilet_id AND s.created_at >= ?";
+      const cleanlinessColumns = isAllTime
+        ? `
+            t.cleanliness AS cleanliness,
+            t.cleanliness_yes_count,
+            t.cleanliness_no_count,
+            t.cleanliness_rating_total AS cleanliness_rating_total,
+            t.cleanliness_rating_count AS cleanliness_rating_count
+          `
+        : `
+            CASE WHEN COUNT(s.rating) > 0 THEN AVG(s.rating) ELSE NULL END AS cleanliness,
+            t.cleanliness_yes_count,
+            t.cleanliness_no_count,
+            COALESCE(SUM(s.rating), 0) AS cleanliness_rating_total,
+            COUNT(s.rating) AS cleanliness_rating_count
+          `;
+      const groupClause = isAllTime ? "" : "GROUP BY t.id";
+      const queryParams = isAllTime ? params : [startDate, ...params];
+
       const rows = db
         .prepare(
           `
           SELECT
-            id,
-            name,
-            area,
-            lat,
-            lng,
-            paid,
-            comment,
-            women,
-            men,
-            accessible,
-            neutral,
-            children,
-            baby_changing,
-            bidet,
-            automatic,
-            urinal_only,
-            radar_key,
-            free_access,
-            opening_times,
-            cleanliness,
-            cleanliness_yes_count,
-            cleanliness_no_count,
-            cleanliness_rating_total,
-            cleanliness_rating_count
-          FROM toilets
+            t.id,
+            t.name,
+            t.area,
+            t.lat,
+            t.lng,
+            t.paid,
+            t.comment,
+            t.women,
+            t.men,
+            t.accessible,
+            t.neutral,
+            t.children,
+            t.baby_changing,
+            t.bidet,
+            t.automatic,
+            t.urinal_only,
+            t.radar_key,
+            t.free_access,
+            t.opening_times,
+            ${cleanlinessColumns}
+          FROM toilets t
+          ${joinClause}
+          ${whereClause}
+          ${groupClause}
           `
         )
-        .all();
+        .all(...queryParams);
 
-      const query = normaliseSearchQuery(search);
-
-      return rows.map(mapRowToToilet).filter((toilet) => {
-        if (accessibleOnly && toilet.features.accessible !== "Y") return false;
-        if (!query) return true;
-
-        return (
-          toilet.name.toLowerCase().includes(query) ||
-          toilet.area.toLowerCase().includes(query)
-        );
-      });
+      return rows.map(mapRowToToilet);
     },
     async recordCleanlinessSurvey({ userId = null, toiletId = null, toiletName = "", rating, answer }) {
       const { safeToiletId, safeToiletName, safeRating } = normaliseCleanlinessSurveyPayload({
@@ -372,6 +414,17 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         throw new Error("toilet not found.");
       }
 
+      if (userId) {
+        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        const recentSurvey = db.prepare(
+          "SELECT id FROM cleanliness_surveys WHERE toilet_id = ? AND user_id = ? AND created_at >= ? LIMIT 1"
+        ).get(row.id, userId, thirtyMinutesAgo);
+
+        if (recentSurvey) {
+          throw new Error("You can only rate this toilet once every 30 minutes.");
+        }
+      }
+
       const globalStats = db.prepare("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users").get();
       const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
       let globalStandardDeviation = 1;
@@ -403,6 +456,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         WHERE id = ?
         `
       ).run(cleanliness, ratingTotal, ratingCount, ratingSumSquares, newToiletBias ?? row.bias ?? 0.0, row.id);
+
+      db.prepare(
+        "INSERT INTO cleanliness_surveys (toilet_id, user_id, rating, created_at) VALUES (?, ?, ?, ?)"
+      ).run(row.id, userId, safeRating, new Date().toISOString());
 
       return mapCleanlinessSurveyResponse({
         row,

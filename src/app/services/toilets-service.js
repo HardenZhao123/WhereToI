@@ -3,13 +3,30 @@ import { parseCsv, rowsToObjects } from "../utils/csv.js";
 import { mapRecordToToilet } from "../toilets/toilet-record-mapper.js";
 import { fetchJson } from "./http-client.js";
 
-export async function loadToiletsFromApi() {
-  const payload = await fetchJson(`${appConfig.apiBasePath}/toilets`);
-  if (!Array.isArray(payload.toilets)) {
-    throw new Error("Invalid toilets API response.");
+export async function loadToiletsFromApi(cleanlinessRange = "3days", retryCount = 2, timeoutMs = 30000) {
+  const url = `${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`;
+
+  for (let attempt = 0; attempt <= retryCount; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const payload = await fetchJson(url, { signal: controller.signal });
+      if (Array.isArray(payload.toilets)) {
+        return payload.toilets;
+      }
+    } catch (error) {
+      if (attempt >= retryCount) {
+        throw error;
+      }
+      // Wait 2 seconds before retrying (Render cold start can be slow)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } finally {
+      globalThis.clearTimeout(timeoutId);
+    }
   }
 
-  return payload.toilets;
+  throw new Error("Invalid toilets API response.");
 }
 
 export async function loadToiletsFromCsv() {

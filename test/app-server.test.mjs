@@ -51,7 +51,7 @@ test("API preserves accessible filtering and access-history write behavior", asy
     const { payload: accessiblePayload } = await fetchJson(`${baseUrl}/api/toilets?accessibleOnly=true`);
     assert.deepEqual(
       accessiblePayload.toilets.map((toilet) => toilet.id),
-      ["detail-test"]
+      ["detail-test", "extra-test-1", "extra-test-2", "extra-test-3", "extra-test-4", "extra-test-5"]
     );
 
     // Login first
@@ -553,5 +553,10 @@ test("API records cleanliness survey as a star rating", async () => {
     assert.equal(payload.toilet.cleanliness, 5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingTotal, 5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingCount, 1);
+
+    const { payload: toiletsPayload } = await fetchJson(`${baseUrl}/api/toilets?cleanlinessRange=3days`);
+    const refreshedToilet = toiletsPayload.toilets.find((toilet) => toilet.id === "detail-test");
+    assert.equal(refreshedToilet.cleanlinessSurvey.ratingTotal, 5);
+    assert.equal(refreshedToilet.cleanlinessSurvey.ratingCount, 1);
   }, { databaseOptions: { cleanlinessScoringModel: { type: "average" } } });
 });

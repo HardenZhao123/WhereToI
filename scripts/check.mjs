@@ -19,6 +19,7 @@ const requiredFiles = [
   "src/app/utils/csv.js",
   "src/app/utils/geo.js",
   "src/app/utils/cleanliness.js",
+  "src/app/utils/comments.js",
   "src/app/utils/text.js",
   "src/app/utils/account-formatters.js",
   "src/styles.css",
@@ -48,6 +49,8 @@ const requiredCopy = [
   "Nearest",
   "Cleanest",
   "Most facilities",
+  "Most liked",
+  "Photo/video",
   "Confirm password",
   "Create an account to unlock more features",
   "Attach image or video"
@@ -162,6 +165,22 @@ if (
   !css.includes(".comment-like-button.is-liked")
 ) {
   throw new Error("Expected logged-in users to toggle one like per comment with a right-side thumbs-up button.");
+}
+
+if (
+  !html.includes("id=\"comment-sort\"") ||
+  !html.includes("value=\"newest\"") ||
+  !html.includes("value=\"liked\"") ||
+  !html.includes("id=\"comment-filters\"") ||
+  !html.includes("value=\"media\"") ||
+  !html.includes("value=\"long\"") ||
+  !js.includes("filterAndSortComments") ||
+  !js.includes("setCommentSortMode") ||
+  !js.includes("setCommentFilter") ||
+  !css.includes(".comment-sort-control") ||
+  !css.includes(".comment-filter-tag")
+) {
+  throw new Error("Expected comments to support newest/default sorting, most-liked sorting, and tag filters for media or long comments.");
 }
 
 if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {

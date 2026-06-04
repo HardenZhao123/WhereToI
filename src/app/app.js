@@ -13,7 +13,12 @@ export function createApp() {
 
   const mapController = createMapController(elements, () => {}, {
     isAuthenticated: () => accountController?.isAuthenticated() ?? false,
-    showLoginPrompt: (message) => accountController?.showAuthModal("login", message)
+    showLoginPrompt: (message) => accountController?.showAuthModal("login", message),
+    onCleanlinessSaved: () =>
+      initializeToilets(elements.cleanlinessRangeSelect?.value ?? "3days", {
+        allowFallback: false,
+        force: true
+      })
   });
 
   accountController = createAccountController(
@@ -29,52 +34,144 @@ export function createApp() {
     onMapTabActivated: () => mapController.refreshAfterTabVisible()
   });
 
-  async function initializeToilets() {
-    mapController.setStatus("Loading toilets data...");
+  let toiletLoadRequestId = 0;
+  let toiletRetryTimerId = null;
+  let hasLoadedApiToilets = false;
+  let lastLoadedRange = null;
 
-    let apiLoadFailed = false;
+  function clearToiletRetry() {
+    if (toiletRetryTimerId) {
+      window.clearTimeout(toiletRetryTimerId);
+      toiletRetryTimerId = null;
+    }
+  }
 
-    function setLoadedToilets(toilets) {
-      const southKen = appConfig.initialView;
-      const sorted = [...toilets].sort((a, b) => {
-        const distA = distanceInMetres(southKen.lat, southKen.lng, a.lat, a.lng);
-        const distB = distanceInMetres(southKen.lat, southKen.lng, b.lat, b.lng);
-        return distA - distB;
+  function scheduleToiletRetry(range) {
+    clearToiletRetry();
+    toiletRetryTimerId = window.setTimeout(() => {
+      toiletRetryTimerId = null;
+      initializeToilets(range, { allowFallback: false });
+    }, 5000);
+  }
+
+  function getCurrentDetailSection() {
+    const activeSectionLink = elements.detailSectionLinks
+      ? Array.from(elements.detailSectionLinks).find((link) => link.classList.contains("is-active"))
+      : null;
+
+    return activeSectionLink?.dataset.detailSection ?? null;
+  }
+
+  function setLoadedToilets(
+    toilets,
+    { currentSelectedId = null, currentSection = null, hideDetails = true, status = "" } = {}
+  ) {
+    const southKen = appConfig.initialView;
+    const sorted = [...toilets].sort((a, b) => {
+      const distA = distanceInMetres(southKen.lat, southKen.lng, a.lat, a.lng);
+      const distB = distanceInMetres(southKen.lat, southKen.lng, b.lat, b.lng);
+      return distA - distB;
+    });
+
+    mapController.setToilets(sorted, { hideDetails });
+
+    if (currentSelectedId) {
+      mapController.setToilet(currentSelectedId, {
+        fly: false,
+        updateDistance: false,
+        defaultSection: currentSection
       });
-      mapController.setToilets(sorted);
     }
 
+    if (status) {
+      mapController.setStatus(status);
+    }
+  }
+
+  async function loadLocalToilets() {
+    const loadedFromCsv = await loadToiletsFromCsv();
+
+    if (loadedFromCsv.length > 0) {
+      return {
+        toilets: loadedFromCsv,
+        status: `Using local toilet data (${loadedFromCsv.length} toilets). Reconnecting to database...`
+      };
+    }
+
+    return {
+      toilets: fallbackToilets,
+      status: "Using starter toilet data. Reconnecting to database..."
+    };
+  }
+
+  async function initializeToilets(
+    range = elements.cleanlinessRangeSelect?.value ?? "3days",
+    { allowFallback = true, force = false } = {}
+  ) {
+    if (!force && range === lastLoadedRange && hasLoadedApiToilets) {
+      return;
+    }
+
+    const requestId = toiletLoadRequestId + 1;
+    toiletLoadRequestId = requestId;
+    clearToiletRetry();
+    mapController.setStatus("Connecting to database...");
+
+    const currentSelectedId = mapController.getSelectedToilet()?.id;
+    const currentSection = getCurrentDetailSection();
+
     try {
-      const loadedFromApi = await loadToiletsFromApi();
+      const loadedFromApi = await loadToiletsFromApi(range);
+
+      if (requestId !== toiletLoadRequestId) {
+        return;
+      }
 
       if (loadedFromApi.length > 0) {
-        setLoadedToilets(loadedFromApi);
-        mapController.setStatus(`Loaded ${loadedFromApi.length} toilets from database.`);
+        setLoadedToilets(loadedFromApi, {
+          currentSelectedId,
+          currentSection,
+          hideDetails: !currentSelectedId,
+          status: `Loaded ${loadedFromApi.length} toilets from database.`
+        });
+        hasLoadedApiToilets = true;
+        lastLoadedRange = range;
         return;
       }
 
-      apiLoadFailed = true;
+      throw new Error("Toilets API returned no toilets.");
     } catch (error) {
-      apiLoadFailed = true;
-      console.error("Toilets API loading failed:", error);
+      if (requestId !== toiletLoadRequestId) {
+        return;
+      }
+      console.warn("Toilets API loading failed:", error);
     }
 
-    if (!apiLoadFailed) return;
+    if (allowFallback && !hasLoadedApiToilets) {
+      try {
+        const localData = await loadLocalToilets();
 
-    try {
-      const loadedFromCsv = await loadToiletsFromCsv();
-      if (loadedFromCsv.length > 0) {
-        setLoadedToilets(loadedFromCsv);
-        mapController.setStatus(`Database unavailable. Loaded ${loadedFromCsv.length} toilets from CSV fallback.`);
-        return;
+        if (requestId !== toiletLoadRequestId) {
+          return;
+        }
+
+        setLoadedToilets(localData.toilets, {
+          currentSelectedId,
+          currentSection,
+          hideDetails: !currentSelectedId,
+          status: localData.status
+        });
+      } catch (error) {
+        if (requestId !== toiletLoadRequestId) {
+          return;
+        }
+
+        console.warn("Initial local load failed:", error);
       }
+    }
 
-      setLoadedToilets(fallbackToilets);
-      mapController.setStatus("Dataset was empty. Showing sample toilets instead.");
-    } catch (error) {
-      console.error("CSV loading failed:", error);
-      setLoadedToilets(fallbackToilets);
-      mapController.setStatus("Could not load API or CSV data. Showing sample toilets instead.");
+    if (requestId === toiletLoadRequestId) {
+      scheduleToiletRetry(range);
     }
   }
 
@@ -97,6 +194,9 @@ export function createApp() {
       mapController.setSearchQuery(event.target.value);
     });
     elements.sortSelect?.addEventListener("change", (event) => mapController.setSortMode(event.target.value));
+    elements.cleanlinessRangeSelect?.addEventListener("change", (event) => {
+      initializeToilets(event.target.value, { allowFallback: !hasLoadedApiToilets });
+    });
     elements.featureFilterInputs.forEach((input) => {
       input?.addEventListener("change", () => mapController.setFeatureFilter(input.value, input.checked));
     });
@@ -110,7 +210,16 @@ export function createApp() {
       mapController.submitCleanlinessSurveySelection()
     );
 
+    elements.commentComposerToggle?.addEventListener("click", () => mapController.toggleCommentComposer());
+    elements.closeCommentComposerButton?.addEventListener("click", () => mapController.closeCommentComposer());
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
+    elements.commentPresetButtons.forEach((button) => {
+      button?.addEventListener("click", () => mapController.applyCommentPreset(button.dataset.commentPreset));
+    });
+    elements.commentSortSelect?.addEventListener("change", (event) => mapController.setCommentSortMode(event.target.value));
+    elements.commentFilterInputs.forEach((input) => {
+      input?.addEventListener("change", () => mapController.setCommentFilter(input.value, input.checked));
+    });
     elements.commentForm?.addEventListener("submit", (event) => mapController.postComment(event));
     elements.detailSectionLinks.forEach((link) => {
       link?.addEventListener("click", () => mapController.setDetailSection(link.dataset.detailSection));

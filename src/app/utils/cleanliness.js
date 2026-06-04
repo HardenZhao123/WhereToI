@@ -13,7 +13,7 @@ function normaliseLegacyScore(score) {
 }
 
 function clampCleanlinessScore(score) {
-  return Math.min(Math.max(score, 1), maxStarRating);
+  return Math.min(Math.max(score, 0), maxStarRating);
 }
 
 function getSurveyAverage(toilet) {
@@ -44,6 +44,8 @@ export function getCleanlinessScore(toilet) {
   if (Number.isFinite(surveyAverage)) {
     return clampCleanlinessScore(surveyAverage);
   }
+
+  if (toilet?.cleanliness === null) return 0;
 
   const score = Number(toilet?.cleanliness);
   if (!Number.isFinite(score)) return defaultCleanlinessScore;

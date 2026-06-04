@@ -8,6 +8,7 @@ import {
   mapAccountRow,
   mapCleanlinessSurveyResponse,
   mapCommentRow,
+  getCleanlinessRangeStartDate,
   normaliseAccessPayload,
   normaliseCleanlinessSurveyPayload,
   normaliseCommentDeletePayload,
@@ -228,9 +229,19 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       media_attachments JSONB,
       created_at TEXT NOT NULL
     );
-  `);
 
-  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cleanliness_surveys (
+      id SERIAL PRIMARY KEY,
+      toilet_id TEXT NOT NULL REFERENCES toilets(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      rating INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_toilet_id ON cleanliness_surveys(toilet_id);
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_created_at ON cleanliness_surveys(created_at);
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_created_at_toilet_id ON cleanliness_surveys(created_at, toilet_id, rating);
+
     CREATE TABLE IF NOT EXISTS comment_likes (
       id SERIAL PRIMARY KEY,
       comment_id INTEGER NOT NULL REFERENCES toilet_comments(id) ON DELETE CASCADE,
@@ -450,54 +461,75 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return null;
     },
-    async getToilets({ search = "", accessibleOnly = false } = {}) {
+    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days" } = {}) {
       const query = normaliseSearchQuery(search);
+      const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
+      const isAllTime = startDate === null;
       const params = [];
       const conditions = [];
 
       if (accessibleOnly) {
         params.push("Y");
-        conditions.push(`accessible = $${params.length}`);
+        conditions.push(`t.accessible = $${params.length}`);
       }
 
       if (query) {
         params.push(`%${query}%`);
-        conditions.push(`(LOWER(name) LIKE $${params.length} OR LOWER(area) LIKE $${params.length})`);
+        conditions.push(`(LOWER(t.name) LIKE $${params.length} OR LOWER(t.area) LIKE $${params.length})`);
       }
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+      const startDateParam = `$${params.length + 1}`;
+      const joinClause = isAllTime
+        ? ""
+        : `LEFT JOIN cleanliness_surveys s ON t.id = s.toilet_id AND s.created_at >= ${startDateParam}`;
+      const cleanlinessColumns = isAllTime
+        ? `
+          t.cleanliness AS cleanliness,
+          t.cleanliness_yes_count,
+          t.cleanliness_no_count,
+          t.cleanliness_rating_total AS cleanliness_rating_total,
+          t.cleanliness_rating_count AS cleanliness_rating_count
+        `
+        : `
+          CASE WHEN COUNT(s.rating) > 0 THEN AVG(s.rating) ELSE NULL END AS cleanliness,
+          t.cleanliness_yes_count,
+          t.cleanliness_no_count,
+          COALESCE(SUM(s.rating), 0) AS cleanliness_rating_total,
+          COUNT(s.rating) AS cleanliness_rating_count
+        `;
+      const groupClause = isAllTime ? "" : "GROUP BY t.id";
+      const queryParams = isAllTime ? params : [...params, startDate];
 
       const result = await pool.query(
         `
         SELECT
-          id,
-          name,
-          area,
-          lat,
-          lng,
-          paid,
-          comment,
-          women,
-          men,
-          accessible,
-          neutral,
-          children,
-          baby_changing,
-          bidet,
-          automatic,
-          urinal_only,
-          radar_key,
-          free_access,
-          opening_times,
-          cleanliness,
-          cleanliness_yes_count,
-          cleanliness_no_count,
-          cleanliness_rating_total,
-          cleanliness_rating_count
-        FROM toilets
+          t.id,
+          t.name,
+          t.area,
+          t.lat,
+          t.lng,
+          t.paid,
+          t.comment,
+          t.women,
+          t.men,
+          t.accessible,
+          t.neutral,
+          t.children,
+          t.baby_changing,
+          t.bidet,
+          t.automatic,
+          t.urinal_only,
+          t.radar_key,
+          t.free_access,
+          t.opening_times,
+          ${cleanlinessColumns}
+        FROM toilets t
+        ${joinClause}
         ${whereClause}
+        ${groupClause}
         `,
-        params
+        queryParams
       );
 
       return result.rows.map(mapRowToToilet);
@@ -547,6 +579,18 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         throw new Error("toilet not found.");
       }
 
+      if (userId) {
+        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+        const recentSurveyResult = await pool.query(
+          "SELECT id FROM cleanliness_surveys WHERE toilet_id = $1 AND user_id = $2 AND created_at >= $3 LIMIT 1",
+          [row.id, userId, thirtyMinutesAgo]
+        );
+
+        if (recentSurveyResult.rows.length > 0) {
+          throw new Error("You can only rate this toilet once every 30 minutes.");
+        }
+      }
+
       const globalStatsResult = await pool.query("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users");
       const globalStats = globalStatsResult.rows[0];
       const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
@@ -583,6 +627,11 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         WHERE id = $6
         `,
         [cleanliness, ratingTotal, ratingCount, ratingSumSquares, newToiletBias ?? row.bias ?? 0.0, row.id]
+      );
+
+      await pool.query(
+        "INSERT INTO cleanliness_surveys (toilet_id, user_id, rating, created_at) VALUES ($1, $2, $3, $4)",
+        [row.id, userId, safeRating, new Date().toISOString()]
       );
 
       return mapCleanlinessSurveyResponse({
