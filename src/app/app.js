@@ -31,7 +31,6 @@ export function createApp() {
 
   let toiletLoadRequestId = 0;
   let toiletRetryTimerId = null;
-  let hasLoadedAnyToilets = false;
   let hasLoadedApiToilets = false;
   let lastLoadedRange = null;
 
@@ -108,23 +107,10 @@ export function createApp() {
       return;
     }
 
-    if (allowFallback && !hasLoadedAnyToilets) {
-      try {
-        const localData = await loadLocalToilets();
-        if (!hasLoadedApiToilets) {
-          setLoadedToilets(localData.toilets, {
-            status: localData.status
-          });
-          hasLoadedAnyToilets = true;
-        }
-      } catch (error) {
-        console.warn("Initial local load failed:", error);
-      }
-    }
-
     const requestId = toiletLoadRequestId + 1;
     toiletLoadRequestId = requestId;
     clearToiletRetry();
+    mapController.setStatus("Connecting to database...");
 
     const currentSelectedId = mapController.getSelectedToilet()?.id;
     const currentSection = getCurrentDetailSection();
@@ -144,7 +130,6 @@ export function createApp() {
           status: `Loaded ${loadedFromApi.length} toilets from database.`
         });
         hasLoadedApiToilets = true;
-        hasLoadedAnyToilets = true;
         lastLoadedRange = range;
         return;
       }
@@ -155,6 +140,29 @@ export function createApp() {
         return;
       }
       console.warn("Toilets API loading failed:", error);
+    }
+
+    if (allowFallback && !hasLoadedApiToilets) {
+      try {
+        const localData = await loadLocalToilets();
+
+        if (requestId !== toiletLoadRequestId) {
+          return;
+        }
+
+        setLoadedToilets(localData.toilets, {
+          currentSelectedId,
+          currentSection,
+          hideDetails: !currentSelectedId,
+          status: localData.status
+        });
+      } catch (error) {
+        if (requestId !== toiletLoadRequestId) {
+          return;
+        }
+
+        console.warn("Initial local load failed:", error);
+      }
     }
 
     if (requestId === toiletLoadRequestId) {

@@ -553,5 +553,10 @@ test("API records cleanliness survey as a star rating", async () => {
     assert.equal(payload.toilet.cleanliness, 5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingTotal, 5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingCount, 1);
+
+    const { payload: toiletsPayload } = await fetchJson(`${baseUrl}/api/toilets?cleanlinessRange=3days`);
+    const refreshedToilet = toiletsPayload.toilets.find((toilet) => toilet.id === "detail-test");
+    assert.equal(refreshedToilet.cleanlinessSurvey.ratingTotal, 5);
+    assert.equal(refreshedToilet.cleanlinessSurvey.ratingCount, 1);
   }, { databaseOptions: { cleanlinessScoringModel: { type: "average" } } });
 });

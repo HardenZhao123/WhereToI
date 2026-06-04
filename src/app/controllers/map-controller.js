@@ -92,6 +92,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let markerById = new Map();
   let hiddenByMarkerLimit = 0;
   let cleanlinessSurveyAnswers = loadSurveyAnswers();
+  let cleanlinessUpdateById = new Map();
   let selectedRating = null;
   let selectedCommentMedia = [];
   let currentComments = [];
@@ -1175,7 +1176,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function setToilets(nextToilets, { hideDetails = true } = {}) {
-    allToilets = [...nextToilets];
+    allToilets = nextToilets.map(applyStoredCleanlinessUpdate);
     applyFilters();
 
     if (hideDetails) {
@@ -1283,8 +1284,34 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return selectedToilet;
   }
 
+  function getCleanlinessUpdateCount(cleanlinessUpdate) {
+    const ratingCount = Number(cleanlinessUpdate?.cleanlinessSurvey?.ratingCount);
+    return Number.isFinite(ratingCount) ? ratingCount : 0;
+  }
+
+  function applyStoredCleanlinessUpdate(toilet) {
+    const storedUpdate = cleanlinessUpdateById.get(toilet.id);
+    if (!storedUpdate) return toilet;
+
+    const incomingCount = getCleanlinessUpdateCount(toilet);
+    const storedCount = getCleanlinessUpdateCount(storedUpdate);
+    if (incomingCount >= storedCount) return toilet;
+
+    return {
+      ...toilet,
+      cleanliness: storedUpdate.cleanliness,
+      cleanlinessSurvey: storedUpdate.cleanlinessSurvey
+    };
+  }
+
   function updateToiletCleanliness(toiletUpdate) {
     if (!toiletUpdate?.id) return;
+
+    cleanlinessUpdateById = new Map(cleanlinessUpdateById);
+    cleanlinessUpdateById.set(toiletUpdate.id, {
+      cleanliness: toiletUpdate.cleanliness,
+      cleanlinessSurvey: toiletUpdate.cleanlinessSurvey
+    });
 
     const applyUpdate = (toilet) =>
       toilet.id === toiletUpdate.id
