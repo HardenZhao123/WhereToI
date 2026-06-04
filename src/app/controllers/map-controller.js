@@ -178,7 +178,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function renderCleanlinessSurvey(toilet) {
     const stored = toilet ? cleanlinessSurveyAnswers[toilet.id] : null;
-    const storedRating = typeof stored === "object" ? stored.rating : stored;
+    const storedRating = stored && typeof stored === "object" ? stored.rating : stored;
     const submittedAt = stored?.submittedAt ? new Date(stored.submittedAt).getTime() : null;
     const now = Date.now();
     const isWithinCooldown = submittedAt && now - submittedAt < 30 * 60 * 1000;
