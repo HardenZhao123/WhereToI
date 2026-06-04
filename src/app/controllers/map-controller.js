@@ -74,6 +74,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   const {
     isAuthenticated = () => true,
     showLoginPrompt = () => {},
+    onPublicProfileSelected = () => {},
     onCleanlinessSaved = async () => {}
   } = auth;
 
@@ -452,6 +453,25 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return wrapper.childElementCount > 0 ? wrapper : null;
   }
 
+  function createCommentAuthorElement(comment) {
+    const authorName = comment.author_name || comment.username || "Anonymous";
+
+    if (!comment.is_anonymous && comment.user_id) {
+      const button = document.createElement("button");
+      button.className = "comment-author comment-author-link";
+      button.type = "button";
+      button.textContent = authorName;
+      button.setAttribute("aria-label", `View ${authorName}'s public profile`);
+      button.addEventListener("click", () => onPublicProfileSelected(comment.user_id));
+      return button;
+    }
+
+    const author = document.createElement("p");
+    author.className = "comment-author";
+    author.textContent = authorName;
+    return author;
+  }
+
   function renderComments(comments) {
     currentComments = Array.isArray(comments) ? [...comments] : [];
     renderCommentList();
@@ -504,9 +524,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       const header = document.createElement("div");
       header.className = "comment-header";
 
-      const author = document.createElement("p");
-      author.className = "comment-author";
-      author.textContent = comment.author_name || comment.username || "Anonymous";
+      const author = createCommentAuthorElement(comment);
 
       header.append(author);
       header.append(createCommentActions(comment));

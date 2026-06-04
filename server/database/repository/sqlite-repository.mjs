@@ -20,6 +20,7 @@ import {
   normaliseCommentProfileVisibility,
   normaliseHistoryLimit,
   normaliseSearchQuery,
+  normaliseUserId,
   toCleanlinessUpdate
 } from "./repository-utils.mjs";
 
@@ -644,6 +645,66 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         )
         .all(userId, userId, safeLimit)
         .map((row) => mapCommentRow(row, { viewerUserId: userId }));
+    },
+    async getPublicProfile(userId, { viewerUserId = null, limit = 30 } = {}) {
+      const safeUserId = normaliseUserId(userId);
+      const safeLimit = normaliseHistoryLimit(limit);
+      const user = db
+        .prepare("SELECT id, username FROM users WHERE id = ?")
+        .get(safeUserId);
+
+      if (!user) return null;
+
+      const comments = db
+        .prepare(
+          `
+          SELECT
+            toilet_comments.id,
+            toilet_comments.toilet_id,
+            toilet_comments.user_id,
+            toilet_comments.username,
+            toilet_comments.comment_visibility,
+            toilet_comments.profile_visibility,
+            toilet_comments.comment_text,
+            toilet_comments.media_type,
+            toilet_comments.media_mime_type,
+            toilet_comments.media_name,
+            toilet_comments.media_size,
+            toilet_comments.media_url,
+            toilet_comments.media_attachments,
+            toilet_comments.created_at,
+            toilets.name AS toilet_name,
+            toilets.area AS toilet_area,
+            (
+              SELECT COUNT(*)
+              FROM comment_likes
+              WHERE comment_likes.comment_id = toilet_comments.id
+            ) AS like_count,
+            EXISTS (
+              SELECT 1
+              FROM comment_likes
+              WHERE comment_likes.comment_id = toilet_comments.id
+                AND comment_likes.user_id = ?
+            ) AS viewer_has_liked
+          FROM toilet_comments
+          LEFT JOIN toilets ON toilets.id = toilet_comments.toilet_id
+          WHERE toilet_comments.user_id = ?
+            AND toilet_comments.comment_visibility = 'real'
+            AND toilet_comments.profile_visibility = 'public'
+          ORDER BY toilet_comments.created_at DESC, toilet_comments.id DESC
+          LIMIT ?
+          `
+        )
+        .all(viewerUserId, safeUserId, safeLimit)
+        .map((row) => mapCommentRow(row, { viewerUserId }));
+
+      return {
+        user: {
+          id: user.id,
+          username: user.username
+        },
+        comments
+      };
     },
     async saveComment({ toiletId, userId, username, commentText, media, commentVisibility }) {
       const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility });

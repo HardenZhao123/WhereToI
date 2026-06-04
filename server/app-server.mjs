@@ -221,6 +221,20 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 
       sendJson(response, 200, { comments: result.comments });
     },
+    "GET /api/public-profile": async ({ request, response, url }) => {
+      const viewerUserId = getSessionUserId(request);
+      const profile = await database.getPublicProfile(url.searchParams.get("userId"), {
+        viewerUserId,
+        limit: Number(url.searchParams.get("limit") ?? 30)
+      });
+
+      if (!profile) {
+        sendJson(response, 404, { error: "User not found." });
+        return;
+      }
+
+      sendJson(response, 200, { profile });
+    },
     "GET /api/access-history": async ({ request, response, url }) => {
       const userId = getSessionUserId(request);
       if (!userId) {

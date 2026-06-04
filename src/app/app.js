@@ -15,6 +15,10 @@ export function createApp() {
   const mapController = createMapController(elements, () => {}, {
     isAuthenticated: () => accountController?.isAuthenticated() ?? false,
     showLoginPrompt: (message) => accountController?.showAuthModal("login", message),
+    onPublicProfileSelected: (userId) => {
+      accountController?.loadPublicProfile(userId);
+      tabController?.setTab("account");
+    },
     onCleanlinessSaved: () =>
       initializeToilets(elements.cleanlinessRangeSelect?.value ?? "3days", {
         allowFallback: false,

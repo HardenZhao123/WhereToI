@@ -826,6 +826,27 @@ mark {
   color: var(--ink);
 }
 
+.comment-author-link {
+  padding: 0;
+  border: 0;
+  font-family: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.comment-author-link:hover,
+.comment-author-link:focus-visible {
+  color: var(--teal);
+}
+
+.comment-author-link:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
 .comment-actions {
   position: relative;
   display: inline-flex;
@@ -1302,6 +1323,22 @@ mark {
   padding-top: 26px;
 }
 
+.account-own-view.is-hidden,
+.public-profile-view.is-hidden {
+  display: none;
+}
+
+.public-profile-back {
+  margin-bottom: 14px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--teal);
+  background: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .solid-button,
 .outline-button {
   height: 44px;
@@ -1485,6 +1522,60 @@ mark {
 .my-comment-visibility:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+.public-profile-comment-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid #b8c6b9;
+}
+
+.public-profile-comment-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.public-profile-comment-open {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+}
+
+.public-profile-comment-open strong {
+  font-size: 12px;
+}
+
+.public-profile-comment-text,
+.public-profile-comment-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-profile-comment-text {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.public-profile-comment-meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.public-profile-comment-open:hover strong,
+.public-profile-comment-open:focus-visible strong {
+  color: var(--teal);
+}
+
+.public-profile-comment-open:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
 }
 
 #access-history-list > div:first-child {
