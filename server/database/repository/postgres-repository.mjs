@@ -240,6 +240,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
     CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_toilet_id ON cleanliness_surveys(toilet_id);
     CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_created_at ON cleanliness_surveys(created_at);
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_created_at_toilet_id ON cleanliness_surveys(created_at, toilet_id, rating);
 
     CREATE TABLE IF NOT EXISTS comment_likes (
       id SERIAL PRIMARY KEY,
