@@ -32,6 +32,17 @@ On first startup, `data/wheretoi.sqlite` is created automatically and seeded (if
 
 The map uses OpenStreetMap tiles, so the browser needs internet access. Browser location works on `localhost` during development and on HTTPS after deployment.
 
+## Repairing an emptied Postgres database
+
+If the production `toilets` table was accidentally emptied, restore from a Neon backup first if you need users, comments, ratings, or access history back. To quickly make toilet feedback work again by reseeding the toilet catalogue from `src/data/toilets.csv`, run:
+
+```powershell
+$env:WHERETOI_DATABASE_URL="postgresql://..."
+npm run repair:postgres
+```
+
+The repair command does not wipe existing rows. It initialises missing schema, creates the demo account if needed, and only reseeds toilets when the table is empty.
+
 ## Cleanliness survey API
 
 Submit a cleanliness survey result and update the toilet's `cleanliness` score:

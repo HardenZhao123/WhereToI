@@ -136,6 +136,74 @@ async function ensurePostgresUserSupport(pool) {
   return demoUserId;
 }
 
+function getToiletInsertParams(toilet) {
+  return [
+    toilet.id,
+    toilet.name,
+    toilet.area,
+    toilet.lat,
+    toilet.lng,
+    Boolean(toilet.paid),
+    toilet.comment,
+    toilet.features.women,
+    toilet.features.men,
+    toilet.features.accessible,
+    toilet.features.neutral,
+    toilet.features.children,
+    toilet.features.babyChanging,
+    toilet.features.bidet,
+    toilet.features.automatic,
+    toilet.features.urinalOnly,
+    toilet.features.radarKey,
+    toilet.features.free,
+    JSON.stringify(toilet.openingTimes ?? []),
+    toilet.cleanliness
+  ];
+}
+
+async function insertSeedToilets(pool, seedCsvPath) {
+  const toiletsToSeed = await loadSeedToilets(seedCsvPath);
+  const client = await pool.connect();
+  let insertedCount = 0;
+
+  try {
+    await client.query("BEGIN");
+    for (const toilet of toiletsToSeed) {
+      const result = await client.query(
+        `
+        INSERT INTO toilets (
+          id, name, area, lat, lng, paid, comment,
+          women, men, accessible, neutral, children, baby_changing, bidet,
+          automatic, urinal_only, radar_key, free_access, opening_times, cleanliness
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        ON CONFLICT (id) DO NOTHING
+        `,
+        getToiletInsertParams(toilet)
+      );
+      insertedCount += result.rowCount;
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  return { insertedCount, seedCount: toiletsToSeed.length };
+}
+
+export async function seedPostgresToiletsIfEmpty(pool, seedCsvPath) {
+  const toiletCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM toilets")).rows[0]?.count ?? 0);
+
+  if (toiletCount > 0) {
+    return { seeded: false, existingCount: toiletCount, insertedCount: 0, seedCount: 0 };
+  }
+
+  const result = await insertSeedToilets(pool, seedCsvPath);
+  return { seeded: true, existingCount: 0, ...result };
+}
+
 export async function createPostgresDatabase({ connectionString, seedCsvPath, cleanlinessScoringModel }) {
   let Pool;
   try {
@@ -277,55 +345,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     ON comment_likes(comment_id);
   `);
 
-  const toiletCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM toilets")).rows[0]?.count ?? 0);
-
-  if (toiletCount === 0) {
-    const toiletsToSeed = await loadSeedToilets(seedCsvPath);
-    const client = await pool.connect();
-
-    try {
-      await client.query("BEGIN");
-      for (const toilet of toiletsToSeed) {
-        await client.query(
-          `
-          INSERT INTO toilets (
-            id, name, area, lat, lng, paid, comment,
-            women, men, accessible, neutral, children, baby_changing, bidet,
-            automatic, urinal_only, radar_key, free_access, opening_times, cleanliness
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-          `,
-          [
-            toilet.id,
-            toilet.name,
-            toilet.area,
-            toilet.lat,
-            toilet.lng,
-            Boolean(toilet.paid),
-            toilet.comment,
-            toilet.features.women,
-            toilet.features.men,
-            toilet.features.accessible,
-            toilet.features.neutral,
-            toilet.features.children,
-            toilet.features.babyChanging,
-            toilet.features.bidet,
-            toilet.features.automatic,
-            toilet.features.urinalOnly,
-            toilet.features.radarKey,
-            toilet.features.free,
-            JSON.stringify(toilet.openingTimes ?? []),
-            toilet.cleanliness
-          ]
-        );
-      }
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
+  await seedPostgresToiletsIfEmpty(pool, seedCsvPath);
 
   const accountCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM app_account")).rows[0]?.count ?? 0);
 
@@ -510,36 +530,47 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       const groupClause = isAllTime ? "" : "GROUP BY t.id";
       const queryParams = isAllTime ? params : [...params, startDate];
 
-      const result = await pool.query(
-        `
-        SELECT
-          t.id,
-          t.name,
-          t.area,
-          t.lat,
-          t.lng,
-          t.paid,
-          t.comment,
-          t.women,
-          t.men,
-          t.accessible,
-          t.neutral,
-          t.children,
-          t.baby_changing,
-          t.bidet,
-          t.automatic,
-          t.urinal_only,
-          t.radar_key,
-          t.free_access,
-          t.opening_times,
-          ${cleanlinessColumns}
-        FROM toilets t
-        ${joinClause}
-        ${whereClause}
-        ${groupClause}
-        `,
-        queryParams
-      );
+      const fetchToilets = () =>
+        pool.query(
+          `
+          SELECT
+            t.id,
+            t.name,
+            t.area,
+            t.lat,
+            t.lng,
+            t.paid,
+            t.comment,
+            t.women,
+            t.men,
+            t.accessible,
+            t.neutral,
+            t.children,
+            t.baby_changing,
+            t.bidet,
+            t.automatic,
+            t.urinal_only,
+            t.radar_key,
+            t.free_access,
+            t.opening_times,
+            ${cleanlinessColumns}
+          FROM toilets t
+          ${joinClause}
+          ${whereClause}
+          ${groupClause}
+          `,
+          queryParams
+        );
+
+      let result = await fetchToilets();
+
+      if (result.rows.length === 0) {
+        const seedResult = await seedPostgresToiletsIfEmpty(pool, seedCsvPath);
+
+        if (seedResult.seeded) {
+          result = await fetchToilets();
+        }
+      }
 
       return result.rows.map(mapRowToToilet);
     },
@@ -568,22 +599,34 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         }
       }
 
-      const result = safeToiletId
-        ? await pool.query(
-            "SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias FROM toilets WHERE id = $1",
-            [safeToiletId]
-          )
-        : await pool.query(
-            `
-            SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias
-            FROM toilets
-            WHERE LOWER(name) = LOWER($1)
-            LIMIT 1
-            `,
-            [safeToiletName]
-          );
+      const fetchSurveyToilet = () =>
+        safeToiletId
+          ? pool.query(
+              "SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias FROM toilets WHERE id = $1",
+              [safeToiletId]
+            )
+          : pool.query(
+              `
+              SELECT id, name, cleanliness, cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias
+              FROM toilets
+              WHERE LOWER(name) = LOWER($1)
+              LIMIT 1
+              `,
+              [safeToiletName]
+            );
 
-      const row = result.rows[0];
+      let result = await fetchSurveyToilet();
+
+      let row = result.rows[0];
+      if (!row) {
+        const seedResult = await seedPostgresToiletsIfEmpty(pool, seedCsvPath);
+
+        if (seedResult.seeded) {
+          result = await fetchSurveyToilet();
+          row = result.rows[0];
+        }
+      }
+
       if (!row) {
         throw new Error("toilet not found.");
       }
