@@ -3,153 +3,113 @@
 still updating ..... but please use and we are happy to have your review, issue & suggestion!
 https://wheretoi-webapp.onrender.com/
 
-Walking-skeleton web app for a toilet access product with two core tabs:
+WhereToI is a student design project about one small but stressful question: when you need a toilet now, where can you actually go?
 
-- Map: OpenStreetMap preview, nearby toilet markers, browser location, filters, toilet details and walking directions (loaded from API/database).
-- Account: wallet, subscription, monthly free visits and history (loaded from database).
+WhereToI 是一个学生设计项目，关注一个很小但很真实的紧急问题：当你现在就需要上厕所时，哪里是真的可以去的？
 
-## Local development
+We are testing a live prototype for people moving through busy campus, station, shopping, and public street contexts. The current version helps people compare nearby toilets before walking there, especially when access, cleanliness, cost, opening status, or facilities are uncertain.
 
-Use the Node.js app server to run frontend + API + SQLite together:
+我们正在测试一个线上原型，面向在校园、车站、商圈和高人流公共路线中移动的人。当前版本的重点是帮助用户在走过去之前，先判断附近厕所是否真的可用，尤其是开放状态、是否免费、是否干净、设施是否合适等信息不确定的时候。
+
+## Try The Prototype / 试用原型
+
+Open the live app here / 打开线上原型：
+
+https://wheretoi-webapp.onrender.com/
+
+You can currently try / 目前可以尝试：
+
+- finding toilets from the Map view / 在 Map view 中查找附近厕所
+- comparing toilet details before choosing where to go / 在决定去哪之前比较厕所详情
+- filtering by practical needs where data is available / 在有数据的情况下按实际需求筛选
+- checking cleanliness ratings and recent feedback / 查看清洁度评分和近期反馈
+- leaving a cleanliness rating or written feedback / 留下清洁度评分或文字反馈
+- testing Account, comment history, and public profile behaviour / 测试 Account、comment history 和 public profile 相关行为
+
+The data is still incomplete and may be wrong. Please treat this as a prototype for testing and suggestions, not as a guaranteed public toilet database.
+
+目前数据仍不完整，也可能有错误。请把它当作一个用于测试和收集建议的原型，而不是保证准确的公共厕所数据库。
+
+## Please Open Issues / 请通过 Issue 提建议
+
+We are actively looking for suggestions through GitHub Issues / 我们正在通过 GitHub Issues 收集建议：
+
+https://github.com/HardenZhao123/WhereToI/issues
+
+Please open an issue if you have suggestions about / 如果你对以下方面有建议，欢迎提交 issue：
+
+- a confusing interaction or wording / 交互或文案让人困惑
+- toilet information that looks wrong or missing / 厕所信息看起来错误或缺失
+- accessibility, privacy, safety, or inclusion concerns / 无障碍、隐私、安全或包容性方面的担忧
+- a feature that would help you decide faster in a real urgent situation / 能帮助你在真实紧急情况下更快决策的功能建议
+- anything that would stop you from trusting the app / 任何会让你不信任这个 app 的地方
+
+Helpful issues usually include / 一个有帮助的 issue 通常包括：
+
+- what you were trying to do / 你当时想完成什么
+- what happened / 实际发生了什么
+- what you expected instead / 你原本期待发生什么
+- your device and browser, if relevant / 如果相关，请写明设备和浏览器
+- a screenshot, if you are comfortable sharing one / 如果方便，可以附截图
+
+## Suggestions We Need Most / 最需要的建议
+
+We are especially interested in suggestions about whether WhereToI helps you make a fast, confident toilet-access decision.
+
+我们最关心的是关于这一点的建议：WhereToI 是否真的能帮助你快速、有信心地做出 toilet-access decision。
+
+Useful questions to answer in an issue / 你可以在 issue 里回答这些问题：
+
+- Could you tell which toilet you would walk to first? / 你能判断自己会先走去哪一个厕所吗？
+- What information made a toilet feel trustworthy or untrustworthy? / 哪些信息让一个厕所显得可信或不可信？
+- What important detail was missing? / 你觉得缺少了什么重要信息？
+- Did filters, ratings, comments, or profiles help? / filters、ratings、comments 或 profiles 有帮助吗？
+- Did anything feel unsafe, invasive, embarrassing, or too much effort? / 有没有任何地方让你觉得不安全、侵犯隐私、尴尬或太麻烦？
+- Would this be useful in a busy place when you urgently need a toilet? / 如果你在很忙的地方急着找厕所，它会有用吗？
+
+## Project Status / 项目状态
+
+This is an active Designing for Real People project, currently in iterative prototype testing. The main focus is not to build a perfect map, but to learn what real people need before they spend time, money, or energy walking to a toilet that may not be usable.
+
+这是一个正在进行中的 Designing for Real People 项目，目前处于迭代原型测试阶段。我们的重点不是做一个完美地图，而是理解真实用户在浪费时间、金钱或精力走去一个可能不可用的厕所之前，最需要知道什么。
+
+Current design priorities / 当前设计重点：
+
+- urgent use without forcing login first / 紧急使用时不强制先登录
+- practical access details instead of generic map pins / 不只显示 map pins，而是提供实际可用性信息
+- cleanliness and feedback that feel trustworthy / 让清洁度和用户反馈更可信
+- inclusive facility details where available / 尽可能呈现包容性设施信息
+- privacy-aware comment, Account, and profile behaviour / comment、Account 和 profile behaviour 需要考虑隐私
+
+## For Developers / 开发者
+
+Requirements / 环境要求：
+
+- Node.js `>=22.5.0 <27`
+- npm
+
+Run locally / 本地运行：
 
 ```bash
+npm install
 npm run dev
 ```
 
-Without npm but with Node.js:
-
-```bash
-node scripts/dev-server.mjs
-```
-
-Then open:
+Then open / 然后打开：
 
 ```text
 http://localhost:4173
 ```
 
-On first startup, `data/wheretoi.sqlite` is created automatically and seeded (if `WHERETOI_DATABASE_URL` is not set).
-
-The map uses OpenStreetMap tiles, so the browser needs internet access. Browser location works on `localhost` during development and on HTTPS after deployment.
-
-## Repairing an emptied Postgres database
-
-If the production `toilets` table was accidentally emptied, restore from a Neon backup first if you need users, comments, ratings, or access history back. To quickly make toilet feedback work again by reseeding the toilet catalogue from `src/data/toilets.csv`, run:
-
-```powershell
-$env:WHERETOI_DATABASE_URL="postgresql://..."
-npm run repair:postgres
-```
-
-The repair command does not wipe existing rows. It initialises missing schema, creates the demo account if needed, and only reseeds toilets when the table is empty.
-
-## Cleanliness survey API
-
-Submit a cleanliness survey result and update the toilet's `cleanliness` score:
-
-```http
-POST /api/cleanliness-survey
-Content-Type: application/json
-
-{
-  "toiletId": "1b8da78b0811f8692823b6a0",
-  "rating": 4
-}
-```
-
-Ratings are integers from 1 to 5 stars. The scoring model is configured server-side via environment variables.
-
-### Supported Scoring Models
-
-- **Cumulative Average** (`average`): The default model. Calculates the simple arithmetic mean of all ratings.
-- **Exponential Moving Average** (`ema`): Gives more weight to recent ratings.
-  ```bash
-  WHERETOI_CLEANLINESS_SCORING_MODEL=ema
-  WHERETOI_CLEANLINESS_EMA_ALPHA=0.35 # Default: 0.35
-  ```
-- **Mean Centering** (`mean_centering`): Normalizes ratings by adjusting for each user's personal average rating relative to the global average.
-  ```bash
-  WHERETOI_CLEANLINESS_SCORING_MODEL=mean_centering
-  ```
-- **Z-Score Normalization** (`z_score`): Normalizes ratings using both the user's average and standard deviation to account for varying rating scales and volatility between users.
-  ```bash
-  WHERETOI_CLEANLINESS_SCORING_MODEL=z_score
-  ```
-- **Bias Training** (`bias_training`): Uses a latent factor model to learn and subtract user and toilet biases (e.g., some users always rate low, some toilets are consistently overrated).
-  ```bash
-  WHERETOI_CLEANLINESS_SCORING_MODEL=bias_training
-  WHERETOI_CLEANLINESS_BIAS_LEARNING_RATE=0.01 # Default: 0.01
-  WHERETOI_CLEANLINESS_BIAS_REGULARIZATION=0.02 # Default: 0.02
-  ```
-
-## Registration confirmation email
-
-After `POST /api/register` creates an account, the server queues a short registration confirmation email. This is non-blocking: if the email provider is unavailable, registration still succeeds and the failure is logged server-side.
-
-Email sending is disabled unless these environment variables are configured:
+Useful checks / 常用检查：
 
 ```bash
-WHERETOI_RESEND_API_KEY=...
-WHERETOI_EMAIL_FROM="WhereToI <hello@example.com>"
-WHERETOI_PUBLIC_APP_URL=https://wheretoi-webapp.onrender.com
-```
-
-Optional:
-
-```bash
-WHERETOI_EMAIL_REPLY_TO=hello@example.com
-WHERETOI_RESEND_API_URL=https://api.resend.com/emails
-```
-
-This message confirms account creation only. It does not verify ownership of the email address; a future email-verification flow would need separate verification tokens or codes.
-
-### Windows (PowerShell)
-
-Static-only fallback (no API/database persistence):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/dev-server.ps1
-```
-
-### Linux / macOS
-
-Static-only fallback (no API/database persistence):
-
-```bash
-python3 -m http.server 4173
-```
-
-## Build
-
-### Windows (PowerShell)
-
-No Node.js required:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/check.ps1
-powershell -ExecutionPolicy Bypass -File scripts/build.ps1
-```
-
-### Linux / macOS
-
-No Node.js required:
-
-```bash
-rm -rf dist && mkdir -p dist && cp index.html dist/ && cp -r src dist/
-```
-
-### Any platform (Node.js)
-
-If Node.js is installed:
-
-```bash
+npm run check
+npm test
 npm run build
+npm run check:e2e
 ```
 
-Without npm but with Node.js:
+This repository is maintained by the project team. We are not accepting external PRs right now; please use GitHub Issues for suggestions only.
 
-```bash
-node scripts/build.mjs
-```
-
-The production static bundle is written to `dist/`.
+这个仓库由项目团队维护。目前不接受外部 PR；请只通过 GitHub Issues 提建议。
