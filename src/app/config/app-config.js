@@ -10,7 +10,7 @@ export const appConfig = {
     zoom: 15
   },
   titles: {
-    map: "My Map",
+    map: "Map",
     account: "Account"
   }
 };
