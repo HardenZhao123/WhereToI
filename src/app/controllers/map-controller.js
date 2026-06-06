@@ -76,6 +76,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   const {
     isAuthenticated = () => true,
     showLoginPrompt = () => {},
+    recordAccessHistory = async () => {},
     onPublicProfileSelected = () => {},
     onCleanlinessSaved = async () => {}
   } = auth;
@@ -1257,6 +1258,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (!selectedToilet) {
       setStatus("Select a toilet marker first.");
       return;
+    }
+
+    if (isAuthenticated()) {
+      recordAccessHistory({
+        toiletName: selectedToilet.name,
+        eventType: "Directions",
+        amountGbp: 0,
+        useFreeTicket: false
+      }).catch((error) => {
+        console.error("Failed to record access history for directions:", error);
+      });
     }
 
     const destination = `${selectedToilet.lat},${selectedToilet.lng}`;
