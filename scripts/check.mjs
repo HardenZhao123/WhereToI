@@ -41,7 +41,6 @@ const js = (await Promise.all(jsFiles.map((file) => readFile(file, "utf8")))).jo
 const requiredCopy = [
   "Map",
   "Account",
-  "Wallet balance",
   "Directions",
   "Parent &amp; Baby",
   "Bidet / Washing",

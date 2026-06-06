@@ -15,7 +15,7 @@ $Html = Get-Content -LiteralPath "index.html" -Raw
 $Css = Get-Content -LiteralPath "src/styles.css" -Raw
 $Js = Get-Content -LiteralPath "src/main.js" -Raw
 
-$RequiredCopy = @("Map", "Account", "Wallet balance", "Directions")
+$RequiredCopy = @("Map", "Account", "Directions")
 $MissingCopy = $RequiredCopy | Where-Object { -not $Html.Contains($_) }
 
 if ($MissingCopy.Count -gt 0) {

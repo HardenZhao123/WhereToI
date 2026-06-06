@@ -59,7 +59,6 @@ try {
   const authHeaders = { "Cookie": cookieHeader };
 
   const { payload: accountBefore } = await fetchJson(`${baseUrl}/api/account`, { headers: authHeaders });
-  assert(typeof accountBefore.account?.walletBalanceGbp === "number", "Account endpoint must include wallet balance.");
 
   const eventType = `CI smoke ${Date.now()}`;
   const { payload: posted } = await fetchJson(`${baseUrl}/api/access-history`, {

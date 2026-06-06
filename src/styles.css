@@ -1475,37 +1475,6 @@ mark {
   background: white;
 }
 
-.wallet-card {
-  position: relative;
-  margin-top: 28px;
-  padding: 24px;
-  min-height: 96px;
-  border-radius: 12px;
-  color: white;
-  background: var(--teal);
-}
-
-.wallet-card span,
-.wallet-card strong {
-  display: block;
-  font-size: 13px;
-}
-
-.wallet-card strong {
-  margin-top: 20px;
-}
-
-.wallet-card button {
-  position: absolute;
-  right: 24px;
-  top: 29px;
-  height: 38px;
-  padding-inline: 22px;
-  border: 0;
-  border-radius: 999px;
-  background: white;
-}
-
 .account-card,
 .privacy-note {
   margin-top: 18px;

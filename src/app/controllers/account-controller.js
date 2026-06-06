@@ -12,9 +12,6 @@ import { renderAccessHistory, renderAccount, renderMyComments, renderPublicProfi
 
 export function createAccountController(elements, onProfilePreferenceToggled = () => {}, callbacks = {}) {
   const {
-    walletBalance,
-    subscriptionPlan,
-    monthlyTicketsLeft,
     accessHistoryList,
     myCommentsList,
     accountOwnView,
@@ -140,9 +137,6 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
     if (accountWelcome) accountWelcome.textContent = "Welcome";
     if (accountUsername) accountUsername.textContent = "Guest access";
-    if (walletBalance) walletBalance.textContent = "Sign up to view";
-    if (subscriptionPlan) subscriptionPlan.textContent = "Create an account to manage a plan.";
-    if (monthlyTicketsLeft) monthlyTicketsLeft.textContent = "Sign up";
     if (displayGender) displayGender.textContent = "Sign up to set";
     if (displayNeeds) displayNeeds.textContent = "Sign up to set";
 
@@ -350,7 +344,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
       const payload = await fetchAccountSnapshot();
       if (publicProfileActive && !forceOwn) return;
       renderAccount(
-        { walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome, displayGender, displayNeeds },
+        { accountUsername, accountWelcome, displayGender, displayNeeds },
         payload.account,
         currentUser
       );
