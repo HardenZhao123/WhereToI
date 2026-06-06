@@ -216,6 +216,8 @@ h3 {
   opacity: 1;
 }
 
+.map-status {
+  position: absolute;
   right: 16px;
   bottom: 88px;
   left: 16px;
