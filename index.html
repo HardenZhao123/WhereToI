@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="WhereToI helps people find nearby toilets and manage wallet, history, and subscription."
+      content="WhereToI helps people find nearby toilets and manage history and profile-based filters."
     />
     <title>WhereToI</title>
     <link
@@ -269,21 +269,11 @@
               <h2 id="account-username">Your Account</h2>
               <article class="account-card account-unlock-card" id="account-unlock-card">
                 <h3>Create an account to unlock more features</h3>
-                <p>Use the map without logging in. Sign up when you want wallet access, saved history, and profile-based filters.</p>
+                <p>Use the map without logging in. Sign up when you want saved history and profile-based filters.</p>
                 <div class="account-unlock-actions">
                   <button class="solid-button" id="account-signup-button" type="button">Sign up</button>
                   <button class="outline-button" id="account-login-button" type="button">Log in</button>
                 </div>
-              </article>
-              <article class="wallet-card">
-                <span>Wallet balance</span>
-                <strong id="wallet-balance">GBP 8.40</strong>
-                <button type="button">Top up</button>
-              </article>
-              <article class="account-card">
-                <h3>Subscription</h3>
-                <p id="subscription-plan">Campus Plus - renews 26 Jun</p>
-                <p>Monthly free toilet visits: <strong id="monthly-tickets-left">3 left</strong></p>
               </article>
               <article class="account-card" id="profile-card">
                 <h3>My Profile</h3>
@@ -346,8 +336,7 @@
         <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px;">
           <div>
             <h2 id="auth-title" style="margin-bottom: 4px; color: #142c72; font-size: 18px; font-weight: 700;">Log in to WhereToI</h2>
-            <p id="auth-subtitle">Manage your wallet and history.</p>
-          </div>
+            <p id="auth-subtitle">Manage your history and profile filters.</p>          </div>
           <button class="close-button" id="close-auth" type="button" aria-label="Close login dialog">X</button>
         </header>
         <form id="auth-form" class="auth-form" style="margin-top: 0;">

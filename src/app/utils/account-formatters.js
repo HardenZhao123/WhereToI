@@ -3,18 +3,6 @@ export function formatCurrency(amount) {
   return `GBP ${value.toFixed(2)}`;
 }
 
-export function formatRenewDate(dateValue) {
-  if (!dateValue) return "Unknown";
-
-  const parsed = new Date(dateValue);
-  if (!Number.isFinite(parsed.getTime())) return dateValue;
-
-  return parsed.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short"
-  });
-}
-
 export function formatAccessTime(isoText) {
   const parsed = new Date(isoText);
   if (!Number.isFinite(parsed.getTime())) return "Unknown time";

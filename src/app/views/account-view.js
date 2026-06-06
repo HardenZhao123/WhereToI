@@ -1,7 +1,7 @@
-import { formatAccessTime, formatCharge, formatCurrency, formatRenewDate } from "../utils/account-formatters.js";
+import { formatAccessTime, formatCharge, formatCurrency } from "../utils/account-formatters.js";
 import { getCommentMediaAttachments } from "../utils/comments.js";
 
-export function renderAccount({ walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome, displayGender, displayNeeds }, account, user) {
+export function renderAccount({ accountUsername, accountWelcome, displayGender, displayNeeds }, account, user) {
   if (user && accountUsername) {
     accountUsername.textContent = user.username;
     if (accountWelcome) {
@@ -20,21 +20,6 @@ export function renderAccount({ walletBalance, subscriptionPlan, monthlyTicketsL
         displayNeeds.textContent = "None set";
       }
     }
-  }
-
-  if (!account) return;
-
-  if (walletBalance) {
-    walletBalance.textContent = formatCurrency(account.walletBalanceGbp);
-  }
-
-  if (subscriptionPlan) {
-    const renewDate = formatRenewDate(account.subscriptionRenewsOn);
-    subscriptionPlan.textContent = `${account.subscriptionName} - renews ${renewDate}`;
-  }
-
-  if (monthlyTicketsLeft) {
-    monthlyTicketsLeft.textContent = `${Number(account.monthlyFreeTicketsLeft ?? 0)} left`;
   }
 }
 
