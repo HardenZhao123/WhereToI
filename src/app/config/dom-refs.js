@@ -75,6 +75,10 @@ export function getDomRefs() {
     displayGender: document.querySelector("#display-gender"),
     displayNeeds: document.querySelector("#display-needs"),
     autoFilterToggle: document.querySelector("#auto-filter-toggle"),
-    editProfileButton: document.querySelector("#edit-profile")
+    editProfileButton: document.querySelector("#edit-profile"),
+    creditsButton: document.querySelector("#credits-button"),
+    creditsModal: document.querySelector("#credits-modal"),
+    closeCreditsButton: document.querySelector("#close-credits"),
+    dismissCreditsButton: document.querySelector("#dismiss-credits")
   };
 }

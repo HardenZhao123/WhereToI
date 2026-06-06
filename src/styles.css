@@ -194,6 +194,31 @@ h3 {
   font-size: 9px;
 }
 
+.map-credits-button {
+  position: absolute;
+  left: 10px;
+  bottom: 75px;
+  z-index: 10;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  color: #000;
+  font-size: 9px;
+  background: rgb(255 255 255 / 75%);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+
+
+.map-credits-button:hover {
+  background: white;
+}
+
+.view-map.has-details .map-credits-button {
+  display: none;
+}
+
 .map-status {
   position: absolute;
   right: 16px;

@@ -48,7 +48,11 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     displayGender,
     displayNeeds,
     autoFilterToggle,
-    editProfileButton
+    editProfileButton,
+    creditsButton,
+    creditsModal,
+    closeCreditsButton,
+    dismissCreditsButton
   } = elements;
   const { onCommentSelected = () => {} } = callbacks;
 
@@ -110,6 +114,14 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
   function hideProfileModal() {
     profileModal?.classList.add("is-hidden");
+  }
+
+  function showCreditsModal() {
+    creditsModal?.classList.remove("is-hidden");
+  }
+
+  function hideCreditsModal() {
+    creditsModal?.classList.add("is-hidden");
   }
 
   function setAuthMode(mode) {
@@ -375,6 +387,10 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     skipProfileButton?.addEventListener("click", hideProfileModal);
     editProfileButton?.addEventListener("click", handleEditProfile);
     autoFilterToggle?.addEventListener("change", handleAutoFilterToggle);
+
+    creditsButton?.addEventListener("click", showCreditsModal);
+    closeCreditsButton?.addEventListener("click", hideCreditsModal);
+    dismissCreditsButton?.addEventListener("click", hideCreditsModal);
   }
 
   return {
