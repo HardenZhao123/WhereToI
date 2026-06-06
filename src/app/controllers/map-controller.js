@@ -1262,6 +1262,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     if (isAuthenticated()) {
       recordAccessHistory({
+        toiletId: selectedToilet.id,
         toiletName: selectedToilet.name,
         eventType: "Directions",
         amountGbp: 0,
