@@ -324,3 +324,171 @@ test("locate button returns to hollow state when the map is moved away from the 
     globalThis.window = originalWindow;
   }
 });
+
+test("map controller records access history when opening directions if authenticated", async () => {
+  const originalWindow = globalThis.window;
+  const originalDocument = globalThis.document;
+
+  const elementsBySelector = new Map(
+    [
+      "#toilet-name",
+      "#toilet-area",
+      "#distance-line",
+      "#hours-today",
+      "#hours-sat",
+      "#hours-sun",
+      "#feature-women",
+      "#feature-men",
+      "#feature-accessible",
+      "#feature-neutral",
+      "#feature-children",
+      "#feature-baby-changing",
+      "#feature-bidet",
+      "#feature-automatic",
+      "#feature-urinal-only",
+      "#feature-radar-key",
+      "#feature-free",
+      "#cleanliness-stars",
+      "#cleanliness-star-icons",
+      "#cleanliness-score",
+      "#cleanliness-rating-count"
+    ].map((selector) => [selector, createTextElement()])
+  );
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+
+  let recordedPayload = null;
+  const mockAuth = {
+    isAuthenticated: () => true,
+    recordAccessHistory: async (payload) => {
+      recordedPayload = payload;
+    }
+  };
+
+  globalThis.window = {
+    open: () => {},
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const controller = createMapController(
+      {
+        statusText: { textContent: "" },
+        detailsCard: { classList: createClassList() },
+        mapPanel: { classList: createClassList() },
+        directionsButton: { disabled: false }
+      },
+      () => {},
+      mockAuth
+    );
+
+    const testToilet = createTestToilet();
+    controller.setToilets([testToilet]);
+    controller.setToilet(testToilet.id);
+
+    controller.openDirections();
+
+    assert.notEqual(recordedPayload, null);
+    assert.equal(recordedPayload.toiletName, testToilet.name);
+    assert.equal(recordedPayload.eventType, "Directions");
+  } finally {
+    globalThis.window = originalWindow;
+    globalThis.document = originalDocument;
+  }
+});
+
+test("map controller does not record access history when opening directions if unauthenticated", async () => {
+  const originalWindow = globalThis.window;
+  const originalDocument = globalThis.document;
+
+  const elementsBySelector = new Map(
+    [
+      "#toilet-name",
+      "#toilet-area",
+      "#distance-line",
+      "#hours-today",
+      "#hours-sat",
+      "#hours-sun",
+      "#feature-women",
+      "#feature-men",
+      "#feature-accessible",
+      "#feature-neutral",
+      "#feature-children",
+      "#feature-baby-changing",
+      "#feature-bidet",
+      "#feature-automatic",
+      "#feature-urinal-only",
+      "#feature-radar-key",
+      "#feature-free",
+      "#cleanliness-stars",
+      "#cleanliness-star-icons",
+      "#cleanliness-score",
+      "#cleanliness-rating-count"
+    ].map((selector) => [selector, createTextElement()])
+  );
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+
+  let recordedPayload = null;
+  const mockAuth = {
+    isAuthenticated: () => false,
+    recordAccessHistory: async (payload) => {
+      recordedPayload = payload;
+    }
+  };
+
+  globalThis.window = {
+    open: () => {},
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const controller = createMapController(
+      {
+        statusText: { textContent: "" },
+        detailsCard: { classList: createClassList() },
+        mapPanel: { classList: createClassList() },
+        directionsButton: { disabled: false }
+      },
+      () => {},
+      mockAuth
+    );
+
+    const testToilet = createTestToilet();
+    controller.setToilets([testToilet]);
+    controller.setToilet(testToilet.id);
+
+    controller.openDirections();
+
+    assert.equal(recordedPayload, null);
+  } finally {
+    globalThis.window = originalWindow;
+    globalThis.document = originalDocument;
+  }
+});

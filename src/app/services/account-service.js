@@ -46,3 +46,10 @@ export function updateCommentProfileVisibility(commentId, profileVisibility) {
     body: JSON.stringify({ commentId, profileVisibility })
   });
 }
+
+export function recordAccessHistory(payload) {
+  return fetchJson(`${appConfig.apiBasePath}/access-history`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
