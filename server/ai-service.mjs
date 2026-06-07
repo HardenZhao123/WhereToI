@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 
 /**
  * Service to handle AI-powered summarization of toilet comments using Google Gemini.
@@ -13,7 +13,15 @@ export async function createAiService({
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelName });
+  const model = genAI.getGenerativeModel({
+    model: modelName,
+    safetySettings: [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+    ]
+  });
 
   return {
     /**
@@ -49,10 +57,21 @@ export async function createAiService({
       try {
         const result = await model.generateContent(prompt);
         const response = await result.response;
-        return response.text().trim();
+        const text = response.text();
+        
+        if (!text) {
+          throw new Error("AI returned an empty response.");
+        }
+        
+        return text.trim();
       } catch (error) {
-        console.error("AI Summarization failed:", error);
-        throw new Error("Failed to generate AI summary.");
+        // Log detailed error for debugging
+        console.error("Gemini API Error Detail:", {
+          message: error.message,
+          stack: error.stack,
+          commentsCount: comments.length
+        });
+        throw error;
       }
     }
   };
