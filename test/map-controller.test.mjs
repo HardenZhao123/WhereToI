@@ -196,6 +196,116 @@ test("map controller keeps submitted rating count after a stale toilet reload", 
   }
 });
 
+test("map controller patches saved cleanliness without reloading all toilets", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+
+  const elementsBySelector = new Map(
+    [
+      "#cleanliness-stars",
+      "#cleanliness-star-icons",
+      "#cleanliness-score",
+      "#cleanliness-rating-count",
+      "#toilet-name",
+      "#toilet-area",
+      "#toilet-comment",
+      "#feature-women",
+      "#feature-men",
+      "#feature-accessible",
+      "#feature-neutral",
+      "#feature-children",
+      "#feature-baby-changing",
+      "#feature-bidet",
+      "#feature-automatic",
+      "#feature-urinal-only",
+      "#feature-radar-key",
+      "#feature-free",
+      "#hours-today",
+      "#hours-sat",
+      "#hours-sun",
+      "#distance-line"
+    ].map((selector) => [selector, createTextElement()])
+  );
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  const testToilet = createTestToilet();
+  let reloadCount = 0;
+  let fetchCount = 0;
+
+  globalThis.fetch = async (url, options) => {
+    fetchCount += 1;
+    assert.match(String(url), /\/api\/cleanliness-survey$/);
+    assert.equal(options?.method, "POST");
+
+    return {
+      ok: true,
+      async json() {
+        return {
+          toilet: {
+            ...testToilet,
+            cleanliness: 5,
+            cleanlinessSurvey: {
+              ratingTotal: 5,
+              ratingCount: 1
+            }
+          }
+        };
+      }
+    };
+  };
+
+  try {
+    const controller = createMapController(
+      {
+        statusText: { textContent: "" },
+        detailsCard: { classList: createClassList() },
+        mapPanel: { classList: createClassList() },
+        directionsButton: { disabled: false },
+        mapSurveyStatus: createTextElement()
+      },
+      () => {},
+      {
+        isAuthenticated: () => true,
+        onCleanlinessSaved: async () => {
+          reloadCount += 1;
+        }
+      }
+    );
+
+    controller.setToilets([testToilet]);
+    controller.setToilet(testToilet.id);
+
+    const saved = await controller.answerCleanlinessSurvey(5);
+
+    assert.equal(saved, true);
+    assert.equal(fetchCount, 1);
+    assert.equal(reloadCount, 0);
+    assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "1 rating");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("locate button returns to hollow state when the map is moved away from the user", () => {
   const originalDocument = globalThis.document;
   const originalNavigator = globalThis.navigator;
