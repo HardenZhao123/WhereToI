@@ -41,6 +41,8 @@ export function getDomRefs() {
     commentMediaStatus: document.querySelector("#comment-media-status"),
     accessHistoryList: document.querySelector("#access-history-list"),
     myCommentsList: document.querySelector("#my-comments-list"),
+    accountActivityTabs: document.querySelectorAll("[data-account-activity-tab]"),
+    accountActivityPanels: document.querySelectorAll("[data-account-activity-panel]"),
     accountOwnView: document.querySelector("#account-own-view"),
     publicProfileView: document.querySelector("#public-profile-view"),
     publicProfileBackButton: document.querySelector("#public-profile-back"),

@@ -1656,13 +1656,77 @@ mark {
   line-height: 1.7;
 }
 
-.history-card div {
+.account-activity-card {
+  padding: 0 20px 8px;
+  overflow: hidden;
+}
+
+.account-activity-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 -20px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-activity-tab {
+  position: relative;
+  min-width: 0;
+  min-height: 54px;
+  padding: 0 12px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.account-activity-tab::after {
+  position: absolute;
+  right: 28%;
+  bottom: 0;
+  left: 28%;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: transparent;
+  content: "";
+}
+
+.account-activity-tab.is-active {
+  color: var(--ink);
+}
+
+.account-activity-tab.is-active::after {
+  background: var(--teal);
+}
+
+.account-activity-tab:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -4px;
+}
+
+.account-activity-panel {
+  padding: 4px 0 0;
+}
+
+.account-activity-panel.is-hidden,
+.account-activity-panel[hidden] {
+  display: none;
+}
+
+.history-list > div {
   padding: 12px 0;
   border-top: 1px solid #b8c6b9;
 }
 
-.my-comments-card {
-  padding-bottom: 8px;
+.history-list > div:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.history-list strong {
+  font-size: 12px;
 }
 
 .my-comment-item {
@@ -1848,15 +1912,6 @@ mark {
 .public-profile-comment-open:focus-visible {
   outline: 2px solid var(--teal);
   outline-offset: 2px;
-}
-
-#access-history-list > div:first-child {
-  border-top: 0;
-  padding-top: 0;
-}
-
-.history-card strong {
-  font-size: 12px;
 }
 
 .privacy-note {
