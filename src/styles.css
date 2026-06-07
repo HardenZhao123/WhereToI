@@ -1464,9 +1464,148 @@ mark {
   padding-top: 26px;
 }
 
+.account-own-view {
+  position: relative;
+}
+
 .account-own-view.is-hidden,
 .public-profile-view.is-hidden {
   display: none;
+}
+
+.account-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.account-title {
+  min-width: 0;
+}
+
+.account-title h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: white;
+  box-shadow: 0 8px 22px rgb(31 42 51 / 8%);
+}
+
+.settings-button:hover,
+.settings-button:focus-visible,
+.settings-button[aria-expanded="true"] {
+  border-color: rgb(40 118 102 / 38%);
+  color: var(--teal);
+  background: #f8fbf8;
+}
+
+.settings-button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.settings-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.account-settings-panel {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  width: min(292px, calc(100% - 8px));
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 18px 48px rgb(31 42 51 / 18%);
+}
+
+.account-settings-panel.is-hidden {
+  display: none;
+}
+
+.account-settings-panel h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.account-settings-panel .privacy-note {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.account-settings-panel .privacy-note h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
+.account-settings-panel .privacy-note p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.settings-action {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.settings-action:hover,
+.settings-action:focus-visible {
+  color: var(--teal);
+}
+
+.settings-action:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.settings-action.credits-link {
+  margin: 0;
+  opacity: 1;
+  text-decoration: none;
+}
+
+.settings-action.logout-button {
+  margin: 0;
+  color: #9c2b2e;
+}
+
+.settings-action.logout-button:hover,
+.settings-action.logout-button:focus-visible {
+  color: #7d1f23;
 }
 
 .public-profile-back {

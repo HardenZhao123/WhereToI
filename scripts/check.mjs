@@ -228,6 +228,27 @@ if (!html.includes("account-unlock-card") || !js.includes("renderGuestAccount") 
   throw new Error("Expected unauthenticated users to keep map access and see an account unlock prompt.");
 }
 
+const settingsPanelStart = html.indexOf("id=\"account-settings-panel\"");
+const profileCardStart = html.indexOf("id=\"profile-card\"", settingsPanelStart);
+const settingsPanelHtml =
+  settingsPanelStart >= 0 && profileCardStart > settingsPanelStart
+    ? html.slice(settingsPanelStart, profileCardStart)
+    : "";
+
+if (
+  !html.includes("id=\"account-settings-button\"") ||
+  !html.includes("aria-label=\"Open account settings\"") ||
+  !settingsPanelHtml.includes("Privacy note") ||
+  !settingsPanelHtml.includes("credits-button") ||
+  !settingsPanelHtml.includes("logout-button") ||
+  !js.includes("toggleSettingsPanel") ||
+  !js.includes("hideSettingsPanel") ||
+  !css.includes(".settings-button") ||
+  !css.includes(".account-settings-panel")
+) {
+  throw new Error("Expected Account privacy note, data credits, and logout controls to live inside the top-right settings menu.");
+}
+
 if (!css.includes("@media") || !js.includes("setTab")) {
   throw new Error("Expected responsive CSS and tab interaction code.");
 }
