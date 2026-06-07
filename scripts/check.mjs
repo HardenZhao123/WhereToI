@@ -249,6 +249,28 @@ if (
   throw new Error("Expected Account privacy note, data credits, and logout controls to live inside the top-right settings menu.");
 }
 
+const feedbackTabIndex = html.indexOf("data-account-activity-tab=\"feedback\"");
+const historyTabIndex = html.indexOf("data-account-activity-tab=\"history\"");
+
+if (
+  !html.includes("class=\"account-card account-activity-card\"") ||
+  !html.includes("role=\"tablist\" aria-label=\"Account activity\"") ||
+  feedbackTabIndex < 0 ||
+  historyTabIndex < 0 ||
+  feedbackTabIndex > historyTabIndex ||
+  !html.includes("data-account-activity-panel=\"feedback\"") ||
+  !html.includes("data-account-activity-panel=\"history\"") ||
+  html.includes("my-comments-card") ||
+  html.includes("history-card") ||
+  !js.includes("setAccountActivityTab") ||
+  !js.includes("handleAccountActivityTabClick") ||
+  !css.includes(".account-activity-tabs") ||
+  !css.includes(".account-activity-tab.is-active") ||
+  !css.includes(".history-list")
+) {
+  throw new Error("Expected Account feedback and visit history to use a compact tabbed activity layout, with feedback shown first.");
+}
+
 if (!css.includes("@media") || !js.includes("setTab")) {
   throw new Error("Expected responsive CSS and tab interaction code.");
 }

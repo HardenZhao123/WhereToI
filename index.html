@@ -304,24 +304,28 @@
                 </label>
                 <button type="button" id="edit-profile" style="background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; margin-top: 12px; cursor: pointer; font-size: 12px;">Edit Profile</button>
               </article>
-              <article class="account-card my-comments-card">
-                <h3>My feedback</h3>
-                <div id="my-comments-list" aria-live="polite">
-                  <p>No feedback yet.</p>
+              <article class="account-card account-activity-card">
+                <div class="account-activity-tabs" role="tablist" aria-label="Account activity">
+                  <button class="account-activity-tab is-active" id="activity-feedback-tab" type="button" role="tab" aria-selected="true" aria-controls="activity-feedback-panel" data-account-activity-tab="feedback">My feedback</button>
+                  <button class="account-activity-tab" id="activity-history-tab" type="button" role="tab" aria-selected="false" aria-controls="activity-history-panel" data-account-activity-tab="history">Visit history</button>
                 </div>
-              </article>
-              <article class="account-card history-card">
-                <h3>Toilet access history</h3>
-                <div id="access-history-list" aria-live="polite">
-                  <div>
-                    <strong>South Kensington Station</strong>
-                    <p>Today 14:22 - Paid access - GBP 0.50</p>
+                <section class="account-activity-panel" id="activity-feedback-panel" role="tabpanel" aria-labelledby="activity-feedback-tab" data-account-activity-panel="feedback">
+                  <div id="my-comments-list" aria-live="polite">
+                    <p>No feedback yet.</p>
                   </div>
-                  <div>
-                    <strong>Imperial Library</strong>
-                    <p>Yesterday 18:05 - free access</p>
+                </section>
+                <section class="account-activity-panel is-hidden" id="activity-history-panel" role="tabpanel" aria-labelledby="activity-history-tab" data-account-activity-panel="history" hidden>
+                  <div class="history-list" id="access-history-list" aria-live="polite">
+                    <div>
+                      <strong>South Kensington Station</strong>
+                      <p>Today 14:22 - Paid access - GBP 0.50</p>
+                    </div>
+                    <div>
+                      <strong>Imperial Library</strong>
+                      <p>Yesterday 18:05 - free access</p>
+                    </div>
                   </div>
-                </div>
+                </section>
               </article>
               </div>
             </section>

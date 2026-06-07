@@ -14,6 +14,8 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   const {
     accessHistoryList,
     myCommentsList,
+    accountActivityTabs,
+    accountActivityPanels,
     accountOwnView,
     publicProfileView,
     publicProfileBackButton,
@@ -63,6 +65,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   let isRegisterMode = false;
   let publicProfileActive = false;
   let activePublicProfileUserId = null;
+  let activeAccountActivityTab = "feedback";
 
   function loadAutoFilterState() {
     return window.localStorage?.getItem(autoFilterStorageKey) === "true";
@@ -162,6 +165,30 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
   function hideSettingsPanel() {
     setSettingsPanelOpen(false);
+  }
+
+  function setAccountActivityTab(tabKey) {
+    const nextTab = tabKey || "feedback";
+    activeAccountActivityTab = nextTab;
+
+    accountActivityTabs?.forEach((button) => {
+      const isActive = button.dataset.accountActivityTab === nextTab;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", String(isActive));
+    });
+
+    accountActivityPanels?.forEach((panel) => {
+      const isActive = panel.dataset.accountActivityPanel === nextTab;
+      panel.classList.toggle("is-hidden", !isActive);
+      panel.hidden = !isActive;
+    });
+  }
+
+  function handleAccountActivityTabClick(event) {
+    const button = event.currentTarget;
+    const nextTab = button?.dataset?.accountActivityTab;
+    if (!nextTab) return;
+    setAccountActivityTab(nextTab);
   }
 
   function handleDocumentClick(event) {
@@ -415,6 +442,10 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     authForm?.addEventListener("submit", handleAuthSubmit);
     authToggle?.addEventListener("click", toggleAuthMode);
     closeAuthButton?.addEventListener("click", hideAuthModal);
+    accountActivityTabs?.forEach((button) => {
+      button.addEventListener("click", handleAccountActivityTabClick);
+    });
+    setAccountActivityTab(activeAccountActivityTab);
     accountSettingsButton?.addEventListener("click", toggleSettingsPanel);
     logoutButton?.addEventListener("click", handleLogout);
     accountSignupButton?.addEventListener("click", () => showAuthModal("register"));
