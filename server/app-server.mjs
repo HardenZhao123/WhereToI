@@ -212,6 +212,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         const summary = await aiService.summarizeComments(comments);
         sendJson(response, 200, { summary });
       } catch (error) {
+        logger.error("AI Summary generation failed for toilet:", toiletId, error);
         sendJson(response, 500, { error: "Failed to generate AI summary." });
       }
     },
@@ -516,6 +517,12 @@ export async function createAppServer({
           resolveClose();
         });
       }).then(async () => {
+        await database.close?.();
+      });
+    }
+  };
+}
+    }).then(async () => {
         await database.close?.();
       });
     }
