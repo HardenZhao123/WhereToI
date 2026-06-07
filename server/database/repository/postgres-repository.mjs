@@ -336,13 +336,34 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
   `);
 
   await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_toilet_comments_toilet_created_id
+    ON toilet_comments(toilet_id, created_at DESC, id DESC);
+  `);
+
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_toilet_comments_user_id
     ON toilet_comments(user_id);
   `);
 
   await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_toilet_comments_user_created_id
+    ON toilet_comments(user_id, created_at DESC, id DESC);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_toilet_comments_public_profile
+    ON toilet_comments(user_id, created_at DESC, id DESC)
+    WHERE comment_visibility = 'real' AND profile_visibility = 'public';
+  `);
+
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id
     ON comment_likes(comment_id);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_toilet_user_created_id
+    ON cleanliness_surveys(toilet_id, user_id, created_at DESC, id DESC);
   `);
 
   await seedPostgresToiletsIfEmpty(pool, seedCsvPath);
@@ -509,9 +530,23 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
       const startDateParam = `$${params.length + 1}`;
+      const recentCleanlinessCte = isAllTime
+        ? ""
+        : `
+          WITH recent_cleanliness AS (
+            SELECT
+              toilet_id,
+              AVG(rating) AS cleanliness,
+              COALESCE(SUM(rating), 0) AS cleanliness_rating_total,
+              COUNT(rating) AS cleanliness_rating_count
+            FROM cleanliness_surveys
+            WHERE created_at >= ${startDateParam}
+            GROUP BY toilet_id
+          )
+        `;
       const joinClause = isAllTime
         ? ""
-        : `LEFT JOIN cleanliness_surveys s ON t.id = s.toilet_id AND s.created_at >= ${startDateParam}`;
+        : "LEFT JOIN recent_cleanliness rc ON t.id = rc.toilet_id";
       const cleanlinessColumns = isAllTime
         ? `
           t.cleanliness AS cleanliness,
@@ -521,18 +556,18 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           t.cleanliness_rating_count AS cleanliness_rating_count
         `
         : `
-          CASE WHEN COUNT(s.rating) > 0 THEN AVG(s.rating) ELSE NULL END AS cleanliness,
+          CASE WHEN rc.cleanliness_rating_count > 0 THEN rc.cleanliness ELSE NULL END AS cleanliness,
           t.cleanliness_yes_count,
           t.cleanliness_no_count,
-          COALESCE(SUM(s.rating), 0) AS cleanliness_rating_total,
-          COUNT(s.rating) AS cleanliness_rating_count
+          COALESCE(rc.cleanliness_rating_total, 0) AS cleanliness_rating_total,
+          COALESCE(rc.cleanliness_rating_count, 0) AS cleanliness_rating_count
         `;
-      const groupClause = isAllTime ? "" : "GROUP BY t.id";
       const queryParams = isAllTime ? params : [...params, startDate];
 
       const fetchToilets = () =>
         pool.query(
           `
+          ${recentCleanlinessCte}
           SELECT
             t.id,
             t.name,
@@ -557,7 +592,6 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           FROM toilets t
           ${joinClause}
           ${whereClause}
-          ${groupClause}
           `,
           queryParams
         );

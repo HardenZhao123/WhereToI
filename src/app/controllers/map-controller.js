@@ -1482,17 +1482,19 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     renderCleanlinessSurvey(selectedToilet);
   }
 
-  async function applySavedCleanlinessResult(result, rating) {
+  async function applySavedCleanlinessResult(result, rating, { refreshToilets = false } = {}) {
     if (!result?.toilet?.id) {
       throw new Error("Cleanliness response did not include the updated toilet.");
     }
 
-    updateToiletCleanliness(result.toilet, { store: false });
+    updateToiletCleanliness(result.toilet, { store: true });
 
-    try {
-      await onCleanlinessSaved();
-    } catch (error) {
-      console.error("Failed to refresh cleanliness period:", error);
+    if (refreshToilets) {
+      try {
+        await onCleanlinessSaved();
+      } catch (error) {
+        console.error("Failed to refresh cleanliness period:", error);
+      }
     }
 
     cleanlinessSurveyAnswers = {

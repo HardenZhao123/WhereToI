@@ -155,11 +155,24 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
     CREATE INDEX IF NOT EXISTS idx_toilet_comments_toilet_id
     ON toilet_comments(toilet_id);
 
+    CREATE INDEX IF NOT EXISTS idx_toilet_comments_toilet_created_id
+    ON toilet_comments(toilet_id, created_at DESC, id DESC);
+
     CREATE INDEX IF NOT EXISTS idx_toilet_comments_user_id
     ON toilet_comments(user_id);
 
+    CREATE INDEX IF NOT EXISTS idx_toilet_comments_user_created_id
+    ON toilet_comments(user_id, created_at DESC, id DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_toilet_comments_public_profile
+    ON toilet_comments(user_id, created_at DESC, id DESC)
+    WHERE comment_visibility = 'real' AND profile_visibility = 'public';
+
     CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id
     ON comment_likes(comment_id);
+
+    CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_toilet_user_created_id
+    ON cleanliness_surveys(toilet_id, user_id, created_at DESC, id DESC);
   `);
 
   await applySqliteToiletMigrations({ db, seedCsvPath });
@@ -323,9 +336,23 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+      const recentCleanlinessCte = isAllTime
+        ? ""
+        : `
+          WITH recent_cleanliness AS (
+            SELECT
+              toilet_id,
+              AVG(rating) AS cleanliness,
+              COALESCE(SUM(rating), 0) AS cleanliness_rating_total,
+              COUNT(rating) AS cleanliness_rating_count
+            FROM cleanliness_surveys
+            WHERE created_at >= ?
+            GROUP BY toilet_id
+          )
+        `;
       const joinClause = isAllTime
         ? ""
-        : "LEFT JOIN cleanliness_surveys s ON t.id = s.toilet_id AND s.created_at >= ?";
+        : "LEFT JOIN recent_cleanliness rc ON t.id = rc.toilet_id";
       const cleanlinessColumns = isAllTime
         ? `
             t.cleanliness AS cleanliness,
@@ -335,18 +362,18 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             t.cleanliness_rating_count AS cleanliness_rating_count
           `
         : `
-            CASE WHEN COUNT(s.rating) > 0 THEN AVG(s.rating) ELSE NULL END AS cleanliness,
+            CASE WHEN rc.cleanliness_rating_count > 0 THEN rc.cleanliness ELSE NULL END AS cleanliness,
             t.cleanliness_yes_count,
             t.cleanliness_no_count,
-            COALESCE(SUM(s.rating), 0) AS cleanliness_rating_total,
-            COUNT(s.rating) AS cleanliness_rating_count
+            COALESCE(rc.cleanliness_rating_total, 0) AS cleanliness_rating_total,
+            COALESCE(rc.cleanliness_rating_count, 0) AS cleanliness_rating_count
           `;
-      const groupClause = isAllTime ? "" : "GROUP BY t.id";
       const queryParams = isAllTime ? params : [startDate, ...params];
 
       const rows = db
         .prepare(
           `
+          ${recentCleanlinessCte}
           SELECT
             t.id,
             t.name,
@@ -371,7 +398,6 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
           FROM toilets t
           ${joinClause}
           ${whereClause}
-          ${groupClause}
           `
         )
         .all(...queryParams);
