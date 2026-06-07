@@ -67,6 +67,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentMediaInput,
     commentMediaPreview,
     commentMediaStatus,
+    summarizeCommentsButton,
+    aiSummaryContainer,
+    aiSummaryText,
     featureFilterInputs = [],
     sortSelect,
     resultsSummary,
@@ -1008,6 +1011,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     detailsCard?.classList.add("is-hidden");
     mapPanel?.classList.remove("has-details");
 
+    if (aiSummaryContainer) {
+      aiSummaryContainer.classList.add("is-hidden");
+      if (aiSummaryText) aiSummaryText.textContent = "";
+    }
+
     if (directionsButton) {
       directionsButton.disabled = true;
     }
@@ -1128,6 +1136,26 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     updateSelectedMarkerAppearance();
     onToiletSelected(toilet);
     return true;
+  }
+
+  async function getAiSummary() {
+    if (!selectedToilet || !summarizeCommentsButton || !aiSummaryContainer || !aiSummaryText) return;
+
+    summarizeCommentsButton.disabled = true;
+    aiSummaryContainer.classList.remove("is-hidden");
+    aiSummaryContainer.classList.add("is-loading");
+    aiSummaryText.textContent = "AI is analyzing comments...";
+
+    try {
+      const summary = await fetchAiSummary(selectedToilet.id);
+      aiSummaryText.textContent = summary;
+    } catch (error) {
+      console.error("Failed to fetch AI summary:", error);
+      aiSummaryText.textContent = "Could not generate AI summary. Please try again later.";
+    } finally {
+      aiSummaryContainer.classList.remove("is-loading");
+      summarizeCommentsButton.disabled = false;
+    }
   }
 
   function openCommentThread(toiletId, commentId) {
@@ -1669,6 +1697,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     submitCleanlinessSurveySelection,
     answerCleanlinessSurvey,
     postComment,
+    getAiSummary,
     setCommentSortMode,
     setCommentFilter,
     toggleCommentComposer,

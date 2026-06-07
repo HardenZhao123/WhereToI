@@ -5,6 +5,7 @@ import { extname, join, normalize, resolve } from "node:path";
 import { createDatabase } from "./database.mjs";
 import { normaliseCommentPayload } from "./database/repository/repository-utils.mjs";
 import { createRegistrationEmailService } from "./email-service.mjs";
+import { createAiService } from "./ai-service.mjs";
 
 const STATIC_CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -188,6 +189,31 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       const toilets = await database.getToilets({ search, accessibleOnly, cleanlinessRange });
 
       sendJson(response, 200, { toilets });
+    },
+    "GET /api/toilets/summary": async ({ request, response, url, aiService }) => {
+      const toiletId = url.searchParams.get("toiletId");
+      if (!toiletId) {
+        sendJson(response, 400, { error: "toiletId is required." });
+        return;
+      }
+
+      if (!aiService) {
+        sendJson(response, 503, { error: "AI service is not configured." });
+        return;
+      }
+
+      const comments = await database.getComments(toiletId);
+      if (comments.length === 0) {
+        sendJson(response, 200, { summary: "No comments yet to summarize." });
+        return;
+      }
+
+      try {
+        const summary = await aiService.summarizeComments(comments);
+        sendJson(response, 200, { summary });
+      } catch (error) {
+        sendJson(response, 500, { error: "Failed to generate AI summary." });
+      }
     },
     "GET /api/account": async ({ request, response }) => {
       const userId = getSessionUserId(request);
@@ -375,7 +401,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
   };
 }
 
-async function handleApiRoute({ routeHandlers, request, response, url }) {
+async function handleApiRoute({ routeHandlers, request, response, url, aiService }) {
   const method = request.method?.toUpperCase() ?? "GET";
   const pathname = url.pathname.length > 1 && url.pathname.endsWith("/")
     ? url.pathname.slice(0, -1)
@@ -392,7 +418,7 @@ async function handleApiRoute({ routeHandlers, request, response, url }) {
     return false;
   }
 
-  await routeHandler({ request, response, url });
+  await routeHandler({ request, response, url, aiService });
   return true;
 }
 
@@ -419,14 +445,14 @@ async function serveStaticFile({ root, pathname, response }) {
   createReadStream(file).pipe(response);
 }
 
-function createRequestHandler({ root, port, database, emailService, logger }) {
+function createRequestHandler({ root, port, database, emailService, aiService, logger }) {
   const routeHandlers = createApiRouteHandlers(database, { emailService, logger });
 
   return async function handleRequest(request, response) {
     const url = new URL(request.url ?? "/", `http://localhost:${port}`);
 
     try {
-      const apiHandled = await handleApiRoute({ routeHandlers, request, response, url });
+      const apiHandled = await handleApiRoute({ routeHandlers, request, response, url, aiService });
       if (apiHandled) return;
 
       await serveStaticFile({ root, pathname: url.pathname, response });
@@ -452,11 +478,13 @@ export async function createAppServer({
   port = 4173,
   logger = console,
   emailService = createRegistrationEmailService(),
+  aiService: providedAiService,
   databaseOptions = {}
 } = {}) {
   const root = resolve(rootDirectory);
   const database = await createDatabase({ rootDirectory: root, ...databaseOptions });
-  const requestHandler = createRequestHandler({ root, port, database, emailService, logger });
+  const aiService = providedAiService ?? (await createAiService());
+  const requestHandler = createRequestHandler({ root, port, database, emailService, aiService, logger });
 
   const server = createServer(requestHandler);
 
