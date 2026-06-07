@@ -258,6 +258,7 @@ export function createApp() {
     }
 
     bindEvents();
+    mapController.requestLocation();
     await Promise.all([initializeToilets(), accountController.loadPanelData()]);
   }
 
