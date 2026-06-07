@@ -7,12 +7,13 @@ export async function createAiService({
   apiKey = process.env.GOOGLE_AI_API_KEY,
   modelName = "gemini-1.5-flash"
 } = {}) {
-  if (!apiKey) {
-    console.warn("GOOGLE_AI_API_KEY is not set. AI summarization will be disabled.");
+  if (!apiKey || apiKey.trim().length === 0) {
+    console.warn("GOOGLE_AI_API_KEY is not set or empty. AI summarization will be disabled.");
     return null;
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const cleanApiKey = apiKey.trim();
+  const genAI = new GoogleGenerativeAI(cleanApiKey);
   const model = genAI.getGenerativeModel({
     model: modelName,
     safetySettings: [

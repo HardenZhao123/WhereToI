@@ -213,7 +213,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         sendJson(response, 200, { summary });
       } catch (error) {
         logger.error("AI Summary generation failed for toilet:", toiletId, error);
-        sendJson(response, 500, { error: "Failed to generate AI summary." });
+        sendJson(response, 500, { error: `AI error: ${error.message}` });
       }
     },
     "GET /api/account": async ({ request, response }) => {
