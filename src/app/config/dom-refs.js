@@ -63,6 +63,8 @@ export function getDomRefs() {
     authEmail: document.querySelector("#auth-email"),
     emailGroup: document.querySelector("#email-group"),
     confirmPasswordGroup: document.querySelector("#confirm-password-group"),
+    accountSettingsButton: document.querySelector("#account-settings-button"),
+    accountSettingsPanel: document.querySelector("#account-settings-panel"),
     logoutButton: document.querySelector("#logout-button"),
     accountUnlockCard: document.querySelector("#account-unlock-card"),
     accountSignupButton: document.querySelector("#account-signup-button"),
