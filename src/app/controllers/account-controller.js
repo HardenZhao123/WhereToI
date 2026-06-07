@@ -12,9 +12,6 @@ import { renderAccessHistory, renderAccount, renderMyComments, renderPublicProfi
 
 export function createAccountController(elements, onProfilePreferenceToggled = () => {}, callbacks = {}) {
   const {
-    walletBalance,
-    subscriptionPlan,
-    monthlyTicketsLeft,
     accessHistoryList,
     myCommentsList,
     accountOwnView,
@@ -51,7 +48,11 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     displayGender,
     displayNeeds,
     autoFilterToggle,
-    editProfileButton
+    editProfileButton,
+    creditsButton,
+    creditsModal,
+    closeCreditsButton,
+    dismissCreditsButton
   } = elements;
   const { onCommentSelected = () => {} } = callbacks;
 
@@ -115,6 +116,14 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     profileModal?.classList.add("is-hidden");
   }
 
+  function showCreditsModal() {
+    creditsModal?.classList.remove("is-hidden");
+  }
+
+  function hideCreditsModal() {
+    creditsModal?.classList.add("is-hidden");
+  }
+
   function setAuthMode(mode) {
     isRegisterMode = mode === "register";
     if (authTitle) authTitle.textContent = isRegisterMode ? "Sign up for WhereToI" : "Log in to WhereToI";
@@ -140,9 +149,6 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
     if (accountWelcome) accountWelcome.textContent = "Welcome";
     if (accountUsername) accountUsername.textContent = "Guest access";
-    if (walletBalance) walletBalance.textContent = "Sign up to view";
-    if (subscriptionPlan) subscriptionPlan.textContent = "Create an account to manage a plan.";
-    if (monthlyTicketsLeft) monthlyTicketsLeft.textContent = "Sign up";
     if (displayGender) displayGender.textContent = "Sign up to set";
     if (displayNeeds) displayNeeds.textContent = "Sign up to set";
 
@@ -350,7 +356,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
       const payload = await fetchAccountSnapshot();
       if (publicProfileActive && !forceOwn) return;
       renderAccount(
-        { walletBalance, subscriptionPlan, monthlyTicketsLeft, accountUsername, accountWelcome, displayGender, displayNeeds },
+        { accountUsername, accountWelcome, displayGender, displayNeeds },
         payload.account,
         currentUser
       );
@@ -381,6 +387,10 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     skipProfileButton?.addEventListener("click", hideProfileModal);
     editProfileButton?.addEventListener("click", handleEditProfile);
     autoFilterToggle?.addEventListener("change", handleAutoFilterToggle);
+
+    creditsButton?.addEventListener("click", showCreditsModal);
+    closeCreditsButton?.addEventListener("click", hideCreditsModal);
+    dismissCreditsButton?.addEventListener("click", hideCreditsModal);
   }
 
   return {

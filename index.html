@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="WhereToI helps people find nearby toilets and manage wallet, history, and subscription."
+      content="WhereToI helps people find nearby toilets and manage history and profile-based filters."
     />
     <title>WhereToI</title>
     <link
@@ -23,7 +23,7 @@
           <header class="topbar">
             <div>
               <p class="eyebrow">WhereToI</p>
-              <h1 id="view-title">My Map</h1>
+              <h1 id="view-title">Map</h1>
             </div>
             <button class="locate-button" id="locate-button" type="button" aria-label="Find my location" aria-pressed="false">
               <svg class="locate-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -269,21 +269,11 @@
               <h2 id="account-username">Your Account</h2>
               <article class="account-card account-unlock-card" id="account-unlock-card">
                 <h3>Create an account to unlock more features</h3>
-                <p>Use the map without logging in. Sign up when you want wallet access, saved history, and profile-based filters.</p>
+                <p>Use the map without logging in. Sign up when you want saved history and profile-based filters.</p>
                 <div class="account-unlock-actions">
                   <button class="solid-button" id="account-signup-button" type="button">Sign up</button>
                   <button class="outline-button" id="account-login-button" type="button">Log in</button>
                 </div>
-              </article>
-              <article class="wallet-card">
-                <span>Wallet balance</span>
-                <strong id="wallet-balance">GBP 8.40</strong>
-                <button type="button">Top up</button>
-              </article>
-              <article class="account-card">
-                <h3>Subscription</h3>
-                <p id="subscription-plan">Campus Plus - renews 26 Jun</p>
-                <p>Monthly free toilet visits: <strong id="monthly-tickets-left">3 left</strong></p>
               </article>
               <article class="account-card" id="profile-card">
                 <h3>My Profile</h3>
@@ -318,6 +308,7 @@
                 <h3>Privacy note</h3>
                 <p>Let users hide or delete sensitive visit history.</p>
               </article>
+              <button id="credits-button" class="credits-link" type="button">Data Attribution &amp; Credits</button>
               <button id="logout-button" class="logout-button" type="button">Log out</button>
               </div>
             </section>
@@ -346,8 +337,7 @@
         <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px;">
           <div>
             <h2 id="auth-title" style="margin-bottom: 4px; color: #142c72; font-size: 18px; font-weight: 700;">Log in to WhereToI</h2>
-            <p id="auth-subtitle">Manage your wallet and history.</p>
-          </div>
+            <p id="auth-subtitle">Manage your history and profile filters.</p>          </div>
           <button class="close-button" id="close-auth" type="button" aria-label="Close login dialog">X</button>
         </header>
         <form id="auth-form" class="auth-form" style="margin-top: 0;">
@@ -401,6 +391,30 @@
             <button class="text-button" id="skip-profile" type="button" style="background: none; border: none; padding: 10px; color: var(--muted); cursor: pointer;">Skip for now</button>
           </div>
         </form>
+      </div>
+    </section>
+    <section class="auth-modal is-hidden" id="credits-modal" role="dialog" aria-modal="true" aria-labelledby="credits-title">
+      <div class="auth-dialog">
+        <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px;">
+          <div>
+            <h2 id="credits-title" style="margin-bottom: 4px; color: #142c72; font-size: 18px; font-weight: 700;">Data Attribution &amp; Credits</h2>
+          </div>
+          <button class="close-button" id="close-credits" type="button" aria-label="Close credits dialog">X</button>
+        </header>
+        <div class="credits-content" style="padding: 10px 0;">
+          <p style="font-size: 14px; line-height: 1.5; color: var(--muted); margin-bottom: 16px;">
+            This project is a collaborative prototype designed by a team of four students to test toilet accessibility and feedback systems.
+          </p>
+          <div style="background: var(--teal-soft); padding: 16px; border-radius: 12px; margin-bottom: 20px;">
+            <h3 style="font-size: 14px; margin-bottom: 8px; color: var(--teal); font-weight: 700;">Data Source</h3>
+            <p style="font-size: 13px; line-height: 1.5; color: var(--ink);">
+              Toilet data sourced from the public domain and provided under the 
+              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener" style="color: var(--teal); font-weight: 600;">CC BY 4.0</a> 
+              International license.
+            </p>
+          </div>
+          <button class="solid-button" id="dismiss-credits" type="button" style="width: 100%;">Close</button>
+        </div>
       </div>
     </section>
   </body>

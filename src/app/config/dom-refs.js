@@ -39,9 +39,6 @@ export function getDomRefs() {
     commentMediaInput: document.querySelector("#comment-media"),
     commentMediaPreview: document.querySelector("#comment-media-preview"),
     commentMediaStatus: document.querySelector("#comment-media-status"),
-    walletBalance: document.querySelector("#wallet-balance"),
-    subscriptionPlan: document.querySelector("#subscription-plan"),
-    monthlyTicketsLeft: document.querySelector("#monthly-tickets-left"),
     accessHistoryList: document.querySelector("#access-history-list"),
     myCommentsList: document.querySelector("#my-comments-list"),
     accountOwnView: document.querySelector("#account-own-view"),
@@ -78,6 +75,10 @@ export function getDomRefs() {
     displayGender: document.querySelector("#display-gender"),
     displayNeeds: document.querySelector("#display-needs"),
     autoFilterToggle: document.querySelector("#auto-filter-toggle"),
-    editProfileButton: document.querySelector("#edit-profile")
+    editProfileButton: document.querySelector("#edit-profile"),
+    creditsButton: document.querySelector("#credits-button"),
+    creditsModal: document.querySelector("#credits-modal"),
+    closeCreditsButton: document.querySelector("#close-credits"),
+    dismissCreditsButton: document.querySelector("#dismiss-credits")
   };
 }

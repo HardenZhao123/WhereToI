@@ -81,6 +81,12 @@ Current design priorities / 当前设计重点：
 - inclusive facility details where available / 尽可能呈现包容性设施信息
 - privacy-aware comment, Account, and profile behaviour / comment、Account 和 profile behaviour 需要考虑隐私
 
+## Data Credits / 数据说明
+
+This project uses a toilet dataset downloaded directly from the public domain in CSV format.
+
+**License:** This data is provided under the [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/) license.
+
 ## For Developers / 开发者
 
 Requirements / 环境要求：

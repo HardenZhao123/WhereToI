@@ -4,6 +4,7 @@ import { fallbackToilets } from "./config/fallback-toilets.js";
 import { createAccountController } from "./controllers/account-controller.js";
 import { createMapController } from "./controllers/map-controller.js";
 import { createTabController } from "./controllers/tab-controller.js";
+import { recordAccessHistory } from "./services/account-service.js";
 import { loadToiletsFromApi, loadToiletsFromCsv } from "./services/toilets-service.js";
 import { distanceInMetres } from "./utils/geo.js";
 
@@ -15,6 +16,7 @@ export function createApp() {
   const mapController = createMapController(elements, () => {}, {
     isAuthenticated: () => accountController?.isAuthenticated() ?? false,
     showLoginPrompt: (message) => accountController?.showAuthModal("login", message),
+    recordAccessHistory,
     onPublicProfileSelected: (userId) => {
       accountController?.loadPublicProfile(userId);
       tabController?.setTab("account");

@@ -731,7 +731,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return result.rows.map(mapAccessHistoryRow);
     },
-    async recordAccess({ toiletId = null, toiletName, eventType, amountGbp = 0, useFreeTicket = false }) {
+    async recordAccess({ userId, toiletId = null, toiletName, eventType, amountGbp = 0, useFreeTicket = false }) {
       const { safeToiletName, safeEventType, safeAmount, useFreeTicket: shouldUseFreeTicket } =
         normaliseAccessPayload({
           toiletId,

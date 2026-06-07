@@ -194,6 +194,28 @@ h3 {
   font-size: 9px;
 }
 
+.logout-button {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.credits-link {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+  padding: 8px;
+  border: 0;
+  color: #000;
+  font-size: 11px;
+  text-decoration: underline;
+  background: transparent;
+  opacity: 0.7;
+}
+
+.credits-link:hover {
+  opacity: 1;
+}
+
 .map-status {
   position: absolute;
   right: 16px;
@@ -1472,37 +1494,6 @@ mark {
 .outline-button {
   border: 1px solid #b8c1ba;
   color: var(--muted);
-  background: white;
-}
-
-.wallet-card {
-  position: relative;
-  margin-top: 28px;
-  padding: 24px;
-  min-height: 96px;
-  border-radius: 12px;
-  color: white;
-  background: var(--teal);
-}
-
-.wallet-card span,
-.wallet-card strong {
-  display: block;
-  font-size: 13px;
-}
-
-.wallet-card strong {
-  margin-top: 20px;
-}
-
-.wallet-card button {
-  position: absolute;
-  right: 24px;
-  top: 29px;
-  height: 38px;
-  padding-inline: 22px;
-  border: 0;
-  border-radius: 999px;
   background: white;
 }
 
