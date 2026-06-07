@@ -1,6 +1,7 @@
 import { appConfig } from "../config/app-config.js";
 import {
   deleteComment as deleteCommentRequest,
+  fetchAiSummary,
   fetchComments,
   submitCleanlinessSurvey,
   submitComment,

@@ -14,22 +14,19 @@ export async function createAiService({
 
   const cleanApiKey = apiKey.trim();
   const genAI = new GoogleGenerativeAI(cleanApiKey);
-  const model = genAI.getGenerativeModel({
-    model: modelName,
-    safetySettings: [
-      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
-    ]
-  });
+  
+  // List of models to try in order of preference. 
+  // We include 'lite' models as they are most likely to have free quota in 2026.
+  const modelsToTry = [
+    "gemini-2.0-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-flash-lite-latest",
+    "gemini-pro-latest"
+  ];
 
   return {
-    /**
-     * Summarizes an array of comment objects.
-     * @param {Array} comments - Array of comment objects with 'comment_text' property.
-     * @returns {Promise<string>} The generated summary.
-     */
     async summarizeComments(comments) {
       if (!comments || comments.length === 0) {
         return "No comments available to summarize.";
@@ -55,25 +52,53 @@ export async function createAiService({
         Summary:
       `;
 
-      try {
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-        
-        if (!text) {
-          throw new Error("AI returned an empty response.");
+      let lastError = null;
+
+      for (const modelId of modelsToTry) {
+        try {
+          const model = genAI.getGenerativeModel({
+            model: modelId,
+            safetySettings: [
+              { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+              { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
+            ]
+          });
+
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          const text = response.text();
+          
+          if (text) {
+            return text.trim();
+          }
+        } catch (error) {
+          lastError = error;
+          const errorMessage = error.message?.toLowerCase() || "";
+          
+          // If it's a 404 (not found) or 429 (quota/limit 0), we try the next model.
+          if (
+            errorMessage.includes("404") || 
+            errorMessage.includes("not found") || 
+            errorMessage.includes("429") || 
+            errorMessage.includes("quota")
+          ) {
+            console.warn(`Model ${modelId} failed (${error.status || "Error"}), trying next...`);
+            continue;
+          }
+          // For other errors (like auth), we stop immediately
+          break;
         }
-        
-        return text.trim();
-      } catch (error) {
-        // Log detailed error for debugging
-        console.error("Gemini API Error Detail:", {
-          message: error.message,
-          stack: error.stack,
-          commentsCount: comments.length
-        });
-        throw error;
       }
+
+      // If we get here, all models failed
+      console.error("Gemini API Error Detail:", {
+        message: lastError.message,
+        stack: lastError.stack,
+        commentsCount: comments.length
+      });
+      throw lastError;
     }
   };
 }
