@@ -376,8 +376,17 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 }
 
 async function handleApiRoute({ routeHandlers, request, response, url }) {
-  const routeKey = `${request.method ?? "GET"} ${url.pathname}`;
-  const routeHandler = routeHandlers[routeKey];
+  const method = request.method?.toUpperCase() ?? "GET";
+  const pathname = url.pathname.length > 1 && url.pathname.endsWith("/")
+    ? url.pathname.slice(0, -1)
+    : url.pathname;
+
+  const routeKey = `${method} ${pathname}`;
+  let routeHandler = routeHandlers[routeKey];
+
+  if (!routeHandler && method === "HEAD") {
+    routeHandler = routeHandlers[`GET ${pathname}`];
+  }
 
   if (!routeHandler) {
     return false;
