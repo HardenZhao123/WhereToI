@@ -1153,7 +1153,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       aiSummaryText.textContent = summary;
     } catch (error) {
       console.error("Failed to fetch AI summary:", error);
-      aiSummaryText.textContent = "Could not generate AI summary. Please try again later.";
+      aiSummaryText.textContent = `Error: ${error.message || "Could not generate AI summary."}`;
     } finally {
       aiSummaryContainer.classList.remove("is-loading");
       summarizeCommentsButton.disabled = false;
