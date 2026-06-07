@@ -13,7 +13,7 @@ export async function createAiService({
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ modelName });
+  const model = genAI.getGenerativeModel({ model: modelName });
 
   return {
     /**
