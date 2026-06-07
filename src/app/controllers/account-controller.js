@@ -14,6 +14,8 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   const {
     accessHistoryList,
     myCommentsList,
+    accountActivityTabs,
+    accountActivityPanels,
     accountOwnView,
     publicProfileView,
     publicProfileBackButton,
@@ -36,6 +38,8 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     authEmail,
     emailGroup,
     confirmPasswordGroup,
+    accountSettingsButton,
+    accountSettingsPanel,
     logoutButton,
     accountUnlockCard,
     accountSignupButton,
@@ -61,6 +65,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   let isRegisterMode = false;
   let publicProfileActive = false;
   let activePublicProfileUserId = null;
+  let activeAccountActivityTab = "feedback";
 
   function loadAutoFilterState() {
     return window.localStorage?.getItem(autoFilterStorageKey) === "true";
@@ -80,6 +85,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   function showPublicProfileView(userId) {
     publicProfileActive = true;
     activePublicProfileUserId = String(userId);
+    hideSettingsPanel();
     accountOwnView?.classList.add("is-hidden");
     publicProfileView?.classList.remove("is-hidden");
   }
@@ -99,6 +105,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   }
 
   function showAuthModal(mode = isRegisterMode ? "register" : "login", message = "") {
+    hideSettingsPanel();
     setAuthMode(mode);
     authModal?.classList.remove("is-hidden");
     if (authStatus) authStatus.textContent = message;
@@ -109,6 +116,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   }
 
   function showProfileModal() {
+    hideSettingsPanel();
     profileModal?.classList.remove("is-hidden");
   }
 
@@ -117,6 +125,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   }
 
   function showCreditsModal() {
+    hideSettingsPanel();
     creditsModal?.classList.remove("is-hidden");
   }
 
@@ -139,6 +148,61 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
   function toggleAuthMode() {
     setAuthMode(isRegisterMode ? "login" : "register");
+  }
+
+  function setSettingsPanelOpen(isOpen) {
+    accountSettingsPanel?.classList.toggle("is-hidden", !isOpen);
+    accountSettingsButton?.setAttribute("aria-expanded", String(isOpen));
+  }
+
+  function isSettingsPanelOpen() {
+    return Boolean(accountSettingsPanel && !accountSettingsPanel.classList.contains("is-hidden"));
+  }
+
+  function toggleSettingsPanel() {
+    setSettingsPanelOpen(!isSettingsPanelOpen());
+  }
+
+  function hideSettingsPanel() {
+    setSettingsPanelOpen(false);
+  }
+
+  function setAccountActivityTab(tabKey) {
+    const nextTab = tabKey || "feedback";
+    activeAccountActivityTab = nextTab;
+
+    accountActivityTabs?.forEach((button) => {
+      const isActive = button.dataset.accountActivityTab === nextTab;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", String(isActive));
+    });
+
+    accountActivityPanels?.forEach((panel) => {
+      const isActive = panel.dataset.accountActivityPanel === nextTab;
+      panel.classList.toggle("is-hidden", !isActive);
+      panel.hidden = !isActive;
+    });
+  }
+
+  function handleAccountActivityTabClick(event) {
+    const button = event.currentTarget;
+    const nextTab = button?.dataset?.accountActivityTab;
+    if (!nextTab) return;
+    setAccountActivityTab(nextTab);
+  }
+
+  function handleDocumentClick(event) {
+    if (!isSettingsPanelOpen()) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (accountSettingsPanel?.contains(target) || accountSettingsButton?.contains(target)) return;
+    hideSettingsPanel();
+  }
+
+  function handleDocumentKeydown(event) {
+    if (event.key !== "Escape" || !isSettingsPanelOpen()) return;
+    hideSettingsPanel();
+    accountSettingsButton?.focus();
   }
 
   function renderGuestAccount() {
@@ -378,6 +442,11 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     authForm?.addEventListener("submit", handleAuthSubmit);
     authToggle?.addEventListener("click", toggleAuthMode);
     closeAuthButton?.addEventListener("click", hideAuthModal);
+    accountActivityTabs?.forEach((button) => {
+      button.addEventListener("click", handleAccountActivityTabClick);
+    });
+    setAccountActivityTab(activeAccountActivityTab);
+    accountSettingsButton?.addEventListener("click", toggleSettingsPanel);
     logoutButton?.addEventListener("click", handleLogout);
     accountSignupButton?.addEventListener("click", () => showAuthModal("register"));
     accountLoginButton?.addEventListener("click", () => showAuthModal("login"));
@@ -391,6 +460,8 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     creditsButton?.addEventListener("click", showCreditsModal);
     closeCreditsButton?.addEventListener("click", hideCreditsModal);
     dismissCreditsButton?.addEventListener("click", hideCreditsModal);
+    document.addEventListener("click", handleDocumentClick);
+    document.addEventListener("keydown", handleDocumentKeydown);
   }
 
   return {

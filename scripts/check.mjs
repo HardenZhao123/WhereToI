@@ -228,6 +228,49 @@ if (!html.includes("account-unlock-card") || !js.includes("renderGuestAccount") 
   throw new Error("Expected unauthenticated users to keep map access and see an account unlock prompt.");
 }
 
+const settingsPanelStart = html.indexOf("id=\"account-settings-panel\"");
+const profileCardStart = html.indexOf("id=\"profile-card\"", settingsPanelStart);
+const settingsPanelHtml =
+  settingsPanelStart >= 0 && profileCardStart > settingsPanelStart
+    ? html.slice(settingsPanelStart, profileCardStart)
+    : "";
+
+if (
+  !html.includes("id=\"account-settings-button\"") ||
+  !html.includes("aria-label=\"Open account settings\"") ||
+  !settingsPanelHtml.includes("Privacy note") ||
+  !settingsPanelHtml.includes("credits-button") ||
+  !settingsPanelHtml.includes("logout-button") ||
+  !js.includes("toggleSettingsPanel") ||
+  !js.includes("hideSettingsPanel") ||
+  !css.includes(".settings-button") ||
+  !css.includes(".account-settings-panel")
+) {
+  throw new Error("Expected Account privacy note, data credits, and logout controls to live inside the top-right settings menu.");
+}
+
+const feedbackTabIndex = html.indexOf("data-account-activity-tab=\"feedback\"");
+const historyTabIndex = html.indexOf("data-account-activity-tab=\"history\"");
+
+if (
+  !html.includes("class=\"account-card account-activity-card\"") ||
+  !html.includes("role=\"tablist\" aria-label=\"Account activity\"") ||
+  feedbackTabIndex < 0 ||
+  historyTabIndex < 0 ||
+  feedbackTabIndex > historyTabIndex ||
+  !html.includes("data-account-activity-panel=\"feedback\"") ||
+  !html.includes("data-account-activity-panel=\"history\"") ||
+  html.includes("my-comments-card") ||
+  html.includes("history-card") ||
+  !js.includes("setAccountActivityTab") ||
+  !js.includes("handleAccountActivityTabClick") ||
+  !css.includes(".account-activity-tabs") ||
+  !css.includes(".account-activity-tab.is-active") ||
+  !css.includes(".history-list")
+) {
+  throw new Error("Expected Account feedback and visit history to use a compact tabbed activity layout, with feedback shown first.");
+}
+
 if (!css.includes("@media") || !js.includes("setTab")) {
   throw new Error("Expected responsive CSS and tab interaction code.");
 }
