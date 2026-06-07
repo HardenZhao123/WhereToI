@@ -522,9 +522,3 @@ export async function createAppServer({
     }
   };
 }
-    }).then(async () => {
-        await database.close?.();
-      });
-    }
-  };
-}
