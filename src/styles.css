@@ -815,6 +815,49 @@ mark {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ai-summary-button {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-summary-button:hover {
+  background: #2e7d32;
+  color: white;
+}
+
+.ai-summary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-summary-box {
+  background: #f1f8e9;
+  border-left: 4px solid #2e7d32;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #333;
+}
+
+.ai-summary-box.is-hidden {
+  display: none;
+}
+
+.ai-summary-box.is-loading {
+  opacity: 0.7;
+  font-style: italic;
 }
 
 .comments-header h3 {

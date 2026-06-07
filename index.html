@@ -156,12 +156,16 @@
                   <section class="comments-section">
                     <div class="comments-header">
                       <h3>Feedback</h3>
+                      <button id="summarize-comments" class="ai-summary-button" type="button">✨ AI Summary</button>
                       <label class="comment-sort-control" for="comment-sort" aria-label="Sort feedback">
                         <select id="comment-sort" aria-label="Sort feedback">
                           <option value="newest">Newest</option>
                           <option value="liked">Most liked</option>
                         </select>
                       </label>
+                    </div>
+                    <div id="ai-summary-container" class="ai-summary-box is-hidden" aria-live="polite">
+                      <p id="ai-summary-text"></p>
                     </div>
                     <div class="comment-filter-tags" id="comment-filters" aria-label="Feedback tags">
                       <label class="comment-filter-tag"><input type="checkbox" value="media" /> Photo/video</label>

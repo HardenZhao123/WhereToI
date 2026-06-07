@@ -13,6 +13,7 @@
     "check:e2e": "node scripts/e2e-smoke.mjs"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.13.0",
     "pg": "^8.21.0"
   },
   "engines": {

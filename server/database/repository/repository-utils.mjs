@@ -340,6 +340,15 @@ export function mapCleanlinessSurveyResponse({ row, cleanliness, ratingTotal, ra
 }
 
 export function mapAccountRow(row) {
+  if (!row) {
+    return {
+      walletBalanceGbp: 0,
+      subscriptionName: "Free",
+      subscriptionRenewsOn: null,
+      monthlyFreeTicketsLeft: 0
+    };
+  }
+
   return {
     walletBalanceGbp: Number(row.wallet_balance_gbp),
     subscriptionName: row.subscription_name,
