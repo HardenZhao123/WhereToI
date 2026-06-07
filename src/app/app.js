@@ -83,7 +83,13 @@ export function createApp() {
 
   function setLoadedToilets(
     toilets,
-    { currentSelectedId = null, currentSection = null, hideDetails = true, status = "" } = {}
+    {
+      currentSelectedId = null,
+      currentSection = null,
+      hideDetails = true,
+      cleanlinessRange = elements.cleanlinessRangeSelect?.value ?? "3days",
+      status = ""
+    } = {}
   ) {
     const southKen = appConfig.initialView;
     const sorted = [...toilets].sort((a, b) => {
@@ -92,7 +98,7 @@ export function createApp() {
       return distA - distB;
     });
 
-    mapController.setToilets(sorted, { hideDetails });
+    mapController.setToilets(sorted, { hideDetails, cleanlinessRange });
 
     if (currentSelectedId) {
       mapController.setToilet(currentSelectedId, {
@@ -151,6 +157,7 @@ export function createApp() {
           currentSelectedId,
           currentSection,
           hideDetails: !currentSelectedId,
+          cleanlinessRange: range,
           status: `Loaded ${loadedFromApi.length} toilets from database.`
         });
         hasLoadedApiToilets = true;
@@ -178,6 +185,7 @@ export function createApp() {
           currentSelectedId,
           currentSection,
           hideDetails: !currentSelectedId,
+          cleanlinessRange: range,
           status: localData.status
         });
       } catch (error) {
