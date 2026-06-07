@@ -219,6 +219,7 @@ export function createApp() {
     elements.featureFilterInputs.forEach((input) => {
       input?.addEventListener("change", () => mapController.setFeatureFilter(input.value, input.checked));
     });
+    elements.summarizeCommentsButton?.addEventListener("click", () => mapController.getAiSummary());
     elements.closeDetailsButton?.addEventListener("click", () => mapController.hideToiletDetails());
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
     elements.mapSurveyRatingButtons.forEach((button) => {

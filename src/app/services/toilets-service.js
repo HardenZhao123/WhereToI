@@ -53,6 +53,11 @@ export async function fetchComments(toiletId) {
   return payload.comments || [];
 }
 
+export async function fetchAiSummary(toiletId) {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/toilets/summary?toiletId=${encodeURIComponent(toiletId)}`);
+  return payload.summary;
+}
+
 export async function submitComment(toiletId, commentText, media = [], commentVisibility = "real", cleanlinessRating) {
   const payload = await fetchJson(`${appConfig.apiBasePath}/comments`, {
     method: "POST",
