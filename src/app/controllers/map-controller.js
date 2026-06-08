@@ -197,6 +197,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
                 level: normaliseVisualCleanlinessLevel(entry.level),
                 label: String(entry.label || getVisualCleanlinessLevel(entry.level).label),
                 tone: String(entry.tone || getVisualCleanlinessLevel(entry.level).tone),
+                image: String(entry.image || getVisualCleanlinessLevel(entry.level).image || ""),
                 comment: String(entry.comment || ""),
                 createdAt: String(entry.createdAt || new Date().toISOString())
               }))
@@ -406,7 +407,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return Array.isArray(entries) ? entries : [];
   }
 
-  function createVisualFeedbackThumbnail(level) {
+  function createVisualFeedbackFallbackThumbnail(level) {
     const thumbnail = document.createElement("span");
     thumbnail.className = "visual-feedback-thumbnail";
     thumbnail.dataset.cleanliness = String(normaliseVisualCleanlinessLevel(level));
@@ -423,6 +424,26 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     thumbnail.append(tank, bowl, dirt);
     return thumbnail;
+  }
+
+  function createVisualFeedbackImage(entry) {
+    const imageSource = entry.image || getVisualCleanlinessLevel(entry.level).image;
+    if (!imageSource) {
+      return createVisualFeedbackFallbackThumbnail(entry.level);
+    }
+
+    const frame = document.createElement("div");
+    frame.className = "visual-feedback-image-frame";
+    frame.dataset.cleanliness = String(normaliseVisualCleanlinessLevel(entry.level));
+
+    const image = document.createElement("img");
+    image.className = "visual-feedback-image";
+    image.src = imageSource;
+    image.alt = `${entry.label} visual cleanliness check`;
+    image.loading = "lazy";
+
+    frame.append(image);
+    return frame;
   }
 
   function renderVisualFeedbackDiscussion() {
@@ -454,7 +475,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       const item = document.createElement("article");
       item.className = "visual-feedback-item";
 
-      const thumbnail = createVisualFeedbackThumbnail(entry.level);
+      const thumbnail = createVisualFeedbackImage(entry);
 
       const body = document.createElement("div");
       body.className = "visual-feedback-item-body";
@@ -501,6 +522,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       level: level.value,
       label: level.label,
       tone: level.tone,
+      image: level.image || "",
       comment: visualFeedbackComment?.value.trim() ?? "",
       createdAt: new Date().toISOString()
     };
@@ -514,6 +536,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     saveVisualFeedbackEntries();
     resetVisualFeedbackForm();
     renderVisualFeedbackDiscussion();
+    closeVisualFeedback();
+    setDetailSection("visual");
+    requestAnimationFrame(() => {
+      visualFeedbackList?.closest(".visual-feedback-discussion")?.scrollIntoView({
+        block: "start",
+        behavior: "smooth"
+      });
+    });
   }
 
   function getCommentMediaType(file) {

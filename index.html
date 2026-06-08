@@ -131,6 +131,7 @@
                 <button class="details-section-link is-active" id="details-features-link" type="button" data-detail-section="features" aria-controls="details-features-panel" aria-selected="true">Features</button>
                 <button class="details-section-link" id="details-hours-link" type="button" data-detail-section="hours" aria-controls="details-hours-panel" aria-selected="false">Opening Hours</button>
                 <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Feedback</button>
+                <button class="details-section-link" id="details-visual-link" type="button" data-detail-section="visual" aria-controls="details-visual-panel" aria-selected="false">Visual check</button>
               </nav>
               <div class="details-section-panels">
                 <section class="details-panel is-active" id="details-features-panel" data-detail-panel="features" aria-labelledby="details-features-link">
@@ -183,6 +184,17 @@
                     <p class="comments-summary" id="comments-summary" aria-live="polite">0 feedback - Newest</p>
                     <div id="comments-list" class="comments-list">
                       <p>Loading feedback...</p>
+                    </div>
+                  </section>
+                </section>
+                <section class="details-panel" id="details-visual-panel" data-detail-panel="visual" aria-labelledby="details-visual-link" hidden>
+                  <section class="visual-feedback-discussion comments-section" aria-labelledby="visual-feedback-discussion-title">
+                    <div class="comments-header visual-feedback-discussion-header">
+                      <h3 id="visual-feedback-discussion-title">Visual checks</h3>
+                      <p id="visual-feedback-summary">0 visual checks</p>
+                    </div>
+                    <div class="visual-feedback-list comments-list" id="visual-feedback-list" aria-live="polite">
+                      <p>No visual checks yet.</p>
                     </div>
                   </section>
                 </section>
@@ -321,15 +333,6 @@
                 <textarea id="visual-feedback-comment" placeholder="Optional note for this picture..."></textarea>
                 <button type="submit" id="submit-visual-feedback">Post visual check</button>
               </form>
-              <section class="visual-feedback-discussion" aria-labelledby="visual-feedback-discussion-title">
-                <div class="visual-feedback-discussion-header">
-                  <h4 id="visual-feedback-discussion-title">Picture comments</h4>
-                  <p id="visual-feedback-summary">0 visual checks</p>
-                </div>
-                <div class="visual-feedback-list" id="visual-feedback-list" aria-live="polite">
-                  <p>No visual checks yet.</p>
-                </div>
-              </section>
             </section>
           </section>
 
