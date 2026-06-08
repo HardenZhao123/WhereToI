@@ -14,7 +14,11 @@ const STATIC_CONTENT_TYPES = {
   ".json": "application/json; charset=utf-8",
   ".csv": "text/csv; charset=utf-8",
   ".txt": "text/plain; charset=utf-8",
-  ".svg": "image/svg+xml"
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp"
 };
 
 const TRUTHY_QUERY_FLAGS = new Set(["1", "true", "yes"]);

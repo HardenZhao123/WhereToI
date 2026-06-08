@@ -50,6 +50,9 @@ const requiredCopy = [
   "Most facilities",
   "Most liked",
   "Photo/video",
+  "Visual check",
+  "Visual cleanliness check",
+  "Picture comments",
   "Confirm password",
   "Create an account to unlock more features",
   "Attach image or video"
@@ -161,6 +164,24 @@ if (
   !css.includes("object-fit: contain")
 ) {
   throw new Error("Expected comments to support up to 9 image/video attachments with thumbnail removal and uncropped media.");
+}
+
+if (
+  !html.includes("id=\"feedback-action-bar\"") ||
+  !html.includes("id=\"visual-feedback-toggle\"") ||
+  !html.includes("id=\"visual-feedback-panel\"") ||
+  !html.includes("id=\"visual-cleanliness-slider\"") ||
+  !html.includes("id=\"visual-feedback-list\"") ||
+  !js.includes("visualFeedbackStorageKey") ||
+  !js.includes("setVisualCleanlinessLevel") ||
+  !js.includes("submitVisualFeedback") ||
+  !js.includes("renderVisualFeedbackDiscussion") ||
+  !css.includes(".feedback-action-bar") ||
+  !css.includes(".visual-feedback-panel") ||
+  !css.includes(".visual-preview-card") ||
+  !css.includes(".visual-feedback-item")
+) {
+  throw new Error("Expected a sibling visual cleanliness feedback entry with an adjustable cartoon toilet and independent picture comments.");
 }
 
 if (
