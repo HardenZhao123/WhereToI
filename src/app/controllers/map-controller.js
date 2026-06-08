@@ -1316,6 +1316,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     map = window.L.map(mapElement, {
+      preferCanvas: true,
       zoomControl: false,
       attributionControl: true
     }).setView([appConfig.initialView.lat, appConfig.initialView.lng], appConfig.initialView.zoom);
