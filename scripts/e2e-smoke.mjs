@@ -45,6 +45,8 @@ try {
   const { payload: toiletsPayload } = await fetchJson(`${baseUrl}/api/toilets`);
   assert(Array.isArray(toiletsPayload.toilets), "Toilets endpoint must return an array.");
   assert(toiletsPayload.toilets.length > 0, "Toilets endpoint must return at least one entry.");
+  const firstToilet = toiletsPayload.toilets[0];
+  assert(firstToilet?.id, "First toilet must expose an id for detail navigation.");
 
   // Login to get a session cookie
   const loginResponse = await fetchJson(`${baseUrl}/api/login`, {
@@ -68,7 +70,8 @@ try {
       ...authHeaders
     },
     body: JSON.stringify({
-      toiletName: "CI Smoke Toilet",
+      toiletId: firstToilet.id,
+      toiletName: firstToilet.name,
       eventType,
       amountGbp: 0.0,
       useFreeTicket: false
@@ -78,6 +81,7 @@ try {
   assert(Array.isArray(posted.history), "POST /api/access-history must return updated history array.");
   assert(posted.history.length > 0, "Updated history must not be empty.");
   assert(posted.history[0]?.eventType === eventType, "Latest history record should match the created test event.");
+  assert(posted.history[0]?.toiletId === firstToilet.id, "Latest history record should keep the toilet id for detail navigation.");
 
   const { payload: accountAfter } = await fetchJson(`${baseUrl}/api/account`, { headers: authHeaders });
   assert(Array.isArray(accountAfter.history), "Account response must include history list.");

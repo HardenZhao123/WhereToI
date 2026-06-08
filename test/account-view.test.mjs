@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderMyComments, renderPublicProfile } from "../src/app/views/account-view.js";
+import { renderAccessHistory, renderMyComments, renderPublicProfile } from "../src/app/views/account-view.js";
 
 class TestElement {
   constructor(tagName) {
@@ -10,6 +10,7 @@ class TestElement {
     this.className = "";
     this.hidden = false;
     this.type = "";
+    this.listeners = {};
     this._textContent = "";
   }
 
@@ -36,7 +37,13 @@ class TestElement {
     this.attributes[name] = String(value);
   }
 
-  addEventListener() {}
+  addEventListener(eventName, listener) {
+    this.listeners[eventName] = listener;
+  }
+
+  click() {
+    this.listeners.click?.({ currentTarget: this });
+  }
 }
 
 class TestTextNode {
@@ -104,6 +111,38 @@ test("account feedback history renders cleanliness ratings as stars", () => {
     assert.equal(rating?.textContent, "\u2605\u2605\u2605\u2606\u2606");
     assert.equal(rating?.attributes["aria-label"], "Cleanliness rating 3 out of 5");
     assert.doesNotMatch(collectText(container), /Rating:|3\/5/);
+  });
+});
+
+test("visit history entries with toilet ids open the related toilet", () => {
+  withTestDocument(() => {
+    const container = new TestElement("div");
+    const openedEntries = [];
+
+    renderAccessHistory(
+      container,
+      [
+        {
+          id: 12,
+          toiletId: "city-guilds",
+          toiletName: "City & Guilds building",
+          eventType: "Directions",
+          amountGbp: 0,
+          accessTime: "2026-06-08T10:07:00.000Z"
+        }
+      ],
+      { onOpenToilet: (entry) => openedEntries.push(entry) }
+    );
+
+    const historyItem = container.children[0];
+    assert.equal(historyItem.tagName, "button");
+    assert.equal(historyItem.className, "history-item");
+    assert.equal(historyItem.type, "button");
+    assert.equal(historyItem.attributes["aria-label"], "Open details for City & Guilds building");
+
+    historyItem.click();
+    assert.equal(openedEntries.length, 1);
+    assert.equal(openedEntries[0].toiletId, "city-guilds");
   });
 });
 

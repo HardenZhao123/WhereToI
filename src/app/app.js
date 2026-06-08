@@ -50,6 +50,13 @@ export function createApp() {
       onCommentSelected: ({ toiletId, commentId }) => {
         tabController?.setTab("map");
         mapController.openCommentThread(toiletId, commentId);
+      },
+      onAccessHistorySelected: ({ toiletId }) => {
+        tabController?.setTab("map");
+        const opened = mapController.setToilet(toiletId);
+        if (!opened) {
+          mapController.setStatus("Could not find that toilet in the current map data.");
+        }
       }
     }
   );

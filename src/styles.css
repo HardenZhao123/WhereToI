@@ -1758,14 +1758,35 @@ mark {
   display: none;
 }
 
-.history-list > div {
+.history-item {
+  display: block;
+  width: 100%;
   padding: 12px 0;
   border-top: 1px solid #b8c6b9;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
 }
 
-.history-list > div:first-child {
+.history-item:first-child {
   border-top: 0;
   padding-top: 0;
+}
+
+.history-item[type="button"] {
+  cursor: pointer;
+}
+
+.history-item[type="button"]:hover strong {
+  color: var(--teal);
+}
+
+.history-item[type="button"]:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
 }
 
 .history-list strong {

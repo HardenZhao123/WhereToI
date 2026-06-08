@@ -23,7 +23,7 @@ export function renderAccount({ accountUsername, accountWelcome, displayGender, 
   }
 }
 
-export function renderAccessHistory(historyContainer, history) {
+export function renderAccessHistory(historyContainer, history, { onOpenToilet = () => {} } = {}) {
   if (!historyContainer) return;
 
   historyContainer.textContent = "";
@@ -38,7 +38,15 @@ export function renderAccessHistory(historyContainer, history) {
   }
 
   history.forEach((entry) => {
-    const block = document.createElement("div");
+    const hasToiletTarget = Boolean(entry?.toiletId);
+    const block = document.createElement(hasToiletTarget ? "button" : "div");
+    block.className = "history-item";
+    if (hasToiletTarget) {
+      block.type = "button";
+      block.setAttribute("aria-label", `Open details for ${entry.toiletName || "this toilet"}`);
+      block.addEventListener("click", () => onOpenToilet(entry));
+    }
+
     const heading = document.createElement("strong");
     const line = document.createElement("p");
 
