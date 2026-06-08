@@ -52,7 +52,7 @@ const requiredCopy = [
   "Photo/video",
   "Visual check",
   "Visual cleanliness check",
-  "Picture comments",
+  "Visual checks",
   "Confirm password",
   "Create an account to unlock more features",
   "Attach image or video"
@@ -172,16 +172,20 @@ if (
   !html.includes("id=\"visual-feedback-panel\"") ||
   !html.includes("id=\"visual-cleanliness-slider\"") ||
   !html.includes("id=\"visual-feedback-list\"") ||
+  html.indexOf("id=\"visual-feedback-list\"") > html.indexOf("id=\"visual-feedback-panel\"") ||
   !js.includes("visualFeedbackStorageKey") ||
   !js.includes("setVisualCleanlinessLevel") ||
   !js.includes("submitVisualFeedback") ||
   !js.includes("renderVisualFeedbackDiscussion") ||
+  !js.includes("createVisualFeedbackImage") ||
+  !js.includes("image: level.image") ||
   !css.includes(".feedback-action-bar") ||
   !css.includes(".visual-feedback-panel") ||
   !css.includes(".visual-preview-card") ||
-  !css.includes(".visual-feedback-item")
+  !css.includes(".visual-feedback-item") ||
+  !css.includes(".visual-feedback-image")
 ) {
-  throw new Error("Expected a sibling visual cleanliness feedback entry with an adjustable cartoon toilet and independent picture comments.");
+  throw new Error("Expected visual cleanliness feedback to use an adjustable toilet image and a separate Feedback-tab visual checks area with real image thumbnails.");
 }
 
 if (
