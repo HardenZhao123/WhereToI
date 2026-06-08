@@ -1,7 +1,7 @@
 import { normaliseText } from "../mapper/toilet-mapper.mjs";
 
 function clampCleanlinessScore(value) {
-  return Math.min(Math.max(Math.round(value), 1), 5);
+  return Math.min(Math.max(value, 1), 5);
 }
 
 export function normaliseScoringModel(scoringModel = null) {

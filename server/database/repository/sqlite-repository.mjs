@@ -66,10 +66,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       radar_key TEXT NOT NULL DEFAULT '?',
       free_access TEXT NOT NULL DEFAULT '?',
       opening_times TEXT NOT NULL DEFAULT '[]',
-      cleanliness INTEGER NOT NULL DEFAULT 3,
+      cleanliness REAL NOT NULL DEFAULT 3.0,
       cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
       cleanliness_no_count INTEGER NOT NULL DEFAULT 0,
-      cleanliness_rating_total INTEGER NOT NULL DEFAULT 0,
+      cleanliness_rating_total REAL NOT NULL DEFAULT 0.0,
       cleanliness_rating_count INTEGER NOT NULL DEFAULT 0
     ) STRICT;
 
@@ -80,7 +80,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       email TEXT,
       gender TEXT,
       preferences TEXT,
-      rating_total INTEGER NOT NULL DEFAULT 0,
+      rating_total REAL NOT NULL DEFAULT 0.0,
       rating_count INTEGER NOT NULL DEFAULT 0
     ) STRICT;
 
@@ -113,7 +113,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       username TEXT,
       comment_visibility TEXT NOT NULL DEFAULT 'real',
       profile_visibility TEXT NOT NULL DEFAULT 'private',
-      cleanliness_rating INTEGER,
+      cleanliness_rating REAL,
       comment_text TEXT NOT NULL,
       media_type TEXT,
       media_mime_type TEXT,
@@ -130,7 +130,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       toilet_id TEXT NOT NULL,
       user_id INTEGER,
-      rating INTEGER NOT NULL,
+      rating REAL NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -165,10 +165,6 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
     CREATE INDEX IF NOT EXISTS idx_toilet_comments_user_created_id
     ON toilet_comments(user_id, created_at DESC, id DESC);
 
-    CREATE INDEX IF NOT EXISTS idx_toilet_comments_public_profile
-    ON toilet_comments(user_id, created_at DESC, id DESC)
-    WHERE comment_visibility = 'real' AND profile_visibility = 'public';
-
     CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id
     ON comment_likes(comment_id);
 
@@ -182,6 +178,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_app_account_user_id
     ON app_account(user_id);
+
+    CREATE INDEX IF NOT EXISTS idx_toilet_comments_public_profile
+    ON toilet_comments(user_id, created_at DESC, id DESC)
+    WHERE comment_visibility = 'real' AND profile_visibility = 'public';
   `);
 
   const toiletCount = Number(db.prepare("SELECT COUNT(*) AS count FROM toilets").get()?.count ?? 0);

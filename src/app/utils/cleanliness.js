@@ -28,8 +28,9 @@ function getSurveyAverage(toilet) {
 }
 
 function getStarCounts(rating) {
-  const full = Math.floor(rating);
-  const half = rating > full && full < maxStarRating ? 1 : 0;
+  const rounded = Math.round(rating * 2) / 2;
+  const full = Math.floor(rounded);
+  const half = rounded > full ? 1 : 0;
   const empty = Math.max(maxStarRating - full - half, 0);
 
   return { full, half, empty };

@@ -171,7 +171,7 @@ export function mapCommentRow(row, { viewerUserId = null } = {}) {
     is_anonymous: isAnonymous,
     can_delete: canDelete,
     cleanliness_rating:
-      Number.isInteger(cleanlinessRating) && cleanlinessRating >= 1 && cleanlinessRating <= 5
+      Number.isFinite(cleanlinessRating) && cleanlinessRating >= 0.5 && cleanlinessRating <= 5
         ? cleanlinessRating
         : null,
     like_count: Number(row.like_count ?? 0),
@@ -254,8 +254,8 @@ export function normaliseCommentLikePayload({ toiletId, commentId }) {
 
 export function normaliseRating(value) {
   const rating = Number(value);
-  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-    throw new Error("rating must be an integer from 1 to 5.");
+  if (!Number.isFinite(rating) || rating < 0.5 || rating > 5) {
+    throw new Error("rating must be a number from 0.5 to 5.");
   }
   return rating;
 }

@@ -68,7 +68,7 @@ function getCommentProfileVisibilityLabel(comment) {
 
 function getCommentRating(comment) {
   const rating = Number(comment?.cleanliness_rating ?? comment?.cleanlinessRating);
-  return Number.isInteger(rating) && rating >= 1 && rating <= 5 ? rating : null;
+  return Number.isFinite(rating) && rating >= 0.5 && rating <= 5 ? rating : null;
 }
 
 function createCommentRatingElement(comment) {
@@ -78,7 +78,12 @@ function createCommentRatingElement(comment) {
   const ratingElement = document.createElement("span");
   ratingElement.className = "profile-feedback-rating";
   ratingElement.setAttribute("aria-label", `Cleanliness rating ${rating} out of 5`);
-  ratingElement.textContent = `${"\u2605".repeat(rating)}${"\u2606".repeat(5 - rating)}`;
+
+  const full = Math.floor(rating);
+  const half = rating > full ? 1 : 0;
+  const empty = 5 - full - half;
+  ratingElement.textContent = `${"\u2605".repeat(full)}${half ? "\u00bd" : ""}${"\u2606".repeat(empty)}`;
+
   return ratingElement;
 }
 

@@ -319,6 +319,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       const buttonRating = Number(button.dataset.surveyRating);
       const isSelected = hasRating && buttonRating <= rating;
       button.classList.toggle("is-selected", isSelected);
+      button.classList.remove("is-half");
       button.setAttribute("aria-pressed", hasRating && buttonRating === rating ? "true" : "false");
     });
 
@@ -783,12 +784,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function createCommentRatingElement(comment) {
     const rating = Number(comment?.cleanliness_rating);
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return null;
+    if (!Number.isFinite(rating) || rating < 0.5 || rating > 5) return null;
 
     const ratingElement = document.createElement("span");
     ratingElement.className = "comment-rating";
     ratingElement.setAttribute("aria-label", `Cleanliness rating ${rating} out of 5`);
-    ratingElement.textContent = `${"★".repeat(rating)}${"☆".repeat(5 - rating)}`;
+
+    const full = Math.floor(rating);
+    const half = rating > full ? 1 : 0;
+    const empty = 5 - full - half;
+    ratingElement.textContent = `${"★".repeat(full)}${half ? "\u00bd" : ""}${"☆".repeat(empty)}`;
+
     return ratingElement;
   }
 
@@ -1898,7 +1904,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       return;
     }
 
-    const safeRating = Number(rating);
+    const safeRating = Math.floor(Number(rating));
     if (!Number.isInteger(safeRating) || safeRating < 1 || safeRating > 5) return;
 
     selectedRating = safeRating;
@@ -1987,7 +1993,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     const safeRating = Number(rating);
-    if (!Number.isInteger(safeRating) || safeRating < 1 || safeRating > 5) return false;
+    if (!Number.isFinite(safeRating) || safeRating < 0.5 || safeRating > 5) return false;
 
     if (!isAuthenticated()) {
       if (mapSurveyStatus) {
@@ -2037,7 +2043,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (!selectedToilet || !commentInput) return;
 
     const feedbackRating = Number(selectedRating);
-    if (!Number.isInteger(feedbackRating) || feedbackRating < 1 || feedbackRating > 5) {
+    if (!Number.isFinite(feedbackRating) || feedbackRating < 0.5 || feedbackRating > 5) {
       if (mapSurveyStatus) {
         mapSurveyStatus.classList.add("warning");
         mapSurveyStatus.textContent = "Choose a rating before submitting feedback.";

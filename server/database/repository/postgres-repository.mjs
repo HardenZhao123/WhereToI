@@ -238,12 +238,12 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       radar_key TEXT NOT NULL DEFAULT '?',
       free_access TEXT NOT NULL DEFAULT '?',
       opening_times JSONB NOT NULL DEFAULT '[]'::jsonb,
-      cleanliness INTEGER NOT NULL DEFAULT 3,
+      cleanliness NUMERIC NOT NULL DEFAULT 3.0,
       cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
       cleanliness_no_count INTEGER NOT NULL DEFAULT 0,
-      cleanliness_rating_total INTEGER NOT NULL DEFAULT 0,
+      cleanliness_rating_total NUMERIC NOT NULL DEFAULT 0.0,
       cleanliness_rating_count INTEGER NOT NULL DEFAULT 0,
-      cleanliness_rating_sum_squares INTEGER NOT NULL DEFAULT 0
+      cleanliness_rating_sum_squares NUMERIC NOT NULL DEFAULT 0.0
     );
 
     CREATE TABLE IF NOT EXISTS users (
@@ -253,9 +253,9 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       email TEXT,
       gender TEXT,
       preferences JSONB,
-      rating_total INTEGER NOT NULL DEFAULT 0,
+      rating_total NUMERIC NOT NULL DEFAULT 0.0,
       rating_count INTEGER NOT NULL DEFAULT 0,
-      rating_sum_squares INTEGER NOT NULL DEFAULT 0
+      rating_sum_squares NUMERIC NOT NULL DEFAULT 0.0
     );
   `);
 
@@ -292,7 +292,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       username TEXT,
       comment_visibility TEXT NOT NULL DEFAULT 'real',
       profile_visibility TEXT NOT NULL DEFAULT 'private',
-      cleanliness_rating INTEGER,
+      cleanliness_rating NUMERIC,
       comment_text TEXT NOT NULL,
       media_type TEXT,
       media_mime_type TEXT,
@@ -307,7 +307,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       id SERIAL PRIMARY KEY,
       toilet_id TEXT NOT NULL REFERENCES toilets(id) ON DELETE CASCADE,
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      rating INTEGER NOT NULL,
+      rating NUMERIC NOT NULL,
       created_at TEXT NOT NULL
     );
 

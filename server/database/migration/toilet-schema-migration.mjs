@@ -12,12 +12,12 @@ const EXTENDED_FEATURE_COLUMNS = [
 ];
 
 const EXTENDED_CLEANLINESS_COLUMNS = [
-  { name: "cleanliness", definition: "INTEGER NOT NULL DEFAULT 3" },
+  { name: "cleanliness", definition: "REAL NOT NULL DEFAULT 3.0" },
   { name: "cleanliness_yes_count", definition: "INTEGER NOT NULL DEFAULT 0" },
   { name: "cleanliness_no_count", definition: "INTEGER NOT NULL DEFAULT 0" },
-  { name: "cleanliness_rating_total", definition: "INTEGER NOT NULL DEFAULT 0" },
+  { name: "cleanliness_rating_total", definition: "REAL NOT NULL DEFAULT 0.0" },
   { name: "cleanliness_rating_count", definition: "INTEGER NOT NULL DEFAULT 0" },
-  { name: "cleanliness_rating_sum_squares", definition: "INTEGER NOT NULL DEFAULT 0" },
+  { name: "cleanliness_rating_sum_squares", definition: "REAL NOT NULL DEFAULT 0.0" },
   { name: "bias", definition: "REAL NOT NULL DEFAULT 0.0" }
 ];
 
@@ -44,8 +44,8 @@ const COMMENT_PROFILE_VISIBILITY_COLUMN = {
 
 const COMMENT_CLEANLINESS_RATING_COLUMN = {
   name: "cleanliness_rating",
-  sqliteDefinition: "INTEGER",
-  postgresDefinition: "INTEGER"
+  sqliteDefinition: "REAL",
+  postgresDefinition: "REAL"
 };
 
 function getFeatureColumnValues(toilet) {
@@ -212,13 +212,13 @@ function ensureSqliteUserColumns(db) {
     db.exec("ALTER TABLE users ADD COLUMN preferences TEXT;");
   }
   if (!existingColumns.has("rating_total")) {
-    db.exec("ALTER TABLE users ADD COLUMN rating_total INTEGER NOT NULL DEFAULT 0;");
+    db.exec("ALTER TABLE users ADD COLUMN rating_total REAL NOT NULL DEFAULT 0.0;");
   }
   if (!existingColumns.has("rating_count")) {
     db.exec("ALTER TABLE users ADD COLUMN rating_count INTEGER NOT NULL DEFAULT 0;");
   }
   if (!existingColumns.has("rating_sum_squares")) {
-    db.exec("ALTER TABLE users ADD COLUMN rating_sum_squares INTEGER NOT NULL DEFAULT 0;");
+    db.exec("ALTER TABLE users ADD COLUMN rating_sum_squares REAL NOT NULL DEFAULT 0.0;");
   }
   if (!existingColumns.has("bias")) {
     db.exec("ALTER TABLE users ADD COLUMN bias REAL NOT NULL DEFAULT 0.0;");

@@ -75,3 +75,21 @@ test("keeps existing score available for internal cleanliness sorting", () => {
   assert.equal(getCleanlinessScore({ cleanliness: 4 }), 4);
   assert.equal(getCleanlinessScore({ cleanliness: 1 }), 1);
 });
+
+test("rounds cleanliness to the nearest 0.5 for star display", () => {
+  const stars41 = getCleanlinessStars({ cleanliness: 4.1 });
+  assert.equal(stars41.full, 4);
+  assert.equal(stars41.half, 0);
+
+  const stars44 = getCleanlinessStars({ cleanliness: 4.4 });
+  assert.equal(stars44.full, 4);
+  assert.equal(stars44.half, 1);
+
+  const stars46 = getCleanlinessStars({ cleanliness: 4.6 });
+  assert.equal(stars46.full, 4);
+  assert.equal(stars46.half, 1);
+
+  const stars49 = getCleanlinessStars({ cleanliness: 4.9 });
+  assert.equal(stars49.full, 5);
+  assert.equal(stars49.half, 0);
+});

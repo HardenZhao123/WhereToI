@@ -1585,6 +1585,21 @@ mark {
   color: var(--gold);
 }
 
+.star-survey-actions button.is-half {
+  position: relative;
+  color: #b8c1ba;
+}
+
+.star-survey-actions button.is-half::before {
+  content: "\2605";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  overflow: hidden;
+  color: var(--gold);
+}
+
 .star-survey-actions button:focus-visible {
   outline: 2px solid var(--teal);
   outline-offset: 2px;
