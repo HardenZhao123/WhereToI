@@ -271,6 +271,12 @@ export function createApp() {
 
     elements.commentComposerToggle?.addEventListener("click", () => mapController.toggleCommentComposer());
     elements.closeCommentComposerButton?.addEventListener("click", () => mapController.closeCommentComposer());
+    elements.visualFeedbackToggle?.addEventListener("click", () => mapController.toggleVisualFeedback());
+    elements.closeVisualFeedbackButton?.addEventListener("click", () => mapController.closeVisualFeedback());
+    elements.visualCleanlinessSlider?.addEventListener("input", (event) =>
+      mapController.setVisualCleanlinessLevel(event.target.value)
+    );
+    elements.visualFeedbackForm?.addEventListener("submit", (event) => mapController.submitVisualFeedback(event));
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
     elements.commentPresetButtons.forEach((button) => {
       button?.addEventListener("click", () => mapController.applyCommentPreset(button.dataset.commentPreset));

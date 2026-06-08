@@ -205,9 +205,21 @@
                 </section>
               </div>
             </article>
-            <button class="comment-composer-toggle is-hidden" id="comment-composer-toggle" type="button" aria-controls="comment-composer" aria-expanded="false">
-              Write feedback
-            </button>
+            <div class="feedback-action-bar is-hidden" id="feedback-action-bar" hidden>
+              <button class="comment-composer-toggle" id="comment-composer-toggle" type="button" aria-controls="comment-composer" aria-expanded="false">
+                Write feedback
+              </button>
+              <button class="visual-feedback-toggle" id="visual-feedback-toggle" type="button" aria-controls="visual-feedback-panel" aria-expanded="false">
+                <span class="visual-feedback-button-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M7 5.5h7.5a3 3 0 0 1 3 3v2.2a5.8 5.8 0 0 1-5.8 5.8H9.2A4.2 4.2 0 0 1 5 12.3V7.5a2 2 0 0 1 2-2Z"></path>
+                    <path d="M14.5 5.5V4a1 1 0 0 1 1-1H18"></path>
+                    <path d="M8.5 16.5v2h6v-2"></path>
+                  </svg>
+                </span>
+                Visual check
+              </button>
+            </div>
             <section class="comment-composer is-hidden" id="comment-composer" aria-labelledby="comment-composer-title" hidden>
               <header class="comment-composer-header">
                 <h3 id="comment-composer-title">Write feedback</h3>
@@ -261,6 +273,62 @@
                 </div>
                 <button type="submit" id="submit-comment" disabled>Submit feedback</button>
               </form>
+            </section>
+            <section class="visual-feedback-panel is-hidden" id="visual-feedback-panel" aria-labelledby="visual-feedback-title" hidden>
+              <header class="visual-feedback-header">
+                <div>
+                  <h3 id="visual-feedback-title">Visual cleanliness check</h3>
+                  <p id="visual-feedback-subtitle">Match the picture to what you saw.</p>
+                </div>
+                <button class="close-button" id="close-visual-feedback" type="button" aria-label="Close visual feedback">X</button>
+              </header>
+              <div class="visual-feedback-workspace">
+                <div class="visual-preview-card" id="visual-cleanliness-preview" data-cleanliness="3" role="img" aria-label="Cartoon toilet cleanliness preview: OK">
+                  <svg class="cartoon-toilet-svg" viewBox="0 0 220 180" aria-hidden="true" focusable="false">
+                    <rect class="toilet-room-floor" x="22" y="128" width="176" height="18" rx="9"></rect>
+                    <path class="toilet-bowl" d="M58 76h92c15 0 27 12 27 27v3c0 29-24 52-53 52H94c-29 0-53-23-53-52V93c0-9 8-17 17-17Z"></path>
+                    <path class="toilet-seat" d="M64 82h82c12 0 22 10 22 22v2c0 20-17 36-37 36H95c-20 0-37-16-37-36V88c0-3 3-6 6-6Z"></path>
+                    <path class="toilet-water" d="M82 106c8-7 48-7 56 0 3 17-9 28-28 28s-31-11-28-28Z"></path>
+                    <rect class="toilet-tank" x="74" y="34" width="78" height="45" rx="12"></rect>
+                    <path class="toilet-pipe" d="M143 34V24c0-5 4-9 9-9h22"></path>
+                    <circle class="toilet-handle" cx="91" cy="52" r="4"></circle>
+                    <path class="toilet-base" d="M90 154h46l8 12H82l8-12Z"></path>
+                    <g class="toilet-sparkles">
+                      <path d="M48 44l4 9 9 4-9 4-4 9-4-9-9-4 9-4 4-9Z"></path>
+                      <path d="M174 72l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z"></path>
+                    </g>
+                    <g class="toilet-dirt">
+                      <circle class="dirt-one" cx="67" cy="102" r="8"></circle>
+                      <circle class="dirt-two" cx="142" cy="119" r="6"></circle>
+                      <circle class="dirt-three" cx="98" cy="55" r="5"></circle>
+                      <path class="dirt-four" d="M155 91c8 2 13 8 10 14-5 5-17 3-21-3-2-6 4-12 11-11Z"></path>
+                      <path class="dirt-five" d="M48 135c12-7 25-6 36 0"></path>
+                    </g>
+                  </svg>
+                </div>
+                <div class="visual-feedback-controls">
+                  <label for="visual-cleanliness-slider">Cleanliness picture</label>
+                  <input id="visual-cleanliness-slider" type="range" min="1" max="5" step="1" value="3" />
+                  <div class="visual-scale-labels" aria-hidden="true">
+                    <span>Dirtier</span>
+                    <span>Cleaner</span>
+                  </div>
+                  <p class="visual-cleanliness-state" id="visual-cleanliness-state" aria-live="polite">OK</p>
+                </div>
+              </div>
+              <form class="visual-feedback-form" id="visual-feedback-form">
+                <textarea id="visual-feedback-comment" placeholder="Optional note for this picture..."></textarea>
+                <button type="submit" id="submit-visual-feedback">Post visual check</button>
+              </form>
+              <section class="visual-feedback-discussion" aria-labelledby="visual-feedback-discussion-title">
+                <div class="visual-feedback-discussion-header">
+                  <h4 id="visual-feedback-discussion-title">Picture comments</h4>
+                  <p id="visual-feedback-summary">0 visual checks</p>
+                </div>
+                <div class="visual-feedback-list" id="visual-feedback-list" aria-live="polite">
+                  <p>No visual checks yet.</p>
+                </div>
+              </section>
             </section>
           </section>
 
