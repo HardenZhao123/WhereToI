@@ -1200,6 +1200,16 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       return;
     }
 
+    const zoom = map.getZoom();
+    if (zoom < appConfig.markerHideZoomThreshold) {
+      visibleToilets = [];
+      hiddenByMarkerLimit = 0;
+      markerById = new Map();
+      markersLayer.clearLayers();
+      renderUserMarker();
+      return;
+    }
+
     const inBoundsToilets = getMapVisibleToilets();
     hiddenByMarkerLimit = Math.max(0, inBoundsToilets.length - appConfig.markerRenderLimit);
     visibleToilets = inBoundsToilets.slice(0, appConfig.markerRenderLimit);
@@ -1228,7 +1238,13 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     const inViewCount = visibleToilets.length;
-    const limitHint = hiddenByMarkerLimit > 0 ? ` Zoom in to load ${hiddenByMarkerLimit} more.` : "";
+    let limitHint = "";
+    if (map && map.getZoom() < appConfig.markerHideZoomThreshold) {
+      limitHint = " Zoom in to show toilets on the map.";
+    } else if (hiddenByMarkerLimit > 0) {
+      limitHint = ` Zoom in to load ${hiddenByMarkerLimit} more.`;
+    }
+
     const queryHint = queryText ? " for this search" : "";
     const filterHint = selectedFeatureFilters.size > 0 ? ` with ${selectedFeatureFilters.size} needs` : "";
 
@@ -1765,6 +1781,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     resetFilters,
     requestLocation,
     openDirections,
+    refreshFilteredDisplay,
     setDetailSection,
     hideToiletDetails,
     refreshAfterTabVisible,
