@@ -58,7 +58,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     closeCreditsButton,
     dismissCreditsButton
   } = elements;
-  const { onCommentSelected = () => {} } = callbacks;
+  const { onCommentSelected = () => {}, onAccessHistorySelected = () => {} } = callbacks;
 
   const autoFilterStorageKey = "wheretoi-auto-filter-enabled";
   let currentUser = null;
@@ -339,6 +339,14 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     });
   }
 
+  function handleOpenAccessHistory(entry) {
+    if (!entry?.toiletId) return;
+    onAccessHistorySelected({
+      toiletId: entry.toiletId,
+      historyId: entry.id
+    });
+  }
+
   async function handleSetCommentProfileVisibility(comment, profileVisibility, button) {
     if (!comment?.id) return;
 
@@ -424,7 +432,9 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
         payload.account,
         currentUser
       );
-      renderAccessHistory(accessHistoryList, payload.history);
+      renderAccessHistory(accessHistoryList, payload.history, {
+        onOpenToilet: handleOpenAccessHistory
+      });
       renderMyComments(myCommentsList, payload.comments, {
         onOpenComment: handleOpenComment,
         onSetProfileVisibility: handleSetCommentProfileVisibility
