@@ -73,6 +73,19 @@ button {
   margin-bottom: 12px;
 }
 
+.header-branding {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
 .eyebrow,
 .section-kicker {
   margin: 0 0 6px;
