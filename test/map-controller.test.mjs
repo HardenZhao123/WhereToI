@@ -196,6 +196,94 @@ test("map controller keeps submitted rating count after a stale toilet reload", 
   }
 });
 
+test("map controller refreshes cleanliness when the rating period changes after a local rating", () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+
+  const elementsBySelector = new Map(
+    [
+      "#cleanliness-stars",
+      "#cleanliness-star-icons",
+      "#cleanliness-score",
+      "#cleanliness-rating-count",
+      "#toilet-name",
+      "#toilet-area",
+      "#toilet-comment",
+      "#feature-women",
+      "#feature-men",
+      "#feature-accessible",
+      "#feature-neutral",
+      "#feature-children",
+      "#feature-baby-changing",
+      "#feature-bidet",
+      "#feature-automatic",
+      "#feature-urinal-only",
+      "#feature-radar-key",
+      "#feature-free",
+      "#hours-today",
+      "#hours-sat",
+      "#hours-sun",
+      "#distance-line"
+    ].map((selector) => [selector, createTextElement()])
+  );
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const controller = createMapController({
+      statusText: { textContent: "" },
+      detailsCard: { classList: createClassList() },
+      mapPanel: { classList: createClassList() },
+      directionsButton: { disabled: false }
+    });
+
+    const threeDayToilet = createTestToilet();
+    controller.setToilets([threeDayToilet], { cleanlinessRange: "3days" });
+    controller.setToilet(threeDayToilet.id, { fly: false });
+    controller.updateToiletCleanliness({
+      id: threeDayToilet.id,
+      cleanliness: 4,
+      cleanlinessSurvey: {
+        ratingTotal: 4,
+        ratingCount: 1
+      }
+    });
+
+    const oneDayToilet = {
+      ...threeDayToilet,
+      cleanliness: null,
+      cleanlinessSurvey: {
+        ratingTotal: 0,
+        ratingCount: 0
+      }
+    };
+    controller.setToilets([oneDayToilet], { hideDetails: false, cleanlinessRange: "1day" });
+    controller.setToilet(oneDayToilet.id, { fly: false });
+
+    assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "0 ratings");
+    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "0.0/5");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
 test("map controller patches saved cleanliness without reloading all toilets", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
@@ -299,6 +387,109 @@ test("map controller patches saved cleanliness without reloading all toilets", a
     assert.equal(fetchCount, 1);
     assert.equal(reloadCount, 0);
     assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "1 rating");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("map controller patches saved cleanliness against the active rating period", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+
+  const elementsBySelector = new Map(
+    [
+      "#cleanliness-stars",
+      "#cleanliness-star-icons",
+      "#cleanliness-score",
+      "#cleanliness-rating-count",
+      "#toilet-name",
+      "#toilet-area",
+      "#toilet-comment",
+      "#feature-women",
+      "#feature-men",
+      "#feature-accessible",
+      "#feature-neutral",
+      "#feature-children",
+      "#feature-baby-changing",
+      "#feature-bidet",
+      "#feature-automatic",
+      "#feature-urinal-only",
+      "#feature-radar-key",
+      "#feature-free",
+      "#hours-today",
+      "#hours-sat",
+      "#hours-sun",
+      "#distance-line"
+    ].map((selector) => [selector, createTextElement()])
+  );
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  const testToilet = createTestToilet();
+
+  globalThis.fetch = async (url, options) => {
+    assert.match(String(url), /\/api\/cleanliness-survey$/);
+    assert.equal(options?.method, "POST");
+
+    return {
+      ok: true,
+      async json() {
+        return {
+          toilet: {
+            ...testToilet,
+            cleanliness: 3,
+            cleanlinessSurvey: {
+              ratingTotal: 15,
+              ratingCount: 5
+            }
+          }
+        };
+      }
+    };
+  };
+
+  try {
+    const controller = createMapController(
+      {
+        statusText: { textContent: "" },
+        detailsCard: { classList: createClassList() },
+        mapPanel: { classList: createClassList() },
+        directionsButton: { disabled: false },
+        mapSurveyStatus: createTextElement()
+      },
+      () => {},
+      {
+        isAuthenticated: () => true
+      }
+    );
+
+    controller.setToilets([testToilet], { cleanlinessRange: "3days" });
+    controller.setToilet(testToilet.id, { fly: false });
+
+    const saved = await controller.answerCleanlinessSurvey(5);
+
+    assert.equal(saved, true);
+    assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "1 rating");
+    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "5.0/5");
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
