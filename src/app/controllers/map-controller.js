@@ -3,6 +3,7 @@ import {
   deleteComment as deleteCommentRequest,
   fetchAiSummary,
   fetchComments,
+  fetchToiletDetail,
   submitCleanlinessSurvey,
   submitComment,
   toggleCommentLike as toggleCommentLikeRequest
@@ -1284,8 +1285,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       if (selectedToilet?.id === toilet.id) {
         button.classList.add("is-selected");
       }
-      button.addEventListener("click", () => {
-        setToilet(toilet.id);
+      button.addEventListener("click", async () => {
+        await setToilet(toilet.id);
         collapseSearchPanel();
       });
 
@@ -1389,9 +1390,23 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "features", focusCommentId = null } = {}) {
-    const toilet = allToilets.find((item) => item.id === toiletId);
+  async function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "features", focusCommentId = null } = {}) {
+    let toilet = allToilets.find((item) => item.id === toiletId);
     if (!toilet) return false;
+
+    // If the toilet record is missing detail fields (like the detailed comment or actual opening hours), fetch full details
+    if (toilet && (typeof toilet.comment === "undefined" || toilet.comment === null || !toilet.hours || toilet.hours.today.includes("Closed"))) {
+      try {
+        const fullDetails = await fetchToiletDetail(toiletId);
+        if (fullDetails) {
+          // Update the local record with full details
+          toilet = { ...toilet, ...fullDetails };
+          allToilets = allToilets.map(t => t.id === toiletId ? toilet : t);
+        }
+      } catch (error) {
+        console.warn("Failed to fetch toilet details from API:", error);
+      }
+    }
 
     selectedToilet = toilet;
     selectedRating = null;
@@ -1494,7 +1509,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function openCommentThread(toiletId, commentId) {
+  async function openCommentThread(toiletId, commentId) {
     selectedCommentFilters = new Set();
     commentFilterInputs.forEach((input) => {
       input.checked = false;
@@ -1504,7 +1519,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       commentSortSelect.value = "newest";
     }
 
-    const opened = setToilet(toiletId, {
+    const opened = await setToilet(toiletId, {
       defaultSection: "comment",
       focusCommentId: commentId
     });
@@ -1544,7 +1559,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         title: `${toilet.name}, ${toilet.area}`
       });
 
-      marker.on("click", () => setToilet(toilet.id));
+      marker.on("click", async () => await setToilet(toilet.id));
       marker.addTo(markersLayer);
       markerById.set(toilet.id, marker);
     });
