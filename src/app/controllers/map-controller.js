@@ -536,7 +536,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     resetVisualFeedbackForm();
     renderVisualFeedbackDiscussion();
     closeVisualFeedback();
-    setDetailSection("comment");
+    setDetailSection("visual");
     requestAnimationFrame(() => {
       visualFeedbackList?.closest(".visual-feedback-discussion")?.scrollIntoView({
         block: "start",

@@ -166,16 +166,27 @@ if (
   throw new Error("Expected comments to support up to 9 image/video attachments with thumbnail removal and uncropped media.");
 }
 
+const feedbackDetailPanelIndex = html.indexOf("id=\"details-comment-panel\"");
+const visualDetailTabIndex = html.indexOf("data-detail-section=\"visual\"");
+const visualDetailPanelIndex = html.indexOf("id=\"details-visual-panel\"");
+const visualFeedbackListIndex = html.indexOf("id=\"visual-feedback-list\"");
+const visualComposerPanelIndex = html.indexOf("id=\"visual-feedback-panel\"");
+
 if (
   !html.includes("id=\"feedback-action-bar\"") ||
   !html.includes("id=\"visual-feedback-toggle\"") ||
   !html.includes("id=\"visual-feedback-panel\"") ||
   !html.includes("id=\"visual-cleanliness-slider\"") ||
+  visualDetailTabIndex < 0 ||
+  visualDetailPanelIndex < 0 ||
   !html.includes("id=\"visual-feedback-list\"") ||
-  html.indexOf("id=\"visual-feedback-list\"") > html.indexOf("id=\"visual-feedback-panel\"") ||
+  visualDetailPanelIndex <= feedbackDetailPanelIndex ||
+  visualFeedbackListIndex <= visualDetailPanelIndex ||
+  visualFeedbackListIndex >= visualComposerPanelIndex ||
   !js.includes("visualFeedbackStorageKey") ||
   !js.includes("setVisualCleanlinessLevel") ||
   !js.includes("submitVisualFeedback") ||
+  !js.includes("setDetailSection(\"visual\")") ||
   !js.includes("renderVisualFeedbackDiscussion") ||
   !js.includes("createVisualFeedbackImage") ||
   !js.includes("image: level.image") ||
@@ -185,7 +196,7 @@ if (
   !css.includes(".visual-feedback-item") ||
   !css.includes(".visual-feedback-image")
 ) {
-  throw new Error("Expected visual cleanliness feedback to use an adjustable toilet image and a separate Feedback-tab visual checks area with real image thumbnails.");
+  throw new Error("Expected visual cleanliness feedback to use an adjustable toilet image and a separate Visual check detail tab with real image thumbnails.");
 }
 
 if (
