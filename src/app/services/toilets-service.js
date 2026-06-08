@@ -3,8 +3,17 @@ import { parseCsv, rowsToObjects } from "../utils/csv.js";
 import { mapRecordToToilet } from "../toilets/toilet-record-mapper.js";
 import { fetchJson } from "./http-client.js";
 
-export async function loadToiletsFromApi(cleanlinessRange = "3days", retryCount = 2, timeoutMs = 30000) {
-  const url = `${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`;
+export async function loadToiletsFromApi(
+  cleanlinessRange = "3days",
+  retryCount = 2,
+  timeoutMs = 30000,
+  bounds = null
+) {
+  let url = `${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`;
+
+  if (bounds) {
+    url += `&minLat=${bounds.minLat}&maxLat=${bounds.maxLat}&minLng=${bounds.minLng}&maxLng=${bounds.maxLng}`;
+  }
 
   for (let attempt = 0; attempt <= retryCount; attempt++) {
     const controller = new AbortController();

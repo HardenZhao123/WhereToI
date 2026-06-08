@@ -393,6 +393,31 @@ export function normaliseHistoryLimit(limit = 10) {
   return Number.isFinite(limit) ? Math.min(Math.max(Math.floor(limit), 1), 50) : 10;
 }
 
+export function normaliseBounds(bounds) {
+  if (!bounds || typeof bounds !== "object") return null;
+
+  const minLat = Number(bounds.minLat);
+  const maxLat = Number(bounds.maxLat);
+  const minLng = Number(bounds.minLng);
+  const maxLng = Number(bounds.maxLng);
+
+  if (
+    !Number.isFinite(minLat) ||
+    !Number.isFinite(maxLat) ||
+    !Number.isFinite(minLng) ||
+    !Number.isFinite(maxLng)
+  ) {
+    return null;
+  }
+
+  return {
+    minLat: Math.min(minLat, maxLat),
+    maxLat: Math.max(minLat, maxLat),
+    minLng: Math.min(minLng, maxLng),
+    maxLng: Math.max(minLng, maxLng)
+  };
+}
+
 export function getCleanlinessRangeStartDate(range = "3days") {
   const now = new Date();
   if (range === "1day") return new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();

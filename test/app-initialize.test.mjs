@@ -158,6 +158,18 @@ test("app initialization requests current location and centers the map when allo
       return {
         contains() {
           return true;
+        },
+        getSouth() {
+          return 51.4;
+        },
+        getNorth() {
+          return 51.6;
+        },
+        getWest() {
+          return -0.2;
+        },
+        getEast() {
+          return 0.0;
         }
       };
     },
@@ -232,6 +244,13 @@ test("app initialization requests current location and centers the map when allo
   };
   globalThis.fetch = async (url) => {
     const requestUrl = String(url);
+
+    if (requestUrl.endsWith(".csv")) {
+      return {
+        ok: true,
+        text: async () => "id,name,area,lat,lng,paid,comment,women,men,accessible,neutral,children,babyChanging,bidet,automatic,urinalOnly,radarKey,free,hours.today,hours.sat,hours.sun,cleanliness"
+      };
+    }
 
     if (requestUrl.startsWith("/api/toilets")) {
       return {

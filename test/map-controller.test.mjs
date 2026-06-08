@@ -522,6 +522,18 @@ test("locate button returns to hollow state when the map is moved away from the 
       return {
         contains() {
           return true;
+        },
+        getSouth() {
+          return mapCenter.lat - 0.01;
+        },
+        getNorth() {
+          return mapCenter.lat + 0.01;
+        },
+        getWest() {
+          return mapCenter.lng - 0.01;
+        },
+        getEast() {
+          return mapCenter.lng + 0.01;
         }
       };
     },

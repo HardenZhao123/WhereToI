@@ -13,6 +13,7 @@ import {
   mapCommentRow,
   getCleanlinessRangeStartDate,
   normaliseAccessPayload,
+  normaliseBounds,
   normaliseCleanlinessSurveyPayload,
   normaliseCommentDeletePayload,
   normaliseCommentLikePayload,
@@ -318,8 +319,9 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
       return null;
     },
-    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days" } = {}) {
+    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days", bounds = null } = {}) {
       const query = normaliseSearchQuery(search);
+      const safeBounds = normaliseBounds(bounds);
       const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
       const isAllTime = startDate === null;
       const params = [];
@@ -333,6 +335,13 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         params.push(`%${query}%`);
         conditions.push(`(LOWER(t.name) LIKE ? OR LOWER(t.area) LIKE ?)`);
         params.push(`%${query}%`);
+      }
+
+      if (safeBounds) {
+        conditions.push("t.lat >= ? AND t.lat <= ?");
+        params.push(safeBounds.minLat, safeBounds.maxLat);
+        conditions.push("t.lng >= ? AND t.lng <= ?");
+        params.push(safeBounds.minLng, safeBounds.maxLng);
       }
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

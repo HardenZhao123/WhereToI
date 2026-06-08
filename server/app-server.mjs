@@ -186,7 +186,21 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       const search = url.searchParams.get("search") ?? "";
       const accessibleOnly = parseAccessibleOnly(url.searchParams.get("accessibleOnly"));
       const cleanlinessRange = url.searchParams.get("cleanlinessRange") ?? "3days";
-      const toilets = await database.getToilets({ search, accessibleOnly, cleanlinessRange });
+
+      const bounds = {
+        minLat: url.searchParams.get("minLat"),
+        maxLat: url.searchParams.get("maxLat"),
+        minLng: url.searchParams.get("minLng"),
+        maxLng: url.searchParams.get("maxLng")
+      };
+
+      const hasBounds = Object.values(bounds).every((val) => val !== null);
+      const toilets = await database.getToilets({
+        search,
+        accessibleOnly,
+        cleanlinessRange,
+        bounds: hasBounds ? bounds : null
+      });
 
       sendJson(response, 200, { toilets });
     },

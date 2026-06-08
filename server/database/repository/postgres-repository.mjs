@@ -10,6 +10,7 @@ import {
   mapCommentRow,
   getCleanlinessRangeStartDate,
   normaliseAccessPayload,
+  normaliseBounds,
   normaliseCleanlinessSurveyPayload,
   normaliseCommentDeletePayload,
   normaliseCommentLikePayload,
@@ -511,8 +512,9 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return null;
     },
-    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days" } = {}) {
+    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days", bounds = null } = {}) {
       const query = normaliseSearchQuery(search);
+      const safeBounds = normaliseBounds(bounds);
       const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
       const isAllTime = startDate === null;
       const params = [];
@@ -526,6 +528,20 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       if (query) {
         params.push(`%${query}%`);
         conditions.push(`(LOWER(t.name) LIKE $${params.length} OR LOWER(t.area) LIKE $${params.length})`);
+      }
+
+      if (safeBounds) {
+        params.push(safeBounds.minLat);
+        const minLatIdx = params.length;
+        params.push(safeBounds.maxLat);
+        const maxLatIdx = params.length;
+        params.push(safeBounds.minLng);
+        const minLngIdx = params.length;
+        params.push(safeBounds.maxLng);
+        const maxLngIdx = params.length;
+
+        conditions.push(`t.lat >= $${minLatIdx} AND t.lat <= $${maxLatIdx}`);
+        conditions.push(`t.lng >= $${minLngIdx} AND t.lng <= $${maxLngIdx}`);
       }
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

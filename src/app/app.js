@@ -12,6 +12,7 @@ export function createApp() {
   const elements = getDomRefs();
   let accountController = null;
   let tabController = null;
+  let boundsFetchTimeoutId = null;
 
   const mapController = createMapController(elements, () => {}, {
     isAuthenticated: () => accountController?.isAuthenticated() ?? false,
@@ -25,7 +26,21 @@ export function createApp() {
       initializeToilets(elements.cleanlinessRangeSelect?.value ?? "3days", {
         allowFallback: false,
         force: true
-      })
+      }),
+    onBoundsChanged: (bounds) => {
+      if (boundsFetchTimeoutId) {
+        window.clearTimeout(boundsFetchTimeoutId);
+      }
+
+      boundsFetchTimeoutId = window.setTimeout(() => {
+        boundsFetchTimeoutId = null;
+        initializeToilets(elements.cleanlinessRangeSelect?.value ?? "3days", {
+          bounds,
+          merge: true,
+          allowFallback: false
+        });
+      }, 400);
+    }
   });
 
   accountController = createAccountController(
@@ -88,7 +103,8 @@ export function createApp() {
       currentSection = null,
       hideDetails = true,
       cleanlinessRange = elements.cleanlinessRangeSelect?.value ?? "3days",
-      status = ""
+      status = "",
+      merge = false
     } = {}
   ) {
     const southKen = appConfig.initialView;
@@ -98,7 +114,7 @@ export function createApp() {
       return distA - distB;
     });
 
-    mapController.setToilets(sorted, { hideDetails, cleanlinessRange });
+    mapController.setToilets(sorted, { hideDetails, cleanlinessRange, merge });
 
     if (currentSelectedId) {
       mapController.setToilet(currentSelectedId, {
@@ -119,34 +135,38 @@ export function createApp() {
     if (loadedFromCsv.length > 0) {
       return {
         toilets: loadedFromCsv,
-        status: `Using local toilet data (${loadedFromCsv.length} toilets). Reconnecting to database...`
+        status: `Using local toilet data (${loadedFromCsv.length} toilets). Connecting to database...`
       };
     }
 
     return {
       toilets: fallbackToilets,
-      status: "Using starter toilet data. Reconnecting to database..."
+      status: "Using starter toilet data. Connecting to database..."
     };
   }
 
   async function initializeToilets(
     range = elements.cleanlinessRangeSelect?.value ?? "3days",
-    { allowFallback = true, force = false } = {}
+    { allowFallback = true, force = false, bounds = null, merge = false } = {}
   ) {
-    if (!force && range === lastLoadedRange && hasLoadedApiToilets) {
+    if (!force && !bounds && range === lastLoadedRange && hasLoadedApiToilets) {
       return;
     }
 
     const requestId = toiletLoadRequestId + 1;
     toiletLoadRequestId = requestId;
     clearToiletRetry();
-    mapController.setStatus("Connecting to database...");
+
+    if (!hasLoadedApiToilets && !merge) {
+      mapController.setStatus("Connecting to database...");
+    }
 
     const currentSelectedId = mapController.getSelectedToilet()?.id;
     const currentSection = getCurrentDetailSection();
+    const activeBounds = bounds ?? mapController.getBounds();
 
     try {
-      const loadedFromApi = await loadToiletsFromApi(range);
+      const loadedFromApi = await loadToiletsFromApi(range, 2, 30000, activeBounds);
 
       if (requestId !== toiletLoadRequestId) {
         return;
@@ -158,14 +178,17 @@ export function createApp() {
           currentSection,
           hideDetails: !currentSelectedId,
           cleanlinessRange: range,
-          status: `Loaded ${loadedFromApi.length} toilets from database.`
+          status: bounds ? "" : `Loaded ${loadedFromApi.length} toilets from database.`,
+          merge
         });
         hasLoadedApiToilets = true;
         lastLoadedRange = range;
         return;
       }
 
-      throw new Error("Toilets API returned no toilets.");
+      if (!merge) {
+        throw new Error("Toilets API returned no toilets.");
+      }
     } catch (error) {
       if (requestId !== toiletLoadRequestId) {
         return;
@@ -173,7 +196,7 @@ export function createApp() {
       console.warn("Toilets API loading failed:", error);
     }
 
-    if (allowFallback && !hasLoadedApiToilets) {
+    if (allowFallback && !hasLoadedApiToilets && !merge) {
       try {
         const localData = await loadLocalToilets();
 
@@ -186,7 +209,8 @@ export function createApp() {
           currentSection,
           hideDetails: !currentSelectedId,
           cleanlinessRange: range,
-          status: localData.status
+          status: localData.status,
+          merge: false
         });
       } catch (error) {
         if (requestId !== toiletLoadRequestId) {
@@ -197,7 +221,7 @@ export function createApp() {
       }
     }
 
-    if (requestId === toiletLoadRequestId) {
+    if (requestId === toiletLoadRequestId && !hasLoadedApiToilets) {
       scheduleToiletRetry(range);
     }
   }
@@ -267,8 +291,29 @@ export function createApp() {
     }
 
     bindEvents();
+
+    // 1. Load local data immediately for instant markers
+    try {
+      const localData = await loadLocalToilets();
+      setLoadedToilets(localData.toilets, {
+        status: localData.status,
+        merge: false
+      });
+    } catch (error) {
+      console.warn("Failed to load local toilets on startup:", error);
+    }
+
     mapController.requestLocation();
-    await Promise.all([initializeToilets(), accountController.loadPanelData()]);
+
+    // 2. Fetch live data in the background (using current map bounds)
+    await Promise.all([
+      initializeToilets(elements.cleanlinessRangeSelect?.value ?? "3days", {
+        allowFallback: false,
+        force: true,
+        merge: true
+      }),
+      accountController.loadPanelData()
+    ]);
   }
 
   return {

@@ -83,7 +83,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     showLoginPrompt = () => {},
     recordAccessHistory = async () => {},
     onPublicProfileSelected = () => {},
-    onCleanlinessSaved = async () => {}
+    onCleanlinessSaved = async () => {},
+    onBoundsChanged = () => {}
   } = auth;
 
   const surveyStorageKey = "wheretoi-map-cleanliness-survey";
@@ -862,6 +863,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return filteredToilets.filter((toilet) => bounds.contains([toilet.lat, toilet.lng]));
   }
 
+  function getBounds() {
+    if (!map) return null;
+    const bounds = map.getBounds();
+    return {
+      minLat: bounds.getSouth(),
+      maxLat: bounds.getNorth(),
+      minLng: bounds.getWest(),
+      maxLng: bounds.getEast()
+    };
+  }
+
   function getDistanceReference() {
     if (userLocation) {
       return { lat: userLocation.lat, lng: userLocation.lng, source: "user" };
@@ -1332,14 +1344,27 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     map.on("moveend zoomend", () => {
       refreshFilteredDisplay();
       updateLocateButtonStateFromMap();
+      onBoundsChanged(getBounds());
     });
 
     return true;
   }
 
-  function setToilets(nextToilets, { hideDetails = true, cleanlinessRange = currentCleanlinessRange } = {}) {
+  function setToilets(nextToilets, { hideDetails = true, cleanlinessRange = currentCleanlinessRange, merge = false } = {}) {
     currentCleanlinessRange = normaliseCleanlinessRange(cleanlinessRange);
-    allToilets = nextToilets.map((toilet) => applyStoredCleanlinessUpdate(toilet, currentCleanlinessRange));
+
+    const processedToilets = nextToilets.map((toilet) =>
+      applyStoredCleanlinessUpdate(toilet, currentCleanlinessRange)
+    );
+
+    if (merge) {
+      const existingMap = new Map(allToilets.map((t) => [t.id, t]));
+      processedToilets.forEach((t) => existingMap.set(t.id, t));
+      allToilets = Array.from(existingMap.values());
+    } else {
+      allToilets = processedToilets;
+    }
+
     applyFilters();
 
     if (hideDetails) {
@@ -1744,6 +1769,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     hideToiletDetails,
     refreshAfterTabVisible,
     getSelectedToilet,
+    getBounds,
     setToilet,
     openCommentThread,
     updateToiletCleanliness,
