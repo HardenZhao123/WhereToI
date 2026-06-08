@@ -1416,7 +1416,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     closeVisualFeedback();
     setCommentComposerAvailable(true);
     
-    if (defaultSection) {
+    // Only switch the section if a specific one was requested (e.g. from search or history)
+    // Otherwise, keep the current active section to prevent it jumping back to 'features'
+    if (arguments[1]?.defaultSection) {
       setDetailSection(defaultSection);
     }
 
