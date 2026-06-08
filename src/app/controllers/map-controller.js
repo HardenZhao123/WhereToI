@@ -75,6 +75,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     visualFeedbackToggle,
     visualFeedbackPanel,
     visualCleanlinessPreview,
+    visualCleanlinessImage,
     visualCleanlinessSlider,
     visualCleanlinessState,
     visualFeedbackForm,
@@ -102,11 +103,16 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   const surveyStorageKey = "wheretoi-map-cleanliness-survey";
   const visualFeedbackStorageKey = "wheretoi-visual-cleanliness-feedback";
   const visualCleanlinessLevels = new Map([
-    [1, { label: "Very dirty", tone: "Needs a serious clean" }],
-    [2, { label: "Dirty", tone: "Use only if needed" }],
-    [3, { label: "OK", tone: "Usable but not spotless" }],
-    [4, { label: "Clean", tone: "Comfortable to use" }],
-    [5, { label: "Very clean", tone: "Fresh and well kept" }]
+    [0.5, { label: "Extremely dirty", tone: "Avoid at all costs", image: "toilet_levels/level_05.png" }],
+    [1, { label: "Very dirty", tone: "Needs a serious clean", image: "toilet_levels/level_1.jpeg" }],
+    [1.5, { label: "Dirty & Messy", tone: "Quite unpleasant", image: "toilet_levels/level_15.jpeg" }],
+    [2, { label: "Dirty", tone: "Use only if needed", image: "toilet_levels/level_2.jpeg" }],
+    [2.5, { label: "Below average", tone: "Could be better", image: "toilet_levels/level_25.jpeg" }],
+    [3, { label: "OK", tone: "Usable but not spotless", image: "toilet_levels/level_3.png" }],
+    [3.5, { label: "Above average", tone: "Decent condition", image: "toilet_levels/level_35.png" }],
+    [4, { label: "Clean", tone: "Comfortable to use", image: "toilet_levels/level_4.png" }],
+    [4.5, { label: "Very clean", tone: "Almost spotless", image: "toilet_levels/level_45.png" }],
+    [5, { label: "Excellent", tone: "Fresh and well kept", image: "toilet_levels/level_5.png" }]
   ]);
 
   let allToilets = [];
@@ -157,7 +163,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function normaliseVisualCleanlinessLevel(level) {
-    const value = Math.round(Number(level));
+    const value = Math.round(Number(level) * 2) / 2;
     return visualCleanlinessLevels.has(value) ? value : 3;
   }
 
@@ -368,6 +374,16 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         "aria-label",
         `Cartoon toilet cleanliness preview: ${level.label}`
       );
+
+      const cartoonSvg = visualCleanlinessPreview.querySelector(".cartoon-toilet-svg");
+      if (visualCleanlinessImage && level.image) {
+        visualCleanlinessImage.src = level.image;
+        visualCleanlinessImage.classList.remove("is-hidden");
+        if (cartoonSvg) cartoonSvg.classList.add("is-hidden");
+      } else if (cartoonSvg) {
+        cartoonSvg.classList.remove("is-hidden");
+        if (visualCleanlinessImage) visualCleanlinessImage.classList.add("is-hidden");
+      }
     }
 
     if (visualCleanlinessSlider) {

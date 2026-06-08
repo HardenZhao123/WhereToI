@@ -1282,11 +1282,13 @@ mark {
   stroke-width: 1.8;
 }
 
+.visual-cleanliness-image.is-hidden,
+.cartoon-toilet-svg.is-hidden,
 .comment-composer-toggle.is-hidden,
 .visual-feedback-toggle.is-hidden,
 .comment-composer.is-hidden,
 .visual-feedback-panel.is-hidden {
-  display: none;
+  display: none !important;
 }
 
 .comment-composer {
@@ -1645,6 +1647,14 @@ mark {
 .cartoon-toilet-svg {
   width: min(210px, 100%);
   height: auto;
+}
+
+.visual-cleanliness-image {
+  width: 140px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }
 
 .toilet-room-floor {

@@ -47,6 +47,7 @@ export function getDomRefs() {
     visualFeedbackPanel: document.querySelector("#visual-feedback-panel"),
     closeVisualFeedbackButton: document.querySelector("#close-visual-feedback"),
     visualCleanlinessPreview: document.querySelector("#visual-cleanliness-preview"),
+    visualCleanlinessImage: document.querySelector("#visual-cleanliness-image"),
     visualCleanlinessSlider: document.querySelector("#visual-cleanliness-slider"),
     visualCleanlinessState: document.querySelector("#visual-cleanliness-state"),
     visualFeedbackForm: document.querySelector("#visual-feedback-form"),
