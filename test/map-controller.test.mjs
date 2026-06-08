@@ -61,6 +61,7 @@ function createTestToilet() {
       ratingTotal: 0,
       ratingCount: 0
     },
+    comment: "Test comment",
     features: {
       women: "Y",
       men: "Y",
@@ -118,7 +119,7 @@ test("map controller can hide empty details after loading toilets", () => {
   }
 });
 
-test("map controller keeps submitted rating count after a stale toilet reload", () => {
+test("map controller keeps submitted rating count after a stale toilet reload", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
 
@@ -187,7 +188,7 @@ test("map controller keeps submitted rating count after a stale toilet reload", 
     });
 
     controller.setToilets([staleToilet], { hideDetails: false });
-    controller.setToilet(staleToilet.id, { fly: false });
+    await controller.setToilet(staleToilet.id, { fly: false });
 
     assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "1 rating");
   } finally {
@@ -196,7 +197,7 @@ test("map controller keeps submitted rating count after a stale toilet reload", 
   }
 });
 
-test("map controller refreshes cleanliness when the rating period changes after a local rating", () => {
+test("map controller refreshes cleanliness when the rating period changes after a local rating", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
 
@@ -255,7 +256,7 @@ test("map controller refreshes cleanliness when the rating period changes after 
 
     const threeDayToilet = createTestToilet();
     controller.setToilets([threeDayToilet], { cleanlinessRange: "3days" });
-    controller.setToilet(threeDayToilet.id, { fly: false });
+    await controller.setToilet(threeDayToilet.id, { fly: false });
     controller.updateToiletCleanliness({
       id: threeDayToilet.id,
       cleanliness: 4,
@@ -274,7 +275,7 @@ test("map controller refreshes cleanliness when the rating period changes after 
       }
     };
     controller.setToilets([oneDayToilet], { hideDetails: false, cleanlinessRange: "1day" });
-    controller.setToilet(oneDayToilet.id, { fly: false });
+    await controller.setToilet(oneDayToilet.id, { fly: false });
 
     assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "0 ratings");
     assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "0.0/5");
@@ -379,7 +380,7 @@ test("map controller patches saved cleanliness without reloading all toilets", a
     );
 
     controller.setToilets([testToilet]);
-    controller.setToilet(testToilet.id);
+    await controller.setToilet(testToilet.id);
 
     const saved = await controller.answerCleanlinessSurvey(5);
 
@@ -483,7 +484,7 @@ test("map controller patches saved cleanliness against the active rating period"
     );
 
     controller.setToilets([testToilet], { cleanlinessRange: "3days" });
-    controller.setToilet(testToilet.id, { fly: false });
+    await controller.setToilet(testToilet.id, { fly: false });
 
     const saved = await controller.answerCleanlinessSurvey(5);
 
@@ -710,7 +711,7 @@ test("map controller records access history when opening directions if authentic
 
     const testToilet = createTestToilet();
     controller.setToilets([testToilet]);
-    controller.setToilet(testToilet.id);
+    await controller.setToilet(testToilet.id);
 
     controller.openDirections();
 
@@ -795,7 +796,7 @@ test("map controller does not record access history when opening directions if u
 
     const testToilet = createTestToilet();
     controller.setToilets([testToilet]);
-    controller.setToilet(testToilet.id);
+    await controller.setToilet(testToilet.id);
 
     controller.openDirections();
 

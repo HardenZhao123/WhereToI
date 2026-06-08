@@ -164,6 +164,7 @@ export function mapRowToToilet(row) {
       sat: formatDayHours(openingTimes, 5),
       sun: formatDayHours(openingTimes, 6)
     },
+    openingTimes,
     cleanliness: row.cleanliness === null || row.cleanliness === undefined ? null : Number(row.cleanliness),
     cleanlinessSurvey: {
       ratingTotal: Number(row.cleanliness_rating_total ?? 0),
