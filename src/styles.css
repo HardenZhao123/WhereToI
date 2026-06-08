@@ -216,21 +216,6 @@ h3 {
   opacity: 1;
 }
 
-.map-status {
-  position: absolute;
-  right: 16px;
-  bottom: 88px;
-  left: 16px;
-  z-index: 3;
-  min-height: 28px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 11px;
-  background: rgb(255 255 255 / 88%);
-  box-shadow: 0 10px 28px rgb(31 42 51 / 12%);
-}
-
 .map-marker-icon,
 .map-user-marker-icon {
   border: 0;
@@ -244,7 +229,7 @@ h3 {
   transform: rotate(45deg);
   border: 3px solid white;
   border-radius: 50% 50% 50% 7px;
-  background: var(--pink);
+  background: #2ecc71; /* Green for free */
   box-shadow: 0 6px 18px rgb(31 42 51 / 28%);
 }
 
@@ -257,11 +242,55 @@ h3 {
 }
 
 .map-marker.is-paid {
-  background: var(--gold);
+  background: #e74c3c; /* Red for paid */
 }
 
 .map-marker.is-selected {
   box-shadow: 0 0 0 6px rgb(236 61 114 / 22%), 0 6px 18px rgb(31 42 51 / 28%);
+}
+
+.map-legend {
+  position: absolute;
+  bottom: 88px;
+  right: 12px;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 1000;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--line);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.view-map.has-details .map-legend {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.legend-color.free {
+  background: #2ecc71;
+}
+
+.legend-color.paid {
+  background: #e74c3c;
 }
 
 .map-user-marker {
@@ -573,10 +602,6 @@ h3 {
   opacity: 0;
   pointer-events: none;
   transform: translateY(18px);
-}
-
-.view-map.has-details .map-status {
-  display: none;
 }
 
 .details-card h2 {
