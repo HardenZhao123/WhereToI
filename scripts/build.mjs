@@ -9,5 +9,6 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await cp(resolve(root, "index.html"), resolve(dist, "index.html"));
 await cp(resolve(root, "src"), resolve(dist, "src"), { recursive: true });
+await rm(resolve(dist, "src", "data", "toilets.csv"), { force: true });
 
 console.log("Built static app to dist/");

@@ -38,6 +38,9 @@ await Promise.all(requiredFiles.map((file) => access(resolve(file))));
 const html = await readFile("index.html", "utf8");
 const css = await readFile("src/styles.css", "utf8");
 const server = await readFile("server/app-server.mjs", "utf8");
+const app = await readFile("src/app/app.js", "utf8");
+const toiletsService = await readFile("src/app/services/toilets-service.js", "utf8");
+const buildScript = await readFile("scripts/build.mjs", "utf8");
 const jsFiles = requiredFiles.filter((file) => file.startsWith("src/") && file.endsWith(".js"));
 const js = (await Promise.all(jsFiles.map((file) => readFile(file, "utf8")))).join("\n");
 
@@ -314,6 +317,15 @@ if (
 
 if (!css.includes("@media") || !js.includes("setTab")) {
   throw new Error("Expected responsive CSS and tab interaction code.");
+}
+
+if (
+  app.includes("loadToiletsFromCsv") ||
+  toiletsService.includes("loadToiletsFromCsv") ||
+  toiletsService.includes("csvDataPath") ||
+  !buildScript.includes("\"toilets.csv\"")
+) {
+  throw new Error("Expected startup and published static assets to avoid the large CSV fallback.");
 }
 
 if (!css.includes(".map-canvas") || !css.includes(".map-marker") || !css.includes(".map-marker-icon")) {
