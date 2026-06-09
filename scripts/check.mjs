@@ -52,9 +52,11 @@ await Promise.all(optimizedToiletLevelImages.map((file) => access(resolve(file))
 const html = await readFile("index.html", "utf8");
 const css = await readFile("src/styles.css", "utf8");
 const server = await readFile("server/app-server.mjs", "utf8");
+const postgresRepository = await readFile("server/database/repository/postgres-repository.mjs", "utf8");
 const app = await readFile("src/app/app.js", "utf8");
 const toiletsService = await readFile("src/app/services/toilets-service.js", "utf8");
 const buildScript = await readFile("scripts/build.mjs", "utf8");
+const renderConfig = await readFile("render.yaml", "utf8");
 const jsFiles = requiredFiles.filter((file) => file.startsWith("src/") && file.endsWith(".js"));
 const js = (await Promise.all(jsFiles.map((file) => readFile(file, "utf8")))).join("\n");
 
@@ -69,13 +71,13 @@ const requiredCopy = [
   "Cleanest",
   "Most facilities",
   "Most liked",
-  "Photo/video",
+  "Photo",
   "Visual check",
   "Visual cleanliness check",
   "Visual checks",
   "Confirm password",
   "Create an account to unlock more features",
-  "Attach image or video"
+  "Attach image"
 ];
 const missingCopy = requiredCopy.filter((text) => !html.includes(text));
 
@@ -170,7 +172,8 @@ if (
 }
 
 if (
-  !html.includes("accept=\"image/*,video/*\"") ||
+  !html.includes("accept=\"image/*\"") ||
+  html.includes("accept=\"image/*,video/*\"") ||
   !html.includes("multiple") ||
   !html.includes("comment-media-status") ||
   !js.includes("readCommentMediaAttachments") ||
@@ -181,11 +184,12 @@ if (
   !js.includes("isPlaceholderToiletComment") ||
   !css.includes(".comment-media") ||
   !css.includes(".comment-media-item") ||
+  !css.includes(".comment-media-metadata") ||
   !css.includes(".comment-media-preview-item") ||
   !css.includes(".comment-media-remove") ||
   !css.includes("object-fit: contain")
 ) {
-  throw new Error("Expected comments to support up to 9 image/video attachments with thumbnail removal and uncropped media.");
+  throw new Error("Expected comments to support up to 3 image attachments with thumbnail removal, metadata display, and uncropped media.");
 }
 
 const feedbackDetailPanelIndex = html.indexOf("id=\"details-comment-panel\"");
@@ -343,6 +347,27 @@ if (
 }
 
 if (
+  !postgresRepository.includes("async getToiletById") ||
+  !postgresRepository.includes("mapRowToToilet(result.rows[0])")
+) {
+  throw new Error("Expected Postgres repository to support /api/toilets/detail with getToiletById.");
+}
+
+if (
+  !postgresRepository.includes("jsonb_array_elements(toilet_comments.media_attachments)") ||
+  !postgresRepository.includes("NULL::text AS media_url")
+) {
+  throw new Error("Expected Postgres comment queries to return media metadata without base64 data URLs.");
+}
+
+if (
+  !renderConfig.includes("buildCommand: npm ci && npm run build") ||
+  !server.includes("const BODY_SIZE_LIMIT_BYTES = 8 * 1024 * 1024")
+) {
+  throw new Error("Expected Render to build dist and comment uploads to stay under the emergency body-size guardrail.");
+}
+
+if (
   !optimizedToiletLevelImages.every((file) => js.includes(file)) ||
   /toilet_levels\/level_(?:05|1|15|2|25|3|35|4|45|5)\.(?:png|jpe?g)/.test(js) ||
   !buildScript.includes("_small.jpg") ||
@@ -366,6 +391,11 @@ if (oversizedToiletLevelImages.length > 0) {
       .map((image) => `${image.file} (${image.size} bytes)`)
       .join(", ")}`
   );
+}
+
+const logoSize = (await stat(resolve("src/logo.png"))).size;
+if (logoSize > 50 * 1024) {
+  throw new Error(`Expected src/logo.png under 50KB (${logoSize} bytes).`);
 }
 
 if (!css.includes(".map-canvas") || !css.includes(".map-marker") || !css.includes(".map-marker-icon")) {

@@ -83,20 +83,34 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
       item.className = "comment-media-item";
 
       if (attachment.type === "image" && attachment.mimeType?.startsWith("image/")) {
-        const image = document.createElement("img");
-        image.src = attachment.dataUrl;
-        image.alt = attachment.name ? `Attached image: ${attachment.name}` : "Attached image";
-        image.loading = "lazy";
-        item.append(image);
+        if (attachment.dataUrl) {
+          const image = document.createElement("img");
+          image.src = attachment.dataUrl;
+          image.alt = attachment.name ? `Attached image: ${attachment.name}` : "Attached image";
+          image.loading = "lazy";
+          item.append(image);
+        } else {
+          const label = document.createElement("span");
+          label.className = "comment-media-metadata";
+          label.textContent = attachment.name ? `Image attached: ${attachment.name}` : "Image attached";
+          item.append(label);
+        }
       }
 
       if (attachment.type === "video" && attachment.mimeType?.startsWith("video/")) {
-        const video = document.createElement("video");
-        video.src = attachment.dataUrl;
-        video.controls = true;
-        video.preload = "metadata";
-        video.playsInline = true;
-        item.append(video);
+        if (attachment.dataUrl) {
+          const video = document.createElement("video");
+          video.src = attachment.dataUrl;
+          video.controls = true;
+          video.preload = "metadata";
+          video.playsInline = true;
+          item.append(video);
+        } else {
+          const label = document.createElement("span");
+          label.className = "comment-media-metadata";
+          label.textContent = attachment.name ? `Video attached: ${attachment.name}` : "Video attached";
+          item.append(label);
+        }
       }
 
       if (item.childElementCount > 0) {
