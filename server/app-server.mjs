@@ -368,22 +368,28 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         cleanlinessRating: body.cleanlinessRating,
         media
       });
-      const cleanlinessResult = await database.recordCleanlinessSurvey({
-        userId,
-        toiletId: comment.toiletId,
-        rating: comment.cleanlinessRating
-      });
-      const comments = await database.saveComment({
-        toiletId: comment.toiletId,
-        userId: userId,
-        username: user.username,
-        commentText: comment.commentText,
-        commentVisibility: comment.commentVisibility,
-        cleanlinessRating: comment.cleanlinessRating,
-        media
-      });
 
-      sendJson(response, 201, { comments, toilet: cleanlinessResult.toilet });
+      try {
+        const cleanlinessResult = await database.recordCleanlinessSurvey({
+          userId,
+          toiletId: comment.toiletId,
+          rating: comment.cleanlinessRating
+        });
+        const comments = await database.saveComment({
+          toiletId: comment.toiletId,
+          userId: userId,
+          username: user.username,
+          commentText: comment.commentText,
+          commentVisibility: comment.commentVisibility,
+          cleanlinessRating: comment.cleanlinessRating,
+          media
+        });
+
+        sendJson(response, 201, { comments, toilet: cleanlinessResult.toilet });
+      } catch (error) {
+        console.error("Failed to post comment:", error);
+        sendJson(response, error.status || 400, { error: error.message || "Could not post comment." });
+      }
     },
     "DELETE /api/comments": async ({ request, response }) => {
       const userId = getSessionUserId(request);

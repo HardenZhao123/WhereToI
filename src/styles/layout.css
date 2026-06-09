@@ -1,0 +1,117 @@
+.app-shell {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.phone {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  padding: 0 0 74px;
+  border: 0;
+  border-radius: 0;
+  background: #f7f8f4;
+  overflow: hidden;
+}
+
+.screen {
+  position: relative;
+  height: calc(100vh - 74px);
+  padding: 16px 18px 0;
+  border-radius: 0;
+  background: linear-gradient(180deg, #fbfcf7, #eef4ed);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.header-branding {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.eyebrow,
+.section-kicker {
+  margin: 0 0 6px;
+  color: #142c72;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 18px;
+}
+
+h2 {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.view {
+  display: none;
+}
+
+.view.is-active {
+  display: block;
+}
+
+.tabbar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  height: 74px;
+  border-top: 1px solid var(--line);
+  background: #fbfcf7;
+}
+
+.tab {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  border: 0;
+  color: var(--muted);
+  font-size: 11px;
+  background: transparent;
+}
+
+.tab span {
+  font-size: 18px;
+}
+
+.tab.is-active {
+  color: var(--teal);
+}

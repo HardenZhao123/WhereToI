@@ -717,13 +717,88 @@ h3 {
   margin: 12px 0 10px;
 }
 
+.overview-visual-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 20px;
+  background: linear-gradient(180deg, #f7fbff 0%, #eef8f4 100%);
+  border: 1px solid rgb(40 118 102 / 12%);
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+
+.overview-visual-status .visual-feedback-image-frame {
+  width: 160px;
+  height: 160px;
+  background: white;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.overview-visual-status .visual-feedback-image {
+  object-fit: contain;
+}
+
+.overview-visual-status .visual-feedback-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.overview-visual-status strong {
+  font-size: 16px;
+  color: #142c72;
+}
+
+.features-dropdown {
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  overflow: hidden;
+}
+
+.features-summary {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #142c72;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.features-summary::after {
+  content: "↓";
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.features-dropdown[open] .features-summary::after {
+  transform: rotate(180deg);
+}
+
 .features-list,
 .opening-hours-list,
 .comment-panel {
   padding: 10px;
-  border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
+}
+
+.features-list {
+  border: 0;
+}
+
+.opening-hours-list,
+.comment-panel {
+  border: 1px solid var(--line);
 }
 
 .comment-panel[hidden] {
@@ -1678,9 +1753,11 @@ mark {
 }
 
 .visual-cleanliness-image {
-  width: 140px;
-  height: 140px;
-  object-fit: cover;
+  width: 160px;
+  height: 160px;
+  padding: 10px;
+  object-fit: contain;
+  background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }

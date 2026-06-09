@@ -132,27 +132,47 @@
               </div>
               <div class="distance-line" id="distance-line">Enable location to see distance.</div>
               <nav class="details-section-nav" aria-label="Toilet detail sections">
-                <button class="details-section-link is-active" id="details-features-link" type="button" data-detail-section="features" aria-controls="details-features-panel" aria-selected="true">Features</button>
+                <button class="details-section-link is-active" id="details-features-link" type="button" data-detail-section="features" aria-controls="details-features-panel" aria-selected="true">Overview</button>
                 <button class="details-section-link" id="details-hours-link" type="button" data-detail-section="hours" aria-controls="details-hours-panel" aria-selected="false">Opening Hours</button>
                 <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Feedback</button>
-                <button class="details-section-link" id="details-visual-link" type="button" data-detail-section="visual" aria-controls="details-visual-panel" aria-selected="false">Visual check</button>
               </nav>
               <div class="details-section-panels">
                 <section class="details-panel is-active" id="details-features-panel" data-detail-panel="features" aria-labelledby="details-features-link">
-                  <div class="features-list">
-                    <h3>Features</h3>
-                    <p>Women <strong id="feature-women">Y</strong></p>
-                    <p>Men <strong id="feature-men">Y</strong></p>
-                    <p>Accessible <strong id="feature-accessible">N</strong></p>
-                    <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
-                    <p>Children <strong id="feature-children">?</strong></p>
-                    <p>Parent &amp; Baby <strong id="feature-baby-changing">?</strong></p>
-                    <p>Bidet / Washing <strong id="feature-bidet">?</strong></p>
-                    <p>Automatic <strong id="feature-automatic">?</strong></p>
-                    <p>Urinal Only <strong id="feature-urinal-only">?</strong></p>
-                    <p>RADAR Key <strong id="feature-radar-key">?</strong></p>
-                    <p>Free <strong id="feature-free">?</strong></p>
+                  <div class="visual-feedback-item overview-visual-status" id="overview-visual-status">
+                    <div class="visual-feedback-image-frame" id="overview-visual-frame">
+                      <img class="visual-feedback-image" id="overview-visual-image" src="" alt="Current visual cleanliness status" />
+                    </div>
+                    <div class="visual-feedback-item-body">
+                      <strong id="overview-visual-label">OK</strong>
+                      <p class="visual-feedback-tone" id="overview-visual-tone">Usable but not spotless</p>
+                      <p class="visual-feedback-date">Current status</p>
+                    </div>
                   </div>
+                  <details class="features-dropdown">
+                    <summary class="features-summary">Features</summary>
+                    <div class="features-list">
+                      <p>Women <strong id="feature-women">Y</strong></p>
+                      <p>Men <strong id="feature-men">Y</strong></p>
+                      <p>Accessible <strong id="feature-accessible">N</strong></p>
+                      <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
+                      <p>Children <strong id="feature-children">?</strong></p>
+                      <p>Parent &amp; Baby <strong id="feature-baby-changing">?</strong></p>
+                      <p>Bidet / Washing <strong id="feature-bidet">?</strong></p>
+                      <p>Automatic <strong id="feature-automatic">?</strong></p>
+                      <p>Urinal Only <strong id="feature-urinal-only">?</strong></p>
+                      <p>RADAR Key <strong id="feature-radar-key">?</strong></p>
+                      <p>Free <strong id="feature-free">?</strong></p>
+                    </div>
+                  </details>
+                  <section class="visual-feedback-discussion comments-section" aria-labelledby="visual-feedback-discussion-title">
+                    <div class="comments-header visual-feedback-discussion-header">
+                      <h3 id="visual-feedback-discussion-title">Visual checks</h3>
+                      <p id="visual-feedback-summary">0 visual checks</p>
+                    </div>
+                    <div class="visual-feedback-list comments-list" id="visual-feedback-list" aria-live="polite">
+                      <p>No visual checks yet.</p>
+                    </div>
+                  </section>
                 </section>
                 <section class="details-panel" id="details-hours-panel" data-detail-panel="hours" aria-labelledby="details-hours-link" hidden>
                   <div class="opening-hours-list">
@@ -188,17 +208,6 @@
                     <p class="comments-summary" id="comments-summary" aria-live="polite">0 feedback - Newest</p>
                     <div id="comments-list" class="comments-list">
                       <p>Loading feedback...</p>
-                    </div>
-                  </section>
-                </section>
-                <section class="details-panel" id="details-visual-panel" data-detail-panel="visual" aria-labelledby="details-visual-link" hidden>
-                  <section class="visual-feedback-discussion comments-section" aria-labelledby="visual-feedback-discussion-title">
-                    <div class="comments-header visual-feedback-discussion-header">
-                      <h3 id="visual-feedback-discussion-title">Visual checks</h3>
-                      <p id="visual-feedback-summary">0 visual checks</p>
-                    </div>
-                    <div class="visual-feedback-list comments-list" id="visual-feedback-list" aria-live="polite">
-                      <p>No visual checks yet.</p>
                     </div>
                   </section>
                 </section>
@@ -287,6 +296,7 @@
                   <div class="comment-media-preview" id="comment-media-preview" aria-live="polite"></div>
                   <p class="comment-media-status" id="comment-media-status" aria-live="polite">Up to 9 attachments total, including up to 3 videos.</p>
                 </div>
+                <p class="form-status" id="comment-status" aria-live="polite"></p>
                 <button type="submit" id="submit-comment" disabled>Submit feedback</button>
               </form>
             </section>
@@ -335,6 +345,7 @@
               </div>
               <form class="visual-feedback-form" id="visual-feedback-form">
                 <textarea id="visual-feedback-comment" placeholder="Optional note for this picture..."></textarea>
+                <p class="form-status" id="visual-feedback-status" aria-live="polite"></p>
                 <button type="submit" id="submit-visual-feedback">Post visual check</button>
               </form>
             </section>
