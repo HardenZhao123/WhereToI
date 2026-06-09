@@ -6,6 +6,8 @@ import test from "node:test";
 import { createAppServer } from "../server/app-server.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
+const largeStaticScript = `export const payload = "${"x".repeat(4096)}";`;
+
 async function withAppServer(callback, serverOptions = {}) {
   const rootDirectory = await mkdtemp(join(tmpdir(), "wheretoi-server-test-"));
   const dataDirectory = join(rootDirectory, "src", "data");
@@ -15,6 +17,7 @@ async function withAppServer(callback, serverOptions = {}) {
     await mkdir(dataDirectory, { recursive: true });
     await writeFile(join(rootDirectory, "index.html"), "<!doctype html><title>WhereToI</title>", "utf8");
     await writeFile(join(rootDirectory, "src", "styles.css"), ".map { color: green; }", "utf8");
+    await writeFile(join(rootDirectory, "src", "large.js"), largeStaticScript, "utf8");
     await writeFile(join(dataDirectory, "toilets.csv"), sampleToiletsCsv, "utf8");
 
     appServer = await createAppServer({ rootDirectory, port: 0, ...serverOptions });
@@ -66,6 +69,21 @@ test("static assets use browser cache headers and Last-Modified validation", asy
 
     assert.equal(cachedResponse.status, 304);
     assert.equal(await cachedResponse.text(), "");
+  });
+});
+
+test("static text assets are compressed when the browser supports gzip", async () => {
+  await withAppServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/src/large.js`, {
+      headers: {
+        "Accept-Encoding": "gzip"
+      }
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-encoding"), "gzip");
+    assert.match(response.headers.get("vary"), /Accept-Encoding/);
+    assert.equal(await response.text(), largeStaticScript);
   });
 });
 

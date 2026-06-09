@@ -2,6 +2,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
+import { createBrotliCompress, createGzip } from "node:zlib";
 import { createDatabase } from "./database.mjs";
 import { normaliseCommentPayload } from "./database/repository/repository-utils.mjs";
 import { createRegistrationEmailService } from "./email-service.mjs";
@@ -29,6 +30,9 @@ const STATIC_DOCUMENT_CACHE_CONTROL = "no-cache";
 const STATIC_ASSET_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
 const STATIC_IMAGE_CACHE_CONTROL = "public, max-age=604800, immutable";
 const STATIC_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".svg"]);
+const COMPRESSIBLE_STATIC_EXTENSIONS = new Set([".html", ".css", ".js", ".json", ".csv", ".txt", ".svg"]);
+const COMPRESSION_MIN_BYTES = 1024;
+const responseRequests = new WeakMap();
 
 const TRUTHY_QUERY_FLAGS = new Set(["1", "true", "yes"]);
 const BODY_SIZE_LIMIT_BYTES = 110 * 1024 * 1024;
@@ -46,13 +50,78 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "once every 30 minutes"
 ];
 
+function appendVaryHeader(headers, value) {
+  const currentValue = headers.Vary ?? headers.vary ?? "";
+  const values = new Set(
+    String(currentValue)
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+  );
+  values.add(value);
+  headers.Vary = [...values].join(", ");
+  delete headers.vary;
+}
+
+function requestAcceptsEncoding(request, encoding) {
+  const acceptEncoding = String(request?.headers?.["accept-encoding"] ?? "").toLowerCase();
+  if (!acceptEncoding) return false;
+
+  return acceptEncoding.split(",").some((entry) => {
+    const [name, ...params] = entry.split(";").map((part) => part.trim());
+    return name === encoding && !params.some((param) => /^q=0(?:\.0+)?$/.test(param));
+  });
+}
+
+function selectCompressionEncoding(request, contentLength) {
+  if (!request || contentLength < COMPRESSION_MIN_BYTES) return null;
+
+  if (requestAcceptsEncoding(request, "br")) {
+    return "br";
+  }
+
+  if (requestAcceptsEncoding(request, "gzip")) {
+    return "gzip";
+  }
+
+  return null;
+}
+
+function createCompressionStream(encoding) {
+  if (encoding === "br") return createBrotliCompress();
+  if (encoding === "gzip") return createGzip();
+  return null;
+}
+
+function sendResponseBody(response, statusCode, body, headers) {
+  const request = responseRequests.get(response);
+  const encoding = selectCompressionEncoding(request, body.byteLength);
+  const responseHeaders = { ...headers };
+
+  if (encoding) {
+    responseHeaders["Content-Encoding"] = encoding;
+    appendVaryHeader(responseHeaders, "Accept-Encoding");
+    response.writeHead(statusCode, responseHeaders);
+
+    const compressor = createCompressionStream(encoding);
+    compressor.pipe(response);
+    compressor.end(body);
+    return;
+  }
+
+  responseHeaders["Content-Length"] = body.byteLength;
+  response.writeHead(statusCode, responseHeaders);
+  response.end(body);
+}
+
 function sendJson(response, statusCode, payload, headers = {}) {
-  response.writeHead(statusCode, {
+  const body = Buffer.from(JSON.stringify(payload));
+  const responseHeaders = {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": API_CACHE_CONTROL,
     ...headers
-  });
-  response.end(JSON.stringify(payload));
+  };
+  sendResponseBody(response, statusCode, body, responseHeaders);
 }
 
 function sendSensitiveJson(response, statusCode, payload, headers = {}) {
@@ -498,6 +567,10 @@ function getStaticCacheControl(file) {
   return STATIC_ASSET_CACHE_CONTROL;
 }
 
+function isStaticFileCompressible(file) {
+  return COMPRESSIBLE_STATIC_EXTENSIONS.has(extname(file).toLowerCase());
+}
+
 function getRoundedModifiedTime(fileStat) {
   return Math.floor(fileStat.mtimeMs / 1000) * 1000;
 }
@@ -536,6 +609,21 @@ async function serveStaticFile({ root, pathname, request, response }) {
     return;
   }
 
+  const encoding = isStaticFileCompressible(file)
+    ? selectCompressionEncoding(request, fileStat.size)
+    : null;
+
+  if (encoding) {
+    headers["Content-Encoding"] = encoding;
+    appendVaryHeader(headers, "Accept-Encoding");
+    response.writeHead(200, headers);
+
+    const compressor = createCompressionStream(encoding);
+    createReadStream(file).pipe(compressor).pipe(response);
+    return;
+  }
+
+  headers["Content-Length"] = fileStat.size;
   response.writeHead(200, headers);
   createReadStream(file).pipe(response);
 }
@@ -544,6 +632,7 @@ function createRequestHandler({ root, port, database, emailService, aiService, l
   const routeHandlers = createApiRouteHandlers(database, { emailService, logger });
 
   return async function handleRequest(request, response) {
+    responseRequests.set(response, request);
     const url = new URL(request.url ?? "/", `http://localhost:${port}`);
 
     try {
