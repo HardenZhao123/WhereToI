@@ -438,6 +438,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     const frame = document.createElement("div");
     frame.className = "visual-feedback-image-frame";
+    frame.dataset.cleanliness = String(normaliseVisualCleanlinessLevel(entry.level));
 
     const image = document.createElement("img");
     image.className = "visual-feedback-image";

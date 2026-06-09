@@ -1711,10 +1711,6 @@ mark {
   transition: opacity 140ms ease;
 }
 
-.visual-preview-card[data-cleanliness="1"] {
-  background: linear-gradient(180deg, #fff3de 0%, #e8dfcf 100%);
-}
-
 .visual-preview-card[data-cleanliness="1"] .toilet-dirt {
   opacity: 1;
 }
@@ -1921,10 +1917,6 @@ mark {
   border-radius: 999px;
   background: #7b5b37;
   opacity: 0.35;
-}
-
-.visual-feedback-thumbnail[data-cleanliness="1"] {
-  background: #f0e1cd;
 }
 
 .visual-feedback-thumbnail[data-cleanliness="1"] .visual-thumbnail-dirt {
