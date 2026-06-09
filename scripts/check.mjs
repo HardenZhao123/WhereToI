@@ -139,7 +139,9 @@ if (!html.includes("feature-filters") || !html.includes("toilet-results") || !js
 }
 
 if (
-  !html.includes("data-detail-section=\"features\"") ||
+  !html.includes("data-detail-section=\"overview\"") ||
+  !html.includes("data-detail-panel=\"overview\"") ||
+  !html.includes("overview-features-disclosure") ||
   !html.includes("data-detail-panel=\"survey\"") ||
   !js.includes("setDetailSection") ||
   !css.includes(".details-section-link")
