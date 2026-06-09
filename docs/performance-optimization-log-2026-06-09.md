@@ -59,7 +59,7 @@ These percentages record relative implementation and verification time in this s
 | Toilet detail client cache | 9% |
 | Measurement, reporting notes, and final verification | 5% |
 
-## Verification Run During Implementation
+## Verification Run During Implementation And Final Check
 
 - `npm.cmd run check`
 - `npm.cmd test -- test/app-initialize.test.mjs test/toilets-service.test.mjs`
@@ -68,4 +68,9 @@ These percentages record relative implementation and verification time in this s
 - `npm.cmd test -- test/toilets-service.test.mjs`
 - `npm.cmd run build`
 
-Final full-suite verification should still be run before push or merge.
+Final full-suite verification after all commits also passed:
+
+- `npm.cmd run check`
+- `npm.cmd test` - 65 tests passed
+- `npm.cmd run build`
+- `npm.cmd run check:e2e`
