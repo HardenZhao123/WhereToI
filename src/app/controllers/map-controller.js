@@ -108,16 +108,16 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   const surveyStorageKey = "wheretoi-map-cleanliness-survey";
   const visualFeedbackStorageKey = "wheretoi-visual-cleanliness-feedback";
   const visualCleanlinessLevels = new Map([
-    [0.5, { label: "Extremely dirty", tone: "Avoid at all costs", images: { toilet: "toilet_levels/level_05.png", urinal: "toilet_levels/level_05_urinal.png" } }],
-    [1, { label: "Very dirty", tone: "Needs a serious clean", images: { toilet: "toilet_levels/level_1.jpeg", urinal: "toilet_levels/level_1_urinal.png" } }],
-    [1.5, { label: "Dirty & Messy", tone: "Quite unpleasant", images: { toilet: "toilet_levels/level_15.jpeg", urinal: "toilet_levels/level_15_urinal.png" } }],
-    [2, { label: "Dirty", tone: "Use only if needed", images: { toilet: "toilet_levels/level_2.jpeg", urinal: "toilet_levels/level_2_urinal.png" } }],
-    [2.5, { label: "Below average", tone: "Could be better", images: { toilet: "toilet_levels/level_25.jpeg", urinal: "toilet_levels/level_25_urinal.png" } }],
-    [3, { label: "OK", tone: "Usable but not spotless", images: { toilet: "toilet_levels/level_3.png", urinal: "toilet_levels/level_3_urinal.png" } }],
-    [3.5, { label: "Above average", tone: "Decent condition", images: { toilet: "toilet_levels/level_35.png", urinal: "toilet_levels/level_35_urinal.png" } }],
-    [4, { label: "Clean", tone: "Comfortable to use", images: { toilet: "toilet_levels/level_4.png", urinal: "toilet_levels/level_4_urinal.png" } }],
-    [4.5, { label: "Very clean", tone: "Almost spotless", images: { toilet: "toilet_levels/level_45.png", urinal: "toilet_levels/level_45_urinal.png" } }],
-    [5, { label: "Excellent", tone: "Fresh and well kept", images: { toilet: "toilet_levels/level_5.png", urinal: "toilet_levels/level_5_urinal.png" } }]
+    [0.5, { label: "Extremely dirty", tone: "Avoid at all costs", images: { toilet: "toilet_levels/level_05_small.jpg", urinal: "toilet_levels/level_05_urinal.png" } }],
+    [1, { label: "Very dirty", tone: "Needs a serious clean", images: { toilet: "toilet_levels/level_1_small.jpg", urinal: "toilet_levels/level_1_urinal.png" } }],
+    [1.5, { label: "Dirty & Messy", tone: "Quite unpleasant", images: { toilet: "toilet_levels/level_15_small.jpg", urinal: "toilet_levels/level_15_urinal.png" } }],
+    [2, { label: "Dirty", tone: "Use only if needed", images: { toilet: "toilet_levels/level_2_small.jpg", urinal: "toilet_levels/level_2_urinal.png" } }],
+    [2.5, { label: "Below average", tone: "Could be better", images: { toilet: "toilet_levels/level_25_small.jpg", urinal: "toilet_levels/level_25_urinal.png" } }],
+    [3, { label: "OK", tone: "Usable but not spotless", images: { toilet: "toilet_levels/level_3_small.jpg", urinal: "toilet_levels/level_3_urinal.png" } }],
+    [3.5, { label: "Above average", tone: "Decent condition", images: { toilet: "toilet_levels/level_35_small.jpg", urinal: "toilet_levels/level_35_urinal.png" } }],
+    [4, { label: "Clean", tone: "Comfortable to use", images: { toilet: "toilet_levels/level_4_small.jpg", urinal: "toilet_levels/level_4_urinal.png" } }],
+    [4.5, { label: "Very clean", tone: "Almost spotless", images: { toilet: "toilet_levels/level_45_small.jpg", urinal: "toilet_levels/level_45_urinal.png" } }],
+    [5, { label: "Excellent", tone: "Fresh and well kept", images: { toilet: "toilet_levels/level_5_small.jpg", urinal: "toilet_levels/level_5_urinal.png" } }]
   ]);
 
   let allToilets = [];

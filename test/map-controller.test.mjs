@@ -316,7 +316,7 @@ test("map controller uses urinal preview images for urinal-only toilets", async 
     controller.setToilets([urinalToilet]);
     await controller.setToilet(urinalToilet.id, { fly: false });
 
-    assert.equal(overviewVisualImage.src, "toilet_levels/level_3.png");
+    assert.equal(overviewVisualImage.src, "toilet_levels/level_3_small.jpg");
     assert.equal(overviewVisualImage.alt, "Toilet cleanliness preview: OK");
     assert.equal(overviewVisualPreview.attributes["aria-label"], "Cartoon toilet cleanliness preview: OK");
     assert.equal(overviewSvgClassList.contains("is-hidden"), true);
@@ -338,7 +338,7 @@ test("map controller uses urinal preview images for urinal-only toilets", async 
 
     controller.setVisualCleanlinessLevel(5);
 
-    assert.equal(overviewVisualImage.src, "toilet_levels/level_5.png");
+    assert.equal(overviewVisualImage.src, "toilet_levels/level_5_small.jpg");
     assert.equal(overviewUrinalImage.src, "toilet_levels/level_5_urinal.png");
     assert.equal(overviewUrinalState.textContent, "Excellent - Fresh and well kept");
     assert.equal(visualCleanlinessImage.src, "toilet_levels/level_5_urinal.png");
@@ -425,7 +425,7 @@ test("map controller opens urinal visual rating from the urinal preview", async 
     await controller.setToilet("test-toilet", { fly: false });
 
     assert.equal(overviewUrinalImage.src, "toilet_levels/level_3_urinal.png");
-    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3.png");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_small.jpg");
     assert.equal(visualCleanlinessImage.alt, "Toilet cleanliness preview: OK");
 
     controller.openVisualFeedback("urinal");
@@ -514,7 +514,7 @@ test("map controller shows the urinal overview preview for men's toilets", async
     assert.equal(overviewUrinalImage.alt, "Urinal cleanliness preview: OK");
     assert.equal(overviewUrinalSvgClassList.contains("is-hidden"), true);
 
-    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3.png");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_small.jpg");
     assert.equal(visualFeedbackSubtitle.textContent, "Match the toilet picture to what you saw.");
   } finally {
     globalThis.document = originalDocument;
