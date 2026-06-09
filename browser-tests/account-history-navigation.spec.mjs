@@ -201,9 +201,6 @@ test("toilet detail close button stays clickable after detail card scrolls", asy
   await expect(detailsCard).toBeVisible();
   await expect(closeButton).toBeVisible();
 
-  const initialButtonBox = await closeButton.boundingBox();
-  expect(initialButtonBox).toBeTruthy();
-
   await detailsCard.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
@@ -211,11 +208,15 @@ test("toilet detail close button stays clickable after detail card scrolls", asy
 
   const scrolledButtonBox = await closeButton.boundingBox();
   const detailsBox = await detailsCard.boundingBox();
+  const titleBox = await page.locator("#toilet-name").boundingBox();
   expect(scrolledButtonBox).toBeTruthy();
   expect(detailsBox).toBeTruthy();
+  expect(titleBox).toBeTruthy();
   expect(scrolledButtonBox.y).toBeGreaterThanOrEqual(detailsBox.y);
   expect(scrolledButtonBox.y).toBeLessThan(detailsBox.y + 72);
-  expect(Math.abs(scrolledButtonBox.y - initialButtonBox.y)).toBeLessThanOrEqual(8);
+  expect(scrolledButtonBox.x + scrolledButtonBox.width).toBeLessThanOrEqual(detailsBox.x + detailsBox.width);
+  expect(scrolledButtonBox.x + scrolledButtonBox.width).toBeGreaterThan(detailsBox.x + detailsBox.width - 48);
+  expect(titleBox.y + titleBox.height).toBeLessThanOrEqual(detailsBox.y);
 
   const afterScrollScreenshotPath = testInfo.outputPath("sticky-detail-close-after-scroll.png");
   await page.screenshot({ path: afterScrollScreenshotPath, fullPage: false });
