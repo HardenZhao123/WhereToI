@@ -46,6 +46,18 @@ test("API exposes health and expanded toilet feature details", async () => {
   });
 });
 
+test("API exposes toilet details on demand", async () => {
+  await withAppServer(async (baseUrl) => {
+    const toiletId = "detail-test";
+    const { payload: detailPayload } = await fetchJson(`${baseUrl}/api/toilets/detail?toiletId=${toiletId}`);
+
+    assert.equal(detailPayload.toilet.id, toiletId);
+    assert.equal(detailPayload.toilet.features.children, "Y");
+    assert.equal(detailPayload.toilet.comment, "Comment: Muslim toilet available");
+    assert.deepEqual(detailPayload.toilet.openingTimes, [["09:00", "17:00"], [], [], [], [], [], []]);
+  });
+});
+
 test("API preserves accessible filtering and access-history write behavior", async () => {
   await withAppServer(async (baseUrl) => {
     const { payload: accessiblePayload } = await fetchJson(`${baseUrl}/api/toilets?accessibleOnly=true`);

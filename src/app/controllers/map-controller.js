@@ -1,12 +1,11 @@
 import { appConfig } from "../config/app-config.js";
 import {
-  deleteComment as deleteCommentRequest,
   fetchAiSummary,
-  fetchComments,
+  fetchToiletDetail,
   submitCleanlinessSurvey,
-  submitComment,
-  toggleCommentLike as toggleCommentLikeRequest
+  submitComment
 } from "../services/toilets-service.js";
+import { createFeedbackThreadController } from "./feedback-thread-controller.js";
 import {
   formatCleanlinessRating,
   formatCleanlinessRatingCount,
@@ -14,11 +13,13 @@ import {
   getCleanlinessStars
 } from "../utils/cleanliness.js";
 import {
-  commentFilterKeys,
-  filterAndSortComments,
-  getCommentMediaAttachments,
-  normaliseCommentSortMode
-} from "../utils/comments.js";
+  addCommentMediaFiles,
+  clearCommentMediaSelections,
+  formatCommentMediaSize,
+  getCommentMediaStatus,
+  readCommentMediaAttachments,
+  removeCommentMediaSelectionById
+} from "../utils/comment-media.js";
 import { distanceInMetres, formatDistance } from "../utils/geo.js";
 
 const featureFilterOptions = [
@@ -37,11 +38,6 @@ const featureFilterOptions = [
 
 const sortModes = new Set(["distance", "cleanliness", "free", "facilities"]);
 const resultRenderLimit = 8;
-const commentMediaMaxBytes = 8 * 1024 * 1024;
-const commentMediaMaxAttachments = 9;
-const commentMediaMaxImages = 9;
-const commentMediaMaxVideos = 3;
-const commentCacheTtlMs = 60 * 1000;
 const locateActiveCenterToleranceMetres = 20;
 const defaultCleanlinessRange = "3days";
 
@@ -75,6 +71,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentMediaStatus,
     visualFeedbackToggle,
     visualFeedbackPanel,
+    overviewVisualPreview,
+    overviewVisualImage,
+    overviewVisualState,
     visualCleanlinessPreview,
     visualCleanlinessImage,
     visualCleanlinessSlider,
@@ -136,15 +135,24 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let selectedCommentMedia = [];
   let visualCleanlinessLevel = 3;
   let visualFeedbackEntriesByToiletId = loadVisualFeedbackEntries();
-  let currentComments = [];
-  let currentDetailSection = "features";
-  let commentSortMode = "newest";
-  let selectedCommentFilters = new Set();
-  let pendingFocusedCommentId = null;
-  let commentsCacheByToiletId = new Map();
-  let commentRequestsByToiletId = new Map();
+  let currentDetailSection = "overview";
 
-  document.addEventListener("click", closeOpenCommentMenus);
+  const feedbackThreadController = createFeedbackThreadController(
+    {
+      commentsList,
+      commentsSummary,
+      commentSortSelect,
+      commentFilterInputs
+    },
+    {
+      getSelectedToilet: () => selectedToilet,
+      isAuthenticated,
+      showLoginPrompt,
+      onPublicProfileSelected
+    }
+  );
+
+  document.addEventListener("click", feedbackThreadController.closeOpenCommentMenus);
 
   function loadSurveyAnswers() {
     try {
@@ -370,33 +378,48 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function updateVisualCleanlinessPreview() {
-    const level = getVisualCleanlinessLevel();
+  function renderVisualPreview(preview, state, level, { image = null, showImage = false } = {}) {
+    if (preview) {
+      preview.dataset.cleanliness = String(level.value);
+      preview.setAttribute("aria-label", `Cartoon toilet cleanliness preview: ${level.label}`);
 
-    if (visualCleanlinessPreview) {
-      visualCleanlinessPreview.dataset.cleanliness = String(level.value);
-      visualCleanlinessPreview.setAttribute(
-        "aria-label",
-        `Cartoon toilet cleanliness preview: ${level.label}`
-      );
+      const cartoonSvg = preview.querySelector(".cartoon-toilet-svg");
+      const shouldShowImage = Boolean(showImage && image && level.image);
 
-      const cartoonSvg = visualCleanlinessPreview.querySelector(".cartoon-toilet-svg");
-      if (visualCleanlinessImage && level.image) {
-        visualCleanlinessImage.src = level.image;
-        visualCleanlinessImage.classList.remove("is-hidden");
-        if (cartoonSvg) cartoonSvg.classList.add("is-hidden");
-      } else if (cartoonSvg) {
-        cartoonSvg.classList.remove("is-hidden");
-        if (visualCleanlinessImage) visualCleanlinessImage.classList.add("is-hidden");
+      if (image) {
+        if (shouldShowImage) {
+          image.src = level.image;
+          image.classList.remove("is-hidden");
+        } else {
+          image.src = "";
+          image.classList.add("is-hidden");
+        }
+      }
+
+      if (cartoonSvg) {
+        cartoonSvg.classList.toggle("is-hidden", shouldShowImage);
       }
     }
 
+    if (state) {
+      state.textContent = `${level.label} - ${level.tone}`;
+    }
+  }
+
+  function updateVisualCleanlinessPreview() {
+    const level = getVisualCleanlinessLevel();
+
+    renderVisualPreview(overviewVisualPreview, overviewVisualState, level, {
+      image: overviewVisualImage,
+      showImage: true
+    });
+    renderVisualPreview(visualCleanlinessPreview, visualCleanlinessState, level, {
+      image: visualCleanlinessImage,
+      showImage: true
+    });
+
     if (visualCleanlinessSlider) {
       visualCleanlinessSlider.value = String(level.value);
-    }
-
-    if (visualCleanlinessState) {
-      visualCleanlinessState.textContent = `${level.label} - ${level.tone}`;
     }
   }
 
@@ -550,41 +573,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     });
   }
 
-  function getCommentMediaType(file) {
-    if (!file?.type) return null;
-    if (file.type.startsWith("image/")) return "image";
-    if (file.type.startsWith("video/")) return "video";
-    return null;
-  }
-
-  function formatMediaSize(bytes) {
-    if (!Number.isFinite(bytes) || bytes <= 0) return "";
-    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  }
-
-  function getSelectedCommentMediaCounts() {
-    return selectedCommentMedia.reduce(
-      (counts, media) => {
-        counts.total += 1;
-        if (media.type === "image") counts.images += 1;
-        if (media.type === "video") counts.videos += 1;
-        return counts;
-      },
-      { total: 0, images: 0, videos: 0 }
-    );
-  }
-
-  function getDefaultMediaStatus() {
-    const counts = getSelectedCommentMediaCounts();
-    if (counts.total === 0) {
-      return "Up to 9 attachments total, including up to 3 videos.";
-    }
-
-    return `${counts.total}/9 attachments selected. Images ${counts.images}/9, videos ${counts.videos}/3.`;
-  }
-
-  function setCommentMediaStatus(message = getDefaultMediaStatus()) {
+  function setCommentMediaStatus(message = getCommentMediaStatus(selectedCommentMedia)) {
     if (!commentMediaStatus) return;
     commentMediaStatus.textContent = message;
   }
@@ -613,19 +602,19 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const removeButton = document.createElement("button");
     removeButton.className = "comment-media-remove";
     removeButton.type = "button";
-    removeButton.textContent = "×";
+    removeButton.textContent = "x";
     removeButton.setAttribute("aria-label", `Remove ${media.file.name || "attachment"}`);
     removeButton.addEventListener("click", () => removeCommentMediaSelection(media.id));
 
     const caption = document.createElement("p");
     caption.className = "comment-media-caption";
-    caption.textContent = `${media.file.name || "Attachment"} ${formatMediaSize(media.file.size)}`.trim();
+    caption.textContent = `${media.file.name || "Attachment"} ${formatCommentMediaSize(media.file.size)}`.trim();
 
     item.append(frame, removeButton, caption);
     return item;
   }
 
-  function renderCommentMediaPreview(statusMessage = getDefaultMediaStatus()) {
+  function renderCommentMediaPreview(statusMessage = getCommentMediaStatus(selectedCommentMedia)) {
     if (commentMediaPreview) {
       commentMediaPreview.replaceChildren();
       selectedCommentMedia.forEach((media) => {
@@ -636,77 +625,18 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setCommentMediaStatus(statusMessage);
   }
 
-  function validateCommentMediaFile(file) {
-    const mediaType = getCommentMediaType(file);
-    if (!mediaType) {
-      return { error: `${file?.name || "This file"} is not an image or video.` };
-    }
-
-    if (file.size > commentMediaMaxBytes) {
-      return { error: `${file.name} is over 8 MB.` };
-    }
-
-    const counts = getSelectedCommentMediaCounts();
-    if (counts.total >= commentMediaMaxAttachments) {
-      return { error: "You can attach up to 9 files total." };
-    }
-
-    if (mediaType === "video" && counts.videos >= commentMediaMaxVideos) {
-      return { error: "You can attach up to 3 videos." };
-    }
-
-    if (mediaType === "image" && counts.images >= commentMediaMaxImages) {
-      return { error: "You can attach up to 9 images." };
-    }
-
-    return { mediaType };
-  }
-
   function previewCommentMediaSelection() {
-    const files = Array.from(commentMediaInput?.files ?? []);
-    let statusMessage = "";
-
-    for (const file of files) {
-      const { mediaType, error } = validateCommentMediaFile(file);
-      if (error) {
-        statusMessage = error;
-        continue;
-      }
-
-      selectedCommentMedia.push({
-        id: `comment-media-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        file,
-        type: mediaType,
-        previewUrl: URL.createObjectURL(file)
-      });
-    }
+    const { selectedMedia, statusMessage } = addCommentMediaFiles({
+      files: commentMediaInput?.files,
+      selectedMedia: selectedCommentMedia
+    });
+    selectedCommentMedia = selectedMedia;
 
     if (commentMediaInput) {
       commentMediaInput.value = "";
     }
 
-    renderCommentMediaPreview(statusMessage || getDefaultMediaStatus());
-  }
-
-  function readFileAsDataUrl(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
-      reader.addEventListener("error", () => reject(new Error("Could not read selected file.")));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function readCommentMediaAttachments() {
-    return Promise.all(
-      selectedCommentMedia.map(async (media) => ({
-        type: media.type,
-        mimeType: media.file.type,
-        name: media.file.name,
-        size: media.file.size,
-        dataUrl: await readFileAsDataUrl(media.file)
-      }))
-    );
+    renderCommentMediaPreview(statusMessage);
   }
 
   function resetCommentMediaAttachment() {
@@ -714,419 +644,13 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       commentMediaInput.value = "";
     }
 
-    selectedCommentMedia.forEach((media) => URL.revokeObjectURL(media.previewUrl));
-    selectedCommentMedia = [];
+    selectedCommentMedia = clearCommentMediaSelections(selectedCommentMedia);
     renderCommentMediaPreview();
   }
 
   function removeCommentMediaSelection(mediaId) {
-    const media = selectedCommentMedia.find((item) => item.id === mediaId);
-    if (media) {
-      URL.revokeObjectURL(media.previewUrl);
-    }
-
-    selectedCommentMedia = selectedCommentMedia.filter((item) => item.id !== mediaId);
+    selectedCommentMedia = removeCommentMediaSelectionById(selectedCommentMedia, mediaId);
     renderCommentMediaPreview();
-  }
-
-  function createCommentMediaElement(comment) {
-    const attachments = getCommentMediaAttachments(comment);
-    if (attachments.length === 0) return null;
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "comment-media";
-
-    attachments.forEach((attachment) => {
-      const item = document.createElement("div");
-      item.className = "comment-media-item";
-
-      if (attachment.type === "image" && attachment.mimeType?.startsWith("image/")) {
-        const image = document.createElement("img");
-        image.src = attachment.dataUrl;
-        image.alt = attachment.name ? `Attached image: ${attachment.name}` : "Attached image";
-        image.loading = "lazy";
-        item.append(image);
-      }
-
-      if (attachment.type === "video" && attachment.mimeType?.startsWith("video/")) {
-        const video = document.createElement("video");
-        video.src = attachment.dataUrl;
-        video.controls = true;
-        video.preload = "metadata";
-        video.playsInline = true;
-        item.append(video);
-      }
-
-      if (item.childElementCount > 0) {
-        wrapper.append(item);
-      }
-    });
-
-    return wrapper.childElementCount > 0 ? wrapper : null;
-  }
-
-  function createCommentAuthorElement(comment) {
-    const authorName = comment.author_name || comment.username || "Anonymous";
-
-    if (!comment.is_anonymous && comment.user_id) {
-      const button = document.createElement("button");
-      button.className = "comment-author comment-author-link";
-      button.type = "button";
-      button.textContent = authorName;
-      button.setAttribute("aria-label", `View ${authorName}'s public profile`);
-      button.addEventListener("click", () => onPublicProfileSelected(comment.user_id));
-      return button;
-    }
-
-    const author = document.createElement("p");
-    author.className = "comment-author";
-    author.textContent = authorName;
-    return author;
-  }
-
-  function createCommentRatingElement(comment) {
-    const rating = Number(comment?.cleanliness_rating);
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return null;
-
-    const ratingElement = document.createElement("span");
-    ratingElement.className = "comment-rating";
-    ratingElement.setAttribute("aria-label", `Cleanliness rating ${rating} out of 5`);
-    ratingElement.textContent = `${"★".repeat(rating)}${"☆".repeat(5 - rating)}`;
-    return ratingElement;
-  }
-
-  function getCachedComments(toiletId) {
-    const cached = commentsCacheByToiletId.get(toiletId);
-    if (!cached) return null;
-
-    if (Date.now() - cached.loadedAt > commentCacheTtlMs || cached.authenticated !== isAuthenticated()) {
-      commentsCacheByToiletId = new Map(commentsCacheByToiletId);
-      commentsCacheByToiletId.delete(toiletId);
-      return null;
-    }
-
-    return cached.comments;
-  }
-
-  function cacheComments(toiletId, comments) {
-    if (!toiletId || !Array.isArray(comments)) return;
-
-    commentsCacheByToiletId = new Map(commentsCacheByToiletId);
-    commentsCacheByToiletId.set(toiletId, {
-      comments: [...comments],
-      loadedAt: Date.now(),
-      authenticated: isAuthenticated()
-    });
-  }
-
-  function renderCommentsPlaceholder(message) {
-    currentComments = [];
-    updateCommentsSummary(0, 0);
-
-    if (!commentsList) return;
-
-    commentsList.replaceChildren();
-    const placeholder = document.createElement("p");
-    placeholder.textContent = message;
-    commentsList.append(placeholder);
-  }
-
-  function renderComments(comments, { cache = true, toiletId = selectedToilet?.id } = {}) {
-    currentComments = Array.isArray(comments) ? [...comments] : [];
-    if (cache && toiletId) {
-      cacheComments(toiletId, currentComments);
-    }
-    renderCommentList();
-  }
-
-  function resetCommentsForToilet(toiletId) {
-    const cachedComments = getCachedComments(toiletId);
-    if (cachedComments) {
-      renderComments(cachedComments, { cache: false, toiletId });
-      return;
-    }
-
-    renderCommentsPlaceholder("Open Feedback to load comments.");
-  }
-
-  async function ensureCommentsLoaded(toiletId, { force = false } = {}) {
-    if (!toiletId || !commentsList) return [];
-
-    if (!force) {
-      const cachedComments = getCachedComments(toiletId);
-      if (cachedComments) {
-        if (selectedToilet?.id === toiletId) {
-          renderComments(cachedComments, { cache: false, toiletId });
-        }
-        return cachedComments;
-      }
-    }
-
-    const existingRequest = commentRequestsByToiletId.get(toiletId);
-    if (existingRequest) return existingRequest;
-
-    if (selectedToilet?.id === toiletId) {
-      renderCommentsPlaceholder("Loading feedback...");
-    }
-
-    const request = fetchComments(toiletId)
-      .then((comments) => {
-        cacheComments(toiletId, comments);
-        if (selectedToilet?.id === toiletId) {
-          renderComments(comments, { cache: false, toiletId });
-        }
-        return comments;
-      })
-      .catch((error) => {
-        console.error("Failed to fetch feedback:", error);
-        if (selectedToilet?.id === toiletId && currentDetailSection === "comment") {
-          renderCommentsPlaceholder("Could not load feedback.");
-        }
-        return [];
-      })
-      .finally(() => {
-        commentRequestsByToiletId = new Map(commentRequestsByToiletId);
-        commentRequestsByToiletId.delete(toiletId);
-      });
-
-    commentRequestsByToiletId = new Map(commentRequestsByToiletId);
-    commentRequestsByToiletId.set(toiletId, request);
-    return request;
-  }
-
-  function updateCommentsSummary(totalCount, visibleCount) {
-    if (!commentsSummary) return;
-
-    const sortLabel = commentSortSelect?.selectedOptions?.[0]?.textContent ?? "Newest";
-    const countLabel =
-      selectedCommentFilters.size > 0
-        ? `${visibleCount} of ${totalCount} feedback`
-        : `${totalCount} feedback`;
-    commentsSummary.textContent = `${countLabel} - ${sortLabel}`;
-  }
-
-  function renderCommentList() {
-    const visibleComments = filterAndSortComments(currentComments, {
-      sortMode: commentSortMode,
-      filters: selectedCommentFilters
-    });
-    updateCommentsSummary(currentComments.length, visibleComments.length);
-
-    if (!commentsList) return;
-
-    commentsList.replaceChildren();
-
-    if (currentComments.length === 0) {
-      const empty = document.createElement("p");
-      empty.textContent = "No feedback yet.";
-      commentsList.append(empty);
-      return;
-    }
-
-    if (visibleComments.length === 0) {
-      const empty = document.createElement("p");
-      empty.textContent = "No feedback matches the selected tags.";
-      commentsList.append(empty);
-      return;
-    }
-
-    visibleComments.forEach((comment) => {
-      const item = document.createElement("div");
-      item.className = "comment-item";
-      item.dataset.commentId = String(comment.id);
-      if (pendingFocusedCommentId === Number(comment.id)) {
-        item.classList.add("is-highlighted");
-      }
-
-      const header = document.createElement("div");
-      header.className = "comment-header";
-
-      const authorLine = document.createElement("div");
-      authorLine.className = "comment-author-line";
-      const author = createCommentAuthorElement(comment);
-      const rating = createCommentRatingElement(comment);
-
-      authorLine.append(author);
-      if (rating) authorLine.append(rating);
-
-      header.append(authorLine);
-      header.append(createCommentActions(comment));
-
-      const text = document.createElement("p");
-      text.className = "comment-text";
-      text.textContent = comment.comment_text;
-
-      const media = createCommentMediaElement(comment);
-
-      const date = document.createElement("p");
-      date.className = "comment-date";
-      date.textContent = new Date(comment.created_at).toLocaleString();
-
-      item.append(header);
-      item.append(text);
-      if (media) item.append(media);
-      item.append(date);
-      commentsList.append(item);
-    });
-
-    focusPendingComment();
-  }
-
-  function focusPendingComment() {
-    if (!commentsList || pendingFocusedCommentId === null) return;
-
-    const target = commentsList.querySelector(`[data-comment-id="${pendingFocusedCommentId}"]`);
-    if (!target) return;
-
-    target.scrollIntoView({ block: "center", behavior: "smooth" });
-    target.classList.add("is-highlighted");
-    window.setTimeout(() => target.classList.remove("is-highlighted"), 2400);
-    pendingFocusedCommentId = null;
-  }
-
-  function setCommentSortMode(nextSortMode) {
-    commentSortMode = normaliseCommentSortMode(nextSortMode);
-    renderCommentList();
-  }
-
-  function setCommentFilter(filterKey, checked) {
-    if (!commentFilterKeys.has(filterKey)) return;
-
-    selectedCommentFilters = new Set(selectedCommentFilters);
-    if (checked) {
-      selectedCommentFilters.add(filterKey);
-    } else {
-      selectedCommentFilters.delete(filterKey);
-    }
-
-    renderCommentList();
-  }
-
-  function closeOpenCommentMenus() {
-    commentsList?.querySelectorAll(".comment-menu").forEach((menu) => {
-      menu.hidden = true;
-    });
-
-    commentsList?.querySelectorAll(".comment-menu-button").forEach((button) => {
-      button.setAttribute("aria-expanded", "false");
-    });
-  }
-
-  function createCommentActions(comment) {
-    const actions = document.createElement("div");
-    actions.className = "comment-actions";
-
-    const likeButton = document.createElement("button");
-    likeButton.className = "comment-like-button";
-    likeButton.type = "button";
-    likeButton.setAttribute("aria-label", comment.viewer_has_liked ? "Unlike feedback" : "Like feedback");
-    likeButton.setAttribute("aria-pressed", comment.viewer_has_liked ? "true" : "false");
-    likeButton.classList.toggle("is-liked", Boolean(comment.viewer_has_liked));
-
-    const likeIcon = document.createElement("span");
-    likeIcon.className = "comment-like-icon";
-    likeIcon.textContent = "\u{1F44D}";
-
-    const likeCount = document.createElement("span");
-    likeCount.className = "comment-like-count";
-    likeCount.textContent = String(comment.like_count ?? 0);
-
-    likeButton.append(likeIcon, likeCount);
-    likeButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      toggleCommentLike(comment, likeButton);
-    });
-
-    actions.append(likeButton);
-
-    if (!comment.can_delete) {
-      return actions;
-    }
-
-    const menuButton = document.createElement("button");
-    menuButton.className = "comment-menu-button";
-    menuButton.type = "button";
-    menuButton.textContent = "...";
-    menuButton.setAttribute("aria-label", "Feedback options");
-    menuButton.setAttribute("aria-haspopup", "menu");
-    menuButton.setAttribute("aria-expanded", "false");
-
-    const menu = document.createElement("div");
-    menu.className = "comment-menu";
-    menu.hidden = true;
-    menu.setAttribute("role", "menu");
-
-    const deleteButton = document.createElement("button");
-    deleteButton.className = "comment-delete-button";
-    deleteButton.type = "button";
-    deleteButton.textContent = "Delete";
-    deleteButton.setAttribute("role", "menuitem");
-    deleteButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      deleteOwnComment(comment);
-    });
-
-    menuButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const shouldOpen = menu.hidden;
-      closeOpenCommentMenus();
-      menu.hidden = !shouldOpen;
-      menuButton.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
-    });
-
-    menu.append(deleteButton);
-    actions.append(menuButton, menu);
-    return actions;
-  }
-
-  async function toggleCommentLike(comment, button) {
-    if (!selectedToilet || !comment?.id) return;
-    closeOpenCommentMenus();
-
-    if (!isAuthenticated()) {
-      showLoginPrompt("Log in to like feedback.");
-      return;
-    }
-
-    if (button) {
-      button.disabled = true;
-    }
-
-    try {
-      const updatedComments = await toggleCommentLikeRequest(selectedToilet.id, comment.id);
-      renderComments(updatedComments);
-    } catch (error) {
-      console.error("Failed to like feedback:", error);
-      if (error.status === 401) {
-        showLoginPrompt("Log in to like feedback.");
-        return;
-      }
-      alert(error?.message || "Could not update like. Please try again later.");
-    } finally {
-      if (button) {
-        button.disabled = false;
-      }
-    }
-  }
-
-  async function deleteOwnComment(comment) {
-    if (!selectedToilet || !comment?.id) return;
-    closeOpenCommentMenus();
-
-    const confirmed = window.confirm("Delete this feedback?");
-    if (!confirmed) return;
-
-    try {
-      const updatedComments = await deleteCommentRequest(selectedToilet.id, comment.id);
-      renderComments(updatedComments);
-    } catch (error) {
-      console.error("Failed to delete comment:", error);
-      if (error.status === 401) {
-        showLoginPrompt("Log in to delete feedback.");
-        return;
-      }
-      alert(error?.message || "Could not delete feedback. Please try again later.");
-    }
   }
 
   function getCommentVisibility() {
@@ -1237,9 +761,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentInput.setSelectionRange?.(commentInput.value.length, commentInput.value.length);
   }
 
-  function setDetailSection(sectionName = "features") {
+  function setDetailSection(sectionName = "overview", { loadComments = true } = {}) {
     const hasPanel = [...detailPanels].some((panel) => panel.dataset.detailPanel === sectionName);
-    const nextSection = hasPanel ? sectionName : "features";
+    const nextSection = hasPanel ? sectionName : "overview";
 
     detailSectionLinks.forEach((link) => {
       const isActive = link.dataset.detailSection === nextSection;
@@ -1254,8 +778,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     });
 
     currentDetailSection = nextSection;
-    if (nextSection === "comment" && selectedToilet) {
-      ensureCommentsLoaded(selectedToilet.id, { force: pendingFocusedCommentId !== null });
+    if (loadComments && nextSection === "comment" && selectedToilet) {
+      feedbackThreadController.loadComments(selectedToilet);
     }
   }
 
@@ -1411,8 +935,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       if (selectedToilet?.id === toilet.id) {
         button.classList.add("is-selected");
       }
-      button.addEventListener("click", () => {
-        setToilet(toilet.id);
+      button.addEventListener("click", async () => {
+        await setToilet(toilet.id);
         collapseSearchPanel();
       });
 
@@ -1516,21 +1040,35 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "features", focusCommentId = null } = {}) {
-    const toilet = allToilets.find((item) => item.id === toiletId);
+  async function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "overview", focusCommentId = null } = {}) {
+    let toilet = allToilets.find((item) => item.id === toiletId);
     if (!toilet) return false;
+
+    // If the toilet record is missing detail fields (like the detailed comment or actual opening hours), fetch full details
+    if (toilet && (typeof toilet.comment === "undefined" || toilet.comment === null || !toilet.hours || toilet.hours.today.includes("Closed"))) {
+      try {
+        const fullDetails = await fetchToiletDetail(toiletId);
+        if (fullDetails) {
+          // Update the local record with full details
+          toilet = { ...toilet, ...fullDetails };
+          allToilets = allToilets.map(t => t.id === toiletId ? toilet : t);
+        }
+      } catch (error) {
+        console.warn("Failed to fetch toilet details from API:", error);
+      }
+    }
 
     selectedToilet = toilet;
     selectedRating = null;
-    const focusId = Number(focusCommentId);
-    pendingFocusedCommentId = Number.isInteger(focusId) && focusId > 0 ? focusId : null;
     closeCommentComposer();
     closeVisualFeedback();
     setCommentComposerAvailable(true);
-    resetCommentsForToilet(toilet.id);
+    feedbackThreadController.resetCommentsForToilet(toilet);
 
-    if (defaultSection) {
-      setDetailSection(defaultSection);
+    // Only switch the section if a specific one was requested (e.g. from search or history)
+    // Otherwise, keep the current active section to prevent it jumping back to 'overview'
+    if (arguments[1]?.defaultSection) {
+      setDetailSection(defaultSection, { loadComments: false });
     }
 
     detailsCard?.classList.remove("is-hidden");
@@ -1571,6 +1109,13 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     resetVisualFeedbackForm();
     renderVisualFeedbackDiscussion();
 
+    if (currentDetailSection === "comment" || focusCommentId !== null) {
+      await feedbackThreadController.loadComments(toilet, {
+        focusCommentId,
+        force: focusCommentId !== null
+      });
+    }
+
     if (fly) {
       const marker = markerById.get(toilet.id);
       if (marker && map) {
@@ -1604,17 +1149,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function openCommentThread(toiletId, commentId) {
-    selectedCommentFilters = new Set();
-    commentFilterInputs.forEach((input) => {
-      input.checked = false;
-    });
-    commentSortMode = "newest";
-    if (commentSortSelect) {
-      commentSortSelect.value = "newest";
-    }
+  async function openCommentThread(toiletId, commentId) {
+    feedbackThreadController.resetCommentControls();
 
-    const opened = setToilet(toiletId, {
+    const opened = await setToilet(toiletId, {
       defaultSection: "comment",
       focusCommentId: commentId
     });
@@ -1654,7 +1192,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         title: `${toilet.name}, ${toilet.area}`
       });
 
-      marker.on("click", () => setToilet(toilet.id));
+      marker.on("click", async () => await setToilet(toilet.id));
       marker.addTo(markersLayer);
       markerById.set(toilet.id, marker);
     });
@@ -2171,7 +1709,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         return;
       }
 
-      const media = await readCommentMediaAttachments();
+      const media = await readCommentMediaAttachments(selectedCommentMedia);
       const commentVisibility = getCommentVisibility();
       const result = await submitComment(
         selectedToilet.id,
@@ -2181,7 +1719,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         feedbackRating
       );
       await applySavedCleanlinessResult(result, feedbackRating);
-      renderComments(result.comments);
+      feedbackThreadController.renderComments(result.comments);
       commentInput.value = "";
       selectedRating = null;
       resetCommentMediaAttachment();
@@ -2226,8 +1764,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     answerCleanlinessSurvey,
     postComment,
     getAiSummary,
-    setCommentSortMode,
-    setCommentFilter,
+    setCommentSortMode: feedbackThreadController.setCommentSortMode,
+    setCommentFilter: feedbackThreadController.setCommentFilter,
     toggleCommentComposer,
     closeCommentComposer,
     toggleVisualFeedback,

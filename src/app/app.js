@@ -47,13 +47,13 @@ export function createApp() {
     elements,
     (user, enabled) => mapController.applyProfilePreferences(user, enabled),
     {
-      onCommentSelected: ({ toiletId, commentId }) => {
+      onCommentSelected: async ({ toiletId, commentId }) => {
         tabController?.setTab("map");
-        mapController.openCommentThread(toiletId, commentId);
+        await mapController.openCommentThread(toiletId, commentId);
       },
-      onAccessHistorySelected: ({ toiletId }) => {
+      onAccessHistorySelected: async ({ toiletId }) => {
         tabController?.setTab("map");
-        const opened = mapController.setToilet(toiletId);
+        const opened = await mapController.setToilet(toiletId);
         if (!opened) {
           mapController.setStatus("Could not find that toilet in the current map data.");
         }
@@ -103,7 +103,7 @@ export function createApp() {
     return activeSectionLink?.dataset.detailSection ?? null;
   }
 
-  function setLoadedToilets(
+  async function setLoadedToilets(
     toilets,
     {
       currentSelectedId = null,
@@ -124,7 +124,7 @@ export function createApp() {
     mapController.setToilets(sorted, { hideDetails, cleanlinessRange, merge });
 
     if (currentSelectedId) {
-      mapController.setToilet(currentSelectedId, {
+      await mapController.setToilet(currentSelectedId, {
         fly: false,
         updateDistance: false,
         defaultSection: currentSection
@@ -197,7 +197,7 @@ export function createApp() {
       }
 
       if (loadedFromApi.length > 0) {
-        setLoadedToilets(loadedFromApi, {
+        await setLoadedToilets(loadedFromApi, {
           currentSelectedId,
           currentSection,
           hideDetails: !currentSelectedId,
@@ -228,7 +228,7 @@ export function createApp() {
           return;
         }
 
-        setLoadedToilets(localData.toilets, {
+        await setLoadedToilets(localData.toilets, {
           currentSelectedId,
           currentSection,
           hideDetails: !currentSelectedId,
@@ -325,7 +325,7 @@ export function createApp() {
     // 1. Load local data immediately for instant markers
     try {
       const localData = await loadLocalToilets();
-      setLoadedToilets(localData.toilets, {
+      await setLoadedToilets(localData.toilets, {
         status: localData.status,
         merge: false
       });
@@ -350,3 +350,4 @@ export function createApp() {
     initialize
   };
 }
+

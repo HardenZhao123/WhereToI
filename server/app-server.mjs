@@ -208,6 +208,21 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 
       sendJson(response, 200, { toilets });
     },
+    "GET /api/toilets/detail": async ({ response, url }) => {
+      const toiletId = url.searchParams.get("toiletId");
+      if (!toiletId) {
+        sendJson(response, 400, { error: "toiletId is required." });
+        return;
+      }
+
+      const toilet = await database.getToiletById(toiletId);
+      if (!toilet) {
+        sendJson(response, 404, { error: "Toilet not found." });
+        return;
+      }
+
+      sendJson(response, 200, { toilet });
+    },
     "GET /api/toilets/summary": async ({ request, response, url, aiService }) => {
       const toiletId = url.searchParams.get("toiletId");
       if (!toiletId) {

@@ -104,6 +104,11 @@ export async function loadToiletsFromCsv() {
   return records.map(mapRecordToToilet).filter(Boolean);
 }
 
+export async function fetchToiletDetail(toiletId) {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/toilets/detail?toiletId=${encodeURIComponent(toiletId)}`);
+  return payload.toilet;
+}
+
 export function submitCleanlinessSurvey(payload) {
   return fetchJson(`${appConfig.apiBasePath}/cleanliness-survey`, {
     method: "POST",

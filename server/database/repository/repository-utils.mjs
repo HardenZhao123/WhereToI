@@ -1,5 +1,12 @@
 import { normaliseText } from "../mapper/toilet-mapper.mjs";
 import { calculateCleanlinessScore } from "../scoring/cleanliness-scoring.mjs";
+import {
+  commentMediaMaxAttachments,
+  commentMediaMaxBytes,
+  commentMediaMaxImages,
+  commentMediaMaxVideos,
+  isSupportedCommentMediaType
+} from "../../../src/shared/comment-media-policy.js";
 
 export function normaliseSearchQuery(search) {
   return normaliseText(search).toLowerCase();
@@ -13,11 +20,6 @@ export function normaliseUserId(value) {
   return userId;
 }
 
-const COMMENT_MEDIA_MAX_BYTES = 8 * 1024 * 1024;
-const COMMENT_MEDIA_MAX_ATTACHMENTS = 9;
-const COMMENT_MEDIA_MAX_VIDEOS = 3;
-const COMMENT_MEDIA_MAX_IMAGES = 9;
-const COMMENT_MEDIA_TYPES = new Set(["image", "video"]);
 const COMMENT_MEDIA_DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
 const COMMENT_VISIBILITIES = new Set(["real", "anonymous"]);
 const COMMENT_PROFILE_VISIBILITIES = new Set(["private", "public"]);
@@ -34,7 +36,7 @@ function normaliseCommentMediaAttachment(media) {
   const mediaUrl = typeof media.dataUrl === "string" ? media.dataUrl.trim() : "";
   const dataUrlMatch = mediaUrl.match(COMMENT_MEDIA_DATA_URL_PATTERN);
 
-  if (!COMMENT_MEDIA_TYPES.has(mediaType)) {
+  if (!isSupportedCommentMediaType(mediaType)) {
     throw new Error("Unsupported comment media type.");
   }
 
@@ -52,7 +54,7 @@ function normaliseCommentMediaAttachment(media) {
     ? Math.floor(suppliedSize)
     : calculatedSize;
 
-  if (mediaSize > COMMENT_MEDIA_MAX_BYTES || calculatedSize > COMMENT_MEDIA_MAX_BYTES) {
+  if (mediaSize > commentMediaMaxBytes || calculatedSize > commentMediaMaxBytes) {
     throw new Error("comment media file is too large.");
   }
 
@@ -71,20 +73,20 @@ function normaliseCommentMedia(media = null) {
       ? []
       : Array.isArray(media) ? media : [media];
 
-  if (rawAttachments.length > COMMENT_MEDIA_MAX_ATTACHMENTS) {
-    throw new Error("comment media can include at most 9 attachments.");
+  if (rawAttachments.length > commentMediaMaxAttachments) {
+    throw new Error(`comment media can include at most ${commentMediaMaxAttachments} attachments.`);
   }
 
   const attachments = rawAttachments.map(normaliseCommentMediaAttachment);
   const videoCount = attachments.filter((attachment) => attachment.type === "video").length;
   const imageCount = attachments.filter((attachment) => attachment.type === "image").length;
 
-  if (videoCount > COMMENT_MEDIA_MAX_VIDEOS) {
-    throw new Error("comment media can include at most 3 videos.");
+  if (videoCount > commentMediaMaxVideos) {
+    throw new Error(`comment media can include at most ${commentMediaMaxVideos} videos.`);
   }
 
-  if (imageCount > COMMENT_MEDIA_MAX_IMAGES) {
-    throw new Error("comment media can include at most 9 images.");
+  if (imageCount > commentMediaMaxImages) {
+    throw new Error(`comment media can include at most ${commentMediaMaxImages} images.`);
   }
 
   const firstAttachment = attachments[0] ?? null;

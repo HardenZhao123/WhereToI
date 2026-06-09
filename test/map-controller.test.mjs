@@ -59,6 +59,28 @@ function createTextElement() {
   };
 }
 
+function createPreviewElement() {
+  const svgClassList = createRecordingClassList();
+
+  return {
+    element: {
+      dataset: {},
+      attributes: {},
+      setAttribute(name, value) {
+        this.attributes[name] = String(value);
+      },
+      querySelector(selector) {
+        if (selector === ".cartoon-toilet-svg") {
+          return { classList: svgClassList };
+        }
+
+        return null;
+      }
+    },
+    svgClassList
+  };
+}
+
 function createTestToilet() {
   return {
     id: "test-toilet",
@@ -72,6 +94,7 @@ function createTestToilet() {
       ratingTotal: 0,
       ratingCount: 0
     },
+    comment: "Test comment",
     features: {
       women: "Y",
       men: "Y",
@@ -120,13 +143,13 @@ function createMapDetailTestHarness() {
   ];
   const elementsBySelector = new Map(selectorNames.map((selector) => [selector, createTextElement()]));
 
-  const detailSectionLinks = ["features", "comment"].map((section) => {
+  const detailSectionLinks = ["overview", "comment"].map((section) => {
     const link = createTextElement();
     link.dataset = { detailSection: section };
     link.classList = createRecordingClassList();
     return link;
   });
-  const detailPanels = ["features", "comment"].map((section) => {
+  const detailPanels = ["overview", "comment"].map((section) => {
     const panel = createTextElement();
     panel.dataset = { detailPanel: section };
     panel.classList = createRecordingClassList();
@@ -154,6 +177,67 @@ function createMapDetailTestHarness() {
     }
   };
 }
+
+test("map controller keeps overview visual state synced with the current preview level", () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+
+  const { element: overviewVisualPreview, svgClassList: overviewSvgClassList } = createPreviewElement();
+  const { element: visualCleanlinessPreview, svgClassList: visualSvgClassList } = createPreviewElement();
+  const overviewVisualState = createTextElement();
+  const visualCleanlinessState = createTextElement();
+  const overviewVisualImage = {
+    src: "",
+    classList: createRecordingClassList()
+  };
+  const visualCleanlinessImage = {
+    src: "",
+    classList: createRecordingClassList()
+  };
+
+  globalThis.document = {
+    addEventListener() {},
+    querySelector() {
+      return null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const controller = createMapController({
+      overviewVisualPreview,
+      overviewVisualImage,
+      overviewVisualState,
+      visualCleanlinessPreview,
+      visualCleanlinessImage,
+      visualCleanlinessState
+    });
+
+    controller.setVisualCleanlinessLevel(4.5);
+
+    assert.equal(overviewVisualPreview.dataset.cleanliness, "4.5");
+    assert.equal(overviewVisualImage.src, "toilet_levels/level_45.png");
+    assert.equal(overviewVisualImage.classList.contains("is-hidden"), false);
+    assert.equal(overviewVisualState.textContent, "Very clean - Almost spotless");
+    assert.equal(overviewSvgClassList.contains("is-hidden"), true);
+
+    assert.equal(visualCleanlinessPreview.dataset.cleanliness, "4.5");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_45.png");
+    assert.equal(visualCleanlinessImage.classList.contains("is-hidden"), false);
+    assert.equal(visualSvgClassList.contains("is-hidden"), true);
+    assert.equal(visualCleanlinessState.textContent, "Very clean - Almost spotless");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
 
 test("map controller can hide empty details after loading toilets", () => {
   const originalDocument = globalThis.document;
@@ -248,7 +332,7 @@ test("map controller lazy-loads comments when the feedback section opens", async
     const testToilet = createTestToilet();
 
     controller.setToilets([testToilet]);
-    controller.setToilet(testToilet.id, { fly: false });
+    await controller.setToilet(testToilet.id, { fly: false });
 
     assert.equal(commentsFetchCount, 0);
     assert.equal(elements.commentsList.children[0].textContent, "Open Feedback to load comments.");
@@ -260,7 +344,7 @@ test("map controller lazy-loads comments when the feedback section opens", async
     assert.equal(elements.commentsSummary.textContent, "1 feedback - Newest");
     assert.equal(elements.commentsList.children.length, 1);
 
-    controller.setDetailSection("features");
+    controller.setDetailSection("overview");
     controller.setDetailSection("comment");
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -272,7 +356,7 @@ test("map controller lazy-loads comments when the feedback section opens", async
   }
 });
 
-test("map controller keeps submitted rating count after a stale toilet reload", () => {
+test("map controller keeps submitted rating count after a stale toilet reload", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
 
@@ -341,7 +425,7 @@ test("map controller keeps submitted rating count after a stale toilet reload", 
     });
 
     controller.setToilets([staleToilet], { hideDetails: false });
-    controller.setToilet(staleToilet.id, { fly: false });
+    await controller.setToilet(staleToilet.id, { fly: false });
 
     assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "1 rating");
   } finally {
@@ -350,7 +434,7 @@ test("map controller keeps submitted rating count after a stale toilet reload", 
   }
 });
 
-test("map controller refreshes cleanliness when the rating period changes after a local rating", () => {
+test("map controller refreshes cleanliness when the rating period changes after a local rating", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
 
@@ -409,7 +493,7 @@ test("map controller refreshes cleanliness when the rating period changes after 
 
     const threeDayToilet = createTestToilet();
     controller.setToilets([threeDayToilet], { cleanlinessRange: "3days" });
-    controller.setToilet(threeDayToilet.id, { fly: false });
+    await controller.setToilet(threeDayToilet.id, { fly: false });
     controller.updateToiletCleanliness({
       id: threeDayToilet.id,
       cleanliness: 4,
@@ -428,7 +512,7 @@ test("map controller refreshes cleanliness when the rating period changes after 
       }
     };
     controller.setToilets([oneDayToilet], { hideDetails: false, cleanlinessRange: "1day" });
-    controller.setToilet(oneDayToilet.id, { fly: false });
+    await controller.setToilet(oneDayToilet.id, { fly: false });
 
     assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "0 ratings");
     assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "0.0/5");
@@ -533,7 +617,7 @@ test("map controller patches saved cleanliness without reloading all toilets", a
     );
 
     controller.setToilets([testToilet]);
-    controller.setToilet(testToilet.id);
+    await controller.setToilet(testToilet.id);
 
     const saved = await controller.answerCleanlinessSurvey(5);
 
@@ -637,7 +721,7 @@ test("map controller patches saved cleanliness against the active rating period"
     );
 
     controller.setToilets([testToilet], { cleanlinessRange: "3days" });
-    controller.setToilet(testToilet.id, { fly: false });
+    await controller.setToilet(testToilet.id, { fly: false });
 
     const saved = await controller.answerCleanlinessSurvey(5);
 
@@ -864,7 +948,7 @@ test("map controller records access history when opening directions if authentic
 
     const testToilet = createTestToilet();
     controller.setToilets([testToilet]);
-    controller.setToilet(testToilet.id);
+    await controller.setToilet(testToilet.id);
 
     controller.openDirections();
 
@@ -949,7 +1033,7 @@ test("map controller does not record access history when opening directions if u
 
     const testToilet = createTestToilet();
     controller.setToilets([testToilet]);
-    controller.setToilet(testToilet.id);
+    await controller.setToilet(testToilet.id);
 
     controller.openDirections();
 

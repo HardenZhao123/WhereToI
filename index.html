@@ -8,6 +8,7 @@
       content="WhereToI helps people find nearby toilets and manage history and profile-based filters."
     />
     <title>WhereToI</title>
+    <link rel="icon" type="image/png" href="./src/logo.png" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -21,9 +22,12 @@
       <section class="phone" aria-label="App layout">
         <div class="screen">
           <header class="topbar">
-            <div>
-              <p class="eyebrow">WhereToI</p>
-              <h1 id="view-title">Map</h1>
+            <div class="header-branding">
+              <img src="./src/logo.png" alt="" class="app-logo" aria-hidden="true" />
+              <div>
+                <p class="eyebrow">WhereToI</p>
+                <h1 id="view-title">Map</h1>
+              </div>
             </div>
             <button class="locate-button" id="locate-button" type="button" aria-label="Find my location" aria-pressed="false">
               <svg class="locate-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -128,26 +132,43 @@
               </div>
               <div class="distance-line" id="distance-line">Enable location to see distance.</div>
               <nav class="details-section-nav" aria-label="Toilet detail sections">
-                <button class="details-section-link is-active" id="details-features-link" type="button" data-detail-section="features" aria-controls="details-features-panel" aria-selected="true">Features</button>
+                <button class="details-section-link is-active" id="details-overview-link" type="button" data-detail-section="overview" aria-controls="details-overview-panel" aria-selected="true">Overview</button>
                 <button class="details-section-link" id="details-hours-link" type="button" data-detail-section="hours" aria-controls="details-hours-panel" aria-selected="false">Opening Hours</button>
                 <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Feedback</button>
                 <button class="details-section-link" id="details-visual-link" type="button" data-detail-section="visual" aria-controls="details-visual-panel" aria-selected="false">Visual check</button>
               </nav>
               <div class="details-section-panels">
-                <section class="details-panel is-active" id="details-features-panel" data-detail-panel="features" aria-labelledby="details-features-link">
-                  <div class="features-list">
-                    <h3>Features</h3>
-                    <p>Women <strong id="feature-women">Y</strong></p>
-                    <p>Men <strong id="feature-men">Y</strong></p>
-                    <p>Accessible <strong id="feature-accessible">N</strong></p>
-                    <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
-                    <p>Children <strong id="feature-children">?</strong></p>
-                    <p>Parent &amp; Baby <strong id="feature-baby-changing">?</strong></p>
-                    <p>Bidet / Washing <strong id="feature-bidet">?</strong></p>
-                    <p>Automatic <strong id="feature-automatic">?</strong></p>
-                    <p>Urinal Only <strong id="feature-urinal-only">?</strong></p>
-                    <p>RADAR Key <strong id="feature-radar-key">?</strong></p>
-                    <p>Free <strong id="feature-free">?</strong></p>
+                <section class="details-panel is-active details-overview-panel" id="details-overview-panel" data-detail-panel="overview" aria-labelledby="details-overview-link">
+                  <div class="overview-grid">
+                    <section class="overview-visual-card" aria-labelledby="overview-visual-title">
+                      <div class="overview-visual-header">
+                        <div>
+                          <h3 id="overview-visual-title">Current visual state</h3>
+                          <p>Live cartoon preview for the selected cleanliness level.</p>
+                        </div>
+                      </div>
+                      <div class="visual-preview-card overview-visual-preview" id="overview-visual-preview" data-cleanliness="3" role="img" aria-label="Cartoon toilet cleanliness preview: OK">
+                        <img id="overview-visual-image" class="visual-cleanliness-image is-hidden" src="" alt="Real toilet cleanliness preview" />
+                      </div>
+                      <p class="visual-cleanliness-state overview-visual-state" id="overview-visual-state" aria-live="polite">OK</p>
+                    </section>
+                    <details class="overview-features-disclosure" open>
+                      <summary>Features</summary>
+                      <div class="features-list">
+                        <h3>Features</h3>
+                        <p>Women <strong id="feature-women">Y</strong></p>
+                        <p>Men <strong id="feature-men">Y</strong></p>
+                        <p>Accessible <strong id="feature-accessible">N</strong></p>
+                        <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
+                        <p>Children <strong id="feature-children">?</strong></p>
+                        <p>Parent &amp; Baby <strong id="feature-baby-changing">?</strong></p>
+                        <p>Bidet / Washing <strong id="feature-bidet">?</strong></p>
+                        <p>Automatic <strong id="feature-automatic">?</strong></p>
+                        <p>Urinal Only <strong id="feature-urinal-only">?</strong></p>
+                        <p>RADAR Key <strong id="feature-radar-key">?</strong></p>
+                        <p>Free <strong id="feature-free">?</strong></p>
+                      </div>
+                    </details>
                   </div>
                 </section>
                 <section class="details-panel" id="details-hours-panel" data-detail-panel="hours" aria-labelledby="details-hours-link" hidden>
@@ -351,9 +372,12 @@
               </section>
               <div class="account-own-view" id="account-own-view">
               <div class="account-header">
-                <div class="account-title">
-                  <p class="section-kicker" id="account-welcome">Welcome</p>
-                  <h2 id="account-username">Your Account</h2>
+                <div class="header-branding">
+                  <img src="./src/logo.png" alt="" class="app-logo" aria-hidden="true" />
+                  <div class="account-title">
+                    <p class="section-kicker" id="account-welcome">Welcome</p>
+                    <h2 id="account-username">Your Account</h2>
+                  </div>
                 </div>
                 <button class="settings-button" id="account-settings-button" type="button" aria-label="Open account settings" aria-expanded="false" aria-controls="account-settings-panel">
                   <svg class="settings-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
@@ -436,10 +460,14 @@
     <script src="./src/main.js?v=locate-button-2" type="module"></script>
     <section class="auth-modal is-hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div class="auth-dialog">
-        <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px;">
-          <div>
-            <h2 id="auth-title" style="margin-bottom: 4px; color: #142c72; font-size: 18px; font-weight: 700;">Log in to WhereToI</h2>
-            <p id="auth-subtitle">Manage your history and profile filters.</p>          </div>
+        <header style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px;">
+          <div class="header-branding">
+            <img src="./src/logo.png" alt="" class="app-logo" aria-hidden="true" />
+            <div>
+              <h2 id="auth-title" style="margin-bottom: 4px; color: #142c72; font-size: 18px; font-weight: 700;">Log in to WhereToI</h2>
+              <p id="auth-subtitle" style="margin: 0; font-size: 12px; color: var(--muted);">Manage your history and profile filters.</p>
+            </div>
+          </div>
           <button class="close-button" id="close-auth" type="button" aria-label="Close login dialog">X</button>
         </header>
         <form id="auth-form" class="auth-form" style="margin-top: 0;">

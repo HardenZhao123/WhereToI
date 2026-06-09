@@ -591,7 +591,6 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
             t.lat,
             t.lng,
             t.paid,
-            t.comment,
             t.women,
             t.men,
             t.accessible,
@@ -603,11 +602,12 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
             t.urinal_only,
             t.radar_key,
             t.free_access,
-            t.opening_times,
             ${cleanlinessColumns}
           FROM toilets t
           ${joinClause}
           ${whereClause}
+          ORDER BY t.id
+          LIMIT 2000
           `,
           queryParams
         );
@@ -1124,3 +1124,4 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     }
   };
 }
+
