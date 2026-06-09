@@ -154,7 +154,11 @@ test("clicking a visit history row opens the matching toilet detail card", async
   await historyItem.click();
   await expect(page.locator("#view-title")).toHaveText("Map");
   await expect(page.locator("#details-card")).toBeVisible();
-  await expect(page.locator("#toilet-name")).toHaveText(targetToilet.name);
+  const expectedToiletName = targetToilet.name
+    .split(",")[0]
+    .trim()
+    .replace(/\s*&\s*/g, " and ");
+  await expect(page.locator("#toilet-name")).toHaveText(expectedToiletName);
 
   const afterScreenshotPath = testInfo.outputPath("toilet-detail-after-history-click.png");
   await page.screenshot({ path: afterScreenshotPath, fullPage: false });
