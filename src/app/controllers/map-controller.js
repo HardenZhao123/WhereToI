@@ -75,6 +75,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentMediaStatus,
     visualFeedbackToggle,
     visualFeedbackPanel,
+    overviewVisualPreview,
+    overviewVisualImage,
+    overviewVisualState,
     visualCleanlinessPreview,
     visualCleanlinessImage,
     visualCleanlinessSlider,
@@ -367,33 +370,48 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function updateVisualCleanlinessPreview() {
-    const level = getVisualCleanlinessLevel();
+  function renderVisualPreview(preview, state, level, { image = null, showImage = false } = {}) {
+    if (preview) {
+      preview.dataset.cleanliness = String(level.value);
+      preview.setAttribute("aria-label", `Cartoon toilet cleanliness preview: ${level.label}`);
 
-    if (visualCleanlinessPreview) {
-      visualCleanlinessPreview.dataset.cleanliness = String(level.value);
-      visualCleanlinessPreview.setAttribute(
-        "aria-label",
-        `Cartoon toilet cleanliness preview: ${level.label}`
-      );
+      const cartoonSvg = preview.querySelector(".cartoon-toilet-svg");
+      const shouldShowImage = Boolean(showImage && image && level.image);
 
-      const cartoonSvg = visualCleanlinessPreview.querySelector(".cartoon-toilet-svg");
-      if (visualCleanlinessImage && level.image) {
-        visualCleanlinessImage.src = level.image;
-        visualCleanlinessImage.classList.remove("is-hidden");
-        if (cartoonSvg) cartoonSvg.classList.add("is-hidden");
-      } else if (cartoonSvg) {
-        cartoonSvg.classList.remove("is-hidden");
-        if (visualCleanlinessImage) visualCleanlinessImage.classList.add("is-hidden");
+      if (image) {
+        if (shouldShowImage) {
+          image.src = level.image;
+          image.classList.remove("is-hidden");
+        } else {
+          image.src = "";
+          image.classList.add("is-hidden");
+        }
+      }
+
+      if (cartoonSvg) {
+        cartoonSvg.classList.toggle("is-hidden", shouldShowImage);
       }
     }
 
+    if (state) {
+      state.textContent = `${level.label} - ${level.tone}`;
+    }
+  }
+
+  function updateVisualCleanlinessPreview() {
+    const level = getVisualCleanlinessLevel();
+
+    renderVisualPreview(overviewVisualPreview, overviewVisualState, level, {
+      image: overviewVisualImage,
+      showImage: true
+    });
+    renderVisualPreview(visualCleanlinessPreview, visualCleanlinessState, level, {
+      image: visualCleanlinessImage,
+      showImage: true
+    });
+
     if (visualCleanlinessSlider) {
       visualCleanlinessSlider.value = String(level.value);
-    }
-
-    if (visualCleanlinessState) {
-      visualCleanlinessState.textContent = `${level.label} - ${level.tone}`;
     }
   }
 
@@ -1140,9 +1158,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentInput.setSelectionRange?.(commentInput.value.length, commentInput.value.length);
   }
 
-  function setDetailSection(sectionName = "features") {
+  function setDetailSection(sectionName = "overview") {
     const hasPanel = [...detailPanels].some((panel) => panel.dataset.detailPanel === sectionName);
-    const nextSection = hasPanel ? sectionName : "features";
+    const nextSection = hasPanel ? sectionName : "overview";
 
     detailSectionLinks.forEach((link) => {
       const isActive = link.dataset.detailSection === nextSection;
@@ -1390,7 +1408,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  async function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "features", focusCommentId = null } = {}) {
+  async function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "overview", focusCommentId = null } = {}) {
     let toilet = allToilets.find((item) => item.id === toiletId);
     if (!toilet) return false;
 
@@ -1417,7 +1435,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setCommentComposerAvailable(true);
     
     // Only switch the section if a specific one was requested (e.g. from search or history)
-    // Otherwise, keep the current active section to prevent it jumping back to 'features'
+    // Otherwise, keep the current active section to prevent it jumping back to 'overview'
     if (arguments[1]?.defaultSection) {
       setDetailSection(defaultSection);
     }

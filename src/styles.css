@@ -710,6 +710,90 @@ h3 {
   display: none;
 }
 
+.overview-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.overview-visual-card,
+.overview-features-disclosure {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.overview-visual-card {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.overview-visual-header h3,
+.overview-features-disclosure summary {
+  color: #142c72;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.overview-visual-header p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.overview-visual-preview {
+  min-height: 148px;
+}
+
+.overview-visual-state {
+  min-height: 0;
+}
+
+.overview-features-disclosure {
+  overflow: hidden;
+}
+
+.overview-features-disclosure summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.overview-features-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.overview-features-disclosure summary::after {
+  content: "▾";
+  color: var(--muted);
+  font-size: 13px;
+  transition: transform 140ms ease;
+}
+
+.overview-features-disclosure[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.overview-features-disclosure[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.overview-features-disclosure .features-list {
+  padding: 0 10px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.overview-features-disclosure .features-list h3 {
+  display: none;
+}
+
 .details-actions-row {
   display: flex;
   align-items: center;
@@ -1663,9 +1747,12 @@ mark {
 }
 
 .visual-cleanliness-image {
-  width: 140px;
-  height: 140px;
-  object-fit: cover;
+  width: 128px;
+  height: 128px;
+  max-width: 82%;
+  max-height: 82%;
+  object-fit: contain;
+  object-position: center;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }

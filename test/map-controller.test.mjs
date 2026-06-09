@@ -48,6 +48,28 @@ function createTextElement() {
   };
 }
 
+function createPreviewElement() {
+  const svgClassList = createRecordingClassList();
+
+  return {
+    element: {
+      dataset: {},
+      attributes: {},
+      setAttribute(name, value) {
+        this.attributes[name] = String(value);
+      },
+      querySelector(selector) {
+        if (selector === ".cartoon-toilet-svg") {
+          return { classList: svgClassList };
+        }
+
+        return null;
+      }
+    },
+    svgClassList
+  };
+}
+
 function createTestToilet() {
   return {
     id: "test-toilet",
@@ -82,6 +104,67 @@ function createTestToilet() {
     }
   };
 }
+
+test("map controller keeps overview visual state synced with the current preview level", () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+
+  const { element: overviewVisualPreview, svgClassList: overviewSvgClassList } = createPreviewElement();
+  const { element: visualCleanlinessPreview, svgClassList: visualSvgClassList } = createPreviewElement();
+  const overviewVisualState = createTextElement();
+  const visualCleanlinessState = createTextElement();
+  const overviewVisualImage = {
+    src: "",
+    classList: createRecordingClassList()
+  };
+  const visualCleanlinessImage = {
+    src: "",
+    classList: createRecordingClassList()
+  };
+
+  globalThis.document = {
+    addEventListener() {},
+    querySelector() {
+      return null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const controller = createMapController({
+      overviewVisualPreview,
+      overviewVisualImage,
+      overviewVisualState,
+      visualCleanlinessPreview,
+      visualCleanlinessImage,
+      visualCleanlinessState
+    });
+
+    controller.setVisualCleanlinessLevel(4.5);
+
+    assert.equal(overviewVisualPreview.dataset.cleanliness, "4.5");
+    assert.equal(overviewVisualImage.src, "toilet_levels/level_45.png");
+    assert.equal(overviewVisualImage.classList.contains("is-hidden"), false);
+    assert.equal(overviewVisualState.textContent, "Very clean - Almost spotless");
+    assert.equal(overviewSvgClassList.contains("is-hidden"), true);
+
+    assert.equal(visualCleanlinessPreview.dataset.cleanliness, "4.5");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_45.png");
+    assert.equal(visualCleanlinessImage.classList.contains("is-hidden"), false);
+    assert.equal(visualSvgClassList.contains("is-hidden"), true);
+    assert.equal(visualCleanlinessState.textContent, "Very clean - Almost spotless");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
 
 test("map controller can hide empty details after loading toilets", () => {
   const originalDocument = globalThis.document;
