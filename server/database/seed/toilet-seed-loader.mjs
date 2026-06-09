@@ -1,6 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { mapRecordToToilet } from "../mapper/toilet-mapper.mjs";
 
+const UK_BOUNDS = {
+  minLat: 49.8,
+  maxLat: 60.9,
+  minLng: -8.7,
+  maxLng: 1.9
+};
+
 const fallbackToilets = [
   {
     id: "city",
@@ -100,6 +107,15 @@ const fallbackToilets = [
   }
 ];
 
+export function isWithinUkBounds(toilet) {
+  return (
+    toilet.lat >= UK_BOUNDS.minLat &&
+    toilet.lat <= UK_BOUNDS.maxLat &&
+    toilet.lng >= UK_BOUNDS.minLng &&
+    toilet.lng <= UK_BOUNDS.maxLng
+  );
+}
+
 function parseCsv(content) {
   const rows = [];
   let row = [];
@@ -176,7 +192,7 @@ export async function loadSeedToilets(csvPath) {
   try {
     const csv = await readFile(csvPath, "utf8");
     const records = rowsToObjects(parseCsv(csv));
-    toilets = records.map(mapRecordToToilet).filter(Boolean);
+    toilets = records.map(mapRecordToToilet).filter(Boolean).filter(isWithinUkBounds);
   } catch {
     toilets = [];
   }

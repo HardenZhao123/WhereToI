@@ -5,7 +5,7 @@ import { createAccountController } from "./controllers/account-controller.js";
 import { createMapController } from "./controllers/map-controller.js";
 import { createTabController } from "./controllers/tab-controller.js";
 import { recordAccessHistory } from "./services/account-service.js";
-import { loadToiletsFromApi, loadToiletsFromCsv } from "./services/toilets-service.js";
+import { loadToiletsFromApi } from "./services/toilets-service.js";
 import { distanceInMetres } from "./utils/geo.js";
 
 export function createApp() {
@@ -136,16 +136,7 @@ export function createApp() {
     }
   }
 
-  async function loadLocalToilets() {
-    const loadedFromCsv = await loadToiletsFromCsv();
-
-    if (loadedFromCsv.length > 0) {
-      return {
-        toilets: loadedFromCsv,
-        status: `Using local toilet data (${loadedFromCsv.length} toilets). Connecting to database...`
-      };
-    }
-
+  function loadStarterToilets() {
     return {
       toilets: fallbackToilets,
       status: "Using starter toilet data. Connecting to database..."
@@ -204,28 +195,20 @@ export function createApp() {
     }
 
     if (allowFallback && !hasLoadedApiToilets && !merge) {
-      try {
-        const localData = await loadLocalToilets();
+      const starterData = loadStarterToilets();
 
-        if (requestId !== toiletLoadRequestId) {
-          return;
-        }
-
-        await setLoadedToilets(localData.toilets, {
-          currentSelectedId,
-          currentSection,
-          hideDetails: !currentSelectedId,
-          cleanlinessRange: range,
-          status: localData.status,
-          merge: false
-        });
-      } catch (error) {
-        if (requestId !== toiletLoadRequestId) {
-          return;
-        }
-
-        console.warn("Initial local load failed:", error);
+      if (requestId !== toiletLoadRequestId) {
+        return;
       }
+
+      await setLoadedToilets(starterData.toilets, {
+        currentSelectedId,
+        currentSection,
+        hideDetails: !currentSelectedId,
+        cleanlinessRange: range,
+        status: starterData.status,
+        merge: false
+      });
     }
 
     if (requestId === toiletLoadRequestId && !hasLoadedApiToilets) {
@@ -305,16 +288,11 @@ export function createApp() {
 
     bindEvents();
 
-    // 1. Load local data immediately for instant markers
-    try {
-      const localData = await loadLocalToilets();
-      await setLoadedToilets(localData.toilets, {
-        status: localData.status,
-        merge: false
-      });
-    } catch (error) {
-      console.warn("Failed to load local toilets on startup:", error);
-    }
+    const starterData = loadStarterToilets();
+    await setLoadedToilets(starterData.toilets, {
+      status: starterData.status,
+      merge: false
+    });
 
     mapController.requestLocation();
 

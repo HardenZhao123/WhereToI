@@ -140,6 +140,7 @@ test("app initialization requests current location and centers the map when allo
 
   let geolocationRequested = false;
   let mapCenter = { lat: 51.4974, lng: -0.1751 };
+  const requestedUrls = [];
   const markerLayer = {
     addTo() {
       return markerLayer;
@@ -244,12 +245,10 @@ test("app initialization requests current location and centers the map when allo
   };
   globalThis.fetch = async (url) => {
     const requestUrl = String(url);
+    requestedUrls.push(requestUrl);
 
     if (requestUrl.endsWith(".csv")) {
-      return {
-        ok: true,
-        text: async () => "id,name,area,lat,lng,paid,comment,women,men,accessible,neutral,children,babyChanging,bidet,automatic,urinalOnly,radarKey,free,hours.today,hours.sat,hours.sun,cleanliness"
-      };
+      throw new Error(`Unexpected CSV request: ${requestUrl}`);
     }
 
     if (requestUrl.startsWith("/api/toilets")) {
@@ -277,6 +276,16 @@ test("app initialization requests current location and centers the map when allo
 
     assert.equal(geolocationRequested, true);
     assert.deepEqual(mapCenter, { lat: 51.51, lng: -0.12 });
+    assert.equal(requestedUrls.some((requestUrl) => requestUrl.endsWith(".csv")), false);
+    assert.ok(
+      requestedUrls.some((requestUrl) =>
+        requestUrl.startsWith("/api/toilets") &&
+        requestUrl.includes("minLat=51.4") &&
+        requestUrl.includes("maxLat=51.6") &&
+        requestUrl.includes("minLng=-0.2") &&
+        requestUrl.includes("maxLng=0")
+      )
+    );
   } finally {
     globalThis.document = originalDocument;
     Object.defineProperty(globalThis, "navigator", {
