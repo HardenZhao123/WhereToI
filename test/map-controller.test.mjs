@@ -223,13 +223,13 @@ test("map controller keeps overview visual state synced with the current preview
     controller.setVisualCleanlinessLevel(4.5);
 
     assert.equal(overviewVisualPreview.dataset.cleanliness, "4.5");
-    assert.equal(overviewVisualImage.src, "toilet_levels/level_45.png");
+    assert.equal(overviewVisualImage.src, "toilet_levels/level_45_small.jpg");
     assert.equal(overviewVisualImage.classList.contains("is-hidden"), false);
     assert.equal(overviewVisualState.textContent, "Very clean - Almost spotless");
     assert.equal(overviewSvgClassList.contains("is-hidden"), true);
 
     assert.equal(visualCleanlinessPreview.dataset.cleanliness, "4.5");
-    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_45.png");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_45_small.jpg");
     assert.equal(visualCleanlinessImage.classList.contains("is-hidden"), false);
     assert.equal(visualSvgClassList.contains("is-hidden"), true);
     assert.equal(visualCleanlinessState.textContent, "Very clean - Almost spotless");

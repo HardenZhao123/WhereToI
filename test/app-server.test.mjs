@@ -6,6 +6,8 @@ import test from "node:test";
 import { createAppServer } from "../server/app-server.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
+const largeStaticScript = `export const payload = "${"x".repeat(4096)}";`;
+
 async function withAppServer(callback, serverOptions = {}) {
   const rootDirectory = await mkdtemp(join(tmpdir(), "wheretoi-server-test-"));
   const dataDirectory = join(rootDirectory, "src", "data");
@@ -13,6 +15,9 @@ async function withAppServer(callback, serverOptions = {}) {
 
   try {
     await mkdir(dataDirectory, { recursive: true });
+    await writeFile(join(rootDirectory, "index.html"), "<!doctype html><title>WhereToI</title>", "utf8");
+    await writeFile(join(rootDirectory, "src", "styles.css"), ".map { color: green; }", "utf8");
+    await writeFile(join(rootDirectory, "src", "large.js"), largeStaticScript, "utf8");
     await writeFile(join(dataDirectory, "toilets.csv"), sampleToiletsCsv, "utf8");
 
     appServer = await createAppServer({ rootDirectory, port: 0, ...serverOptions });
@@ -43,6 +48,66 @@ test("API exposes health and expanded toilet feature details", async () => {
     assert.equal(detailToilet.features.babyChanging, "Y");
     assert.equal(detailToilet.features.bidet, "Y");
     assert.equal(detailToilet.features.free, "Y");
+  });
+});
+
+test("static assets use browser cache headers and Last-Modified validation", async () => {
+  await withAppServer(async (baseUrl) => {
+    const firstResponse = await fetch(`${baseUrl}/src/styles.css`);
+    const lastModified = firstResponse.headers.get("last-modified");
+
+    assert.equal(firstResponse.status, 200);
+    assert.match(firstResponse.headers.get("cache-control"), /max-age=3600/);
+    assert.ok(lastModified);
+    assert.equal(await firstResponse.text(), ".map { color: green; }");
+
+    const cachedResponse = await fetch(`${baseUrl}/src/styles.css`, {
+      headers: {
+        "If-Modified-Since": lastModified
+      }
+    });
+
+    assert.equal(cachedResponse.status, 304);
+    assert.equal(await cachedResponse.text(), "");
+  });
+});
+
+test("static text assets are compressed when the browser supports gzip", async () => {
+  await withAppServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/src/large.js`, {
+      headers: {
+        "Accept-Encoding": "gzip"
+      }
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-encoding"), "gzip");
+    assert.match(response.headers.get("vary"), /Accept-Encoding/);
+    assert.equal(await response.text(), largeStaticScript);
+  });
+});
+
+test("API cache headers keep public toilets reusable and account data private", async () => {
+  await withAppServer(async (baseUrl) => {
+    const toiletsResponse = await fetch(`${baseUrl}/api/toilets`);
+    assert.equal(toiletsResponse.status, 200);
+    assert.match(toiletsResponse.headers.get("cache-control"), /public, max-age=60/);
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    assert.equal(loginRes.headers.get("cache-control"), "no-store");
+
+    const accountResponse = await fetch(`${baseUrl}/api/account`, {
+      headers: { "Cookie": cookie }
+    });
+
+    assert.equal(accountResponse.status, 200);
+    assert.equal(accountResponse.headers.get("cache-control"), "no-store");
   });
 });
 

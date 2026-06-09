@@ -103,16 +103,16 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   const surveyStorageKey = "wheretoi-map-cleanliness-survey";
   const visualFeedbackStorageKey = "wheretoi-visual-cleanliness-feedback";
   const visualCleanlinessLevels = new Map([
-    [0.5, { label: "Extremely dirty", tone: "Avoid at all costs", image: "toilet_levels/level_05.png" }],
-    [1, { label: "Very dirty", tone: "Needs a serious clean", image: "toilet_levels/level_1.jpeg" }],
-    [1.5, { label: "Dirty & Messy", tone: "Quite unpleasant", image: "toilet_levels/level_15.jpeg" }],
-    [2, { label: "Dirty", tone: "Use only if needed", image: "toilet_levels/level_2.jpeg" }],
-    [2.5, { label: "Below average", tone: "Could be better", image: "toilet_levels/level_25.jpeg" }],
-    [3, { label: "OK", tone: "Usable but not spotless", image: "toilet_levels/level_3.png" }],
-    [3.5, { label: "Above average", tone: "Decent condition", image: "toilet_levels/level_35.png" }],
-    [4, { label: "Clean", tone: "Comfortable to use", image: "toilet_levels/level_4.png" }],
-    [4.5, { label: "Very clean", tone: "Almost spotless", image: "toilet_levels/level_45.png" }],
-    [5, { label: "Excellent", tone: "Fresh and well kept", image: "toilet_levels/level_5.png" }]
+    [0.5, { label: "Extremely dirty", tone: "Avoid at all costs", image: "toilet_levels/level_05_small.jpg" }],
+    [1, { label: "Very dirty", tone: "Needs a serious clean", image: "toilet_levels/level_1_small.jpg" }],
+    [1.5, { label: "Dirty & Messy", tone: "Quite unpleasant", image: "toilet_levels/level_15_small.jpg" }],
+    [2, { label: "Dirty", tone: "Use only if needed", image: "toilet_levels/level_2_small.jpg" }],
+    [2.5, { label: "Below average", tone: "Could be better", image: "toilet_levels/level_25_small.jpg" }],
+    [3, { label: "OK", tone: "Usable but not spotless", image: "toilet_levels/level_3_small.jpg" }],
+    [3.5, { label: "Above average", tone: "Decent condition", image: "toilet_levels/level_35_small.jpg" }],
+    [4, { label: "Clean", tone: "Comfortable to use", image: "toilet_levels/level_4_small.jpg" }],
+    [4.5, { label: "Very clean", tone: "Almost spotless", image: "toilet_levels/level_45_small.jpg" }],
+    [5, { label: "Excellent", tone: "Fresh and well kept", image: "toilet_levels/level_5_small.jpg" }]
   ]);
 
   let allToilets = [];
