@@ -625,15 +625,11 @@ h3 {
 }
 
 .details-header {
-  position: sticky;
-  top: 0;
-  z-index: 12;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 10px;
-  background: rgb(255 255 255 / 96%);
+  padding-right: 42px;
 }
 
 .details-title-block {
@@ -650,6 +646,20 @@ h3 {
   font-size: 12px;
   font-weight: 800;
   background: white;
+}
+
+.sticky-close-button {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  margin-bottom: -30px;
+}
+
+.auth-dialog > header {
+  padding-right: 42px;
 }
 
 .primary-pill,
@@ -1411,16 +1421,12 @@ mark {
 }
 
 .comment-composer-header {
-  position: sticky;
-  top: 0;
-  z-index: 12;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
-  padding-bottom: 8px;
-  background: rgb(255 255 255 / 98%);
+  padding-right: 40px;
 }
 
 .comment-composer-header h3 {
@@ -1432,6 +1438,11 @@ mark {
 .comment-composer .close-button {
   width: 28px;
   height: 28px;
+}
+
+.comment-composer .sticky-close-button,
+.visual-feedback-panel .sticky-close-button {
+  margin-bottom: -28px;
 }
 
 .view-map.has-comment-composer .feedback-action-bar,
@@ -1714,15 +1725,11 @@ mark {
 }
 
 .visual-feedback-header {
-  position: sticky;
-  top: 0;
-  z-index: 12;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 8px;
-  background: white;
+  padding-right: 40px;
 }
 
 .visual-feedback-header h3 {
@@ -2617,13 +2624,6 @@ mark {
   border-radius: 18px;
   background: white;
   box-shadow: 0 24px 72px rgb(31 42 51 / 28%);
-}
-
-.auth-dialog > header {
-  position: sticky;
-  top: 0;
-  z-index: 12;
-  background: white;
 }
 
 .auth-dialog h2 {
