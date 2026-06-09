@@ -135,6 +135,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let selectedCommentMedia = [];
   let visualCleanlinessLevel = 3;
   let visualFeedbackEntriesByToiletId = loadVisualFeedbackEntries();
+  let currentDetailSection = "overview";
 
   const feedbackThreadController = createFeedbackThreadController(
     {
@@ -760,7 +761,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentInput.setSelectionRange?.(commentInput.value.length, commentInput.value.length);
   }
 
-  function setDetailSection(sectionName = "overview") {
+  function setDetailSection(sectionName = "overview", { loadComments = true } = {}) {
     const hasPanel = [...detailPanels].some((panel) => panel.dataset.detailPanel === sectionName);
     const nextSection = hasPanel ? sectionName : "overview";
 
@@ -775,6 +776,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       panel.classList.toggle("is-active", isActive);
       panel.hidden = !isActive;
     });
+
+    currentDetailSection = nextSection;
+    if (loadComments && nextSection === "comment" && selectedToilet) {
+      feedbackThreadController.loadComments(selectedToilet);
+    }
   }
 
   function createToiletIcon(toilet, selected = false) {
@@ -800,6 +806,30 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   function getBounds() {
     if (!map) return null;
     const bounds = map.getBounds();
+    if (!bounds) return null;
+
+    if (
+      [bounds.minLat, bounds.maxLat, bounds.minLng, bounds.maxLng]
+        .map(Number)
+        .every(Number.isFinite)
+    ) {
+      return {
+        minLat: Number(bounds.minLat),
+        maxLat: Number(bounds.maxLat),
+        minLng: Number(bounds.minLng),
+        maxLng: Number(bounds.maxLng)
+      };
+    }
+
+    if (
+      typeof bounds.getSouth !== "function" ||
+      typeof bounds.getNorth !== "function" ||
+      typeof bounds.getWest !== "function" ||
+      typeof bounds.getEast !== "function"
+    ) {
+      return null;
+    }
+
     return {
       minLat: bounds.getSouth(),
       maxLat: bounds.getNorth(),
@@ -1033,11 +1063,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     closeCommentComposer();
     closeVisualFeedback();
     setCommentComposerAvailable(true);
-    
+    feedbackThreadController.resetCommentsForToilet(toilet);
+
     // Only switch the section if a specific one was requested (e.g. from search or history)
     // Otherwise, keep the current active section to prevent it jumping back to 'overview'
     if (arguments[1]?.defaultSection) {
-      setDetailSection(defaultSection);
+      setDetailSection(defaultSection, { loadComments: false });
     }
 
     detailsCard?.classList.remove("is-hidden");
@@ -1078,7 +1109,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     resetVisualFeedbackForm();
     renderVisualFeedbackDiscussion();
 
-    feedbackThreadController.loadComments(toilet, { focusCommentId });
+    if (currentDetailSection === "comment" || focusCommentId !== null) {
+      await feedbackThreadController.loadComments(toilet, {
+        focusCommentId,
+        force: focusCommentId !== null
+      });
+    }
 
     if (fly) {
       const marker = markerById.get(toilet.id);

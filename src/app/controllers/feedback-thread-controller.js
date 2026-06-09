@@ -10,6 +10,8 @@ import {
   normaliseCommentSortMode
 } from "../utils/comments.js";
 
+const commentCacheTtlMs = 60 * 1000;
+
 export function createFeedbackThreadController(elements = {}, options = {}) {
   const {
     commentsList,
@@ -30,6 +32,44 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
   let commentSortMode = "newest";
   let selectedCommentFilters = new Set();
   let pendingFocusedCommentId = null;
+  let commentsCacheByToiletId = new Map();
+  let commentRequestsByToiletId = new Map();
+
+  function getCachedComments(toiletId) {
+    const cached = commentsCacheByToiletId.get(toiletId);
+    if (!cached) return null;
+
+    if (Date.now() - cached.loadedAt > commentCacheTtlMs || cached.authenticated !== isAuthenticated()) {
+      commentsCacheByToiletId = new Map(commentsCacheByToiletId);
+      commentsCacheByToiletId.delete(toiletId);
+      return null;
+    }
+
+    return cached.comments;
+  }
+
+  function cacheComments(toiletId, comments) {
+    if (!toiletId || !Array.isArray(comments)) return;
+
+    commentsCacheByToiletId = new Map(commentsCacheByToiletId);
+    commentsCacheByToiletId.set(toiletId, {
+      comments: [...comments],
+      loadedAt: Date.now(),
+      authenticated: isAuthenticated()
+    });
+  }
+
+  function renderCommentsPlaceholder(message) {
+    currentComments = [];
+    updateCommentsSummary(0, 0);
+
+    if (!commentsList) return;
+
+    commentsList.replaceChildren();
+    const placeholder = document.createElement("p");
+    placeholder.textContent = message;
+    commentsList.append(placeholder);
+  }
 
   function createCommentMediaElement(comment) {
     const attachments = getCommentMediaAttachments(comment);
@@ -264,8 +304,11 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
     focusPendingComment();
   }
 
-  function renderComments(comments) {
+  function renderComments(comments, { cache = true, toiletId = getSelectedToilet()?.id } = {}) {
     currentComments = Array.isArray(comments) ? [...comments] : [];
+    if (cache && toiletId) {
+      cacheComments(toiletId, currentComments);
+    }
     renderCommentList();
   }
 
@@ -275,26 +318,60 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
     commentsList?.replaceChildren();
   }
 
-  async function loadComments(toilet, { focusCommentId = null } = {}) {
+  function resetCommentsForToilet(toilet) {
     if (!commentsList || !toilet?.id) return;
+
+    const cachedComments = getCachedComments(toilet.id);
+    if (cachedComments) {
+      renderComments(cachedComments, { cache: false, toiletId: toilet.id });
+      return;
+    }
+
+    renderCommentsPlaceholder("Open Feedback to load comments.");
+  }
+
+  async function loadComments(toilet, { focusCommentId = null, force = false } = {}) {
+    if (!commentsList || !toilet?.id) return [];
 
     const focusId = Number(focusCommentId);
     pendingFocusedCommentId = Number.isInteger(focusId) && focusId > 0 ? focusId : null;
-    currentComments = [];
-    updateCommentsSummary(0, 0);
-    commentsList.replaceChildren();
 
-    const loading = document.createElement("p");
-    loading.textContent = "Loading feedback...";
-    commentsList.append(loading);
-
-    try {
-      const comments = await fetchComments(toilet.id);
-      renderComments(comments);
-    } catch (error) {
-      console.error("Failed to fetch feedback:", error);
-      commentsList.textContent = "Could not load feedback.";
+    if (!force) {
+      const cachedComments = getCachedComments(toilet.id);
+      if (cachedComments) {
+        renderComments(cachedComments, { cache: false, toiletId: toilet.id });
+        return cachedComments;
+      }
     }
+
+    const existingRequest = commentRequestsByToiletId.get(toilet.id);
+    if (existingRequest) return existingRequest;
+
+    renderCommentsPlaceholder("Loading feedback...");
+
+    const request = fetchComments(toilet.id)
+      .then((comments) => {
+        cacheComments(toilet.id, comments);
+        if (getSelectedToilet()?.id === toilet.id) {
+          renderComments(comments, { cache: false, toiletId: toilet.id });
+        }
+        return comments;
+      })
+      .catch((error) => {
+        console.error("Failed to fetch feedback:", error);
+        if (getSelectedToilet()?.id === toilet.id) {
+          renderCommentsPlaceholder("Could not load feedback.");
+        }
+        return [];
+      })
+      .finally(() => {
+        commentRequestsByToiletId = new Map(commentRequestsByToiletId);
+        commentRequestsByToiletId.delete(toilet.id);
+      });
+
+    commentRequestsByToiletId = new Map(commentRequestsByToiletId);
+    commentRequestsByToiletId.set(toilet.id, request);
+    return request;
   }
 
   function resetCommentControls() {
@@ -383,6 +460,7 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
     closeOpenCommentMenus,
     loadComments,
     renderComments,
+    resetCommentsForToilet,
     resetCommentControls,
     setCommentFilter,
     setCommentSortMode

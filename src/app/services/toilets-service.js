@@ -3,12 +3,61 @@ import { parseCsv, rowsToObjects } from "../utils/csv.js";
 import { mapRecordToToilet } from "../toilets/toilet-record-mapper.js";
 import { fetchJson } from "./http-client.js";
 
+const toiletsApiCacheTtlMs = 2 * 60 * 1000;
+let toiletsApiCache = new Map();
+
+function getBoundsCacheKey(bounds) {
+  if (!bounds) return "all";
+
+  const minLat = Number(bounds.minLat);
+  const maxLat = Number(bounds.maxLat);
+  const minLng = Number(bounds.minLng);
+  const maxLng = Number(bounds.maxLng);
+
+  if (![minLat, maxLat, minLng, maxLng].every(Number.isFinite)) return "all";
+
+  return [minLat, maxLat, minLng, maxLng]
+    .map((value) => value.toFixed(5))
+    .join(",");
+}
+
+function getToiletsApiCacheKey(cleanlinessRange, bounds) {
+  return `${String(cleanlinessRange || "3days")}::${getBoundsCacheKey(bounds)}`;
+}
+
+export function getCachedToiletsFromApi(cleanlinessRange = "3days", bounds = null) {
+  const cacheKey = getToiletsApiCacheKey(cleanlinessRange, bounds);
+  const cached = toiletsApiCache.get(cacheKey);
+  if (!cached) return null;
+
+  if (Date.now() - cached.loadedAt > toiletsApiCacheTtlMs) {
+    toiletsApiCache = new Map(toiletsApiCache);
+    toiletsApiCache.delete(cacheKey);
+    return null;
+  }
+
+  return [...cached.toilets];
+}
+
+export function clearToiletsApiCache() {
+  toiletsApiCache = new Map();
+}
+
 export async function loadToiletsFromApi(
   cleanlinessRange = "3days",
   retryCount = 2,
   timeoutMs = 30000,
-  bounds = null
+  bounds = null,
+  { force = false } = {}
 ) {
+  const cacheKey = getToiletsApiCacheKey(cleanlinessRange, bounds);
+  if (!force) {
+    const cachedToilets = getCachedToiletsFromApi(cleanlinessRange, bounds);
+    if (cachedToilets) {
+      return cachedToilets;
+    }
+  }
+
   let url = `${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`;
 
   if (bounds) {
@@ -22,6 +71,11 @@ export async function loadToiletsFromApi(
     try {
       const payload = await fetchJson(url, { signal: controller.signal });
       if (Array.isArray(payload.toilets)) {
+        toiletsApiCache = new Map(toiletsApiCache);
+        toiletsApiCache.set(cacheKey, {
+          toilets: [...payload.toilets],
+          loadedAt: Date.now()
+        });
         return payload.toilets;
       }
     } catch (error) {

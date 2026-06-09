@@ -5,7 +5,7 @@ import { createAccountController } from "./controllers/account-controller.js";
 import { createMapController } from "./controllers/map-controller.js";
 import { createTabController } from "./controllers/tab-controller.js";
 import { recordAccessHistory } from "./services/account-service.js";
-import { loadToiletsFromApi, loadToiletsFromCsv } from "./services/toilets-service.js";
+import { getCachedToiletsFromApi, loadToiletsFromApi, loadToiletsFromCsv } from "./services/toilets-service.js";
 import { distanceInMetres } from "./utils/geo.js";
 
 export function createApp() {
@@ -171,9 +171,26 @@ export function createApp() {
     const currentSelectedId = mapController.getSelectedToilet()?.id;
     const currentSection = getCurrentDetailSection();
     const activeBounds = bounds ?? mapController.getBounds();
+    const cachedToilets = !force ? getCachedToiletsFromApi(range, activeBounds) : null;
+    const renderedCachedToilets = Array.isArray(cachedToilets) && cachedToilets.length > 0;
+
+    if (renderedCachedToilets) {
+      setLoadedToilets(cachedToilets, {
+        currentSelectedId,
+        currentSection,
+        hideDetails: !currentSelectedId,
+        cleanlinessRange: range,
+        status: bounds ? "" : `Using recent toilet data (${cachedToilets.length} toilets). Checking for updates...`,
+        merge
+      });
+      hasLoadedApiToilets = true;
+      lastLoadedRange = range;
+    }
 
     try {
-      const loadedFromApi = await loadToiletsFromApi(range, 2, 30000, activeBounds);
+      const loadedFromApi = await loadToiletsFromApi(range, 2, 30000, activeBounds, {
+        force: force || renderedCachedToilets
+      });
 
       if (requestId !== toiletLoadRequestId) {
         return;
