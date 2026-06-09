@@ -256,6 +256,25 @@ test("API supports fetching and posting toilet comments", async () => {
     assert.equal(postedPayload.comments[0].can_delete, true);
     assert.deepEqual(postedPayload.comments[0].media_attachments, []);
 
+    // Attempt to post another comment/rating immediately (should fail due to 30min limit)
+    const duplicateResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Another comment",
+        commentVisibility: "real",
+        cleanlinessRating: 5
+      })
+    });
+    const duplicatePayload = await duplicateResponse.json();
+
+    assert.equal(duplicateResponse.status, 400);
+    assert.equal(duplicatePayload.error, "You can only rate this toilet once every 30 minutes.");
+
     await fetchJson(`${baseUrl}/api/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

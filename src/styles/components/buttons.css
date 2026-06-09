@@ -1,0 +1,151 @@
+.locate-button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: #4f5d68;
+  background: #fff;
+  box-shadow: 0 5px 14px rgb(31 42 51 / 10%);
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.locate-button[hidden] {
+  display: none;
+}
+
+.locate-button:hover,
+.locate-button:focus-visible {
+  border-color: rgb(54 111 171 / 38%);
+  box-shadow: 0 6px 16px rgb(31 42 51 / 16%);
+}
+
+.locate-button:focus-visible {
+  outline: 3px solid rgb(54 111 171 / 24%);
+  outline-offset: 2px;
+}
+
+.locate-button:active {
+  transform: scale(0.96);
+}
+
+.locate-icon {
+  width: 24px;
+  height: 24px;
+  overflow: visible;
+}
+
+.locate-icon-pin,
+.locate-icon-dot {
+  fill: #fff;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  transition:
+    fill 0.16s ease,
+    stroke 0.16s ease;
+}
+
+.locate-button.is-located {
+  border-color: rgb(54 111 171 / 34%);
+  color: var(--blue);
+  box-shadow: 0 6px 18px rgb(54 111 171 / 24%);
+}
+
+.locate-button.is-located .locate-icon-pin {
+  fill: var(--blue);
+  stroke: var(--blue);
+}
+
+.locate-button.is-located .locate-icon-dot {
+  fill: #fff;
+  stroke: #fff;
+}
+
+.primary-pill,
+.solid-button {
+  border: 0;
+  border-radius: 999px;
+  color: #073a33;
+  background: #61e6cf;
+}
+
+.primary-pill {
+  width: 112px;
+  height: 34px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.primary-pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.solid-button,
+.outline-button {
+  height: 44px;
+  border-radius: 999px;
+}
+
+.solid-button {
+  color: white;
+  background: var(--teal);
+}
+
+.outline-button {
+  border: 1px solid #b8c1ba;
+  color: var(--muted);
+  background: white;
+}
+
+.close-button {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  background: white;
+}
+
+.settings-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: white;
+  box-shadow: 0 8px 22px rgb(31 42 51 / 8%);
+}
+
+.settings-button:hover,
+.settings-button:focus-visible,
+.settings-button[aria-expanded="true"] {
+  border-color: rgb(40 118 102 / 38%);
+  color: var(--teal);
+  background: #f8fbf8;
+}
+
+.settings-button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.text-button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}

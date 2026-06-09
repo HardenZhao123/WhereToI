@@ -1,0 +1,157 @@
+.details-card {
+  position: absolute;
+  right: 18px;
+  bottom: 92px;
+  left: 18px;
+  z-index: 4;
+  max-height: min(430px, 58vh);
+  padding: 16px;
+  overflow: auto;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 18px 48px rgb(31 42 51 / 12%);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.details-card.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(18px);
+}
+
+.details-card h2 {
+  margin-bottom: 4px;
+  color: #142c72;
+  font-size: 14px;
+}
+
+.details-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.details-title-block {
+  min-width: 0;
+}
+
+.details-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 10px;
+}
+
+.distance-line {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.details-section-nav {
+  display: flex;
+  gap: 16px;
+  margin: 8px -2px 12px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+}
+
+.details-section-link {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 2px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  background: transparent;
+}
+
+.details-section-link.is-active {
+  border-bottom-color: var(--teal);
+  color: var(--teal);
+}
+
+.details-section-panels {
+  min-height: 142px;
+}
+
+.details-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.details-panel[hidden] {
+  display: none;
+}
+
+.features-list,
+.opening-hours-list,
+.comment-panel {
+  padding: 10px;
+  border-radius: 8px;
+  background: white;
+}
+
+.features-list {
+  border: 0;
+}
+
+.opening-hours-list,
+.comment-panel {
+  border: 1px solid var(--line);
+}
+
+.comment-panel[hidden] {
+  display: none;
+}
+
+.features-list p,
+.opening-hours-list p {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #142c72;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.features-list p {
+  align-items: center;
+}
+
+.features-list strong {
+  min-width: 18px;
+  text-align: right;
+}
+
+mark {
+  border-radius: 99px;
+  background: #bdf5ec;
+}
+
+.rating-period-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rating-period-control select {
+  max-width: 118px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: white;
+  font-size: 11px;
+}

@@ -69,6 +69,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentComposerToggle,
     commentForm,
     commentInput,
+    commentStatus,
     commentAnonymousInput,
     commentMediaInput,
     commentMediaPreview,
@@ -81,6 +82,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     visualCleanlinessState,
     visualFeedbackForm,
     visualFeedbackComment,
+    visualFeedbackStatus,
     visualFeedbackList,
     visualFeedbackSummary,
     overviewVisualImage,
@@ -533,7 +535,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     event.preventDefault();
 
     if (!selectedToilet) {
-      setStatus("Select a toilet marker before leaving visual feedback.");
+      if (visualFeedbackStatus) {
+        visualFeedbackStatus.classList.add("warning");
+        visualFeedbackStatus.textContent = "Select a toilet marker before leaving visual feedback.";
+      } else {
+        setStatus("Select a toilet marker before leaving visual feedback.");
+      }
       return;
     }
 
@@ -1069,6 +1076,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       commentComposer.classList.toggle("is-hidden", !shouldOpen);
     }
 
+    if (commentStatus) {
+      commentStatus.textContent = "";
+      commentStatus.classList.remove("warning");
+    }
+
     if (commentComposerToggle) {
       commentComposerToggle.classList.toggle("is-active", shouldOpen);
       commentComposerToggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
@@ -1090,6 +1102,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (visualFeedbackPanel) {
       visualFeedbackPanel.hidden = !shouldOpen;
       visualFeedbackPanel.classList.toggle("is-hidden", !shouldOpen);
+    }
+
+    if (visualFeedbackStatus) {
+      visualFeedbackStatus.textContent = "";
+      visualFeedbackStatus.classList.remove("warning");
     }
 
     if (visualFeedbackToggle) {
@@ -2097,9 +2114,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       }
 
       if (!hasCommentText) {
-        if (mapSurveyStatus) {
-          mapSurveyStatus.classList.add("warning");
-          mapSurveyStatus.textContent = "Add a short comment before posting media.";
+        if (commentStatus) {
+          commentStatus.classList.add("warning");
+          commentStatus.textContent = "Add a short comment before posting media.";
         }
         return;
       }
@@ -2126,7 +2143,13 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         showLoginPrompt("Log in to leave feedback.");
         return;
       }
-      alert(error?.message || "Could not submit feedback. Please try again later.");
+      
+      if (commentStatus) {
+        commentStatus.classList.add("warning");
+        commentStatus.textContent = error?.message || "Could not submit feedback. Please try again later.";
+      } else {
+        alert(error?.message || "Could not submit feedback. Please try again later.");
+      }
     } finally {
       if (submitButton) {
         submitButton.disabled = selectedRating === null;
