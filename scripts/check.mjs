@@ -1,4 +1,4 @@
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const requiredFiles = [
@@ -33,7 +33,21 @@ const requiredFiles = [
   "render.yaml"
 ];
 
+const optimizedToiletLevelImages = [
+  "toilet_levels/level_05_small.jpg",
+  "toilet_levels/level_1_small.jpg",
+  "toilet_levels/level_15_small.jpg",
+  "toilet_levels/level_2_small.jpg",
+  "toilet_levels/level_25_small.jpg",
+  "toilet_levels/level_3_small.jpg",
+  "toilet_levels/level_35_small.jpg",
+  "toilet_levels/level_4_small.jpg",
+  "toilet_levels/level_45_small.jpg",
+  "toilet_levels/level_5_small.jpg"
+];
+
 await Promise.all(requiredFiles.map((file) => access(resolve(file))));
+await Promise.all(optimizedToiletLevelImages.map((file) => access(resolve(file))));
 
 const html = await readFile("index.html", "utf8");
 const css = await readFile("src/styles.css", "utf8");
@@ -326,6 +340,32 @@ if (
   !buildScript.includes("\"toilets.csv\"")
 ) {
   throw new Error("Expected startup and published static assets to avoid the large CSV fallback.");
+}
+
+if (
+  !optimizedToiletLevelImages.every((file) => js.includes(file)) ||
+  /toilet_levels\/level_(?:05|1|15|2|25|3|35|4|45|5)\.(?:png|jpe?g)/.test(js) ||
+  !buildScript.includes("_small.jpg") ||
+  !buildScript.includes("toilet_levels")
+) {
+  throw new Error("Expected visual cleanliness feedback to use optimized toilet-level images.");
+}
+
+const oversizedToiletLevelImages = (
+  await Promise.all(
+    optimizedToiletLevelImages.map(async (file) => ({
+      file,
+      size: (await stat(resolve(file))).size
+    }))
+  )
+).filter((image) => image.size > 50 * 1024);
+
+if (oversizedToiletLevelImages.length > 0) {
+  throw new Error(
+    `Expected optimized toilet-level images under 50KB: ${oversizedToiletLevelImages
+      .map((image) => `${image.file} (${image.size} bytes)`)
+      .join(", ")}`
+  );
 }
 
 if (!css.includes(".map-canvas") || !css.includes(".map-marker") || !css.includes(".map-marker-icon")) {
