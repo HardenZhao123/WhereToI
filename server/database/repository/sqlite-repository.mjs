@@ -304,6 +304,21 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
     async getUserById(userId) {
       return db.prepare("SELECT id, username, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias FROM users WHERE id = ?").get(userId);
     },
+    async getToiletById(toiletId) {
+      const row = db.prepare(
+        `
+        SELECT
+          id, name, area, lat, lng, paid, comment,
+          women, men, accessible, neutral, children, baby_changing, bidet,
+          automatic, urinal_only, radar_key, free_access, opening_times, cleanliness,
+          cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count
+        FROM toilets
+        WHERE id = ?
+        `
+      ).get(toiletId);
+
+      return row ? mapRowToToilet(row) : null;
+    },
     async updateUserProfile(userId, { gender, preferences }) {
       db.prepare(
         "UPDATE users SET gender = ?, preferences = ? WHERE id = ?"
@@ -390,7 +405,6 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             t.lat,
             t.lng,
             t.paid,
-            t.comment,
             t.women,
             t.men,
             t.accessible,
@@ -402,11 +416,11 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             t.urinal_only,
             t.radar_key,
             t.free_access,
-            t.opening_times,
             ${cleanlinessColumns}
           FROM toilets t
           ${joinClause}
           ${whereClause}
+          LIMIT 2000
           `
         )
         .all(...queryParams);

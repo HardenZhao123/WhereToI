@@ -1,6 +1,7 @@
 import { appConfig } from "../config/app-config.js";
 import {
   fetchAiSummary,
+  fetchToiletDetail,
   submitCleanlinessSurvey,
   submitComment
 } from "../services/toilets-service.js";
@@ -70,6 +71,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentMediaStatus,
     visualFeedbackToggle,
     visualFeedbackPanel,
+    overviewVisualPreview,
+    overviewVisualImage,
+    overviewVisualState,
     visualCleanlinessPreview,
     visualCleanlinessImage,
     visualCleanlinessSlider,
@@ -373,33 +377,48 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function updateVisualCleanlinessPreview() {
-    const level = getVisualCleanlinessLevel();
+  function renderVisualPreview(preview, state, level, { image = null, showImage = false } = {}) {
+    if (preview) {
+      preview.dataset.cleanliness = String(level.value);
+      preview.setAttribute("aria-label", `Cartoon toilet cleanliness preview: ${level.label}`);
 
-    if (visualCleanlinessPreview) {
-      visualCleanlinessPreview.dataset.cleanliness = String(level.value);
-      visualCleanlinessPreview.setAttribute(
-        "aria-label",
-        `Cartoon toilet cleanliness preview: ${level.label}`
-      );
+      const cartoonSvg = preview.querySelector(".cartoon-toilet-svg");
+      const shouldShowImage = Boolean(showImage && image && level.image);
 
-      const cartoonSvg = visualCleanlinessPreview.querySelector(".cartoon-toilet-svg");
-      if (visualCleanlinessImage && level.image) {
-        visualCleanlinessImage.src = level.image;
-        visualCleanlinessImage.classList.remove("is-hidden");
-        if (cartoonSvg) cartoonSvg.classList.add("is-hidden");
-      } else if (cartoonSvg) {
-        cartoonSvg.classList.remove("is-hidden");
-        if (visualCleanlinessImage) visualCleanlinessImage.classList.add("is-hidden");
+      if (image) {
+        if (shouldShowImage) {
+          image.src = level.image;
+          image.classList.remove("is-hidden");
+        } else {
+          image.src = "";
+          image.classList.add("is-hidden");
+        }
+      }
+
+      if (cartoonSvg) {
+        cartoonSvg.classList.toggle("is-hidden", shouldShowImage);
       }
     }
 
+    if (state) {
+      state.textContent = `${level.label} - ${level.tone}`;
+    }
+  }
+
+  function updateVisualCleanlinessPreview() {
+    const level = getVisualCleanlinessLevel();
+
+    renderVisualPreview(overviewVisualPreview, overviewVisualState, level, {
+      image: overviewVisualImage,
+      showImage: true
+    });
+    renderVisualPreview(visualCleanlinessPreview, visualCleanlinessState, level, {
+      image: visualCleanlinessImage,
+      showImage: true
+    });
+
     if (visualCleanlinessSlider) {
       visualCleanlinessSlider.value = String(level.value);
-    }
-
-    if (visualCleanlinessState) {
-      visualCleanlinessState.textContent = `${level.label} - ${level.tone}`;
     }
   }
 
@@ -741,9 +760,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentInput.setSelectionRange?.(commentInput.value.length, commentInput.value.length);
   }
 
-  function setDetailSection(sectionName = "features") {
+  function setDetailSection(sectionName = "overview") {
     const hasPanel = [...detailPanels].some((panel) => panel.dataset.detailPanel === sectionName);
-    const nextSection = hasPanel ? sectionName : "features";
+    const nextSection = hasPanel ? sectionName : "overview";
 
     detailSectionLinks.forEach((link) => {
       const isActive = link.dataset.detailSection === nextSection;
@@ -886,8 +905,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       if (selectedToilet?.id === toilet.id) {
         button.classList.add("is-selected");
       }
-      button.addEventListener("click", () => {
-        setToilet(toilet.id);
+      button.addEventListener("click", async () => {
+        await setToilet(toilet.id);
         collapseSearchPanel();
       });
 
@@ -991,9 +1010,23 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "features", focusCommentId = null } = {}) {
-    const toilet = allToilets.find((item) => item.id === toiletId);
+  async function setToilet(toiletId, { fly = true, updateDistance = true, defaultSection = "overview", focusCommentId = null } = {}) {
+    let toilet = allToilets.find((item) => item.id === toiletId);
     if (!toilet) return false;
+
+    // If the toilet record is missing detail fields (like the detailed comment or actual opening hours), fetch full details
+    if (toilet && (typeof toilet.comment === "undefined" || toilet.comment === null || !toilet.hours || toilet.hours.today.includes("Closed"))) {
+      try {
+        const fullDetails = await fetchToiletDetail(toiletId);
+        if (fullDetails) {
+          // Update the local record with full details
+          toilet = { ...toilet, ...fullDetails };
+          allToilets = allToilets.map(t => t.id === toiletId ? toilet : t);
+        }
+      } catch (error) {
+        console.warn("Failed to fetch toilet details from API:", error);
+      }
+    }
 
     selectedToilet = toilet;
     selectedRating = null;
@@ -1001,7 +1034,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     closeVisualFeedback();
     setCommentComposerAvailable(true);
     
-    if (defaultSection) {
+    // Only switch the section if a specific one was requested (e.g. from search or history)
+    // Otherwise, keep the current active section to prevent it jumping back to 'overview'
+    if (arguments[1]?.defaultSection) {
       setDetailSection(defaultSection);
     }
 
@@ -1078,10 +1113,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function openCommentThread(toiletId, commentId) {
+  async function openCommentThread(toiletId, commentId) {
     feedbackThreadController.resetCommentControls();
 
-    const opened = setToilet(toiletId, {
+    const opened = await setToilet(toiletId, {
       defaultSection: "comment",
       focusCommentId: commentId
     });
@@ -1121,7 +1156,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         title: `${toilet.name}, ${toilet.area}`
       });
 
-      marker.on("click", () => setToilet(toilet.id));
+      marker.on("click", async () => await setToilet(toilet.id));
       marker.addTo(markersLayer);
       markerById.set(toilet.id, marker);
     });

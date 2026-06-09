@@ -22,6 +22,6 @@ services:
       - key: WHERETOI_EMAIL_FROM
         sync: false
       - key: WHERETOI_PUBLIC_APP_URL
-        value: https://wheretoi-webapp.onrender.com
+        value: https://wheretoi.onrender.com
       - key: PORT
         value: "10000"
