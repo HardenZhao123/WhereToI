@@ -1265,6 +1265,18 @@ mark {
   object-fit: contain;
 }
 
+.comment-media-metadata {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+}
+
 .comment-form {
   margin-top: 0;
   display: flex;
@@ -2483,6 +2495,18 @@ mark {
   height: 100%;
   display: block;
   object-fit: cover;
+}
+
+.my-comment-media-metadata {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .my-comment-media-more {
