@@ -1,6 +1,6 @@
 # Performance Optimization Log - 2026-06-09
 
-Branch: `cartoon-feedback`
+Branch: `perf/network-transfer-optimization`
 
 Purpose: record the network-transfer optimizations implemented for the WhereToI Week 3 performance slice, with commit evidence, measurable size changes, and estimated engineering time share for later reporting.
 
