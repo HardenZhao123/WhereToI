@@ -19,6 +19,14 @@ import {
   getCommentMediaAttachments,
   normaliseCommentSortMode
 } from "../utils/comments.js";
+import {
+  addCommentMediaFiles,
+  clearCommentMediaSelections,
+  formatCommentMediaSize,
+  getCommentMediaStatus,
+  readCommentMediaAttachments,
+  removeCommentMediaSelectionById
+} from "../utils/comment-media.js";
 import { distanceInMetres, formatDistance } from "../utils/geo.js";
 
 const featureFilterOptions = [
@@ -37,10 +45,6 @@ const featureFilterOptions = [
 
 const sortModes = new Set(["distance", "cleanliness", "free", "facilities"]);
 const resultRenderLimit = 8;
-const commentMediaMaxBytes = 8 * 1024 * 1024;
-const commentMediaMaxAttachments = 9;
-const commentMediaMaxImages = 9;
-const commentMediaMaxVideos = 3;
 const locateActiveCenterToleranceMetres = 20;
 const defaultCleanlinessRange = "3days";
 
@@ -546,41 +550,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     });
   }
 
-  function getCommentMediaType(file) {
-    if (!file?.type) return null;
-    if (file.type.startsWith("image/")) return "image";
-    if (file.type.startsWith("video/")) return "video";
-    return null;
-  }
-
-  function formatMediaSize(bytes) {
-    if (!Number.isFinite(bytes) || bytes <= 0) return "";
-    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  }
-
-  function getSelectedCommentMediaCounts() {
-    return selectedCommentMedia.reduce(
-      (counts, media) => {
-        counts.total += 1;
-        if (media.type === "image") counts.images += 1;
-        if (media.type === "video") counts.videos += 1;
-        return counts;
-      },
-      { total: 0, images: 0, videos: 0 }
-    );
-  }
-
-  function getDefaultMediaStatus() {
-    const counts = getSelectedCommentMediaCounts();
-    if (counts.total === 0) {
-      return "Up to 9 attachments total, including up to 3 videos.";
-    }
-
-    return `${counts.total}/9 attachments selected. Images ${counts.images}/9, videos ${counts.videos}/3.`;
-  }
-
-  function setCommentMediaStatus(message = getDefaultMediaStatus()) {
+  function setCommentMediaStatus(message = getCommentMediaStatus(selectedCommentMedia)) {
     if (!commentMediaStatus) return;
     commentMediaStatus.textContent = message;
   }
@@ -609,19 +579,19 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const removeButton = document.createElement("button");
     removeButton.className = "comment-media-remove";
     removeButton.type = "button";
-    removeButton.textContent = "×";
+    removeButton.textContent = "x";
     removeButton.setAttribute("aria-label", `Remove ${media.file.name || "attachment"}`);
     removeButton.addEventListener("click", () => removeCommentMediaSelection(media.id));
 
     const caption = document.createElement("p");
     caption.className = "comment-media-caption";
-    caption.textContent = `${media.file.name || "Attachment"} ${formatMediaSize(media.file.size)}`.trim();
+    caption.textContent = `${media.file.name || "Attachment"} ${formatCommentMediaSize(media.file.size)}`.trim();
 
     item.append(frame, removeButton, caption);
     return item;
   }
 
-  function renderCommentMediaPreview(statusMessage = getDefaultMediaStatus()) {
+  function renderCommentMediaPreview(statusMessage = getCommentMediaStatus(selectedCommentMedia)) {
     if (commentMediaPreview) {
       commentMediaPreview.replaceChildren();
       selectedCommentMedia.forEach((media) => {
@@ -632,77 +602,18 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setCommentMediaStatus(statusMessage);
   }
 
-  function validateCommentMediaFile(file) {
-    const mediaType = getCommentMediaType(file);
-    if (!mediaType) {
-      return { error: `${file?.name || "This file"} is not an image or video.` };
-    }
-
-    if (file.size > commentMediaMaxBytes) {
-      return { error: `${file.name} is over 8 MB.` };
-    }
-
-    const counts = getSelectedCommentMediaCounts();
-    if (counts.total >= commentMediaMaxAttachments) {
-      return { error: "You can attach up to 9 files total." };
-    }
-
-    if (mediaType === "video" && counts.videos >= commentMediaMaxVideos) {
-      return { error: "You can attach up to 3 videos." };
-    }
-
-    if (mediaType === "image" && counts.images >= commentMediaMaxImages) {
-      return { error: "You can attach up to 9 images." };
-    }
-
-    return { mediaType };
-  }
-
   function previewCommentMediaSelection() {
-    const files = Array.from(commentMediaInput?.files ?? []);
-    let statusMessage = "";
-
-    for (const file of files) {
-      const { mediaType, error } = validateCommentMediaFile(file);
-      if (error) {
-        statusMessage = error;
-        continue;
-      }
-
-      selectedCommentMedia.push({
-        id: `comment-media-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        file,
-        type: mediaType,
-        previewUrl: URL.createObjectURL(file)
-      });
-    }
+    const { selectedMedia, statusMessage } = addCommentMediaFiles({
+      files: commentMediaInput?.files,
+      selectedMedia: selectedCommentMedia
+    });
+    selectedCommentMedia = selectedMedia;
 
     if (commentMediaInput) {
       commentMediaInput.value = "";
     }
 
-    renderCommentMediaPreview(statusMessage || getDefaultMediaStatus());
-  }
-
-  function readFileAsDataUrl(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
-      reader.addEventListener("error", () => reject(new Error("Could not read selected file.")));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function readCommentMediaAttachments() {
-    return Promise.all(
-      selectedCommentMedia.map(async (media) => ({
-        type: media.type,
-        mimeType: media.file.type,
-        name: media.file.name,
-        size: media.file.size,
-        dataUrl: await readFileAsDataUrl(media.file)
-      }))
-    );
+    renderCommentMediaPreview(statusMessage);
   }
 
   function resetCommentMediaAttachment() {
@@ -710,18 +621,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       commentMediaInput.value = "";
     }
 
-    selectedCommentMedia.forEach((media) => URL.revokeObjectURL(media.previewUrl));
-    selectedCommentMedia = [];
+    selectedCommentMedia = clearCommentMediaSelections(selectedCommentMedia);
     renderCommentMediaPreview();
   }
 
   function removeCommentMediaSelection(mediaId) {
-    const media = selectedCommentMedia.find((item) => item.id === mediaId);
-    if (media) {
-      URL.revokeObjectURL(media.previewUrl);
-    }
-
-    selectedCommentMedia = selectedCommentMedia.filter((item) => item.id !== mediaId);
+    selectedCommentMedia = removeCommentMediaSelectionById(selectedCommentMedia, mediaId);
     renderCommentMediaPreview();
   }
 
@@ -2061,7 +1966,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         return;
       }
 
-      const media = await readCommentMediaAttachments();
+      const media = await readCommentMediaAttachments(selectedCommentMedia);
       const commentVisibility = getCommentVisibility();
       const result = await submitComment(
         selectedToilet.id,
