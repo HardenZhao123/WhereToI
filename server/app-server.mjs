@@ -21,6 +21,15 @@ const STATIC_CONTENT_TYPES = {
   ".webp": "image/webp"
 };
 
+const API_CACHE_CONTROL = "no-cache";
+const PRIVATE_API_CACHE_CONTROL = "private, no-cache";
+const SENSITIVE_CACHE_CONTROL = "no-store";
+const PUBLIC_TOILETS_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=120";
+const STATIC_DOCUMENT_CACHE_CONTROL = "no-cache";
+const STATIC_ASSET_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
+const STATIC_IMAGE_CACHE_CONTROL = "public, max-age=604800, immutable";
+const STATIC_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".svg"]);
+
 const TRUTHY_QUERY_FLAGS = new Set(["1", "true", "yes"]);
 const BODY_SIZE_LIMIT_BYTES = 110 * 1024 * 1024;
 const CLIENT_ERROR_MESSAGE_MATCHERS = [
@@ -40,10 +49,17 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
 function sendJson(response, statusCode, payload, headers = {}) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store",
+    "Cache-Control": API_CACHE_CONTROL,
     ...headers
   });
   response.end(JSON.stringify(payload));
+}
+
+function sendSensitiveJson(response, statusCode, payload, headers = {}) {
+  sendJson(response, statusCode, payload, {
+    "Cache-Control": SENSITIVE_CACHE_CONTROL,
+    ...headers
+  });
 }
 
 function sendPlainText(response, statusCode, message) {
@@ -138,10 +154,10 @@ function createApiRouteHandlers(database, { emailService, logger }) {
           email: body.email
         });
         queueRegistrationEmail({ emailService, logger, user });
-        sendJson(response, 201, { user });
+        sendSensitiveJson(response, 201, { user });
       } catch (error) {
         if (error.code === "23505" || error.message?.includes("UNIQUE constraint failed")) {
-          sendJson(response, 400, { error: "Username already exists." });
+          sendSensitiveJson(response, 400, { error: "Username already exists." });
         } else {
           throw error;
         }
@@ -152,31 +168,31 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       const user = await database.verifyUserPassword(body.username, body.password);
 
       if (user) {
-        sendJson(response, 200, { user }, {
+        sendSensitiveJson(response, 200, { user }, {
           "Set-Cookie": `session=${user.id}; HttpOnly; Path=/; SameSite=Strict; Max-Age=86400`
         });
       } else {
-        sendJson(response, 401, { error: "Invalid username or password." });
+        sendSensitiveJson(response, 401, { error: "Invalid username or password." });
       }
     },
     "POST /api/logout": async ({ response }) => {
-      sendJson(response, 200, { status: "logged out" }, {
+      sendSensitiveJson(response, 200, { status: "logged out" }, {
         "Set-Cookie": "session=; HttpOnly; Path=/; Max-Age=0"
       });
     },
     "GET /api/me": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       if (!userId) {
-        sendJson(response, 401, { error: "Not authenticated" });
+        sendSensitiveJson(response, 401, { error: "Not authenticated" });
         return;
       }
       const user = await database.getUserById(userId);
-      sendJson(response, 200, { user });
+      sendSensitiveJson(response, 200, { user });
     },
     "POST /api/me/profile": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       if (!userId) {
-        sendJson(response, 401, { error: "Not authenticated" });
+        sendSensitiveJson(response, 401, { error: "Not authenticated" });
         return;
       }
       const body = await readJsonBody(request);
@@ -184,7 +200,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         gender: body.gender,
         preferences: body.preferences
       });
-      sendJson(response, 200, { user });
+      sendSensitiveJson(response, 200, { user });
     },
     "GET /api/toilets": async ({ response, url }) => {
       const search = url.searchParams.get("search") ?? "";
@@ -206,7 +222,9 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         bounds: hasBounds ? bounds : null
       });
 
-      sendJson(response, 200, { toilets });
+      sendJson(response, 200, { toilets }, {
+        "Cache-Control": PUBLIC_TOILETS_CACHE_CONTROL
+      });
     },
     "GET /api/toilets/detail": async ({ response, url }) => {
       const toiletId = url.searchParams.get("toiletId");
@@ -221,7 +239,9 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         return;
       }
 
-      sendJson(response, 200, { toilet });
+      sendJson(response, 200, { toilet }, {
+        "Cache-Control": PUBLIC_TOILETS_CACHE_CONTROL
+      });
     },
     "GET /api/toilets/summary": async ({ request, response, url, aiService }) => {
       const toiletId = url.searchParams.get("toiletId");
@@ -252,19 +272,19 @@ function createApiRouteHandlers(database, { emailService, logger }) {
     "GET /api/account": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       if (!userId) {
-        sendJson(response, 401, { error: "Not authenticated" });
+        sendSensitiveJson(response, 401, { error: "Not authenticated" });
         return;
       }
       const account = await database.getAccount(userId);
       const history = await database.getAccessHistory(userId, 10);
       const comments = await database.getUserComments(userId, 30);
 
-      sendJson(response, 200, { account, history, comments });
+      sendSensitiveJson(response, 200, { account, history, comments });
     },
     "POST /api/account/comment-profile-visibility": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       if (!userId) {
-        sendJson(response, 401, { error: "Not authenticated" });
+        sendSensitiveJson(response, 401, { error: "Not authenticated" });
         return;
       }
 
@@ -276,11 +296,11 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       });
 
       if (!result.updated) {
-        sendJson(response, 404, { error: "Comment not found." });
+        sendSensitiveJson(response, 404, { error: "Comment not found." });
         return;
       }
 
-      sendJson(response, 200, { comments: result.comments });
+      sendSensitiveJson(response, 200, { comments: result.comments });
     },
     "GET /api/public-profile": async ({ request, response, url }) => {
       const viewerUserId = getSessionUserId(request);
@@ -299,18 +319,18 @@ function createApiRouteHandlers(database, { emailService, logger }) {
     "GET /api/access-history": async ({ request, response, url }) => {
       const userId = getSessionUserId(request);
       if (!userId) {
-        sendJson(response, 401, { error: "Not authenticated" });
+        sendSensitiveJson(response, 401, { error: "Not authenticated" });
         return;
       }
       const limit = Number(url.searchParams.get("limit") ?? 10);
       const history = await database.getAccessHistory(userId, limit);
 
-      sendJson(response, 200, { history });
+      sendSensitiveJson(response, 200, { history });
     },
     "POST /api/access-history": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       if (!userId) {
-        sendJson(response, 401, { error: "Not authenticated" });
+        sendSensitiveJson(response, 401, { error: "Not authenticated" });
         return;
       }
       const body = await readJsonBody(request);
@@ -323,13 +343,13 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         useFreeTicket: Boolean(body.useFreeTicket)
       });
 
-      sendJson(response, 201, result);
+      sendSensitiveJson(response, 201, result);
     },
     "POST /api/cleanliness-survey": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       const user = userId ? await database.getUserById(userId) : null;
       if (!user) {
-        sendJson(response, 401, { error: "Log in to rate cleanliness." });
+        sendSensitiveJson(response, 401, { error: "Log in to rate cleanliness." });
         return;
       }
 
@@ -342,20 +362,23 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         answer: body.answer
       });
 
-      sendJson(response, 201, result);
+      sendSensitiveJson(response, 201, result);
     },
     "GET /api/comments": async ({ request, response, url }) => {
       const userId = getSessionUserId(request);
       const toiletId = url.searchParams.get("toiletId");
       const comments = await database.getComments(toiletId, { viewerUserId: userId });
 
-      sendJson(response, 200, { comments });
+      sendJson(response, 200, { comments }, {
+        "Cache-Control": PRIVATE_API_CACHE_CONTROL,
+        "Vary": "Cookie"
+      });
     },
     "POST /api/comments": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       const user = userId ? await database.getUserById(userId) : null;
       if (!user) {
-        sendJson(response, 401, { error: "Log in to post comments." });
+        sendSensitiveJson(response, 401, { error: "Log in to post comments." });
         return;
       }
 
@@ -383,13 +406,13 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         media
       });
 
-      sendJson(response, 201, { comments, toilet: cleanlinessResult.toilet });
+      sendSensitiveJson(response, 201, { comments, toilet: cleanlinessResult.toilet });
     },
     "DELETE /api/comments": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       const user = userId ? await database.getUserById(userId) : null;
       if (!user) {
-        sendJson(response, 401, { error: "Log in to delete comments." });
+        sendSensitiveJson(response, 401, { error: "Log in to delete comments." });
         return;
       }
 
@@ -401,17 +424,17 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       });
 
       if (!result.deleted) {
-        sendJson(response, 404, { error: "Comment not found." });
+        sendSensitiveJson(response, 404, { error: "Comment not found." });
         return;
       }
 
-      sendJson(response, 200, { comments: result.comments });
+      sendSensitiveJson(response, 200, { comments: result.comments });
     },
     "POST /api/comment-likes": async ({ request, response }) => {
       const userId = getSessionUserId(request);
       const user = userId ? await database.getUserById(userId) : null;
       if (!user) {
-        sendJson(response, 401, { error: "Log in to like comments." });
+        sendSensitiveJson(response, 401, { error: "Log in to like comments." });
         return;
       }
 
@@ -423,11 +446,11 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       });
 
       if (!result.found) {
-        sendJson(response, 404, { error: "Comment not found." });
+        sendSensitiveJson(response, 404, { error: "Comment not found." });
         return;
       }
 
-      sendJson(response, 200, {
+      sendSensitiveJson(response, 200, {
         liked: result.liked,
         comments: result.comments
       });
@@ -461,7 +484,35 @@ function resolveStaticFilePath(root, pathname) {
   return resolve(join(root, safePathname === "/" ? "index.html" : safePathname));
 }
 
-async function serveStaticFile({ root, pathname, response }) {
+function getStaticCacheControl(file) {
+  const extension = extname(file).toLowerCase();
+
+  if (extension === ".html") {
+    return STATIC_DOCUMENT_CACHE_CONTROL;
+  }
+
+  if (STATIC_IMAGE_EXTENSIONS.has(extension)) {
+    return STATIC_IMAGE_CACHE_CONTROL;
+  }
+
+  return STATIC_ASSET_CACHE_CONTROL;
+}
+
+function getRoundedModifiedTime(fileStat) {
+  return Math.floor(fileStat.mtimeMs / 1000) * 1000;
+}
+
+function isStaticFileFresh(request, fileStat) {
+  const modifiedSince = request.headers["if-modified-since"];
+  if (!modifiedSince) return false;
+
+  const modifiedSinceTime = Date.parse(modifiedSince);
+  if (!Number.isFinite(modifiedSinceTime)) return false;
+
+  return modifiedSinceTime >= getRoundedModifiedTime(fileStat);
+}
+
+async function serveStaticFile({ root, pathname, request, response }) {
   const candidate = resolveStaticFilePath(root, pathname);
 
   if (!candidate.startsWith(root)) {
@@ -469,13 +520,23 @@ async function serveStaticFile({ root, pathname, response }) {
     return;
   }
 
-  const fileStat = await stat(candidate);
-  const file = fileStat.isDirectory() ? join(candidate, "index.html") : candidate;
-
-  response.writeHead(200, {
+  const candidateStat = await stat(candidate);
+  const file = candidateStat.isDirectory() ? join(candidate, "index.html") : candidate;
+  const fileStat = candidateStat.isDirectory() ? await stat(file) : candidateStat;
+  const lastModified = new Date(getRoundedModifiedTime(fileStat)).toUTCString();
+  const headers = {
     "Content-Type": STATIC_CONTENT_TYPES[extname(file)] ?? "application/octet-stream",
-    "Cache-Control": "no-store"
-  });
+    "Cache-Control": getStaticCacheControl(file),
+    "Last-Modified": lastModified
+  };
+
+  if (isStaticFileFresh(request, fileStat)) {
+    response.writeHead(304, headers);
+    response.end();
+    return;
+  }
+
+  response.writeHead(200, headers);
   createReadStream(file).pipe(response);
 }
 
@@ -489,7 +550,7 @@ function createRequestHandler({ root, port, database, emailService, aiService, l
       const apiHandled = await handleApiRoute({ routeHandlers, request, response, url, aiService });
       if (apiHandled) return;
 
-      await serveStaticFile({ root, pathname: url.pathname, response });
+      await serveStaticFile({ root, pathname: url.pathname, request, response });
     } catch (error) {
       if (error?.code === "ENOENT") {
         sendPlainText(response, 404, "Not found");
