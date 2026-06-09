@@ -139,6 +139,7 @@ test("app initialization requests current location and centers the map when allo
   const originalConsoleError = console.error;
 
   let geolocationRequested = false;
+  let csvFetchCount = 0;
   let mapCenter = { lat: 51.4974, lng: -0.1751 };
   const markerLayer = {
     addTo() {
@@ -246,10 +247,8 @@ test("app initialization requests current location and centers the map when allo
     const requestUrl = String(url);
 
     if (requestUrl.endsWith(".csv")) {
-      return {
-        ok: true,
-        text: async () => "id,name,area,lat,lng,paid,comment,women,men,accessible,neutral,children,babyChanging,bidet,automatic,urinalOnly,radarKey,free,hours.today,hours.sat,hours.sun,cleanliness"
-      };
+      csvFetchCount += 1;
+      throw new Error("Startup should not fetch the large CSV fallback.");
     }
 
     if (requestUrl.startsWith("/api/toilets")) {
@@ -275,6 +274,7 @@ test("app initialization requests current location and centers the map when allo
     const app = createApp();
     await app.initialize();
 
+    assert.equal(csvFetchCount, 0);
     assert.equal(geolocationRequested, true);
     assert.deepEqual(mapCenter, { lat: 51.51, lng: -0.12 });
   } finally {

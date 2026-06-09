@@ -1,10 +1,10 @@
 import { appConfig } from "../config/app-config.js";
-import { parseCsv, rowsToObjects } from "../utils/csv.js";
-import { mapRecordToToilet } from "../toilets/toilet-record-mapper.js";
 import { fetchJson } from "./http-client.js";
 
 const toiletsApiCacheTtlMs = 2 * 60 * 1000;
+const toiletDetailCacheTtlMs = 5 * 60 * 1000;
 let toiletsApiCache = new Map();
+let toiletDetailCache = new Map();
 
 function getBoundsCacheKey(bounds) {
   if (!bounds) return "all";
@@ -41,6 +41,37 @@ export function getCachedToiletsFromApi(cleanlinessRange = "3days", bounds = nul
 
 export function clearToiletsApiCache() {
   toiletsApiCache = new Map();
+}
+
+export function clearToiletDetailCache() {
+  toiletDetailCache = new Map();
+}
+
+function cloneToilet(toilet) {
+  if (!toilet || typeof toilet !== "object") return toilet;
+
+  return {
+    ...toilet,
+    features: toilet.features ? { ...toilet.features } : toilet.features,
+    hours: toilet.hours ? { ...toilet.hours } : toilet.hours,
+    cleanlinessSurvey: toilet.cleanlinessSurvey ? { ...toilet.cleanlinessSurvey } : toilet.cleanlinessSurvey,
+    openingTimes: Array.isArray(toilet.openingTimes)
+      ? toilet.openingTimes.map((day) => Array.isArray(day) ? [...day] : day)
+      : toilet.openingTimes
+  };
+}
+
+export function getCachedToiletDetail(toiletId) {
+  const cached = toiletDetailCache.get(toiletId);
+  if (!cached) return null;
+
+  if (Date.now() - cached.loadedAt > toiletDetailCacheTtlMs) {
+    toiletDetailCache = new Map(toiletDetailCache);
+    toiletDetailCache.delete(toiletId);
+    return null;
+  }
+
+  return cloneToilet(cached.toilet);
 }
 
 export async function loadToiletsFromApi(
@@ -92,21 +123,21 @@ export async function loadToiletsFromApi(
   throw new Error("Invalid toilets API response.");
 }
 
-export async function loadToiletsFromCsv() {
-  const response = await fetch(appConfig.csvDataPath);
-  if (!response.ok) {
-    throw new Error(`CSV request failed with status ${response.status}`);
+export async function fetchToiletDetail(toiletId, { force = false } = {}) {
+  if (!force) {
+    const cached = getCachedToiletDetail(toiletId);
+    if (cached) return cached;
   }
 
-  const csvContent = await response.text();
-  const rows = parseCsv(csvContent);
-  const records = rowsToObjects(rows);
-  return records.map(mapRecordToToilet).filter(Boolean);
-}
-
-export async function fetchToiletDetail(toiletId) {
   const payload = await fetchJson(`${appConfig.apiBasePath}/toilets/detail?toiletId=${encodeURIComponent(toiletId)}`);
-  return payload.toilet;
+  if (payload.toilet?.id) {
+    toiletDetailCache = new Map(toiletDetailCache);
+    toiletDetailCache.set(toiletId, {
+      toilet: cloneToilet(payload.toilet),
+      loadedAt: Date.now()
+    });
+  }
+  return cloneToilet(payload.toilet);
 }
 
 export function submitCleanlinessSurvey(payload) {

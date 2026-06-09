@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  clearToiletDetailCache,
   clearToiletsApiCache,
+  fetchToiletDetail,
+  getCachedToiletDetail,
   getCachedToiletsFromApi,
   loadToiletsFromApi
 } from "../src/app/services/toilets-service.js";
@@ -90,6 +93,45 @@ test("toilets service keeps period and bounds cache entries separate and support
     assert.deepEqual(getCachedToiletsFromApi("3days", southBounds), forcedSouthThreeDays);
   } finally {
     clearToiletsApiCache();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("toilets service reuses cached toilet detail requests and supports force refresh", async () => {
+  const originalFetch = globalThis.fetch;
+  clearToiletDetailCache();
+  let fetchCount = 0;
+
+  globalThis.fetch = async (url) => {
+    fetchCount += 1;
+    assert.equal(String(url), "/api/toilets/detail?toiletId=detail-test");
+    return {
+      ok: true,
+      json: async () => ({
+        toilet: {
+          id: "detail-test",
+          name: `Detail load ${fetchCount}`,
+          features: { accessible: "Y" },
+          hours: { today: "Closed" },
+          cleanlinessSurvey: { ratingTotal: fetchCount, ratingCount: 1 },
+          openingTimes: [["09:00", "17:00"]]
+        }
+      })
+    };
+  };
+
+  try {
+    const firstDetail = await fetchToiletDetail("detail-test");
+    const secondDetail = await fetchToiletDetail("detail-test");
+    const forcedDetail = await fetchToiletDetail("detail-test", { force: true });
+
+    assert.equal(fetchCount, 2);
+    assert.equal(firstDetail.name, "Detail load 1");
+    assert.equal(secondDetail.name, "Detail load 1");
+    assert.equal(forcedDetail.name, "Detail load 2");
+    assert.deepEqual(getCachedToiletDetail("detail-test"), forcedDetail);
+  } finally {
+    clearToiletDetailCache();
     globalThis.fetch = originalFetch;
   }
 });
