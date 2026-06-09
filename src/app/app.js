@@ -289,6 +289,9 @@ export function createApp() {
     elements.commentComposerToggle?.addEventListener("click", () => mapController.toggleCommentComposer());
     elements.closeCommentComposerButton?.addEventListener("click", () => mapController.closeCommentComposer());
     elements.visualFeedbackToggle?.addEventListener("click", () => mapController.toggleVisualFeedback());
+    elements.visualFeedbackOpenButtons?.forEach((button) => {
+      button?.addEventListener("click", () => mapController.openVisualFeedback());
+    });
     elements.closeVisualFeedbackButton?.addEventListener("click", () => mapController.closeVisualFeedback());
     elements.visualCleanlinessSlider?.addEventListener("input", (event) =>
       mapController.setVisualCleanlinessLevel(event.target.value)
@@ -350,4 +353,3 @@ export function createApp() {
     initialize
   };
 }
-

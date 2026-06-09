@@ -750,6 +750,40 @@ h3 {
   min-height: 0;
 }
 
+.overview-visual-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.overview-visual-panel {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.overview-visual-panel.is-hidden,
+.overview-visual-panel[hidden] {
+  display: none !important;
+}
+
+.visual-preview-fixture {
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.overview-visual-open-button,
+.visual-feedback-open-button {
+  min-height: 32px;
+  width: fit-content;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .overview-features-disclosure {
   overflow: hidden;
 }
@@ -1381,6 +1415,7 @@ mark {
 
 .visual-cleanliness-image.is-hidden,
 .cartoon-toilet-svg.is-hidden,
+.cartoon-urinal-svg.is-hidden,
 .comment-composer-toggle.is-hidden,
 .visual-feedback-toggle.is-hidden,
 .comment-composer.is-hidden,
@@ -1732,7 +1767,9 @@ mark {
 }
 
 .visual-preview-card {
+  --visual-preview-art-size: 128px;
   display: grid;
+  height: 160px;
   min-height: 160px;
   place-items: center;
   overflow: hidden;
@@ -1741,20 +1778,89 @@ mark {
   background: linear-gradient(180deg, #f7fbff 0%, #eef8f4 100%);
 }
 
-.cartoon-toilet-svg {
-  width: min(210px, 100%);
-  height: auto;
+.cartoon-toilet-svg,
+.cartoon-urinal-svg {
+  display: block;
+  width: var(--visual-preview-art-size);
+  height: var(--visual-preview-art-size);
+  max-width: 82%;
+  max-height: 82%;
 }
 
 .visual-cleanliness-image {
-  width: 128px;
-  height: 128px;
+  width: var(--visual-preview-art-size);
+  height: var(--visual-preview-art-size);
   max-width: 82%;
   max-height: 82%;
   object-fit: contain;
   object-position: center;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+}
+
+.urinal-body {
+  fill: #f8fbff;
+  stroke: #8c98a3;
+  stroke-width: 4;
+}
+
+.urinal-rim {
+  fill: #ffffff;
+  stroke: #b8c1ba;
+  stroke-width: 3;
+}
+
+.urinal-bowl {
+  fill: #e5eaef;
+}
+
+.urinal-flush-pipe,
+.urinal-drain {
+  fill: none;
+  stroke: #8c98a3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+}
+
+.urinal-flush-cap {
+  fill: var(--teal);
+}
+
+.urinal-sparkles {
+  fill: #d8aa38;
+  opacity: 0.2;
+  transition: opacity 140ms ease;
+}
+
+.urinal-dirt {
+  fill: #7b5b37;
+  stroke: #7b5b37;
+  stroke-linecap: round;
+  stroke-width: 5;
+  opacity: 0.42;
+  transition: opacity 140ms ease;
+}
+
+.visual-preview-card[data-cleanliness="1"] .urinal-dirt {
+  opacity: 1;
+}
+
+.visual-preview-card[data-cleanliness="2"] .urinal-dirt {
+  opacity: 0.76;
+}
+
+.visual-preview-card[data-cleanliness="4"] .urinal-dirt {
+  opacity: 0.16;
+}
+
+.visual-preview-card[data-cleanliness="4"] .urinal-sparkles,
+.visual-preview-card[data-cleanliness="5"] .urinal-sparkles {
+  opacity: 0.88;
+}
+
+.visual-preview-card[data-cleanliness="5"] .urinal-dirt {
+  opacity: 0;
 }
 
 .toilet-room-floor {
@@ -1919,9 +2025,14 @@ mark {
 
 .visual-feedback-discussion-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.visual-feedback-discussion-copy {
+  display: grid;
+  gap: 2px;
 }
 
 .visual-feedback-discussion-header h3 {
@@ -2717,7 +2828,12 @@ mark {
   }
 
   .visual-preview-card {
+    height: 132px;
     min-height: 132px;
+  }
+
+  .overview-visual-gallery {
+    grid-template-columns: 1fr;
   }
 
   .visual-feedback-item {
