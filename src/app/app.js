@@ -5,7 +5,7 @@ import { createAccountController } from "./controllers/account-controller.js";
 import { createMapController } from "./controllers/map-controller.js";
 import { createTabController } from "./controllers/tab-controller.js";
 import { recordAccessHistory } from "./services/account-service.js";
-import { getCachedToiletsFromApi, loadToiletsFromApi, loadToiletsFromCsv } from "./services/toilets-service.js";
+import { getCachedToiletsFromApi, loadToiletsFromApi } from "./services/toilets-service.js";
 import { distanceInMetres } from "./utils/geo.js";
 
 export function createApp() {
@@ -136,16 +136,7 @@ export function createApp() {
     }
   }
 
-  async function loadLocalToilets() {
-    const loadedFromCsv = await loadToiletsFromCsv();
-
-    if (loadedFromCsv.length > 0) {
-      return {
-        toilets: loadedFromCsv,
-        status: `Using local toilet data (${loadedFromCsv.length} toilets). Connecting to database...`
-      };
-    }
-
+  function loadStarterToilets() {
     return {
       toilets: fallbackToilets,
       status: "Using starter toilet data. Connecting to database..."
@@ -222,7 +213,7 @@ export function createApp() {
 
     if (allowFallback && !hasLoadedApiToilets && !merge) {
       try {
-        const localData = await loadLocalToilets();
+        const localData = loadStarterToilets();
 
         if (requestId !== toiletLoadRequestId) {
           return;
@@ -325,9 +316,9 @@ export function createApp() {
 
     bindEvents();
 
-    // 1. Load local data immediately for instant markers
+    // 1. Show the tiny starter set immediately while live, bounded API data loads.
     try {
-      const localData = await loadLocalToilets();
+      const localData = loadStarterToilets();
       await setLoadedToilets(localData.toilets, {
         status: localData.status,
         merge: false

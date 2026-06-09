@@ -3,7 +3,6 @@ import test from "node:test";
 import {
   commentMediaMaxAttachments,
   commentMediaMaxBytes,
-  commentMediaMaxVideos,
   getCommentMediaStatus
 } from "../src/shared/comment-media-policy.js";
 import {
@@ -18,30 +17,35 @@ function createFile({ name = "proof.png", type = "image/png", size = 1024 } = {}
 test("comment media policy formats status from shared limits", () => {
   assert.equal(
     getCommentMediaStatus([]),
-    `Up to ${commentMediaMaxAttachments} attachments total, including up to ${commentMediaMaxVideos} videos.`
+    `Up to ${commentMediaMaxAttachments} image attachments.`
   );
 
   assert.equal(
-    getCommentMediaStatus([{ type: "image" }, { type: "video" }]),
-    "2/9 attachments selected. Images 1/9, videos 1/3."
+    getCommentMediaStatus([{ type: "image" }, { type: "image" }]),
+    "2/3 image attachments selected."
   );
 });
 
 test("frontend comment media validation uses shared size and count limits", () => {
   assert.deepEqual(
     validateCommentMediaFile(createFile({ name: "notes.txt", type: "text/plain" })),
-    { error: "notes.txt is not an image or video." }
+    { error: "notes.txt is not a supported image attachment." }
   );
 
   assert.deepEqual(
     validateCommentMediaFile(createFile({ name: "large.png", size: commentMediaMaxBytes + 1 })),
-    { error: "large.png is over 8 MB." }
+    { error: "large.png is over 1 MB." }
+  );
+
+  assert.deepEqual(
+    validateCommentMediaFile(createFile({ name: "clip.mp4", type: "video/mp4" })),
+    { error: "Video attachments are disabled for now." }
   );
 
   const selectedMedia = Array.from({ length: commentMediaMaxAttachments }, () => ({ type: "image" }));
   assert.deepEqual(
     validateCommentMediaFile(createFile(), selectedMedia),
-    { error: "You can attach up to 9 files total." }
+    { error: "You can attach up to 3 files total." }
   );
 });
 
@@ -60,5 +64,5 @@ test("frontend comment media selection reports the last rejected file without mu
   assert.equal(existingMedia.length, 1);
   assert.equal(result.selectedMedia.length, 2);
   assert.equal(result.selectedMedia[1].previewUrl, "blob:sink.png");
-  assert.equal(result.statusMessage, "notes.txt is not an image or video.");
+  assert.equal(result.statusMessage, "notes.txt is not a supported image attachment.");
 });

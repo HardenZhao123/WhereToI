@@ -23,6 +23,10 @@ function getCommentMediaPolicyError(reason, file) {
     return `${file?.name || "This file"} is over ${formatCommentMediaMaxBytes()}.`;
   }
 
+  if (reason === "videos-disabled") {
+    return "Video attachments are disabled for now.";
+  }
+
   if (reason === "too-many-attachments") {
     return `You can attach up to ${commentMediaMaxAttachments} files total.`;
   }
@@ -35,13 +39,13 @@ function getCommentMediaPolicyError(reason, file) {
     return `You can attach up to ${commentMediaMaxImages} images.`;
   }
 
-  return `${file?.name || "This file"} is not an image or video.`;
+  return `${file?.name || "This file"} is not a supported image attachment.`;
 }
 
 export function validateCommentMediaFile(file, selectedMedia = []) {
   const mediaType = getCommentMediaTypeFromMimeType(file?.type);
   if (!mediaType) {
-    return { error: `${file?.name || "This file"} is not an image or video.` };
+    return { error: `${file?.name || "This file"} is not a supported image attachment.` };
   }
 
   const result = validateCommentMediaPolicy({

@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt
     branch: main
-    buildCommand: npm install
+    buildCommand: npm ci && npm run build
     startCommand: npm start
     autoDeployTrigger: checksPass
     healthCheckPath: /api/health

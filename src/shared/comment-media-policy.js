@@ -1,8 +1,8 @@
-export const commentMediaMaxBytes = 8 * 1024 * 1024;
-export const commentMediaMaxAttachments = 9;
-export const commentMediaMaxImages = 9;
-export const commentMediaMaxVideos = 3;
-export const commentMediaTypes = Object.freeze(["image", "video"]);
+export const commentMediaMaxBytes = 1 * 1024 * 1024;
+export const commentMediaMaxAttachments = 3;
+export const commentMediaMaxImages = 3;
+export const commentMediaMaxVideos = 0;
+export const commentMediaTypes = Object.freeze(["image"]);
 
 export const commentMediaPolicy = Object.freeze({
   maxBytes: commentMediaMaxBytes,
@@ -49,13 +49,17 @@ export function formatCommentMediaMaxBytes() {
 export function getCommentMediaStatus(media = []) {
   const counts = getCommentMediaCounts(media);
   if (counts.total === 0) {
-    return `Up to ${commentMediaMaxAttachments} attachments total, including up to ${commentMediaMaxVideos} videos.`;
+    return `Up to ${commentMediaMaxAttachments} image attachments.`;
   }
 
-  return `${counts.total}/${commentMediaMaxAttachments} attachments selected. Images ${counts.images}/${commentMediaMaxImages}, videos ${counts.videos}/${commentMediaMaxVideos}.`;
+  return `${counts.total}/${commentMediaMaxAttachments} image attachments selected.`;
 }
 
 export function validateCommentMediaPolicy({ mediaType, fileSize, currentMedia = [] } = {}) {
+  if (String(mediaType ?? "").toLowerCase() === "video" && commentMediaMaxVideos <= 0) {
+    return { valid: false, reason: "videos-disabled" };
+  }
+
   if (!isSupportedCommentMediaType(mediaType)) {
     return { valid: false, reason: "unsupported-type" };
   }

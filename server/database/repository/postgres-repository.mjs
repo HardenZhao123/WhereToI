@@ -60,6 +60,35 @@ function mapUserRow(row, { includePasswordHash = false } = {}) {
   return user;
 }
 
+const COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL = `
+  CASE
+    WHEN jsonb_typeof(toilet_comments.media_attachments) = 'array'
+    THEN (
+      SELECT COALESCE(
+        jsonb_agg(
+          jsonb_strip_nulls(
+            jsonb_build_object(
+              'type', attachment.value ->> 'type',
+              'mimeType', attachment.value ->> 'mimeType',
+              'name', attachment.value ->> 'name',
+              'size',
+                CASE
+                  WHEN attachment.value ->> 'size' ~ '^[0-9]+$'
+                  THEN (attachment.value ->> 'size')::int
+                  ELSE 0
+                END,
+              'hasData', attachment.value ? 'dataUrl'
+            )
+          )
+        ),
+        '[]'::jsonb
+      )
+      FROM jsonb_array_elements(toilet_comments.media_attachments) AS attachment(value)
+    )
+    ELSE NULL
+  END
+`;
+
 async function ensureDemoUser(pool) {
   const existingDemo = await pool.query(
     "SELECT id FROM users WHERE username = $1",
@@ -488,6 +517,36 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return mapUserRow(result.rows[0]);
     },
+    async getToiletById(toiletId) {
+      const safeToiletId = String(toiletId ?? "").trim();
+      if (!safeToiletId) return null;
+
+      const fetchToilet = () =>
+        pool.query(
+          `
+          SELECT
+            id, name, area, lat, lng, paid, comment,
+            women, men, accessible, neutral, children, baby_changing, bidet,
+            automatic, urinal_only, radar_key, free_access, opening_times, cleanliness,
+            cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count
+          FROM toilets
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [safeToiletId]
+        );
+
+      let result = await fetchToilet();
+      if (result.rows.length === 0) {
+        const seedResult = await seedPostgresToiletsIfEmpty(pool, seedCsvPath);
+
+        if (seedResult.seeded) {
+          result = await fetchToilet();
+        }
+      }
+
+      return result.rows[0] ? mapRowToToilet(result.rows[0]) : null;
+    },
     async updateUserProfile(userId, { gender, preferences }) {
       const result = await pool.query(
         `
@@ -849,8 +908,8 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_mime_type,
           media_name,
           media_size,
-          media_url,
-          media_attachments,
+          NULL::text AS media_url,
+          ${COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL} AS media_attachments,
           created_at,
           (
             SELECT COUNT(*)::int
@@ -899,8 +958,8 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_comments.media_mime_type,
           toilet_comments.media_name,
           toilet_comments.media_size,
-          toilet_comments.media_url,
-          toilet_comments.media_attachments,
+          NULL::text AS media_url,
+          ${COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL} AS media_attachments,
           toilet_comments.created_at,
           toilets.name AS toilet_name,
           toilets.area AS toilet_area,
@@ -962,8 +1021,8 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_comments.media_mime_type,
           toilet_comments.media_name,
           toilet_comments.media_size,
-          toilet_comments.media_url,
-          toilet_comments.media_attachments,
+          NULL::text AS media_url,
+          ${COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL} AS media_attachments,
           toilet_comments.created_at,
           toilets.name AS toilet_name,
           toilets.area AS toilet_area,

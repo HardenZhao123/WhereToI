@@ -6,6 +6,8 @@ import test from "node:test";
 import { createAppServer } from "../server/app-server.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
+const largeStaticScript = `export const payload = "${"x".repeat(4096)}";`;
+
 async function withAppServer(callback, serverOptions = {}) {
   const rootDirectory = await mkdtemp(join(tmpdir(), "wheretoi-server-test-"));
   const dataDirectory = join(rootDirectory, "src", "data");
@@ -13,6 +15,9 @@ async function withAppServer(callback, serverOptions = {}) {
 
   try {
     await mkdir(dataDirectory, { recursive: true });
+    await writeFile(join(rootDirectory, "index.html"), "<!doctype html><title>WhereToI</title>", "utf8");
+    await writeFile(join(rootDirectory, "src", "styles.css"), ".map { color: green; }", "utf8");
+    await writeFile(join(rootDirectory, "src", "large.js"), largeStaticScript, "utf8");
     await writeFile(join(dataDirectory, "toilets.csv"), sampleToiletsCsv, "utf8");
 
     appServer = await createAppServer({ rootDirectory, port: 0, ...serverOptions });
@@ -43,6 +48,106 @@ test("API exposes health and expanded toilet feature details", async () => {
     assert.equal(detailToilet.features.babyChanging, "Y");
     assert.equal(detailToilet.features.bidet, "Y");
     assert.equal(detailToilet.features.free, "Y");
+  });
+});
+
+test("static assets use browser cache headers and Last-Modified validation", async () => {
+  await withAppServer(async (baseUrl) => {
+    const firstResponse = await fetch(`${baseUrl}/src/styles.css`);
+    const lastModified = firstResponse.headers.get("last-modified");
+
+    assert.equal(firstResponse.status, 200);
+    assert.match(firstResponse.headers.get("cache-control"), /max-age=3600/);
+    assert.ok(lastModified);
+    assert.equal(await firstResponse.text(), ".map { color: green; }");
+
+    const cachedResponse = await fetch(`${baseUrl}/src/styles.css`, {
+      headers: {
+        "If-Modified-Since": lastModified
+      }
+    });
+
+    assert.equal(cachedResponse.status, 304);
+    assert.equal(await cachedResponse.text(), "");
+  });
+});
+
+test("static text assets are compressed when the browser supports gzip", async () => {
+  await withAppServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/src/large.js`, {
+      headers: {
+        "Accept-Encoding": "gzip"
+      }
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-encoding"), "gzip");
+    assert.match(response.headers.get("vary"), /Accept-Encoding/);
+    assert.equal(await response.text(), largeStaticScript);
+  });
+});
+
+test("server can serve dist static files while keeping source data private", async () => {
+  const appRoot = await mkdtemp(join(tmpdir(), "wheretoi-dist-server-test-"));
+  const staticRoot = join(appRoot, "dist");
+  const staticSrcDirectory = join(staticRoot, "src");
+  const dataDirectory = join(appRoot, "src", "data");
+  let appServer;
+
+  try {
+    await mkdir(staticSrcDirectory, { recursive: true });
+    await mkdir(dataDirectory, { recursive: true });
+    await writeFile(join(staticRoot, "index.html"), "<!doctype html><title>WhereToI production</title>", "utf8");
+    await writeFile(join(staticSrcDirectory, "styles.css"), ".production { color: green; }", "utf8");
+    await writeFile(join(dataDirectory, "toilets.csv"), sampleToiletsCsv, "utf8");
+
+    appServer = await createAppServer({
+      rootDirectory: staticRoot,
+      port: 0,
+      databaseOptions: {
+        rootDirectory: appRoot
+      }
+    });
+    const port = await appServer.listen("127.0.0.1");
+    const baseUrl = `http://127.0.0.1:${port}`;
+
+    const staticResponse = await fetch(`${baseUrl}/src/styles.css`);
+    assert.equal(staticResponse.status, 200);
+    assert.equal(await staticResponse.text(), ".production { color: green; }");
+
+    const csvResponse = await fetch(`${baseUrl}/src/data/toilets.csv`);
+    assert.equal(csvResponse.status, 404);
+
+    const { payload: detailPayload } = await fetchJson(`${baseUrl}/api/toilets/detail?toiletId=detail-test`);
+    assert.equal(detailPayload.toilet.id, "detail-test");
+    assert.equal(detailPayload.toilet.name, "Prayer room washroom");
+  } finally {
+    await appServer?.close?.();
+    await rm(appRoot, { recursive: true, force: true });
+  }
+});
+
+test("API cache headers keep public toilets reusable and account data private", async () => {
+  await withAppServer(async (baseUrl) => {
+    const toiletsResponse = await fetch(`${baseUrl}/api/toilets`);
+    assert.equal(toiletsResponse.status, 200);
+    assert.match(toiletsResponse.headers.get("cache-control"), /public, max-age=60/);
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    assert.equal(loginRes.headers.get("cache-control"), "no-store");
+
+    const accountResponse = await fetch(`${baseUrl}/api/account`, {
+      headers: { "Cookie": cookie }
+    });
+
+    assert.equal(accountResponse.status, 200);
+    assert.equal(accountResponse.headers.get("cache-control"), "no-store");
   });
 });
 
@@ -596,7 +701,7 @@ test("API exposes public profiles without leaking anonymous or private comments"
   });
 });
 
-test("API supports multiple image and video comment attachments", async () => {
+test("API supports image comment attachments without returning base64 data", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletId = "detail-test";
 
@@ -621,13 +726,6 @@ test("API supports multiple image and video comment attachments", async () => {
         dataUrl: "data:image/png;base64,aW1hZ2U="
       },
       {
-        type: "video",
-        mimeType: "video/mp4",
-        name: "queue.mp4",
-        size: 5,
-        dataUrl: "data:video/mp4;base64,dmlkZW8="
-      },
-      {
         type: "image",
         mimeType: "image/jpeg",
         name: "sink.jpg",
@@ -650,8 +748,24 @@ test("API supports multiple image and video comment attachments", async () => {
     assert.equal(mediaPayload.comments.length, 1);
     assert.equal(mediaPayload.comments[0].media_type, "image");
     assert.equal(mediaPayload.comments[0].media_mime_type, "image/png");
-    assert.equal(mediaPayload.comments[0].media_url, "data:image/png;base64,aW1hZ2U=");
-    assert.deepEqual(mediaPayload.comments[0].media_attachments, media);
+    assert.equal(mediaPayload.comments[0].media_url, null);
+    assert.deepEqual(mediaPayload.comments[0].media_attachments, [
+      {
+        type: "image",
+        mimeType: "image/png",
+        name: "door.png",
+        size: 5,
+        hasData: true
+      },
+      {
+        type: "image",
+        mimeType: "image/jpeg",
+        name: "sink.jpg",
+        size: 6,
+        hasData: true
+      }
+    ]);
+    assert.equal(JSON.stringify(mediaPayload).includes("data:image"), false);
 
     const invalidResponse = await fetch(`${baseUrl}/api/comments`, {
       method: "POST",
@@ -674,26 +788,47 @@ test("API supports multiple image and video comment attachments", async () => {
     assert.equal(invalidResponse.status, 400);
     assert.match(invalidPayload.error, /Unsupported comment media type/);
 
-    const overVideoLimitResponse = await fetch(`${baseUrl}/api/comments`, {
+    const disabledVideoResponse = await fetch(`${baseUrl}/api/comments`, {
       method: "POST",
       headers: authHeaders,
       body: JSON.stringify({
         toiletId,
-        commentText: "Too many clips",
+        commentText: "Video clip",
         cleanlinessRating: 4,
-        media: Array.from({ length: 4 }, (_, index) => ({
+        media: {
           type: "video",
           mimeType: "video/mp4",
-          name: `queue-${index}.mp4`,
+          name: "queue.mp4",
           size: 5,
           dataUrl: "data:video/mp4;base64,dmlkZW8="
+        }
+      })
+    });
+    const disabledVideoPayload = await disabledVideoResponse.json();
+
+    assert.equal(disabledVideoResponse.status, 400);
+    assert.match(disabledVideoPayload.error, /Unsupported comment media type/);
+
+    const overImageLimitResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "Too many images",
+        cleanlinessRating: 4,
+        media: Array.from({ length: 4 }, (_, index) => ({
+          type: "image",
+          mimeType: "image/png",
+          name: `sink-${index}.png`,
+          size: 5,
+          dataUrl: "data:image/png;base64,aW1hZ2U="
         }))
       })
     });
-    const overVideoLimitPayload = await overVideoLimitResponse.json();
+    const overImageLimitPayload = await overImageLimitResponse.json();
 
-    assert.equal(overVideoLimitResponse.status, 400);
-    assert.match(overVideoLimitPayload.error, /at most 3 videos/);
+    assert.equal(overImageLimitResponse.status, 400);
+    assert.match(overImageLimitPayload.error, /at most 3 attachments/);
   });
 });
 
