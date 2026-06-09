@@ -36,14 +36,25 @@ function createRecordingClassList() {
 function createTextElement() {
   return {
     textContent: "",
+    dataset: {},
     hidden: false,
     classList: createClassList(),
     setAttribute() {},
     closest() {
       return null;
     },
+    append(...children) {
+      this.children = [...(this.children ?? []), ...children];
+    },
     replaceChildren(...children) {
       this.children = children;
+    },
+    addEventListener() {},
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
     }
   };
 }
@@ -82,6 +93,68 @@ function createTestToilet() {
   };
 }
 
+function createMapDetailTestHarness() {
+  const selectorNames = [
+    "#cleanliness-stars",
+    "#cleanliness-star-icons",
+    "#cleanliness-score",
+    "#cleanliness-rating-count",
+    "#toilet-name",
+    "#toilet-area",
+    "#toilet-comment",
+    "#feature-women",
+    "#feature-men",
+    "#feature-accessible",
+    "#feature-neutral",
+    "#feature-children",
+    "#feature-baby-changing",
+    "#feature-bidet",
+    "#feature-automatic",
+    "#feature-urinal-only",
+    "#feature-radar-key",
+    "#feature-free",
+    "#hours-today",
+    "#hours-sat",
+    "#hours-sun",
+    "#distance-line"
+  ];
+  const elementsBySelector = new Map(selectorNames.map((selector) => [selector, createTextElement()]));
+
+  const detailSectionLinks = ["features", "comment"].map((section) => {
+    const link = createTextElement();
+    link.dataset = { detailSection: section };
+    link.classList = createRecordingClassList();
+    return link;
+  });
+  const detailPanels = ["features", "comment"].map((section) => {
+    const panel = createTextElement();
+    panel.dataset = { detailPanel: section };
+    panel.classList = createRecordingClassList();
+    return panel;
+  });
+  const commentsList = createTextElement();
+  const commentsSummary = createTextElement();
+  const commentSortSelect = {
+    selectedOptions: [{ textContent: "Newest" }],
+    value: "newest"
+  };
+
+  return {
+    elementsBySelector,
+    elements: {
+      statusText: { textContent: "" },
+      detailsCard: { classList: createClassList() },
+      mapPanel: { classList: createClassList() },
+      directionsButton: { disabled: false },
+      detailSectionLinks,
+      detailPanels,
+      commentsList,
+      commentsSummary,
+      commentSortSelect
+    }
+  };
+}
+
 test("map controller can hide empty details after loading toilets", () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
@@ -115,6 +188,87 @@ test("map controller can hide empty details after loading toilets", () => {
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
+  }
+});
+
+test("map controller lazy-loads comments when the feedback section opens", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+
+  const { elementsBySelector, elements } = createMapDetailTestHarness();
+  let commentsFetchCount = 0;
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    },
+    setTimeout: globalThis.setTimeout
+  };
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl.startsWith("/api/comments")) {
+      commentsFetchCount += 1;
+      return {
+        ok: true,
+        json: async () => ({
+          comments: [
+            {
+              id: 1,
+              username: "tester",
+              author_name: "tester",
+              comment_text: "Clean and easy to find.",
+              created_at: "2026-06-09T10:00:00.000Z",
+              like_count: 0,
+              viewer_has_liked: false,
+              can_delete: false
+            }
+          ]
+        })
+      };
+    }
+
+    throw new Error(`Unexpected request: ${requestUrl}`);
+  };
+
+  try {
+    const controller = createMapController(elements);
+    const testToilet = createTestToilet();
+
+    controller.setToilets([testToilet]);
+    controller.setToilet(testToilet.id, { fly: false });
+
+    assert.equal(commentsFetchCount, 0);
+    assert.equal(elements.commentsList.children[0].textContent, "Open Feedback to load comments.");
+
+    controller.setDetailSection("comment");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.equal(commentsFetchCount, 1);
+    assert.equal(elements.commentsSummary.textContent, "1 feedback - Newest");
+    assert.equal(elements.commentsList.children.length, 1);
+
+    controller.setDetailSection("features");
+    controller.setDetailSection("comment");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.equal(commentsFetchCount, 1);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.fetch = originalFetch;
   }
 });
 

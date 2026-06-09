@@ -41,6 +41,7 @@ const commentMediaMaxBytes = 8 * 1024 * 1024;
 const commentMediaMaxAttachments = 9;
 const commentMediaMaxImages = 9;
 const commentMediaMaxVideos = 3;
+const commentCacheTtlMs = 60 * 1000;
 const locateActiveCenterToleranceMetres = 20;
 const defaultCleanlinessRange = "3days";
 
@@ -136,9 +137,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let visualCleanlinessLevel = 3;
   let visualFeedbackEntriesByToiletId = loadVisualFeedbackEntries();
   let currentComments = [];
+  let currentDetailSection = "features";
   let commentSortMode = "newest";
   let selectedCommentFilters = new Set();
   let pendingFocusedCommentId = null;
+  let commentsCacheByToiletId = new Map();
+  let commentRequestsByToiletId = new Map();
 
   document.addEventListener("click", closeOpenCommentMenus);
 
@@ -790,9 +794,103 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return ratingElement;
   }
 
-  function renderComments(comments) {
+  function getCachedComments(toiletId) {
+    const cached = commentsCacheByToiletId.get(toiletId);
+    if (!cached) return null;
+
+    if (Date.now() - cached.loadedAt > commentCacheTtlMs || cached.authenticated !== isAuthenticated()) {
+      commentsCacheByToiletId = new Map(commentsCacheByToiletId);
+      commentsCacheByToiletId.delete(toiletId);
+      return null;
+    }
+
+    return cached.comments;
+  }
+
+  function cacheComments(toiletId, comments) {
+    if (!toiletId || !Array.isArray(comments)) return;
+
+    commentsCacheByToiletId = new Map(commentsCacheByToiletId);
+    commentsCacheByToiletId.set(toiletId, {
+      comments: [...comments],
+      loadedAt: Date.now(),
+      authenticated: isAuthenticated()
+    });
+  }
+
+  function renderCommentsPlaceholder(message) {
+    currentComments = [];
+    updateCommentsSummary(0, 0);
+
+    if (!commentsList) return;
+
+    commentsList.replaceChildren();
+    const placeholder = document.createElement("p");
+    placeholder.textContent = message;
+    commentsList.append(placeholder);
+  }
+
+  function renderComments(comments, { cache = true, toiletId = selectedToilet?.id } = {}) {
     currentComments = Array.isArray(comments) ? [...comments] : [];
+    if (cache && toiletId) {
+      cacheComments(toiletId, currentComments);
+    }
     renderCommentList();
+  }
+
+  function resetCommentsForToilet(toiletId) {
+    const cachedComments = getCachedComments(toiletId);
+    if (cachedComments) {
+      renderComments(cachedComments, { cache: false, toiletId });
+      return;
+    }
+
+    renderCommentsPlaceholder("Open Feedback to load comments.");
+  }
+
+  async function ensureCommentsLoaded(toiletId, { force = false } = {}) {
+    if (!toiletId || !commentsList) return [];
+
+    if (!force) {
+      const cachedComments = getCachedComments(toiletId);
+      if (cachedComments) {
+        if (selectedToilet?.id === toiletId) {
+          renderComments(cachedComments, { cache: false, toiletId });
+        }
+        return cachedComments;
+      }
+    }
+
+    const existingRequest = commentRequestsByToiletId.get(toiletId);
+    if (existingRequest) return existingRequest;
+
+    if (selectedToilet?.id === toiletId) {
+      renderCommentsPlaceholder("Loading feedback...");
+    }
+
+    const request = fetchComments(toiletId)
+      .then((comments) => {
+        cacheComments(toiletId, comments);
+        if (selectedToilet?.id === toiletId) {
+          renderComments(comments, { cache: false, toiletId });
+        }
+        return comments;
+      })
+      .catch((error) => {
+        console.error("Failed to fetch feedback:", error);
+        if (selectedToilet?.id === toiletId && currentDetailSection === "comment") {
+          renderCommentsPlaceholder("Could not load feedback.");
+        }
+        return [];
+      })
+      .finally(() => {
+        commentRequestsByToiletId = new Map(commentRequestsByToiletId);
+        commentRequestsByToiletId.delete(toiletId);
+      });
+
+    commentRequestsByToiletId = new Map(commentRequestsByToiletId);
+    commentRequestsByToiletId.set(toiletId, request);
+    return request;
   }
 
   function updateCommentsSummary(totalCount, visibleCount) {
@@ -1153,6 +1251,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       panel.classList.toggle("is-active", isActive);
       panel.hidden = !isActive;
     });
+
+    currentDetailSection = nextSection;
+    if (nextSection === "comment" && selectedToilet) {
+      ensureCommentsLoaded(selectedToilet.id, { force: pendingFocusedCommentId !== null });
+    }
   }
 
   function createToiletIcon(toilet, selected = false) {
@@ -1178,6 +1281,30 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   function getBounds() {
     if (!map) return null;
     const bounds = map.getBounds();
+    if (!bounds) return null;
+
+    if (
+      [bounds.minLat, bounds.maxLat, bounds.minLng, bounds.maxLng]
+        .map(Number)
+        .every(Number.isFinite)
+    ) {
+      return {
+        minLat: Number(bounds.minLat),
+        maxLat: Number(bounds.maxLat),
+        minLng: Number(bounds.minLng),
+        maxLng: Number(bounds.maxLng)
+      };
+    }
+
+    if (
+      typeof bounds.getSouth !== "function" ||
+      typeof bounds.getNorth !== "function" ||
+      typeof bounds.getWest !== "function" ||
+      typeof bounds.getEast !== "function"
+    ) {
+      return null;
+    }
+
     return {
       minLat: bounds.getSouth(),
       maxLat: bounds.getNorth(),
@@ -1399,7 +1526,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     closeCommentComposer();
     closeVisualFeedback();
     setCommentComposerAvailable(true);
-    
+    resetCommentsForToilet(toilet.id);
+
     if (defaultSection) {
       setDetailSection(defaultSection);
     }
@@ -1441,24 +1569,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     renderCleanlinessRating(toilet);
     resetVisualFeedbackForm();
     renderVisualFeedbackDiscussion();
-
-    if (commentsList) {
-      currentComments = [];
-      updateCommentsSummary(0, 0);
-      commentsList.replaceChildren();
-      const loading = document.createElement("p");
-      loading.textContent = "Loading feedback...";
-      commentsList.append(loading);
-
-      fetchComments(toilet.id)
-        .then((comments) => renderComments(comments))
-        .catch((error) => {
-          console.error("Failed to fetch feedback:", error);
-          if (commentsList) {
-            commentsList.textContent = "Could not load feedback.";
-          }
-        });
-    }
 
     if (fly) {
       const marker = markerById.get(toilet.id);
