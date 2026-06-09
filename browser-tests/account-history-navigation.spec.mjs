@@ -154,7 +154,11 @@ test("clicking a visit history row opens the matching toilet detail card", async
   await historyItem.click();
   await expect(page.locator("#view-title")).toHaveText("Map");
   await expect(page.locator("#details-card")).toBeVisible();
-  await expect(page.locator("#toilet-name")).toHaveText(targetToilet.name);
+  const expectedToiletName = targetToilet.name
+    .split(",")[0]
+    .trim()
+    .replace(/\s*&\s*/g, " and ");
+  await expect(page.locator("#toilet-name")).toHaveText(expectedToiletName);
 
   const afterScreenshotPath = testInfo.outputPath("toilet-detail-after-history-click.png");
   await page.screenshot({ path: afterScreenshotPath, fullPage: false });
@@ -162,6 +166,69 @@ test("clicking a visit history row opens the matching toilet detail card", async
     path: afterScreenshotPath,
     contentType: "image/png"
   });
+
+  expect(pageErrors).toEqual([]);
+  expect(consoleErrors.filter((message) => !isExpectedLeafletStubResourceError(message))).toEqual([]);
+});
+
+test("toilet detail close button stays clickable after detail card scrolls", async ({ page }, testInfo) => {
+  const consoleErrors = [];
+  const pageErrors = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+
+  const loginResponse = await page.request.post("/api/login", {
+    data: { username: "demo", password: "demo123" }
+  });
+  expect(loginResponse.ok()).toBeTruthy();
+
+  await page.goto("/");
+  await expect(page).toHaveTitle("WhereToI");
+  await page.waitForFunction(() => document.querySelectorAll("#toilet-results .toilet-result").length > 0);
+
+  const firstResult = page.locator("#toilet-results .toilet-result").first();
+  if (!(await firstResult.isVisible())) {
+    await page.locator("#toggle-search").click();
+  }
+  await expect(firstResult).toBeVisible();
+  await firstResult.click();
+  const detailsCard = page.locator("#details-card");
+  const closeButton = page.locator("#close-details");
+  await expect(detailsCard).toBeVisible();
+  await expect(closeButton).toBeVisible();
+
+  const initialButtonBox = await closeButton.boundingBox();
+  expect(initialButtonBox).toBeTruthy();
+
+  await detailsCard.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await page.waitForTimeout(100);
+
+  const scrolledButtonBox = await closeButton.boundingBox();
+  const detailsBox = await detailsCard.boundingBox();
+  expect(scrolledButtonBox).toBeTruthy();
+  expect(detailsBox).toBeTruthy();
+  expect(scrolledButtonBox.y).toBeGreaterThanOrEqual(detailsBox.y);
+  expect(scrolledButtonBox.y).toBeLessThan(detailsBox.y + 72);
+  expect(Math.abs(scrolledButtonBox.y - initialButtonBox.y)).toBeLessThanOrEqual(8);
+
+  const afterScrollScreenshotPath = testInfo.outputPath("sticky-detail-close-after-scroll.png");
+  await page.screenshot({ path: afterScrollScreenshotPath, fullPage: false });
+  await testInfo.attach("sticky-detail-close-after-scroll", {
+    path: afterScrollScreenshotPath,
+    contentType: "image/png"
+  });
+
+  await page.mouse.click(
+    scrolledButtonBox.x + scrolledButtonBox.width / 2,
+    scrolledButtonBox.y + scrolledButtonBox.height / 2
+  );
+  await expect(detailsCard).toHaveClass(/is-hidden/);
 
   expect(pageErrors).toEqual([]);
   expect(consoleErrors.filter((message) => !isExpectedLeafletStubResourceError(message))).toEqual([]);

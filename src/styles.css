@@ -605,6 +605,7 @@ h3 {
   max-height: min(430px, 58vh);
   padding: 16px;
   overflow: auto;
+  scroll-padding-top: 56px;
   border-radius: 18px;
   background: rgb(255 255 255 / 94%);
   box-shadow: 0 18px 48px rgb(31 42 51 / 12%);
@@ -624,10 +625,15 @@ h3 {
 }
 
 .details-header {
+  position: sticky;
+  top: 0;
+  z-index: 12;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  padding-bottom: 10px;
+  background: rgb(255 255 255 / 96%);
 }
 
 .details-title-block {
@@ -1397,6 +1403,7 @@ mark {
   max-height: min(410px, 52vh);
   padding: 12px;
   overflow: auto;
+  scroll-padding-top: 48px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgb(255 255 255 / 96%);
@@ -1404,11 +1411,16 @@ mark {
 }
 
 .comment-composer-header {
+  position: sticky;
+  top: 0;
+  z-index: 12;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
+  padding-bottom: 8px;
+  background: rgb(255 255 255 / 98%);
 }
 
 .comment-composer-header h3 {
@@ -1694,6 +1706,7 @@ mark {
   gap: 12px;
   padding: 12px;
   overflow: auto;
+  scroll-padding-top: 56px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
@@ -1701,10 +1714,15 @@ mark {
 }
 
 .visual-feedback-header {
+  position: sticky;
+  top: 0;
+  z-index: 12;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  padding-bottom: 8px;
+  background: white;
 }
 
 .visual-feedback-header h3 {
@@ -2592,10 +2610,20 @@ mark {
 .auth-dialog {
   position: relative;
   width: min(360px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  scroll-padding-top: 64px;
   padding: 24px;
   border-radius: 18px;
   background: white;
   box-shadow: 0 24px 72px rgb(31 42 51 / 28%);
+}
+
+.auth-dialog > header {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background: white;
 }
 
 .auth-dialog h2 {
