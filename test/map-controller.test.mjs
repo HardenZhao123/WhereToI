@@ -257,6 +257,7 @@ test("map controller uses urinal preview images for urinal-only toilets", async 
   const overviewUrinalPanel = createTextElement();
   overviewUrinalPanel.classList = createRecordingClassList();
   const overviewVisualState = createTextElement();
+  const overviewUrinalState = createTextElement();
   const visualCleanlinessState = createTextElement();
   const visualFeedbackSubtitle = createTextElement();
   const overviewVisualImage = {
@@ -303,6 +304,7 @@ test("map controller uses urinal preview images for urinal-only toilets", async 
       overviewUrinalPreview,
       overviewUrinalImage,
       overviewVisualState,
+      overviewUrinalState,
       visualCleanlinessPreview,
       visualCleanlinessImage,
       visualCleanlinessState,
@@ -325,6 +327,7 @@ test("map controller uses urinal preview images for urinal-only toilets", async 
     assert.equal(overviewUrinalImage.alt, "Urinal cleanliness preview: OK");
     assert.equal(overviewUrinalPreview.attributes["aria-label"], "Cartoon urinal cleanliness preview: OK");
     assert.equal(overviewUrinalSvgClassList.contains("is-hidden"), true);
+    assert.equal(overviewUrinalState.textContent, "OK - Usable but not spotless");
 
     assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_urinal.png");
     assert.equal(visualCleanlinessImage.alt, "Urinal cleanliness preview: OK");
@@ -337,10 +340,106 @@ test("map controller uses urinal preview images for urinal-only toilets", async 
 
     assert.equal(overviewVisualImage.src, "toilet_levels/level_5.png");
     assert.equal(overviewUrinalImage.src, "toilet_levels/level_5_urinal.png");
+    assert.equal(overviewUrinalState.textContent, "Excellent - Fresh and well kept");
     assert.equal(visualCleanlinessImage.src, "toilet_levels/level_5_urinal.png");
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
+  }
+});
+
+test("map controller opens urinal visual rating from the urinal preview", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+
+  const { elementsBySelector, elements } = createMapDetailTestHarness();
+  const { element: overviewVisualPreview } = createPreviewElement();
+  const { element: overviewUrinalPreview } = createPreviewElement();
+  const { element: visualCleanlinessPreview } = createPreviewElement();
+  const overviewUrinalPanel = createTextElement();
+  overviewUrinalPanel.classList = createRecordingClassList();
+  const overviewVisualState = createTextElement();
+  const overviewUrinalState = createTextElement();
+  const visualCleanlinessState = createTextElement();
+  const visualFeedbackSubtitle = createTextElement();
+  const overviewVisualImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+  const overviewUrinalImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+  const visualCleanlinessImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+  const visualFeedbackPanel = createTextElement();
+  visualFeedbackPanel.classList = createRecordingClassList();
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    },
+    setTimeout: globalThis.setTimeout
+  };
+  globalThis.requestAnimationFrame = (callback) => {
+    callback();
+    return 1;
+  };
+
+  try {
+    const controller = createMapController({
+      ...elements,
+      visualFeedbackPanel,
+      overviewUrinalPanel,
+      overviewVisualPreview,
+      overviewVisualImage,
+      overviewUrinalPreview,
+      overviewUrinalImage,
+      overviewVisualState,
+      overviewUrinalState,
+      visualCleanlinessPreview,
+      visualCleanlinessImage,
+      visualCleanlinessState,
+      visualFeedbackSubtitle
+    });
+
+    controller.setToilets([createTestToilet()]);
+    await controller.setToilet("test-toilet", { fly: false });
+
+    assert.equal(overviewUrinalImage.src, "toilet_levels/level_3_urinal.png");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3.png");
+    assert.equal(visualCleanlinessImage.alt, "Toilet cleanliness preview: OK");
+
+    controller.openVisualFeedback("urinal");
+
+    assert.equal(visualFeedbackPanel.hidden, false);
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_urinal.png");
+    assert.equal(visualCleanlinessImage.alt, "Urinal cleanliness preview: OK");
+    assert.equal(visualCleanlinessPreview.attributes["aria-label"], "Cartoon urinal cleanliness preview: OK");
+    assert.equal(visualCleanlinessState.textContent, "OK - Usable but not spotless");
+    assert.equal(visualFeedbackSubtitle.textContent, "Match the urinal picture to what you saw.");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.requestAnimationFrame = originalRequestAnimationFrame;
   }
 });
 

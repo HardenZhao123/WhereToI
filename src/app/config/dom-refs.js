@@ -53,6 +53,7 @@ export function getDomRefs() {
     overviewUrinalPreview: document.querySelector("#overview-urinal-preview"),
     overviewUrinalImage: document.querySelector("#overview-urinal-image"),
     overviewVisualState: document.querySelector("#overview-visual-state"),
+    overviewUrinalState: document.querySelector("#overview-urinal-state"),
     visualCleanlinessPreview: document.querySelector("#visual-cleanliness-preview"),
     visualCleanlinessImage: document.querySelector("#visual-cleanliness-image"),
     visualCleanlinessSlider: document.querySelector("#visual-cleanliness-slider"),

@@ -784,6 +784,11 @@ h3 {
   font-weight: 800;
 }
 
+.overview-visual-panel .overview-visual-open-button {
+  width: min(180px, 100%);
+  justify-self: start;
+}
+
 .overview-features-disclosure {
   overflow: hidden;
 }

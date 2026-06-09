@@ -77,6 +77,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     overviewUrinalPreview,
     overviewUrinalImage,
     overviewVisualState,
+    overviewUrinalState,
     visualCleanlinessPreview,
     visualCleanlinessImage,
     visualCleanlinessSlider,
@@ -138,6 +139,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let selectedRating = null;
   let selectedCommentMedia = [];
   let visualCleanlinessLevel = 3;
+  let visualFeedbackFixtureType = null;
   let visualFeedbackEntriesByToiletId = loadVisualFeedbackEntries();
   let currentDetailSection = "overview";
 
@@ -171,6 +173,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function getVisualFixtureType(toilet = selectedToilet) {
     return isUrinalOnlyToilet(toilet) ? "urinal" : "toilet";
+  }
+
+  function normaliseVisualFixtureType(fixtureType) {
+    return fixtureType === "urinal" || fixtureType === "toilet" ? fixtureType : null;
+  }
+
+  function getActiveVisualFeedbackFixtureType() {
+    return normaliseVisualFixtureType(visualFeedbackFixtureType) || getVisualFixtureType();
   }
 
   function getVisualFixtureLabel(fixture = selectedToilet) {
@@ -210,7 +220,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return visualCleanlinessLevels.has(value) ? value : 3;
   }
 
-  function getVisualCleanlinessLevel(level = visualCleanlinessLevel, fixtureType = getVisualFixtureType()) {
+  function getVisualCleanlinessLevel(level = visualCleanlinessLevel, fixtureType = getActiveVisualFeedbackFixtureType()) {
     const value = normaliseVisualCleanlinessLevel(level);
     const definition = visualCleanlinessLevels.get(value);
     const safeFixtureType = fixtureType === "urinal" ? "urinal" : "toilet";
@@ -487,7 +497,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     });
 
     if (overviewVisualState) {
-      overviewVisualState.textContent = `${level.label} - ${level.tone}`;
+      overviewVisualState.textContent = `${toiletLevel.label} - ${toiletLevel.tone}`;
+    }
+
+    if (overviewUrinalState) {
+      const urinalLevel = getVisualCleanlinessLevel(visualCleanlinessLevel, "urinal");
+      overviewUrinalState.textContent = `${urinalLevel.label} - ${urinalLevel.tone}`;
     }
 
     renderVisualPreview(visualCleanlinessPreview, visualCleanlinessState, level, {
@@ -757,8 +772,15 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function setVisualFeedbackOpen(open) {
+  function setVisualFeedbackOpen(open, fixtureType = null) {
     const shouldOpen = Boolean(open && selectedToilet && visualFeedbackPanel);
+    const nextFixtureType = normaliseVisualFixtureType(fixtureType);
+
+    if (nextFixtureType) {
+      visualFeedbackFixtureType = nextFixtureType;
+    } else if (shouldOpen && !visualFeedbackFixtureType) {
+      visualFeedbackFixtureType = getVisualFixtureType();
+    }
 
     if (visualFeedbackPanel) {
       visualFeedbackPanel.hidden = !shouldOpen;
@@ -777,6 +799,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       updateVisualCleanlinessPreview();
       renderVisualFeedbackDiscussion();
       requestAnimationFrame(() => visualCleanlinessSlider?.focus());
+    } else {
+      visualFeedbackFixtureType = null;
     }
   }
 
@@ -818,8 +842,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setVisualFeedbackOpen(visualFeedbackPanel?.hidden ?? true);
   }
 
-  function openVisualFeedback() {
-    setVisualFeedbackOpen(true);
+  function openVisualFeedback(fixtureType = null) {
+    setVisualFeedbackOpen(true, fixtureType);
   }
 
   function closeVisualFeedback() {

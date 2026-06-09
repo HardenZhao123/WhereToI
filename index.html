@@ -153,6 +153,10 @@
                           <div class="visual-preview-card overview-visual-preview" id="overview-visual-preview" data-cleanliness="3" role="img" aria-label="Cartoon toilet cleanliness preview: OK">
                             <img id="overview-visual-image" class="visual-cleanliness-image is-hidden" src="" alt="Real toilet cleanliness preview" />
                           </div>
+                          <p class="visual-cleanliness-state overview-visual-state" id="overview-visual-state" aria-live="polite">OK</p>
+                          <button class="outline-button overview-visual-open-button" type="button" data-open-visual-feedback="toilet">
+                            Rate visually
+                          </button>
                         </section>
                         <section class="overview-visual-panel is-hidden" id="overview-urinal-panel" hidden>
                           <p class="visual-preview-fixture">Urinal preview</p>
@@ -177,12 +181,12 @@
                               </g>
                             </svg>
                           </div>
+                          <p class="visual-cleanliness-state overview-visual-state" id="overview-urinal-state" aria-live="polite">OK</p>
+                          <button class="outline-button overview-visual-open-button" type="button" data-open-visual-feedback="urinal">
+                            Rate urinal visually
+                          </button>
                         </section>
                       </div>
-                      <p class="visual-cleanliness-state overview-visual-state" id="overview-visual-state" aria-live="polite">OK</p>
-                      <button class="outline-button overview-visual-open-button" type="button" data-open-visual-feedback>
-                        Rate visually
-                      </button>
                     </section>
                     <details class="overview-features-disclosure" open>
                       <summary>Features</summary>

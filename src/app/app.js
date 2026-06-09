@@ -290,7 +290,7 @@ export function createApp() {
     elements.closeCommentComposerButton?.addEventListener("click", () => mapController.closeCommentComposer());
     elements.visualFeedbackToggle?.addEventListener("click", () => mapController.toggleVisualFeedback());
     elements.visualFeedbackOpenButtons?.forEach((button) => {
-      button?.addEventListener("click", () => mapController.openVisualFeedback());
+      button?.addEventListener("click", () => mapController.openVisualFeedback(button.dataset.openVisualFeedback));
     });
     elements.closeVisualFeedbackButton?.addEventListener("click", () => mapController.closeVisualFeedback());
     elements.visualCleanlinessSlider?.addEventListener("input", (event) =>
