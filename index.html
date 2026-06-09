@@ -15,7 +15,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./src/styles.css?v=locate-button-2" />
+    <link rel="stylesheet" href="./src/styles.css?v=urinal-preview-3" />
   </head>
   <body>
     <main class="app-shell" aria-label="WhereToI web app">
@@ -147,10 +147,46 @@
                           <p>Live cartoon preview for the selected cleanliness level.</p>
                         </div>
                       </div>
-                      <div class="visual-preview-card overview-visual-preview" id="overview-visual-preview" data-cleanliness="3" role="img" aria-label="Cartoon toilet cleanliness preview: OK">
-                        <img id="overview-visual-image" class="visual-cleanliness-image is-hidden" src="" alt="Real toilet cleanliness preview" />
+                      <div class="overview-visual-gallery">
+                        <section class="overview-visual-panel">
+                          <p class="visual-preview-fixture">Toilet preview</p>
+                          <div class="visual-preview-card overview-visual-preview" id="overview-visual-preview" data-cleanliness="3" role="img" aria-label="Cartoon toilet cleanliness preview: OK">
+                            <img id="overview-visual-image" class="visual-cleanliness-image is-hidden" src="" alt="Real toilet cleanliness preview" />
+                          </div>
+                          <p class="visual-cleanliness-state overview-visual-state" id="overview-visual-state" aria-live="polite">OK</p>
+                          <button class="outline-button overview-visual-open-button" type="button" data-open-visual-feedback="toilet">
+                            Rate visually
+                          </button>
+                        </section>
+                        <section class="overview-visual-panel is-hidden" id="overview-urinal-panel" hidden>
+                          <p class="visual-preview-fixture">Urinal preview</p>
+                          <div class="visual-preview-card overview-urinal-preview" id="overview-urinal-preview" data-cleanliness="3" role="img" aria-label="Cartoon urinal cleanliness preview: OK">
+                            <img id="overview-urinal-image" class="visual-cleanliness-image is-hidden" src="" alt="Real urinal cleanliness preview" />
+                            <svg class="cartoon-urinal-svg" viewBox="0 0 180 220" aria-hidden="true" focusable="false">
+                              <path class="urinal-body" d="M90 20c34 0 56 17 56 43v102c0 18-10 29-24 35l-4 20H62l-4-20c-14-6-24-17-24-35V63c0-26 22-43 56-43Z"></path>
+                              <path class="urinal-rim" d="M62 46h56c12 0 22 10 22 22v70c0 30-20 52-50 52S40 168 40 138V68c0-12 10-22 22-22Z"></path>
+                              <path class="urinal-bowl" d="M69 64h42c11 0 19 9 19 19v49c0 22-15 40-40 40s-40-18-40-40V83c0-10 8-19 19-19Z"></path>
+                              <path class="urinal-flush-pipe" d="M83 20V8h14v12"></path>
+                              <circle class="urinal-flush-cap" cx="90" cy="8" r="6"></circle>
+                              <path class="urinal-drain" d="M79 144c8 5 14 5 22 0"></path>
+                              <g class="urinal-sparkles">
+                                <path d="M37 45l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z"></path>
+                                <path d="M143 62l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"></path>
+                              </g>
+                              <g class="urinal-dirt">
+                                <circle cx="63" cy="101" r="7"></circle>
+                                <circle cx="115" cy="114" r="5"></circle>
+                                <path d="M76 149c9 7 19 7 28 0"></path>
+                                <path d="M58 171c10-6 22-7 34-2"></path>
+                              </g>
+                            </svg>
+                          </div>
+                          <p class="visual-cleanliness-state overview-visual-state" id="overview-urinal-state" aria-live="polite">OK</p>
+                          <button class="outline-button overview-visual-open-button" type="button" data-open-visual-feedback="urinal">
+                            Rate urinal visually
+                          </button>
+                        </section>
                       </div>
-                      <p class="visual-cleanliness-state overview-visual-state" id="overview-visual-state" aria-live="polite">OK</p>
                     </section>
                     <details class="overview-features-disclosure" open>
                       <summary>Features</summary>
@@ -211,8 +247,13 @@
                 <section class="details-panel" id="details-visual-panel" data-detail-panel="visual" aria-labelledby="details-visual-link" hidden>
                   <section class="visual-feedback-discussion comments-section" aria-labelledby="visual-feedback-discussion-title">
                     <div class="comments-header visual-feedback-discussion-header">
-                      <h3 id="visual-feedback-discussion-title">Visual checks</h3>
-                      <p id="visual-feedback-summary">0 visual checks</p>
+                      <div class="visual-feedback-discussion-copy">
+                        <h3 id="visual-feedback-discussion-title">Visual checks</h3>
+                        <p id="visual-feedback-summary">0 visual checks</p>
+                      </div>
+                      <button class="outline-button visual-feedback-open-button" type="button" data-open-visual-feedback>
+                        Rate visually
+                      </button>
                     </div>
                     <div class="visual-feedback-list comments-list" id="visual-feedback-list" aria-live="polite">
                       <p>No visual checks yet.</p>
@@ -250,7 +291,7 @@
                     <path d="M8.5 16.5v2h6v-2"></path>
                   </svg>
                 </span>
-                Visual check
+                Rate visually
               </button>
             </div>
             <section class="comment-composer is-hidden" id="comment-composer" aria-labelledby="comment-composer-title" hidden>
@@ -457,7 +498,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./src/main.js?v=locate-button-2" type="module"></script>
+    <script src="./src/main.js?v=urinal-preview-3" type="module"></script>
     <section class="auth-modal is-hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div class="auth-dialog">
         <button class="close-button sticky-close-button" id="close-auth" type="button" aria-label="Close login dialog">X</button>
