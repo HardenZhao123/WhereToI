@@ -1,24 +1,16 @@
 import { appConfig } from "../config/app-config.js";
 import {
-  deleteComment as deleteCommentRequest,
   fetchAiSummary,
-  fetchComments,
   submitCleanlinessSurvey,
-  submitComment,
-  toggleCommentLike as toggleCommentLikeRequest
+  submitComment
 } from "../services/toilets-service.js";
+import { createFeedbackThreadController } from "./feedback-thread-controller.js";
 import {
   formatCleanlinessRating,
   formatCleanlinessRatingCount,
   getCleanlinessScore,
   getCleanlinessStars
 } from "../utils/cleanliness.js";
-import {
-  commentFilterKeys,
-  filterAndSortComments,
-  getCommentMediaAttachments,
-  normaliseCommentSortMode
-} from "../utils/comments.js";
 import {
   addCommentMediaFiles,
   clearCommentMediaSelections,
@@ -139,12 +131,23 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let selectedCommentMedia = [];
   let visualCleanlinessLevel = 3;
   let visualFeedbackEntriesByToiletId = loadVisualFeedbackEntries();
-  let currentComments = [];
-  let commentSortMode = "newest";
-  let selectedCommentFilters = new Set();
-  let pendingFocusedCommentId = null;
 
-  document.addEventListener("click", closeOpenCommentMenus);
+  const feedbackThreadController = createFeedbackThreadController(
+    {
+      commentsList,
+      commentsSummary,
+      commentSortSelect,
+      commentFilterInputs
+    },
+    {
+      getSelectedToilet: () => selectedToilet,
+      isAuthenticated,
+      showLoginPrompt,
+      onPublicProfileSelected
+    }
+  );
+
+  document.addEventListener("click", feedbackThreadController.closeOpenCommentMenus);
 
   function loadSurveyAnswers() {
     try {
@@ -630,312 +633,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     renderCommentMediaPreview();
   }
 
-  function createCommentMediaElement(comment) {
-    const attachments = getCommentMediaAttachments(comment);
-    if (attachments.length === 0) return null;
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "comment-media";
-
-    attachments.forEach((attachment) => {
-      const item = document.createElement("div");
-      item.className = "comment-media-item";
-
-      if (attachment.type === "image" && attachment.mimeType?.startsWith("image/")) {
-        const image = document.createElement("img");
-        image.src = attachment.dataUrl;
-        image.alt = attachment.name ? `Attached image: ${attachment.name}` : "Attached image";
-        image.loading = "lazy";
-        item.append(image);
-      }
-
-      if (attachment.type === "video" && attachment.mimeType?.startsWith("video/")) {
-        const video = document.createElement("video");
-        video.src = attachment.dataUrl;
-        video.controls = true;
-        video.preload = "metadata";
-        video.playsInline = true;
-        item.append(video);
-      }
-
-      if (item.childElementCount > 0) {
-        wrapper.append(item);
-      }
-    });
-
-    return wrapper.childElementCount > 0 ? wrapper : null;
-  }
-
-  function createCommentAuthorElement(comment) {
-    const authorName = comment.author_name || comment.username || "Anonymous";
-
-    if (!comment.is_anonymous && comment.user_id) {
-      const button = document.createElement("button");
-      button.className = "comment-author comment-author-link";
-      button.type = "button";
-      button.textContent = authorName;
-      button.setAttribute("aria-label", `View ${authorName}'s public profile`);
-      button.addEventListener("click", () => onPublicProfileSelected(comment.user_id));
-      return button;
-    }
-
-    const author = document.createElement("p");
-    author.className = "comment-author";
-    author.textContent = authorName;
-    return author;
-  }
-
-  function createCommentRatingElement(comment) {
-    const rating = Number(comment?.cleanliness_rating);
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return null;
-
-    const ratingElement = document.createElement("span");
-    ratingElement.className = "comment-rating";
-    ratingElement.setAttribute("aria-label", `Cleanliness rating ${rating} out of 5`);
-    ratingElement.textContent = `${"★".repeat(rating)}${"☆".repeat(5 - rating)}`;
-    return ratingElement;
-  }
-
-  function renderComments(comments) {
-    currentComments = Array.isArray(comments) ? [...comments] : [];
-    renderCommentList();
-  }
-
-  function updateCommentsSummary(totalCount, visibleCount) {
-    if (!commentsSummary) return;
-
-    const sortLabel = commentSortSelect?.selectedOptions?.[0]?.textContent ?? "Newest";
-    const countLabel =
-      selectedCommentFilters.size > 0
-        ? `${visibleCount} of ${totalCount} feedback`
-        : `${totalCount} feedback`;
-    commentsSummary.textContent = `${countLabel} - ${sortLabel}`;
-  }
-
-  function renderCommentList() {
-    const visibleComments = filterAndSortComments(currentComments, {
-      sortMode: commentSortMode,
-      filters: selectedCommentFilters
-    });
-    updateCommentsSummary(currentComments.length, visibleComments.length);
-
-    if (!commentsList) return;
-
-    commentsList.replaceChildren();
-
-    if (currentComments.length === 0) {
-      const empty = document.createElement("p");
-      empty.textContent = "No feedback yet.";
-      commentsList.append(empty);
-      return;
-    }
-
-    if (visibleComments.length === 0) {
-      const empty = document.createElement("p");
-      empty.textContent = "No feedback matches the selected tags.";
-      commentsList.append(empty);
-      return;
-    }
-
-    visibleComments.forEach((comment) => {
-      const item = document.createElement("div");
-      item.className = "comment-item";
-      item.dataset.commentId = String(comment.id);
-      if (pendingFocusedCommentId === Number(comment.id)) {
-        item.classList.add("is-highlighted");
-      }
-
-      const header = document.createElement("div");
-      header.className = "comment-header";
-
-      const authorLine = document.createElement("div");
-      authorLine.className = "comment-author-line";
-      const author = createCommentAuthorElement(comment);
-      const rating = createCommentRatingElement(comment);
-
-      authorLine.append(author);
-      if (rating) authorLine.append(rating);
-
-      header.append(authorLine);
-      header.append(createCommentActions(comment));
-
-      const text = document.createElement("p");
-      text.className = "comment-text";
-      text.textContent = comment.comment_text;
-
-      const media = createCommentMediaElement(comment);
-
-      const date = document.createElement("p");
-      date.className = "comment-date";
-      date.textContent = new Date(comment.created_at).toLocaleString();
-
-      item.append(header);
-      item.append(text);
-      if (media) item.append(media);
-      item.append(date);
-      commentsList.append(item);
-    });
-
-    focusPendingComment();
-  }
-
-  function focusPendingComment() {
-    if (!commentsList || pendingFocusedCommentId === null) return;
-
-    const target = commentsList.querySelector(`[data-comment-id="${pendingFocusedCommentId}"]`);
-    if (!target) return;
-
-    target.scrollIntoView({ block: "center", behavior: "smooth" });
-    target.classList.add("is-highlighted");
-    window.setTimeout(() => target.classList.remove("is-highlighted"), 2400);
-    pendingFocusedCommentId = null;
-  }
-
-  function setCommentSortMode(nextSortMode) {
-    commentSortMode = normaliseCommentSortMode(nextSortMode);
-    renderCommentList();
-  }
-
-  function setCommentFilter(filterKey, checked) {
-    if (!commentFilterKeys.has(filterKey)) return;
-
-    selectedCommentFilters = new Set(selectedCommentFilters);
-    if (checked) {
-      selectedCommentFilters.add(filterKey);
-    } else {
-      selectedCommentFilters.delete(filterKey);
-    }
-
-    renderCommentList();
-  }
-
-  function closeOpenCommentMenus() {
-    commentsList?.querySelectorAll(".comment-menu").forEach((menu) => {
-      menu.hidden = true;
-    });
-
-    commentsList?.querySelectorAll(".comment-menu-button").forEach((button) => {
-      button.setAttribute("aria-expanded", "false");
-    });
-  }
-
-  function createCommentActions(comment) {
-    const actions = document.createElement("div");
-    actions.className = "comment-actions";
-
-    const likeButton = document.createElement("button");
-    likeButton.className = "comment-like-button";
-    likeButton.type = "button";
-    likeButton.setAttribute("aria-label", comment.viewer_has_liked ? "Unlike feedback" : "Like feedback");
-    likeButton.setAttribute("aria-pressed", comment.viewer_has_liked ? "true" : "false");
-    likeButton.classList.toggle("is-liked", Boolean(comment.viewer_has_liked));
-
-    const likeIcon = document.createElement("span");
-    likeIcon.className = "comment-like-icon";
-    likeIcon.textContent = "\u{1F44D}";
-
-    const likeCount = document.createElement("span");
-    likeCount.className = "comment-like-count";
-    likeCount.textContent = String(comment.like_count ?? 0);
-
-    likeButton.append(likeIcon, likeCount);
-    likeButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      toggleCommentLike(comment, likeButton);
-    });
-
-    actions.append(likeButton);
-
-    if (!comment.can_delete) {
-      return actions;
-    }
-
-    const menuButton = document.createElement("button");
-    menuButton.className = "comment-menu-button";
-    menuButton.type = "button";
-    menuButton.textContent = "...";
-    menuButton.setAttribute("aria-label", "Feedback options");
-    menuButton.setAttribute("aria-haspopup", "menu");
-    menuButton.setAttribute("aria-expanded", "false");
-
-    const menu = document.createElement("div");
-    menu.className = "comment-menu";
-    menu.hidden = true;
-    menu.setAttribute("role", "menu");
-
-    const deleteButton = document.createElement("button");
-    deleteButton.className = "comment-delete-button";
-    deleteButton.type = "button";
-    deleteButton.textContent = "Delete";
-    deleteButton.setAttribute("role", "menuitem");
-    deleteButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      deleteOwnComment(comment);
-    });
-
-    menuButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const shouldOpen = menu.hidden;
-      closeOpenCommentMenus();
-      menu.hidden = !shouldOpen;
-      menuButton.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
-    });
-
-    menu.append(deleteButton);
-    actions.append(menuButton, menu);
-    return actions;
-  }
-
-  async function toggleCommentLike(comment, button) {
-    if (!selectedToilet || !comment?.id) return;
-    closeOpenCommentMenus();
-
-    if (!isAuthenticated()) {
-      showLoginPrompt("Log in to like feedback.");
-      return;
-    }
-
-    if (button) {
-      button.disabled = true;
-    }
-
-    try {
-      const updatedComments = await toggleCommentLikeRequest(selectedToilet.id, comment.id);
-      renderComments(updatedComments);
-    } catch (error) {
-      console.error("Failed to like feedback:", error);
-      if (error.status === 401) {
-        showLoginPrompt("Log in to like feedback.");
-        return;
-      }
-      alert(error?.message || "Could not update like. Please try again later.");
-    } finally {
-      if (button) {
-        button.disabled = false;
-      }
-    }
-  }
-
-  async function deleteOwnComment(comment) {
-    if (!selectedToilet || !comment?.id) return;
-    closeOpenCommentMenus();
-
-    const confirmed = window.confirm("Delete this feedback?");
-    if (!confirmed) return;
-
-    try {
-      const updatedComments = await deleteCommentRequest(selectedToilet.id, comment.id);
-      renderComments(updatedComments);
-    } catch (error) {
-      console.error("Failed to delete comment:", error);
-      if (error.status === 401) {
-        showLoginPrompt("Log in to delete feedback.");
-        return;
-      }
-      alert(error?.message || "Could not delete feedback. Please try again later.");
-    }
-  }
-
   function getCommentVisibility() {
     return commentAnonymousInput?.checked ? "anonymous" : "real";
   }
@@ -1300,8 +997,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     selectedToilet = toilet;
     selectedRating = null;
-    const focusId = Number(focusCommentId);
-    pendingFocusedCommentId = Number.isInteger(focusId) && focusId > 0 ? focusId : null;
     closeCommentComposer();
     closeVisualFeedback();
     setCommentComposerAvailable(true);
@@ -1348,23 +1043,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     resetVisualFeedbackForm();
     renderVisualFeedbackDiscussion();
 
-    if (commentsList) {
-      currentComments = [];
-      updateCommentsSummary(0, 0);
-      commentsList.replaceChildren();
-      const loading = document.createElement("p");
-      loading.textContent = "Loading feedback...";
-      commentsList.append(loading);
-
-      fetchComments(toilet.id)
-        .then((comments) => renderComments(comments))
-        .catch((error) => {
-          console.error("Failed to fetch feedback:", error);
-          if (commentsList) {
-            commentsList.textContent = "Could not load feedback.";
-          }
-        });
-    }
+    feedbackThreadController.loadComments(toilet, { focusCommentId });
 
     if (fly) {
       const marker = markerById.get(toilet.id);
@@ -1400,14 +1079,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function openCommentThread(toiletId, commentId) {
-    selectedCommentFilters = new Set();
-    commentFilterInputs.forEach((input) => {
-      input.checked = false;
-    });
-    commentSortMode = "newest";
-    if (commentSortSelect) {
-      commentSortSelect.value = "newest";
-    }
+    feedbackThreadController.resetCommentControls();
 
     const opened = setToilet(toiletId, {
       defaultSection: "comment",
@@ -1976,7 +1648,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         feedbackRating
       );
       await applySavedCleanlinessResult(result, feedbackRating);
-      renderComments(result.comments);
+      feedbackThreadController.renderComments(result.comments);
       commentInput.value = "";
       selectedRating = null;
       resetCommentMediaAttachment();
@@ -2021,8 +1693,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     answerCleanlinessSurvey,
     postComment,
     getAiSummary,
-    setCommentSortMode,
-    setCommentFilter,
+    setCommentSortMode: feedbackThreadController.setCommentSortMode,
+    setCommentFilter: feedbackThreadController.setCommentFilter,
     toggleCommentComposer,
     closeCommentComposer,
     toggleVisualFeedback,

@@ -6,6 +6,7 @@ const requiredFiles = [
   "src/main.js",
   "src/app/app.js",
   "src/app/controllers/map-controller.js",
+  "src/app/controllers/feedback-thread-controller.js",
   "src/app/controllers/account-controller.js",
   "src/app/controllers/tab-controller.js",
   "src/app/services/http-client.js",
