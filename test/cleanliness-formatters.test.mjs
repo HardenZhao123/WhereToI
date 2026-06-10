@@ -88,8 +88,22 @@ test("formats a single cleanliness rating count", () => {
   assert.equal(formatCleanlinessRatingCount(toilet), "1 rating");
 });
 
+test("uses the default score when a rating period has no feedback", () => {
+  const toilet = {
+    cleanliness: null,
+    cleanlinessSurvey: {
+      ratingTotal: 0,
+      ratingCount: 0
+    }
+  };
+
+  assert.equal(getCleanlinessScore(toilet), 3);
+  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(3)}${emptyStar.repeat(2)} 3.0/5 \u00b7 0 ratings`);
+});
+
 test("normalises missing and legacy cleanliness scores to star ratings", () => {
   assert.equal(getCleanlinessScore({}), 3);
+  assert.equal(getCleanlinessScore({ cleanliness: null }), 3);
   assert.equal(getCleanlinessScore({ cleanliness: 9.4 }), 4.7);
   assert.equal(getCleanlinessScore({ cleanliness: "bad" }), 3);
 });

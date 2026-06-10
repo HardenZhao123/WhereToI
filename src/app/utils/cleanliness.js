@@ -47,7 +47,7 @@ export function getCleanlinessScore(toilet) {
     return clampCleanlinessScore(surveyAverage);
   }
 
-  if (toilet?.cleanliness === null) return 0;
+  if (toilet?.cleanliness === null) return defaultCleanlinessScore;
 
   const score = Number(toilet?.cleanliness);
   if (!Number.isFinite(score)) return defaultCleanlinessScore;

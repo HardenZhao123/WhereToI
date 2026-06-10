@@ -798,7 +798,7 @@ test("map controller refreshes cleanliness when the rating period changes after 
     await controller.setToilet(oneDayToilet.id, { fly: false });
 
     assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "0 ratings");
-    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "0.0/5");
+    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "3.0/5");
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
