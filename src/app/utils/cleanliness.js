@@ -2,7 +2,6 @@ const defaultCleanlinessScore = 3;
 const maxStarRating = 5;
 const fullStar = "\u2605";
 const emptyStar = "\u2606";
-const halfStar = "\u00bd";
 
 function normaliseLegacyScore(score) {
   if (score > maxStarRating && score <= 10) {
@@ -28,15 +27,16 @@ function getSurveyAverage(toilet) {
 }
 
 function getStarCounts(rating) {
-  const full = Math.floor(rating);
-  const half = rating > full && full < maxStarRating ? 1 : 0;
-  const empty = Math.max(maxStarRating - full - half, 0);
+  const full = Math.min(Math.floor(rating), maxStarRating);
+  const half = 0;
+  const empty = Math.max(maxStarRating - full, 0);
 
   return { full, half, empty };
 }
 
 function getDisplayRating(rating) {
-  return Number(rating.toFixed(1));
+  const rounded = Math.round(rating * 100) / 100;
+  return Number.isInteger(rounded) ? rounded.toFixed(1) : String(rounded);
 }
 
 export function getCleanlinessScore(toilet) {
@@ -52,18 +52,27 @@ export function getCleanlinessScore(toilet) {
   return clampCleanlinessScore(normaliseLegacyScore(score));
 }
 
+export function getCleanlinessVisualLevel(toilet) {
+  const score = getCleanlinessScore(toilet);
+  if (!Number.isFinite(score)) return defaultCleanlinessScore;
+
+  const visualLevel = Math.round(score * 2) / 2;
+  return Math.min(Math.max(visualLevel, 0.5), maxStarRating);
+}
+
 export function getCleanlinessStars(toilet) {
-  const rating = getDisplayRating(getCleanlinessScore(toilet));
+  const rating = getCleanlinessScore(toilet);
+  const displayRating = getDisplayRating(rating);
   const { full, half, empty } = getStarCounts(rating);
 
   return {
     rating,
-    displayRating: rating.toFixed(1),
+    displayRating,
     maxRating: maxStarRating,
     full,
     half,
     empty,
-    text: `${fullStar.repeat(full)}${half ? halfStar : ""}${emptyStar.repeat(empty)}`
+    text: `${fullStar.repeat(full)}${emptyStar.repeat(empty)}`
   };
 }
 

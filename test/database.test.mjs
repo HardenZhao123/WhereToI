@@ -135,7 +135,7 @@ test("database saves and retrieves comments for toilets", async () => {
       userId,
       username: user.username,
       commentText,
-      cleanlinessRating: 4
+      cleanlinessRating: 4.5
     });
 
     assert.equal(updatedComments.length, 1);
@@ -144,7 +144,7 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(updatedComments[0].username, user.username);
     assert.equal(updatedComments[0].author_name, user.username);
     assert.equal(updatedComments[0].comment_visibility, "real");
-    assert.equal(updatedComments[0].cleanliness_rating, 4);
+    assert.equal(updatedComments[0].cleanliness_rating, 4.5);
     assert.equal(updatedComments[0].profile_visibility, "private");
     assert.equal(updatedComments[0].is_anonymous, false);
     assert.equal(updatedComments[0].can_delete, true);

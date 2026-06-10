@@ -15,7 +15,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./src/styles.css?v=urinal-preview-3" />
+    <link rel="stylesheet" href="./src/styles.css?v=toilet-stars-2" />
   </head>
   <body>
     <main class="app-shell" aria-label="WhereToI web app">
@@ -135,7 +135,6 @@
                 <button class="details-section-link is-active" id="details-overview-link" type="button" data-detail-section="overview" aria-controls="details-overview-panel" aria-selected="true">Overview</button>
                 <button class="details-section-link" id="details-hours-link" type="button" data-detail-section="hours" aria-controls="details-hours-panel" aria-selected="false">Opening Hours</button>
                 <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Feedback</button>
-                <button class="details-section-link" id="details-visual-link" type="button" data-detail-section="visual" aria-controls="details-visual-panel" aria-selected="false">Visual check</button>
               </nav>
               <div class="details-section-panels">
                 <section class="details-panel is-active details-overview-panel" id="details-overview-panel" data-detail-panel="overview" aria-labelledby="details-overview-link">
@@ -154,37 +153,6 @@
                             <img id="overview-visual-image" class="visual-cleanliness-image is-hidden" src="" alt="Real toilet cleanliness preview" />
                           </div>
                           <p class="visual-cleanliness-state overview-visual-state" id="overview-visual-state" aria-live="polite">OK</p>
-                          <button class="outline-button overview-visual-open-button" type="button" data-open-visual-feedback="toilet">
-                            Rate visually
-                          </button>
-                        </section>
-                        <section class="overview-visual-panel is-hidden" id="overview-urinal-panel" hidden>
-                          <p class="visual-preview-fixture">Urinal preview</p>
-                          <div class="visual-preview-card overview-urinal-preview" id="overview-urinal-preview" data-cleanliness="3" role="img" aria-label="Cartoon urinal cleanliness preview: OK">
-                            <img id="overview-urinal-image" class="visual-cleanliness-image is-hidden" src="" alt="Real urinal cleanliness preview" />
-                            <svg class="cartoon-urinal-svg" viewBox="0 0 180 220" aria-hidden="true" focusable="false">
-                              <path class="urinal-body" d="M90 20c34 0 56 17 56 43v102c0 18-10 29-24 35l-4 20H62l-4-20c-14-6-24-17-24-35V63c0-26 22-43 56-43Z"></path>
-                              <path class="urinal-rim" d="M62 46h56c12 0 22 10 22 22v70c0 30-20 52-50 52S40 168 40 138V68c0-12 10-22 22-22Z"></path>
-                              <path class="urinal-bowl" d="M69 64h42c11 0 19 9 19 19v49c0 22-15 40-40 40s-40-18-40-40V83c0-10 8-19 19-19Z"></path>
-                              <path class="urinal-flush-pipe" d="M83 20V8h14v12"></path>
-                              <circle class="urinal-flush-cap" cx="90" cy="8" r="6"></circle>
-                              <path class="urinal-drain" d="M79 144c8 5 14 5 22 0"></path>
-                              <g class="urinal-sparkles">
-                                <path d="M37 45l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z"></path>
-                                <path d="M143 62l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"></path>
-                              </g>
-                              <g class="urinal-dirt">
-                                <circle cx="63" cy="101" r="7"></circle>
-                                <circle cx="115" cy="114" r="5"></circle>
-                                <path d="M76 149c9 7 19 7 28 0"></path>
-                                <path d="M58 171c10-6 22-7 34-2"></path>
-                              </g>
-                            </svg>
-                          </div>
-                          <p class="visual-cleanliness-state overview-visual-state" id="overview-urinal-state" aria-live="polite">OK</p>
-                          <button class="outline-button overview-visual-open-button" type="button" data-open-visual-feedback="urinal">
-                            Rate urinal visually
-                          </button>
                         </section>
                       </div>
                     </section>
@@ -244,54 +212,11 @@
                     </div>
                   </section>
                 </section>
-                <section class="details-panel" id="details-visual-panel" data-detail-panel="visual" aria-labelledby="details-visual-link" hidden>
-                  <section class="visual-feedback-discussion comments-section" aria-labelledby="visual-feedback-discussion-title">
-                    <div class="comments-header visual-feedback-discussion-header">
-                      <div class="visual-feedback-discussion-copy">
-                        <h3 id="visual-feedback-discussion-title">Visual checks</h3>
-                        <p id="visual-feedback-summary">0 visual checks</p>
-                      </div>
-                      <button class="outline-button visual-feedback-open-button" type="button" data-open-visual-feedback>
-                        Rate visually
-                      </button>
-                    </div>
-                    <div class="visual-feedback-list comments-list" id="visual-feedback-list" aria-live="polite">
-                      <p>No visual checks yet.</p>
-                    </div>
-                  </section>
-                </section>
-                <section class="details-panel" id="details-survey-panel" data-detail-panel="survey" aria-labelledby="details-survey-link" hidden>
-                  <section class="map-cleanliness-survey" aria-labelledby="retired-map-cleanliness-survey-title">
-                    <div>
-                      <h3 id="retired-map-cleanliness-survey-title">Retired cleanliness input</h3>
-                      <p>How clean was this toilet?</p>
-                    </div>
-                    <div class="star-survey-actions" role="group" aria-label="Map cleanliness star rating">
-                      <button type="button" data-retired-survey-rating="1" aria-label="Rate 1 star" aria-pressed="false">★</button>
-                      <button type="button" data-retired-survey-rating="2" aria-label="Rate 2 stars" aria-pressed="false">★</button>
-                      <button type="button" data-retired-survey-rating="3" aria-label="Rate 3 stars" aria-pressed="false">★</button>
-                      <button type="button" data-retired-survey-rating="4" aria-label="Rate 4 stars" aria-pressed="false">★</button>
-                      <button type="button" data-retired-survey-rating="5" aria-label="Rate 5 stars" aria-pressed="false">★</button>
-                    </div>
-                    <p class="survey-status" id="retired-map-survey-status" aria-live="polite">Choose 1 to 5 stars to help others.</p>
-                    <button type="button" class="solid-button" id="retired-submit-cleanliness-survey" disabled>Retired</button>
-                  </section>
-                </section>
               </div>
             </article>
             <div class="feedback-action-bar is-hidden" id="feedback-action-bar" hidden>
               <button class="comment-composer-toggle" id="comment-composer-toggle" type="button" aria-controls="comment-composer" aria-expanded="false">
                 Write feedback
-              </button>
-              <button class="visual-feedback-toggle" id="visual-feedback-toggle" type="button" aria-controls="visual-feedback-panel" aria-expanded="false">
-                <span class="visual-feedback-button-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" focusable="false">
-                    <path d="M7 5.5h7.5a3 3 0 0 1 3 3v2.2a5.8 5.8 0 0 1-5.8 5.8H9.2A4.2 4.2 0 0 1 5 12.3V7.5a2 2 0 0 1 2-2Z"></path>
-                    <path d="M14.5 5.5V4a1 1 0 0 1 1-1H18"></path>
-                    <path d="M8.5 16.5v2h6v-2"></path>
-                  </svg>
-                </span>
-                Rate visually
               </button>
             </div>
             <section class="comment-composer is-hidden" id="comment-composer" aria-labelledby="comment-composer-title" hidden>
@@ -303,14 +228,73 @@
                 <section class="map-cleanliness-survey feedback-rating-field" aria-labelledby="map-cleanliness-survey-title">
                   <div>
                     <h4 id="map-cleanliness-survey-title">Cleanliness rating</h4>
-                    <p>Required for feedback. You can submit rating only.</p>
+                    <p>Required for feedback. Match the picture to what you saw.</p>
                   </div>
-                  <div class="star-survey-actions" role="group" aria-label="Feedback cleanliness star rating">
-                    <button type="button" data-survey-rating="1" aria-label="Rate 1 star" aria-pressed="false">★</button>
-                    <button type="button" data-survey-rating="2" aria-label="Rate 2 stars" aria-pressed="false">★</button>
-                    <button type="button" data-survey-rating="3" aria-label="Rate 3 stars" aria-pressed="false">★</button>
-                    <button type="button" data-survey-rating="4" aria-label="Rate 4 stars" aria-pressed="false">★</button>
-                    <button type="button" data-survey-rating="5" aria-label="Rate 5 stars" aria-pressed="false">★</button>
+                  <div class="feedback-visual-rating">
+                    <div class="visual-preview-card feedback-visual-preview" id="visual-cleanliness-preview" data-cleanliness="3" role="img" aria-label="Cartoon toilet cleanliness preview: OK">
+                      <img id="visual-cleanliness-image" class="visual-cleanliness-image is-hidden" src="" alt="Real toilet cleanliness preview" />
+                      <svg class="cartoon-toilet-svg" viewBox="0 0 220 180" aria-hidden="true" focusable="false">
+                        <rect class="toilet-room-floor" x="22" y="128" width="176" height="18" rx="9"></rect>
+                        <path class="toilet-bowl" d="M58 76h92c15 0 27 12 27 27v3c0 29-24 52-53 52H94c-29 0-53-23-53-52V93c0-9 8-17 17-17Z"></path>
+                        <path class="toilet-seat" d="M64 82h82c12 0 22 10 22 22v2c0 20-17 36-37 36H95c-20 0-37-16-37-36V88c0-3 3-6 6-6Z"></path>
+                        <path class="toilet-water" d="M82 106c8-7 48-7 56 0 3 17-9 28-28 28s-31-11-28-28Z"></path>
+                        <rect class="toilet-tank" x="74" y="34" width="78" height="45" rx="12"></rect>
+                        <path class="toilet-pipe" d="M143 34V24c0-5 4-9 9-9h22"></path>
+                        <circle class="toilet-handle" cx="91" cy="52" r="4"></circle>
+                        <path class="toilet-base" d="M90 154h46l8 12H82l8-12Z"></path>
+                        <g class="toilet-sparkles">
+                          <path d="M48 44l4 9 9 4-9 4-4 9-4-9-9-4 9-4 4-9Z"></path>
+                          <path d="M174 72l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z"></path>
+                        </g>
+                        <g class="toilet-dirt">
+                          <circle class="dirt-one" cx="67" cy="102" r="8"></circle>
+                          <circle class="dirt-two" cx="142" cy="119" r="6"></circle>
+                          <circle class="dirt-three" cx="98" cy="55" r="5"></circle>
+                          <path class="dirt-four" d="M155 91c8 2 13 8 10 14-5 5-17 3-21-3-2-6 4-12 11-11Z"></path>
+                          <path class="dirt-five" d="M48 135c12-7 25-6 36 0"></path>
+                        </g>
+                      </svg>
+                    </div>
+                    <div class="feedback-visual-controls">
+                      <span class="visual-rating-label">Cleanliness picture</span>
+                      <div class="visual-star-rating" id="visual-cleanliness-stars" role="group" aria-label="Toilet visual cleanliness rating">
+                        <button class="visual-star-button" type="button" data-visual-star="1" aria-label="Rate up to 1 star">
+                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="0.5" aria-hidden="true"></span>
+                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="1" aria-hidden="true"></span>
+                        </button>
+                        <button class="visual-star-button" type="button" data-visual-star="2" aria-label="Rate up to 2 stars">
+                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="1.5" aria-hidden="true"></span>
+                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="2" aria-hidden="true"></span>
+                        </button>
+                        <button class="visual-star-button" type="button" data-visual-star="3" aria-label="Rate up to 3 stars">
+                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="2.5" aria-hidden="true"></span>
+                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="3" aria-hidden="true"></span>
+                        </button>
+                        <button class="visual-star-button" type="button" data-visual-star="4" aria-label="Rate up to 4 stars">
+                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="3.5" aria-hidden="true"></span>
+                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="4" aria-hidden="true"></span>
+                        </button>
+                        <button class="visual-star-button" type="button" data-visual-star="5" aria-label="Rate up to 5 stars">
+                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="4.5" aria-hidden="true"></span>
+                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="5" aria-hidden="true"></span>
+                        </button>
+                      </div>
+                      <div class="visual-scale-labels" aria-hidden="true">
+                        <span>Dirtier</span>
+                        <span>Cleaner</span>
+                      </div>
+                      <p class="visual-cleanliness-state" id="visual-cleanliness-state" aria-live="polite">OK</p>
+                    </div>
                   </div>
                   <p class="survey-status" id="map-survey-status" aria-live="polite">Choose 1 to 5 stars to continue.</p>
                 </section>
@@ -346,54 +330,6 @@
                   <p class="comment-media-status" id="comment-media-status" aria-live="polite">Up to 3 image attachments.</p>
                 </div>
                 <button type="submit" id="submit-comment" disabled>Submit feedback</button>
-              </form>
-            </section>
-            <section class="visual-feedback-panel is-hidden" id="visual-feedback-panel" aria-labelledby="visual-feedback-title" hidden>
-              <button class="close-button sticky-close-button" id="close-visual-feedback" type="button" aria-label="Close visual feedback">X</button>
-              <header class="visual-feedback-header">
-                <div>
-                  <h3 id="visual-feedback-title">Visual cleanliness check</h3>
-                  <p id="visual-feedback-subtitle">Match the picture to what you saw.</p>
-                </div>
-              </header>
-              <div class="visual-feedback-workspace">
-                <div class="visual-preview-card" id="visual-cleanliness-preview" data-cleanliness="3" role="img" aria-label="Cartoon toilet cleanliness preview: OK">
-                  <img id="visual-cleanliness-image" class="visual-cleanliness-image is-hidden" src="" alt="Real toilet cleanliness preview" />
-                  <svg class="cartoon-toilet-svg" viewBox="0 0 220 180" aria-hidden="true" focusable="false">
-                    <rect class="toilet-room-floor" x="22" y="128" width="176" height="18" rx="9"></rect>
-                    <path class="toilet-bowl" d="M58 76h92c15 0 27 12 27 27v3c0 29-24 52-53 52H94c-29 0-53-23-53-52V93c0-9 8-17 17-17Z"></path>
-                    <path class="toilet-seat" d="M64 82h82c12 0 22 10 22 22v2c0 20-17 36-37 36H95c-20 0-37-16-37-36V88c0-3 3-6 6-6Z"></path>
-                    <path class="toilet-water" d="M82 106c8-7 48-7 56 0 3 17-9 28-28 28s-31-11-28-28Z"></path>
-                    <rect class="toilet-tank" x="74" y="34" width="78" height="45" rx="12"></rect>
-                    <path class="toilet-pipe" d="M143 34V24c0-5 4-9 9-9h22"></path>
-                    <circle class="toilet-handle" cx="91" cy="52" r="4"></circle>
-                    <path class="toilet-base" d="M90 154h46l8 12H82l8-12Z"></path>
-                    <g class="toilet-sparkles">
-                      <path d="M48 44l4 9 9 4-9 4-4 9-4-9-9-4 9-4 4-9Z"></path>
-                      <path d="M174 72l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z"></path>
-                    </g>
-                    <g class="toilet-dirt">
-                      <circle class="dirt-one" cx="67" cy="102" r="8"></circle>
-                      <circle class="dirt-two" cx="142" cy="119" r="6"></circle>
-                      <circle class="dirt-three" cx="98" cy="55" r="5"></circle>
-                      <path class="dirt-four" d="M155 91c8 2 13 8 10 14-5 5-17 3-21-3-2-6 4-12 11-11Z"></path>
-                      <path class="dirt-five" d="M48 135c12-7 25-6 36 0"></path>
-                    </g>
-                  </svg>
-                </div>
-                <div class="visual-feedback-controls">
-                  <label for="visual-cleanliness-slider">Cleanliness picture</label>
-                  <input id="visual-cleanliness-slider" type="range" min="0.5" max="5" step="0.5" value="3" />
-                  <div class="visual-scale-labels" aria-hidden="true">
-                    <span>Dirtier</span>
-                    <span>Cleaner</span>
-                  </div>
-                  <p class="visual-cleanliness-state" id="visual-cleanliness-state" aria-live="polite">OK</p>
-                </div>
-              </div>
-              <form class="visual-feedback-form" id="visual-feedback-form">
-                <textarea id="visual-feedback-comment" placeholder="Optional note for this picture..."></textarea>
-                <button type="submit" id="submit-visual-feedback">Post visual check</button>
               </form>
             </section>
           </section>
@@ -498,7 +434,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./src/main.js?v=urinal-preview-3" type="module"></script>
+    <script src="./src/main.js?v=toilet-stars-2" type="module"></script>
     <section class="auth-modal is-hidden" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div class="auth-dialog">
         <button class="close-button sticky-close-button" id="close-auth" type="button" aria-label="Close login dialog">X</button>

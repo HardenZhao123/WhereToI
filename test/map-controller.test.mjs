@@ -185,18 +185,12 @@ function createMapDetailTestHarness() {
   };
 }
 
-test("map controller keeps overview visual state synced with the current preview level", () => {
+test("map controller keeps feedback visual state synced with the current selected level", () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
 
-  const { element: overviewVisualPreview, toiletSvgClassList: overviewSvgClassList } = createPreviewElement();
   const { element: visualCleanlinessPreview, toiletSvgClassList: visualSvgClassList } = createPreviewElement();
-  const overviewVisualState = createTextElement();
   const visualCleanlinessState = createTextElement();
-  const overviewVisualImage = {
-    src: "",
-    classList: createRecordingClassList()
-  };
   const visualCleanlinessImage = {
     src: "",
     classList: createRecordingClassList()
@@ -219,21 +213,12 @@ test("map controller keeps overview visual state synced with the current preview
 
   try {
     const controller = createMapController({
-      overviewVisualPreview,
-      overviewVisualImage,
-      overviewVisualState,
       visualCleanlinessPreview,
       visualCleanlinessImage,
       visualCleanlinessState
     });
 
     controller.setVisualCleanlinessLevel(4.5);
-
-    assert.equal(overviewVisualPreview.dataset.cleanliness, "4.5");
-    assert.equal(overviewVisualImage.src, "toilet_levels/level_45_small.jpg");
-    assert.equal(overviewVisualImage.classList.contains("is-hidden"), false);
-    assert.equal(overviewVisualState.textContent, "Very clean - Almost spotless");
-    assert.equal(overviewSvgClassList.contains("is-hidden"), true);
 
     assert.equal(visualCleanlinessPreview.dataset.cleanliness, "4.5");
     assert.equal(visualCleanlinessImage.src, "toilet_levels/level_45_small.jpg");
@@ -246,26 +231,16 @@ test("map controller keeps overview visual state synced with the current preview
   }
 });
 
-test("map controller uses urinal preview images for urinal-only toilets", async () => {
+test("map controller keeps visual rating on toilet images for urinal-only toilets", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
 
   const { elementsBySelector, elements } = createMapDetailTestHarness();
   const { element: overviewVisualPreview, toiletSvgClassList: overviewSvgClassList } = createPreviewElement();
-  const { element: overviewUrinalPreview, urinalSvgClassList: overviewUrinalSvgClassList } = createPreviewElement();
-  const { element: visualCleanlinessPreview, urinalSvgClassList: visualSvgClassList } = createPreviewElement();
-  const overviewUrinalPanel = createTextElement();
-  overviewUrinalPanel.classList = createRecordingClassList();
+  const { element: visualCleanlinessPreview, toiletSvgClassList: visualSvgClassList } = createPreviewElement();
   const overviewVisualState = createTextElement();
-  const overviewUrinalState = createTextElement();
   const visualCleanlinessState = createTextElement();
-  const visualFeedbackSubtitle = createTextElement();
   const overviewVisualImage = {
-    src: "",
-    alt: "",
-    classList: createRecordingClassList()
-  };
-  const overviewUrinalImage = {
     src: "",
     alt: "",
     classList: createRecordingClassList()
@@ -298,17 +273,12 @@ test("map controller uses urinal preview images for urinal-only toilets", async 
   try {
     const controller = createMapController({
       ...elements,
-      overviewUrinalPanel,
       overviewVisualPreview,
       overviewVisualImage,
-      overviewUrinalPreview,
-      overviewUrinalImage,
       overviewVisualState,
-      overviewUrinalState,
       visualCleanlinessPreview,
       visualCleanlinessImage,
-      visualCleanlinessState,
-      visualFeedbackSubtitle
+      visualCleanlinessState
     });
     const urinalToilet = createTestToilet();
     urinalToilet.features.urinalOnly = "Y";
@@ -322,53 +292,34 @@ test("map controller uses urinal preview images for urinal-only toilets", async 
     assert.equal(overviewSvgClassList.contains("is-hidden"), true);
     assert.equal(overviewVisualState.textContent, "OK - Usable but not spotless");
 
-    assert.equal(overviewUrinalPanel.hidden, false);
-    assert.equal(overviewUrinalImage.src, "toilet_levels/level_3_urinal.png");
-    assert.equal(overviewUrinalImage.alt, "Urinal cleanliness preview: OK");
-    assert.equal(overviewUrinalPreview.attributes["aria-label"], "Cartoon urinal cleanliness preview: OK");
-    assert.equal(overviewUrinalSvgClassList.contains("is-hidden"), true);
-    assert.equal(overviewUrinalState.textContent, "OK - Usable but not spotless");
-
-    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_urinal.png");
-    assert.equal(visualCleanlinessImage.alt, "Urinal cleanliness preview: OK");
-    assert.equal(visualCleanlinessPreview.attributes["aria-label"], "Cartoon urinal cleanliness preview: OK");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_small.jpg");
+    assert.equal(visualCleanlinessImage.alt, "Toilet cleanliness preview: OK");
+    assert.equal(visualCleanlinessPreview.attributes["aria-label"], "Cartoon toilet cleanliness preview: OK");
     assert.equal(visualSvgClassList.contains("is-hidden"), true);
     assert.equal(visualCleanlinessState.textContent, "OK - Usable but not spotless");
-    assert.equal(visualFeedbackSubtitle.textContent, "Match the urinal picture to what you saw.");
 
     controller.setVisualCleanlinessLevel(5);
 
-    assert.equal(overviewVisualImage.src, "toilet_levels/level_5_small.jpg");
-    assert.equal(overviewUrinalImage.src, "toilet_levels/level_5_urinal.png");
-    assert.equal(overviewUrinalState.textContent, "Excellent - Fresh and well kept");
-    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_5_urinal.png");
+    assert.equal(overviewVisualImage.src, "toilet_levels/level_3_small.jpg");
+    assert.equal(overviewVisualState.textContent, "OK - Usable but not spotless");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_5_small.jpg");
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
   }
 });
 
-test("map controller opens urinal visual rating from the urinal preview", async () => {
+test("map controller uses half-star visual rating as the feedback cleanliness rating", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
   const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
 
   const { elementsBySelector, elements } = createMapDetailTestHarness();
   const { element: overviewVisualPreview } = createPreviewElement();
-  const { element: overviewUrinalPreview } = createPreviewElement();
   const { element: visualCleanlinessPreview } = createPreviewElement();
-  const overviewUrinalPanel = createTextElement();
-  overviewUrinalPanel.classList = createRecordingClassList();
   const overviewVisualState = createTextElement();
-  const overviewUrinalState = createTextElement();
   const visualCleanlinessState = createTextElement();
-  const visualFeedbackSubtitle = createTextElement();
   const overviewVisualImage = {
-    src: "",
-    alt: "",
-    classList: createRecordingClassList()
-  };
-  const overviewUrinalImage = {
     src: "",
     alt: "",
     classList: createRecordingClassList()
@@ -378,8 +329,6 @@ test("map controller opens urinal visual rating from the urinal preview", async 
     alt: "",
     classList: createRecordingClassList()
   };
-  const visualFeedbackPanel = createTextElement();
-  visualFeedbackPanel.classList = createRecordingClassList();
 
   globalThis.document = {
     addEventListener() {},
@@ -407,35 +356,28 @@ test("map controller opens urinal visual rating from the urinal preview", async 
   try {
     const controller = createMapController({
       ...elements,
-      visualFeedbackPanel,
-      overviewUrinalPanel,
       overviewVisualPreview,
       overviewVisualImage,
-      overviewUrinalPreview,
-      overviewUrinalImage,
       overviewVisualState,
-      overviewUrinalState,
       visualCleanlinessPreview,
       visualCleanlinessImage,
-      visualCleanlinessState,
-      visualFeedbackSubtitle
+      visualCleanlinessState
     });
 
     controller.setToilets([createTestToilet()]);
     await controller.setToilet("test-toilet", { fly: false });
 
-    assert.equal(overviewUrinalImage.src, "toilet_levels/level_3_urinal.png");
     assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_small.jpg");
     assert.equal(visualCleanlinessImage.alt, "Toilet cleanliness preview: OK");
 
-    controller.openVisualFeedback("urinal");
+    controller.selectCleanlinessRating(4.5);
 
-    assert.equal(visualFeedbackPanel.hidden, false);
-    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_urinal.png");
-    assert.equal(visualCleanlinessImage.alt, "Urinal cleanliness preview: OK");
-    assert.equal(visualCleanlinessPreview.attributes["aria-label"], "Cartoon urinal cleanliness preview: OK");
-    assert.equal(visualCleanlinessState.textContent, "OK - Usable but not spotless");
-    assert.equal(visualFeedbackSubtitle.textContent, "Match the urinal picture to what you saw.");
+    assert.equal(overviewVisualImage.src, "toilet_levels/level_3_small.jpg");
+    assert.equal(overviewVisualState.textContent, "OK - Usable but not spotless");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_45_small.jpg");
+    assert.equal(visualCleanlinessImage.alt, "Toilet cleanliness preview: Very clean");
+    assert.equal(visualCleanlinessPreview.attributes["aria-label"], "Cartoon toilet cleanliness preview: Very clean");
+    assert.equal(visualCleanlinessState.textContent, "Very clean - Almost spotless");
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
@@ -443,25 +385,16 @@ test("map controller opens urinal visual rating from the urinal preview", async 
   }
 });
 
-test("map controller shows the urinal overview preview for men's toilets", async () => {
+test("map controller renders overview visual from the toilet cleanliness average", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
 
   const { elementsBySelector, elements } = createMapDetailTestHarness();
   const { element: overviewVisualPreview } = createPreviewElement();
-  const { element: overviewUrinalPreview, urinalSvgClassList: overviewUrinalSvgClassList } = createPreviewElement();
   const { element: visualCleanlinessPreview } = createPreviewElement();
-  const overviewUrinalPanel = createTextElement();
-  overviewUrinalPanel.classList = createRecordingClassList();
   const overviewVisualState = createTextElement();
   const visualCleanlinessState = createTextElement();
-  const visualFeedbackSubtitle = createTextElement();
   const overviewVisualImage = {
-    src: "",
-    alt: "",
-    classList: createRecordingClassList()
-  };
-  const overviewUrinalImage = {
     src: "",
     alt: "",
     classList: createRecordingClassList()
@@ -494,28 +427,94 @@ test("map controller shows the urinal overview preview for men's toilets", async
   try {
     const controller = createMapController({
       ...elements,
-      overviewUrinalPanel,
       overviewVisualPreview,
       overviewVisualImage,
-      overviewUrinalPreview,
-      overviewUrinalImage,
       overviewVisualState,
       visualCleanlinessPreview,
       visualCleanlinessImage,
-      visualCleanlinessState,
-      visualFeedbackSubtitle
+      visualCleanlinessState
+    });
+    const toilet = createTestToilet();
+    toilet.cleanlinessSurvey = {
+      ratingTotal: 13,
+      ratingCount: 4
+    };
+
+    controller.setToilets([toilet]);
+    await controller.setToilet("test-toilet", { fly: false });
+
+    assert.equal(overviewVisualPreview.dataset.cleanliness, "3.5");
+    assert.equal(overviewVisualImage.src, "toilet_levels/level_35_small.jpg");
+    assert.equal(overviewVisualState.textContent, "Above average - Decent condition");
+    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "3.25/5");
+
+    const starIcons = elementsBySelector.get("#cleanliness-star-icons").children;
+    assert.deepEqual(
+      starIcons.map((icon) => icon.className),
+      ["star-icon is-full", "star-icon is-full", "star-icon is-full", "star-icon is-empty", "star-icon is-empty"]
+    );
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test("map controller does not create a urinal overview visual rating for men's toilets", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+
+  const { elementsBySelector, elements } = createMapDetailTestHarness();
+  const { element: overviewVisualPreview } = createPreviewElement();
+  const { element: visualCleanlinessPreview } = createPreviewElement();
+  const overviewVisualState = createTextElement();
+  const visualCleanlinessState = createTextElement();
+  const overviewVisualImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+  const visualCleanlinessImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    },
+    setTimeout: globalThis.setTimeout
+  };
+
+  try {
+    const controller = createMapController({
+      ...elements,
+      overviewVisualPreview,
+      overviewVisualImage,
+      overviewVisualState,
+      visualCleanlinessPreview,
+      visualCleanlinessImage,
+      visualCleanlinessState
     });
 
     controller.setToilets([createTestToilet()]);
     await controller.setToilet("test-toilet", { fly: false });
 
-    assert.equal(overviewUrinalPanel.hidden, false);
-    assert.equal(overviewUrinalImage.src, "toilet_levels/level_3_urinal.png");
-    assert.equal(overviewUrinalImage.alt, "Urinal cleanliness preview: OK");
-    assert.equal(overviewUrinalSvgClassList.contains("is-hidden"), true);
-
+    assert.equal(overviewVisualImage.src, "toilet_levels/level_3_small.jpg");
+    assert.equal(overviewVisualState.textContent, "OK - Usable but not spotless");
     assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_small.jpg");
-    assert.equal(visualFeedbackSubtitle.textContent, "Match the toilet picture to what you saw.");
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;

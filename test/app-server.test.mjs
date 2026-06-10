@@ -840,7 +840,7 @@ test("API records cleanliness survey as a star rating", async () => {
       body: JSON.stringify({
         toiletId: "detail-test",
         toiletName: "Prayer room washroom",
-        rating: 5
+        rating: 4.5
       })
     });
     const anonymousPayload = await anonymousResponse.json();
@@ -864,18 +864,18 @@ test("API records cleanliness survey as a star rating", async () => {
       body: JSON.stringify({
         toiletId: "detail-test",
         toiletName: "Prayer room washroom",
-        rating: 5
+        rating: 4.5
       })
     });
 
     assert.equal(payload.toilet.id, "detail-test");
-    assert.equal(payload.toilet.cleanliness, 5);
-    assert.equal(payload.toilet.cleanlinessSurvey.ratingTotal, 5);
+    assert.equal(payload.toilet.cleanliness, 4.5);
+    assert.equal(payload.toilet.cleanlinessSurvey.ratingTotal, 4.5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingCount, 1);
 
     const { payload: toiletsPayload } = await fetchJson(`${baseUrl}/api/toilets?cleanlinessRange=3days`);
     const refreshedToilet = toiletsPayload.toilets.find((toilet) => toilet.id === "detail-test");
-    assert.equal(refreshedToilet.cleanlinessSurvey.ratingTotal, 5);
+    assert.equal(refreshedToilet.cleanlinessSurvey.ratingTotal, 4.5);
     assert.equal(refreshedToilet.cleanlinessSurvey.ratingCount, 1);
   }, { databaseOptions: { cleanlinessScoringModel: { type: "average" } } });
 });

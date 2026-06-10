@@ -13,7 +13,8 @@ foreach ($File in $RequiredFiles) {
 
 $Html = Get-Content -LiteralPath "index.html" -Raw
 $Css = Get-Content -LiteralPath "src/styles.css" -Raw
-$Js = Get-Content -LiteralPath "src/main.js" -Raw
+$JsFiles = @("src/main.js") + (Get-ChildItem -LiteralPath "src/app" -Recurse -Filter "*.js" | ForEach-Object { $_.FullName })
+$Js = ($JsFiles | ForEach-Object { Get-Content -LiteralPath $_ -Raw }) -join "`n"
 
 $RequiredCopy = @("Map", "Account", "Directions")
 $MissingCopy = $RequiredCopy | Where-Object { -not $Html.Contains($_) }
@@ -26,8 +27,14 @@ if ($Html.Contains("Access QR") -or $Html.Contains("activate-pass")) {
   throw "QR access UI and activation flow should not be present."
 }
 
-if (-not $Html.Contains("openstreetmap.org/export/embed") -or -not $Js.Contains("navigator.geolocation") -or -not $Js.Contains("google.com/maps/dir")) {
-  throw "Expected real map, geolocation, and directions integration."
+if (
+  -not $Html.Contains("leaflet@1.9.4/dist/leaflet.css") -or
+  -not $Html.Contains("leaflet@1.9.4/dist/leaflet.js") -or
+  -not $Js.Contains("window.L.map") -or
+  -not $Js.Contains("navigator.geolocation") -or
+  -not $Js.Contains("google.com/maps/dir")
+) {
+  throw "Expected interactive map, geolocation, and directions integration."
 }
 
 if (-not $Html.Contains("close-details") -or -not $Js.Contains("closeDetailsButton")) {
@@ -37,21 +44,30 @@ if (-not $Html.Contains("close-details") -or -not $Js.Contains("closeDetailsButt
 if (
   -not $Html.Contains('data-detail-section="overview"') -or
   -not $Html.Contains('data-detail-panel="overview"') -or
-  -not $Html.Contains("overview-features-disclosure") -or
-  -not $Html.Contains('data-detail-panel="survey"')
+  -not $Html.Contains("overview-features-disclosure")
 ) {
   throw "Expected toilet details to switch between linked detail sections."
 }
 
-if ($Html.Contains("0 clean (0%) | 0 not clean (0%)") -or -not $Html.Contains('data-survey-rating="5"')) {
-  throw "Expected cleanliness to display and submit 1-5 star ratings."
+if (
+  $Html.Contains("0 clean (0%) | 0 not clean (0%)") -or
+  $Html.Contains('data-detail-panel="survey"') -or
+  $Html.Contains("data-survey-rating=") -or
+  $Html.Contains("data-open-visual-feedback") -or
+  $Html.Contains("Rate visually") -or
+  -not $Html.Contains('id="visual-cleanliness-stars"') -or
+  -not $Html.Contains('data-visual-rating="4.5"') -or
+  -not $Html.Contains('data-visual-rating="5"') -or
+  -not $Css.Contains(".visual-star-rating")
+) {
+  throw "Expected Write feedback cleanliness to use the 0.5-5 visual star rating."
 }
 
 if (-not $Css.Contains("@media") -or -not $Js.Contains("setTab")) {
   throw "Expected responsive CSS and tab interaction code."
 }
 
-if (-not $Css.Contains(".map-frame") -or -not $Css.Contains(".map-marker")) {
+if (-not $Css.Contains(".map-canvas") -or -not $Css.Contains(".map-marker") -or -not $Css.Contains(".map-marker-icon")) {
   throw "Expected stable map frame and marker overlay CSS."
 }
 
