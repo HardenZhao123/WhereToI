@@ -271,8 +271,17 @@ export function createApp() {
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
     elements.commentComposerToggle?.addEventListener("click", () => mapController.toggleCommentComposer());
     elements.closeCommentComposerButton?.addEventListener("click", () => mapController.closeCommentComposer());
-    elements.visualCleanlinessRatingButtons?.forEach((button) => {
-      button?.addEventListener("click", () => mapController.selectCleanlinessRating(button.dataset.visualRating));
+    elements.visualCleanlinessStars?.addEventListener("click", (event) => {
+      const target = event.target;
+      const ratingTarget = target?.closest?.("[data-visual-rating]");
+      if (ratingTarget && elements.visualCleanlinessStars.contains(ratingTarget)) {
+        mapController.selectCleanlinessRating(ratingTarget.dataset.visualRating);
+        return;
+      }
+      const starButton = target?.closest?.("[data-visual-star]");
+      if (starButton && elements.visualCleanlinessStars.contains(starButton)) {
+        mapController.selectCleanlinessRating(starButton.dataset.visualStar);
+      }
     });
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
     elements.commentPresetButtons.forEach((button) => {

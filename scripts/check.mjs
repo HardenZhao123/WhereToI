@@ -211,7 +211,10 @@ if (
   html.includes("id=\"overview-urinal-panel\"") ||
   visualCleanlinessStarsIndex <= commentComposerIndex ||
   !js.includes("setVisualCleanlinessLevel") ||
-  !js.includes("selectCleanlinessRating(button.dataset.visualRating)") ||
+  !js.includes("visualCleanlinessStars?.addEventListener(\"click\"") ||
+  !js.includes("target?.closest?.(\"[data-visual-rating]\")") ||
+  !js.includes("target?.closest?.(\"[data-visual-star]\")") ||
+  !js.includes("selectCleanlinessRating(starButton.dataset.visualStar)") ||
   !js.includes("image: definition.image") ||
   js.includes("level_3_urinal") ||
   !css.includes(".feedback-action-bar") ||
