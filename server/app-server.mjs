@@ -46,8 +46,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "comment visibility",
   "comment profile visibility",
   "too large",
-  "not found",
-  "once every 30 minutes"
+  "not found"
 ];
 
 function appendVaryHeader(headers, value) {

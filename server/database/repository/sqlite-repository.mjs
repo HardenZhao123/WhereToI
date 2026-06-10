@@ -508,17 +508,6 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         throw new Error("toilet not found.");
       }
 
-      if (userId) {
-        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-        const recentSurvey = db.prepare(
-          "SELECT id FROM cleanliness_surveys WHERE toilet_id = ? AND user_id = ? AND created_at >= ? LIMIT 1"
-        ).get(row.id, userId, thirtyMinutesAgo);
-
-        if (recentSurvey) {
-          throw new Error("You can only rate this toilet once every 30 minutes.");
-        }
-      }
-
       const globalStats = db.prepare("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users").get();
       const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
       let globalStandardDeviation = 1;

@@ -103,6 +103,28 @@ test("cleanliness time ranges exclude older ratings except all time", async () =
   }, { modelType: "average" });
 });
 
+test("database accepts repeated cleanliness feedback without cooldown", async () => {
+  await withSeededDatabase(async (database) => {
+    const user = await database.getUserByUsername("demo");
+
+    await database.recordCleanlinessSurvey({
+      userId: user.id,
+      toiletId: "detail-test",
+      rating: 4.5
+    });
+    await database.recordCleanlinessSurvey({
+      userId: user.id,
+      toiletId: "detail-test",
+      rating: 2
+    });
+
+    const toilet = await database.getToiletById("detail-test", { cleanlinessRange: "all" });
+    assert.equal(toilet.cleanlinessSurvey.ratingTotal, 6.5);
+    assert.equal(toilet.cleanlinessSurvey.ratingCount, 2);
+    assert.equal(toilet.cleanliness, 3.25);
+  }, { modelType: "average" });
+});
+
 test("recordAccess validates inputs and persists wallet/history changes", async () => {
   await withSeededDatabase(async (database) => {
     const user = await database.getUserByUsername("demo");

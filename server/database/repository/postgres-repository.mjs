@@ -781,18 +781,6 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         throw new Error("toilet not found.");
       }
 
-      if (userId) {
-        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-        const recentSurveyResult = await pool.query(
-          "SELECT id FROM cleanliness_surveys WHERE toilet_id = $1 AND user_id = $2 AND created_at >= $3 LIMIT 1",
-          [row.id, userId, thirtyMinutesAgo]
-        );
-
-        if (recentSurveyResult.rows.length > 0) {
-          throw new Error("You can only rate this toilet once every 30 minutes.");
-        }
-      }
-
       const globalStatsResult = await pool.query("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users");
       const globalStats = globalStatsResult.rows[0];
       const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
