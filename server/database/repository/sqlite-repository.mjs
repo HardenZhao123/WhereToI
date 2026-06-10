@@ -130,6 +130,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       media_size INTEGER,
       media_url TEXT,
       media_attachments TEXT,
+      scene_snapshot TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -672,6 +673,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             media_size,
             media_url,
             media_attachments,
+            scene_snapshot,
             created_at,
             (
               SELECT COUNT(*)
@@ -723,6 +725,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             toilet_comments.media_size,
             toilet_comments.media_url,
             toilet_comments.media_attachments,
+            toilet_comments.scene_snapshot,
             toilet_comments.created_at,
             toilets.name AS toilet_name,
             toilets.area AS toilet_area,
@@ -784,6 +787,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             toilet_comments.media_size,
             toilet_comments.media_url,
             toilet_comments.media_attachments,
+            toilet_comments.scene_snapshot,
             toilet_comments.created_at,
             toilets.name AS toilet_name,
             toilets.area AS toilet_area,
@@ -818,8 +822,8 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         comments
       };
     },
-    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility, cleanlinessRating }) {
-      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility, cleanlinessRating });
+    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility, cleanlinessRating, sceneSnapshot }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility, cleanlinessRating, sceneSnapshot });
       const displayUsername =
         comment.commentVisibility === "anonymous" ? ANONYMOUS_COMMENT_AUTHOR : username;
 
@@ -839,9 +843,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
           media_size,
           media_url,
           media_attachments,
+          scene_snapshot,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       ).run(
         comment.toiletId,
@@ -856,6 +861,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         comment.mediaSize,
         comment.mediaUrl,
         comment.mediaAttachmentsJson,
+        comment.sceneSnapshotJson,
         nowIso
       );
 

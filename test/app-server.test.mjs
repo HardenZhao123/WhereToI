@@ -442,6 +442,42 @@ test("API supports fetching and posting toilet comments", async () => {
     assert.equal(postedPayload.toilet.id, toiletId);
     assert.equal(postedPayload.toilet.cleanlinessSurvey.ratingCount, 1);
 
+    const sceneSnapshot = {
+      version: 2,
+      toiletId,
+      toiletName: "Detail test toilet",
+      fixtures: {
+        toilet: [{ id: "toilet-stain-1", dirtId: "stain", x: 140, y: 230 }],
+        urinal: [],
+        sink: [],
+        floor: [{ id: "floor-tissue-2", dirtId: "tissue", x: 690, y: 420 }]
+      }
+    };
+    const { payload: scenePostedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "",
+        commentVisibility: "real",
+        cleanlinessRating: 3.5,
+        sceneSnapshot
+      })
+    });
+    const sceneComment = scenePostedPayload.comments.find((comment) => comment.cleanliness_rating === 3.5);
+    assert.ok(sceneComment);
+    assert.equal(sceneComment.comment_text, "");
+    assert.deepEqual(sceneComment.scene_snapshot.fixtures.toilet, sceneSnapshot.fixtures.toilet);
+
+    const { payload: publicScenePayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.deepEqual(
+      publicScenePayload.comments.find((comment) => comment.cleanliness_rating === 3.5).scene_snapshot.fixtures.floor,
+      sceneSnapshot.fixtures.floor
+    );
+
     const deleteWithoutLoginResponse = await fetch(`${baseUrl}/api/comments`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -825,7 +861,7 @@ test("API supports image comment attachments without returning base64 data", asy
     const emptyCommentPayload = await emptyCommentResponse.json();
 
     assert.equal(emptyCommentResponse.status, 400);
-    assert.match(emptyCommentPayload.error, /commentText or media is required/);
+    assert.match(emptyCommentPayload.error, /commentText, media, or interactive scene is required/);
 
     const invalidResponse = await fetch(`${baseUrl}/api/comments`, {
       method: "POST",
