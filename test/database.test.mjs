@@ -243,6 +243,31 @@ test("database saves and retrieves comments for toilets", async () => {
     assert.equal(updatedComments[0].user_id, userId);
     assert.equal(updatedComments[0].media_type, null);
     assert.deepEqual(updatedComments[0].media_attachments, []);
+    assert.equal(updatedComments[0].scene_snapshot, null);
+
+    const sceneSnapshot = {
+      version: 2,
+      toiletId,
+      toiletName: "Detail test toilet",
+      fixtures: {
+        toilet: [{ id: "toilet-stain-1", dirtId: "stain", x: 140, y: 230 }],
+        urinal: [],
+        sink: [],
+        floor: [{ id: "floor-wet-2", dirtId: "wet", x: 640, y: 410 }]
+      }
+    };
+    const sceneComments = await database.saveComment({
+      toiletId,
+      userId,
+      username: user.username,
+      commentText: "",
+      cleanlinessRating: 3.5,
+      sceneSnapshot
+    });
+    const sceneComment = sceneComments.find((comment) => comment.cleanliness_rating === 3.5);
+    assert.ok(sceneComment);
+    assert.equal(sceneComment.comment_text, "");
+    assert.deepEqual(sceneComment.scene_snapshot.fixtures.toilet, sceneSnapshot.fixtures.toilet);
 
     const anonymousComments = await database.saveComment({
       toiletId,
@@ -253,20 +278,20 @@ test("database saves and retrieves comments for toilets", async () => {
       cleanlinessRating: 2
     });
 
-    assert.equal(anonymousComments.length, 2);
-    assert.equal(anonymousComments[0].comment_text, "Anonymous test comment");
-    assert.equal(anonymousComments[0].username, "Anonymous");
-    assert.equal(anonymousComments[0].author_name, "Anonymous");
-    assert.equal(anonymousComments[0].comment_visibility, "anonymous");
-    assert.equal(anonymousComments[0].cleanliness_rating, 2);
-    assert.equal(anonymousComments[0].profile_visibility, "private");
-    assert.equal(anonymousComments[0].is_anonymous, true);
-    assert.equal(anonymousComments[0].can_delete, true);
-    assert.equal(anonymousComments[0].user_id, null);
+    assert.equal(anonymousComments.length, 3);
+    const anonymousComment = anonymousComments.find((comment) => comment.cleanliness_rating === 2);
+    assert.equal(anonymousComment.comment_text, "Anonymous test comment");
+    assert.equal(anonymousComment.username, "Anonymous");
+    assert.equal(anonymousComment.author_name, "Anonymous");
+    assert.equal(anonymousComment.comment_visibility, "anonymous");
+    assert.equal(anonymousComment.cleanliness_rating, 2);
+    assert.equal(anonymousComment.profile_visibility, "private");
+    assert.equal(anonymousComment.is_anonymous, true);
+    assert.equal(anonymousComment.can_delete, true);
+    assert.equal(anonymousComment.user_id, null);
 
     const publicComments = await database.getComments(toiletId);
-    assert.equal(publicComments[0].can_delete, false);
-    assert.equal(publicComments[1].can_delete, false);
+    publicComments.forEach((comment) => assert.equal(comment.can_delete, false));
 
     const fetchedComments = await database.getComments(toiletId, { viewerUserId: userId });
     assert.deepEqual(fetchedComments, anonymousComments);

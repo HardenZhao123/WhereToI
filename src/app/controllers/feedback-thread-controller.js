@@ -9,6 +9,7 @@ import {
   getCommentMediaAttachments,
   normaliseCommentSortMode
 } from "../utils/comments.js";
+import { createToiletScenePreview } from "../toilet-playground/toilet-playground.js";
 
 export function createFeedbackThreadController(elements = {}, options = {}) {
   const {
@@ -277,6 +278,7 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
       header.append(createCommentActions(comment));
 
       const media = createCommentMediaElement(comment);
+      const scene = createToiletScenePreview(comment.scene_snapshot);
       const commentText = String(comment.comment_text ?? "").trim();
       const text = commentText ? document.createElement("p") : null;
       if (text) {
@@ -291,6 +293,7 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
       item.append(header);
       if (text) item.append(text);
       if (media) item.append(media);
+      if (scene) item.append(scene);
       item.append(date);
       commentsList.append(item);
     });

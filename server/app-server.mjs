@@ -46,6 +46,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "scoringModel",
   "Unsupported",
   "comment media",
+  "comment scene",
   "comment visibility",
   "comment profile visibility",
   "too large",
@@ -461,7 +462,8 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         commentText: body.commentText,
         commentVisibility: body.commentVisibility,
         cleanlinessRating: body.cleanlinessRating,
-        media
+        media,
+        sceneSnapshot: body.sceneSnapshot
       });
       const cleanlinessResult = await database.recordCleanlinessSurvey({
         userId,
@@ -475,7 +477,8 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         commentText: comment.commentText,
         commentVisibility: comment.commentVisibility,
         cleanlinessRating: comment.cleanlinessRating,
-        media
+        media,
+        sceneSnapshot: comment.sceneSnapshot
       });
 
       sendSensitiveJson(response, 201, { comments, toilet: cleanlinessResult.toilet });

@@ -69,6 +69,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentMediaInput,
     commentMediaPreview,
     commentMediaStatus,
+    commentSceneToggle,
+    commentScenePanel,
+    commentSceneStatus,
     overviewVisualPreview,
     overviewVisualImage,
     overviewVisualState,
@@ -93,6 +96,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     recordAccessHistory = async () => {},
     onPublicProfileSelected = () => {},
     onCleanlinessSaved = async () => {},
+    getFeedbackSceneSnapshot = () => null,
+    resetFeedbackScene = () => {},
     onBoundsChanged = () => {}
   } = auth;
 
@@ -516,6 +521,26 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return commentAnonymousInput?.checked ? "anonymous" : "real";
   }
 
+  function setFeedbackSceneOpen(open) {
+    const shouldOpen = Boolean(open && selectedToilet && commentScenePanel);
+
+    if (commentScenePanel) {
+      commentScenePanel.hidden = !shouldOpen;
+      commentScenePanel.classList.toggle("is-hidden", !shouldOpen);
+    }
+
+    if (commentSceneToggle) {
+      commentSceneToggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+      commentSceneToggle.textContent = shouldOpen ? "Hide interactive scene" : "Add interactive scene";
+    }
+
+    if (commentSceneStatus) {
+      commentSceneStatus.textContent = shouldOpen
+        ? "Optional scene for this feedback."
+        : "Optional scene for this feedback.";
+    }
+  }
+
   function setCommentComposerOpen(open) {
     const shouldOpen = Boolean(open && selectedToilet && commentComposer);
 
@@ -535,6 +560,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (shouldOpen) {
       renderCleanlinessSurvey(selectedToilet);
       requestAnimationFrame(() => commentInput?.focus());
+    } else {
+      setFeedbackSceneOpen(false);
     }
   }
 
@@ -564,6 +591,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function closeCommentComposer() {
     setCommentComposerOpen(false);
+  }
+
+  function toggleFeedbackScene() {
+    setFeedbackSceneOpen(commentScenePanel?.hidden ?? true);
   }
 
   function applyCommentPreset(presetText) {
@@ -1617,6 +1648,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const commentText = commentInput.value.trim();
     const hasCommentText = commentText.length > 0;
     const hasMedia = selectedCommentMedia.length > 0;
+    const sceneSnapshot = getFeedbackSceneSnapshot();
+    const hasScene = Boolean(sceneSnapshot);
 
     if (!isAuthenticated()) {
       showLoginPrompt("Log in to leave feedback.");
@@ -1629,7 +1662,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     try {
-      if (!hasCommentText && !hasMedia) {
+      if (!hasCommentText && !hasMedia && !hasScene) {
         const saved = await answerCleanlinessSurvey(feedbackRating);
         if (saved) {
           selectedRating = null;
@@ -1646,13 +1679,15 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         commentText,
         media,
         commentVisibility,
-        feedbackRating
+        feedbackRating,
+        sceneSnapshot
       );
       await applySavedCleanlinessResult(result, feedbackRating);
       feedbackThreadController.renderComments(result.comments);
       commentInput.value = "";
       selectedRating = null;
       resetCommentMediaAttachment();
+      resetFeedbackScene();
       closeCommentComposer();
       renderCleanlinessSurvey(selectedToilet);
     } catch (error) {
@@ -1697,6 +1732,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setCommentSortMode: feedbackThreadController.setCommentSortMode,
     setCommentFilter: feedbackThreadController.setCommentFilter,
     toggleCommentComposer,
+    toggleFeedbackScene,
     closeCommentComposer,
     setVisualCleanlinessLevel,
     applyCommentPreset,

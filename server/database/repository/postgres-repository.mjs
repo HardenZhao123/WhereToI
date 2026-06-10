@@ -349,6 +349,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       media_size INTEGER,
       media_url TEXT,
       media_attachments JSONB,
+      scene_snapshot JSONB,
       created_at TEXT NOT NULL
     );
 
@@ -929,6 +930,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_size,
           NULL::text AS media_url,
           ${COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL} AS media_attachments,
+          scene_snapshot,
           created_at,
           (
             SELECT COUNT(*)::int
@@ -979,6 +981,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_comments.media_size,
           NULL::text AS media_url,
           ${COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL} AS media_attachments,
+          toilet_comments.scene_snapshot,
           toilet_comments.created_at,
           toilets.name AS toilet_name,
           toilets.area AS toilet_area,
@@ -1042,6 +1045,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_comments.media_size,
           NULL::text AS media_url,
           ${COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL} AS media_attachments,
+          toilet_comments.scene_snapshot,
           toilet_comments.created_at,
           toilets.name AS toilet_name,
           toilets.area AS toilet_area,
@@ -1075,8 +1079,8 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         comments: commentsResult.rows.map((row) => mapCommentRow(row, { viewerUserId }))
       };
     },
-    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility, cleanlinessRating }) {
-      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility, cleanlinessRating });
+    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility, cleanlinessRating, sceneSnapshot }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility, cleanlinessRating, sceneSnapshot });
       const displayUsername =
         comment.commentVisibility === "anonymous" ? ANONYMOUS_COMMENT_AUTHOR : username;
 
@@ -1096,9 +1100,10 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_size,
           media_url,
           media_attachments,
+          scene_snapshot,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14)
         `,
         [
           comment.toiletId,
@@ -1113,6 +1118,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           comment.mediaSize,
           comment.mediaUrl,
           comment.mediaAttachmentsJson,
+          comment.sceneSnapshotJson,
           nowIso
         ]
       );

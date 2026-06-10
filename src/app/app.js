@@ -5,6 +5,7 @@ import { createMapController } from "./controllers/map-controller.js";
 import { createTabController } from "./controllers/tab-controller.js";
 import { recordAccessHistory } from "./services/account-service.js";
 import { getCachedToiletsFromApi, loadToiletsFromApi } from "./services/toilets-service.js";
+import { createToiletPlayground } from "./toilet-playground/toilet-playground.js";
 import { distanceInMetres } from "./utils/geo.js";
 
 export function createApp() {
@@ -12,8 +13,9 @@ export function createApp() {
   let accountController = null;
   let tabController = null;
   let boundsFetchTimeoutId = null;
+  const toiletPlayground = createToiletPlayground(elements.feedbackSceneRoot);
 
-  const mapController = createMapController(elements, () => {}, {
+  const mapController = createMapController(elements, (toilet) => toiletPlayground.setContext(toilet), {
     isAuthenticated: () => accountController?.isAuthenticated() ?? false,
     showLoginPrompt: (message) => accountController?.showAuthModal("login", message),
     recordAccessHistory,
@@ -25,6 +27,8 @@ export function createApp() {
       initializeToilets("all", {
         force: true
       }),
+    getFeedbackSceneSnapshot: () => toiletPlayground.getSubmissionSnapshot(),
+    resetFeedbackScene: () => toiletPlayground.reset(),
     onBoundsChanged: (bounds) => {
       if (boundsFetchTimeoutId) {
         window.clearTimeout(boundsFetchTimeoutId);
@@ -249,6 +253,7 @@ export function createApp() {
       }
     });
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
+    elements.commentSceneToggle?.addEventListener("click", () => mapController.toggleFeedbackScene());
     elements.commentPresetButtons.forEach((button) => {
       button?.addEventListener("click", () => mapController.applyCommentPreset(button.dataset.commentPreset));
     });
