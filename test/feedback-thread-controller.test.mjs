@@ -99,6 +99,7 @@ test("feedback thread controller renders and filters comment threads", () => {
       {
         id: 2,
         author_name: "Demo",
+        cleanliness_rating: 4.5,
         comment_text: "Photo feedback",
         created_at: "2026-06-02T10:00:00.000Z",
         like_count: 0,
@@ -116,6 +117,10 @@ test("feedback thread controller renders and filters comment threads", () => {
     assert.equal(commentsSummary.textContent, "2 feedback - Newest");
     assert.equal(commentsList.children.length, 2);
     assert.equal(commentsList.children[0].dataset.commentId, "2");
+    const rating = commentsList.children[0].children[0].children[0].children
+      .find((child) => child.className === "comment-rating");
+    assert.equal(rating?.textContent, "\u2605\u2605\u2605\u2605\u00bd");
+    assert.equal(rating?.attributes["aria-label"], "Cleanliness rating 4.5 out of 5");
 
     controller.setCommentFilter("media", true);
 

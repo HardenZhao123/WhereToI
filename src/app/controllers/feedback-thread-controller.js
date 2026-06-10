@@ -142,12 +142,17 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
 
   function createCommentRatingElement(comment) {
     const rating = Number(comment?.cleanliness_rating);
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return null;
+    if (!Number.isFinite(rating) || rating < 0.5 || rating > 5 || !Number.isInteger(rating * 2)) {
+      return null;
+    }
 
     const ratingElement = document.createElement("span");
+    const full = Math.floor(rating);
+    const half = rating > full ? 1 : 0;
+    const empty = Math.max(5 - full - half, 0);
     ratingElement.className = "comment-rating";
     ratingElement.setAttribute("aria-label", `Cleanliness rating ${rating} out of 5`);
-    ratingElement.textContent = `${"\u2605".repeat(rating)}${"\u2606".repeat(5 - rating)}`;
+    ratingElement.textContent = `${"\u2605".repeat(full)}${half ? "\u00bd" : ""}${"\u2606".repeat(empty)}`;
     return ratingElement;
   }
 
