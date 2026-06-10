@@ -171,20 +171,20 @@ test("toilet playground allows repeated dirt at different positions", () => {
 });
 
 test("toilet playground status rows and scene snapshot use display labels", () => {
-  const state = addDirtToFixture(
-    addDirtToFixture(
-      addDirtToFixture(createInitialDirtState(), "floor", "wet", { x: 420, y: 370 }),
-      "floor",
-      "wet",
-      { x: 760, y: 440 }
-    ),
-    "floor",
-    "tissue",
-    { x: 300, y: 400 }
-  );
+  let state = createInitialDirtState();
+  state = addDirtToFixture(state, "floor", "wet", { x: 420, y: 370 });
+  state = addDirtToFixture(state, "floor", "wet", { x: 760, y: 440 });
+  state = addDirtToFixture(state, "floor", "urine", { x: 550, y: 390 });
+  state = addDirtToFixture(state, "floor", "dust", { x: 250, y: 360 });
+  state = addDirtToFixture(state, "floor", "tissue", { x: 300, y: 400 });
 
   const rows = getFixtureStatusRows(state);
-  assert.deepEqual(rows.find((row) => row.fixtureId === "floor")?.dirtLabels, ["wet x2", "tissue"]);
+  assert.deepEqual(rows.find((row) => row.fixtureId === "floor")?.dirtLabels, [
+    "wet x2",
+    "urine",
+    "dust",
+    "tissue"
+  ]);
 
   assert.deepEqual(
     createSceneSnapshot(state, {
@@ -202,7 +202,9 @@ test("toilet playground status rows and scene snapshot use display labels", () =
         floor: [
           { id: "floor-wet-1", dirtId: "wet", x: 420, y: 370 },
           { id: "floor-wet-2", dirtId: "wet", x: 760, y: 440 },
-          { id: "floor-tissue-3", dirtId: "tissue", x: 300, y: 400 }
+          { id: "floor-urine-3", dirtId: "urine", x: 550, y: 390 },
+          { id: "floor-dust-4", dirtId: "dust", x: 250, y: 360 },
+          { id: "floor-tissue-5", dirtId: "tissue", x: 300, y: 400 }
         ]
       }
     }

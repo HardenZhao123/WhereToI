@@ -447,10 +447,13 @@ test("API supports fetching and posting toilet comments", async () => {
       toiletId,
       toiletName: "Detail test toilet",
       fixtures: {
-        toilet: [{ id: "toilet-stain-1", dirtId: "stain", x: 140, y: 230 }],
-        urinal: [],
+        toilet: [
+          { id: "toilet-stain-1", dirtId: "stain", x: 140, y: 230 },
+          { id: "toilet-urine-2", dirtId: "urine", x: 185, y: 240 }
+        ],
+        urinal: [{ id: "urinal-hair-3", dirtId: "hair", x: 410, y: 252 }],
         sink: [],
-        floor: [{ id: "floor-tissue-2", dirtId: "tissue", x: 690, y: 420 }]
+        floor: [{ id: "floor-tissue-4", dirtId: "tissue", x: 690, y: 420 }]
       }
     };
     const { payload: scenePostedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
@@ -470,12 +473,12 @@ test("API supports fetching and posting toilet comments", async () => {
     const sceneComment = scenePostedPayload.comments.find((comment) => comment.cleanliness_rating === 3.5);
     assert.ok(sceneComment);
     assert.equal(sceneComment.comment_text, "");
-    assert.deepEqual(sceneComment.scene_snapshot.fixtures.toilet, sceneSnapshot.fixtures.toilet);
+    assert.deepEqual(sceneComment.scene_snapshot.fixtures, sceneSnapshot.fixtures);
 
     const { payload: publicScenePayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
     assert.deepEqual(
-      publicScenePayload.comments.find((comment) => comment.cleanliness_rating === 3.5).scene_snapshot.fixtures.floor,
-      sceneSnapshot.fixtures.floor
+      publicScenePayload.comments.find((comment) => comment.cleanliness_rating === 3.5).scene_snapshot.fixtures,
+      sceneSnapshot.fixtures
     );
 
     const deleteWithoutLoginResponse = await fetch(`${baseUrl}/api/comments`, {
