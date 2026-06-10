@@ -19,6 +19,31 @@ function createApiToilet(id = "cached-toilet") {
   };
 }
 
+test("toilets service defaults list requests to all-time cleanliness", async () => {
+  const originalFetch = globalThis.fetch;
+  clearToiletsApiCache();
+  let requestedUrl = "";
+
+  globalThis.fetch = async (url) => {
+    requestedUrl = String(url);
+    return {
+      ok: true,
+      json: async () => ({ toilets: [createApiToilet("all-time-toilet")] })
+    };
+  };
+
+  try {
+    const toilets = await loadToiletsFromApi(undefined, 0, 1000);
+
+    assert.equal(requestedUrl, "/api/toilets?cleanlinessRange=all");
+    assert.equal(toilets[0].id, "all-time-toilet");
+    assert.deepEqual(getCachedToiletsFromApi(), toilets);
+  } finally {
+    clearToiletsApiCache();
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("toilets service reuses short-lived API cache for matching range and bounds", async () => {
   const originalFetch = globalThis.fetch;
   clearToiletsApiCache();

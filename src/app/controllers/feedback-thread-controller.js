@@ -303,18 +303,20 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
       header.append(authorLine);
       header.append(createCommentActions(comment));
 
-      const text = document.createElement("p");
-      text.className = "comment-text";
-      text.textContent = comment.comment_text;
-
       const media = createCommentMediaElement(comment);
+      const commentText = String(comment.comment_text ?? "").trim();
+      const text = commentText ? document.createElement("p") : null;
+      if (text) {
+        text.className = "comment-text";
+        text.textContent = commentText;
+      }
 
       const date = document.createElement("p");
       date.className = "comment-date";
       date.textContent = new Date(comment.created_at).toLocaleString();
 
       item.append(header);
-      item.append(text);
+      if (text) item.append(text);
       if (media) item.append(media);
       item.append(date);
       commentsList.append(item);

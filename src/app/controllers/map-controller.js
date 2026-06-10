@@ -1675,14 +1675,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         return;
       }
 
-      if (!hasCommentText) {
-        if (mapSurveyStatus) {
-          mapSurveyStatus.classList.add("warning");
-          mapSurveyStatus.textContent = "Add a short comment before posting media.";
-        }
-        return;
-      }
-
       const media = await readCommentMediaAttachments(selectedCommentMedia);
       const commentVisibility = getCommentVisibility();
       const result = await submitComment(

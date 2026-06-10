@@ -273,7 +273,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
     "GET /api/toilets": async ({ response, url }) => {
       const search = url.searchParams.get("search") ?? "";
       const accessibleOnly = parseAccessibleOnly(url.searchParams.get("accessibleOnly"));
-      const cleanlinessRange = url.searchParams.get("cleanlinessRange") ?? "3days";
+      const cleanlinessRange = url.searchParams.get("cleanlinessRange") ?? "all";
 
       const bounds = {
         minLat: url.searchParams.get("minLat"),

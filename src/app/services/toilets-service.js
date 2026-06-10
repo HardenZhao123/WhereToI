@@ -22,14 +22,14 @@ function getBoundsCacheKey(bounds) {
 }
 
 function getToiletsApiCacheKey(cleanlinessRange, bounds) {
-  return `${String(cleanlinessRange || "3days")}::${getBoundsCacheKey(bounds)}`;
+  return `${String(cleanlinessRange || "all")}::${getBoundsCacheKey(bounds)}`;
 }
 
 function getToiletDetailCacheKey(toiletId, cleanlinessRange = "all") {
   return `${String(toiletId)}::${String(cleanlinessRange || "all")}`;
 }
 
-export function getCachedToiletsFromApi(cleanlinessRange = "3days", bounds = null) {
+export function getCachedToiletsFromApi(cleanlinessRange = "all", bounds = null) {
   const cacheKey = getToiletsApiCacheKey(cleanlinessRange, bounds);
   const cached = toiletsApiCache.get(cacheKey);
   if (!cached) return null;
@@ -88,7 +88,7 @@ export function getCachedToiletDetail(toiletId, cleanlinessRange = "all") {
 }
 
 export async function loadToiletsFromApi(
-  cleanlinessRange = "3days",
+  cleanlinessRange = "all",
   retryCount = 2,
   timeoutMs = 30000,
   bounds = null,

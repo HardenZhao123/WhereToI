@@ -245,9 +245,14 @@ export function normaliseCommentPayload({
 }) {
   const safeToiletId = normaliseText(toiletId);
   const safeCommentText = typeof commentText === "string" ? commentText.trim() : "";
+  const normalisedMedia = normaliseCommentMedia(media);
 
-  if (!safeToiletId || !safeCommentText) {
-    throw new Error("toiletId and commentText are required.");
+  if (!safeToiletId) {
+    throw new Error("toiletId is required.");
+  }
+
+  if (!safeCommentText && normalisedMedia.mediaAttachments.length === 0) {
+    throw new Error("commentText or media is required for comment feedback.");
   }
 
   return {
@@ -255,7 +260,7 @@ export function normaliseCommentPayload({
     commentText: safeCommentText,
     commentVisibility: normaliseCommentVisibility(commentVisibility),
     cleanlinessRating: normaliseRating(cleanlinessRating),
-    ...normaliseCommentMedia(media)
+    ...normalisedMedia
   };
 }
 
@@ -448,7 +453,7 @@ export function normaliseBounds(bounds) {
   };
 }
 
-export function getCleanlinessRangeStartDate(range = "3days") {
+export function getCleanlinessRangeStartDate(range = "all") {
   const now = new Date();
   if (range === "1day") return new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   if (range === "3days") return new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();

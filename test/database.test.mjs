@@ -502,7 +502,7 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
     // newToiletBias = 0 + 0.01 * (2 - 0.02 * 0) = 0.02.
     // adjustedRating = 3 + 0.02 = 3.02. Clamped to 3.
     
-    const result = await database.recordCleanlinessSurvey({
+    await database.recordCleanlinessSurvey({
       userId,
       toiletId: "extra-test-4",
       rating: 5
@@ -515,7 +515,6 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
     // So the second rating might already be high.
     
     // Just verify that we can keep recording and biases update.
-    // We need to use different toilets to avoid the 30-minute cooldown
     await database.recordCleanlinessSurvey({ userId, toiletId: "extra-test-5", rating: 5 });
     
     const finalUser = await database.getUserById(userId);

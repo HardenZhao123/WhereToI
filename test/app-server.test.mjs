@@ -772,6 +772,36 @@ test("API supports image comment attachments without returning base64 data", asy
     ]);
     assert.equal(JSON.stringify(mediaPayload).includes("data:image"), false);
 
+    const { payload: mediaOnlyPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "  ",
+        cleanlinessRating: 4.5,
+        media: [media[0]]
+      })
+    });
+    const mediaOnlyComment = mediaOnlyPayload.comments.find((comment) => comment.cleanliness_rating === 4.5);
+
+    assert.ok(mediaOnlyComment);
+    assert.equal(mediaOnlyComment.comment_text, "");
+    assert.equal(mediaOnlyComment.media_type, "image");
+
+    const emptyCommentResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: " ",
+        cleanlinessRating: 4
+      })
+    });
+    const emptyCommentPayload = await emptyCommentResponse.json();
+
+    assert.equal(emptyCommentResponse.status, 400);
+    assert.match(emptyCommentPayload.error, /commentText or media is required/);
+
     const invalidResponse = await fetch(`${baseUrl}/api/comments`, {
       method: "POST",
       headers: authHeaders,

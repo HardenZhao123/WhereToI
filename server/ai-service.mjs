@@ -32,8 +32,16 @@ export async function createAiService({
         return "No comments available to summarize.";
       }
 
-      const commentsText = comments
-        .map((c, i) => `${i + 1}. ${c.comment_text}`)
+      const writtenComments = comments
+        .map((comment) => String(comment?.comment_text ?? "").trim())
+        .filter(Boolean);
+
+      if (writtenComments.length === 0) {
+        return "No written comments available to summarize.";
+      }
+
+      const commentsText = writtenComments
+        .map((commentText, i) => `${i + 1}. ${commentText}`)
         .join("\n");
 
       const prompt = `

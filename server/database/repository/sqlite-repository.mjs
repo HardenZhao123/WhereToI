@@ -372,7 +372,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
       return null;
     },
-    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days", bounds = null } = {}) {
+    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "all", bounds = null } = {}) {
       const query = normaliseSearchQuery(search);
       const safeBounds = normaliseBounds(bounds);
       const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
