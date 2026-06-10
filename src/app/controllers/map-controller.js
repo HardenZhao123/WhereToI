@@ -81,6 +81,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     aiSummaryText,
     featureFilterInputs = [],
     sortSelect,
+    cleanlinessRangeSelect,
     resultsSummary,
     resultsList,
     locateButtons = []
@@ -112,6 +113,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let filteredToilets = [];
   let visibleToilets = [];
   let selectedToilet = null;
+  let selectedCleanlinessDisplayToilet = null;
   let userLocation = null;
   let queryText = "";
   let selectedFeatureFilters = new Set();
@@ -123,7 +125,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let hiddenByMarkerLimit = 0;
   let cleanlinessSurveyAnswers = loadSurveyAnswers();
   let cleanlinessUpdateById = new Map();
-  let currentCleanlinessRange = defaultCleanlinessRange;
+  let cleanlinessDisplayCache = new Map();
+  let cleanlinessDisplayRequestId = 0;
+  let currentCleanlinessRange = normaliseCleanlinessRange(cleanlinessRangeSelect?.value ?? defaultCleanlinessRange);
   let selectedRating = null;
   let selectedCommentMedia = [];
   let visualCleanlinessLevel = 3;
@@ -809,6 +813,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function hideToiletDetails() {
     selectedToilet = null;
+    selectedCleanlinessDisplayToilet = null;
+    cleanlinessDisplayRequestId += 1;
     selectedRating = null;
     setCommentComposerAvailable(false);
     resetVisualCleanlinessRating();
@@ -879,6 +885,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     selectedToilet = toilet;
+    selectedCleanlinessDisplayToilet = toilet;
     selectedRating = null;
     closeCommentComposer();
     setCommentComposerAvailable(true);
@@ -926,6 +933,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     renderCleanlinessSurvey(toilet);
     renderCleanlinessRating(toilet);
     updateOverviewVisualCleanlinessPreview(toilet);
+    await refreshSelectedCleanlinessDisplay();
 
     if (currentDetailSection === "comment" || focusCommentId !== null) {
       await feedbackThreadController.loadComments(toilet, {
@@ -1153,11 +1161,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return true;
   }
 
-  function setToilets(nextToilets, { hideDetails = true, cleanlinessRange = currentCleanlinessRange, merge = false } = {}) {
-    currentCleanlinessRange = normaliseCleanlinessRange(cleanlinessRange);
+  function setToilets(nextToilets, { hideDetails = true, cleanlinessRange = "all", merge = false } = {}) {
+    const dataCleanlinessRange = normaliseCleanlinessRange(cleanlinessRange);
 
     const processedToilets = nextToilets.map((toilet) =>
-      applyStoredCleanlinessUpdate(toilet, currentCleanlinessRange)
+      applyStoredCleanlinessUpdate(toilet, dataCleanlinessRange)
     );
 
     if (merge) {
@@ -1280,6 +1288,113 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return value || defaultCleanlinessRange;
   }
 
+  function getCleanlinessDisplayCacheKey(toiletId, cleanlinessRange = currentCleanlinessRange) {
+    return `${String(toiletId)}::${normaliseCleanlinessRange(cleanlinessRange)}`;
+  }
+
+  function getCleanlinessSnapshot(toilet) {
+    return {
+      cleanliness: toilet?.cleanliness ?? null,
+      cleanlinessSurvey: toilet?.cleanlinessSurvey
+        ? { ...toilet.cleanlinessSurvey }
+        : { ratingTotal: 0, ratingCount: 0 }
+    };
+  }
+
+  function mergeCleanlinessSnapshot(toilet, snapshot) {
+    if (!toilet || !snapshot) return toilet;
+
+    return {
+      ...toilet,
+      cleanliness: snapshot.cleanliness,
+      cleanlinessSurvey: snapshot.cleanlinessSurvey
+        ? { ...snapshot.cleanlinessSurvey }
+        : { ratingTotal: 0, ratingCount: 0 }
+    };
+  }
+
+  function cacheCleanlinessDisplay(toilet, cleanlinessRange = currentCleanlinessRange) {
+    if (!toilet?.id) return;
+
+    cleanlinessDisplayCache = new Map(cleanlinessDisplayCache);
+    cleanlinessDisplayCache.set(
+      getCleanlinessDisplayCacheKey(toilet.id, cleanlinessRange),
+      getCleanlinessSnapshot(toilet)
+    );
+  }
+
+  function setSelectedCleanlinessDisplay(toilet) {
+    selectedCleanlinessDisplayToilet = toilet;
+    renderCleanlinessRating(toilet);
+    updateOverviewVisualCleanlinessPreview(toilet);
+  }
+
+  function shouldFetchCleanlinessDisplay() {
+    return Boolean(globalThis.window?.location && typeof globalThis.fetch === "function");
+  }
+
+  async function refreshSelectedCleanlinessDisplay({ force = false } = {}) {
+    if (!selectedToilet?.id) return null;
+
+    const range = normaliseCleanlinessRange(currentCleanlinessRange);
+    const requestId = cleanlinessDisplayRequestId + 1;
+    cleanlinessDisplayRequestId = requestId;
+
+    if (range === "all") {
+      cacheCleanlinessDisplay(selectedToilet, range);
+      setSelectedCleanlinessDisplay(selectedToilet);
+      return selectedToilet;
+    }
+
+    const cacheKey = getCleanlinessDisplayCacheKey(selectedToilet.id, range);
+    const cachedSnapshot = !force ? cleanlinessDisplayCache.get(cacheKey) : null;
+    if (cachedSnapshot) {
+      const cachedToilet = mergeCleanlinessSnapshot(selectedToilet, cachedSnapshot);
+      setSelectedCleanlinessDisplay(cachedToilet);
+      return cachedToilet;
+    }
+
+    if (!shouldFetchCleanlinessDisplay()) {
+      setSelectedCleanlinessDisplay(selectedToilet);
+      return selectedToilet;
+    }
+
+    try {
+      const detailToilet = await fetchToiletDetail(selectedToilet.id, {
+        cleanlinessRange: range,
+        force
+      });
+
+      if (
+        requestId !== cleanlinessDisplayRequestId ||
+        !detailToilet ||
+        selectedToilet?.id !== detailToilet.id ||
+        range !== normaliseCleanlinessRange(currentCleanlinessRange)
+      ) {
+        return null;
+      }
+
+      const displayToilet = mergeCleanlinessSnapshot(selectedToilet, getCleanlinessSnapshot(detailToilet));
+      cacheCleanlinessDisplay(displayToilet, range);
+      setSelectedCleanlinessDisplay(displayToilet);
+      return displayToilet;
+    } catch (error) {
+      console.warn("Failed to refresh cleanliness rating period:", error);
+      if (requestId === cleanlinessDisplayRequestId) {
+        setSelectedCleanlinessDisplay(selectedToilet);
+      }
+      return null;
+    }
+  }
+
+  function setCleanlinessRange(range) {
+    currentCleanlinessRange = normaliseCleanlinessRange(range);
+    if (cleanlinessRangeSelect && cleanlinessRangeSelect.value !== currentCleanlinessRange) {
+      cleanlinessRangeSelect.value = currentCleanlinessRange;
+    }
+    return refreshSelectedCleanlinessDisplay();
+  }
+
   function getCleanlinessUpdateCount(cleanlinessUpdate) {
     const ratingCount = Number(cleanlinessUpdate?.cleanlinessSurvey?.ratingCount);
     return Number.isFinite(ratingCount) ? ratingCount : 0;
@@ -1306,7 +1421,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function updateToiletCleanliness(
     toiletUpdate,
-    { store = true, cleanlinessRange = currentCleanlinessRange } = {}
+    { store = true, cleanlinessRange = "all" } = {}
   ) {
     if (!toiletUpdate?.id) return;
 
@@ -1335,8 +1450,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     if (selectedToilet?.id === toiletUpdate.id) {
       selectedToilet = applyUpdate(selectedToilet);
-      renderCleanlinessRating(selectedToilet);
-      updateOverviewVisualCleanlinessPreview(selectedToilet);
+      if (normaliseCleanlinessRange(cleanlinessRange) === normaliseCleanlinessRange(currentCleanlinessRange)) {
+        selectedCleanlinessDisplayToilet = applyUpdate(selectedCleanlinessDisplayToilet ?? selectedToilet);
+        renderCleanlinessRating(selectedCleanlinessDisplayToilet);
+        updateOverviewVisualCleanlinessPreview(selectedCleanlinessDisplayToilet);
+      }
     }
 
     renderResults();
@@ -1363,8 +1481,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       return toiletUpdate;
     }
 
-    const previousTotal = Number(selectedToilet?.cleanlinessSurvey?.ratingTotal);
-    const previousCount = Number(selectedToilet?.cleanlinessSurvey?.ratingCount);
+    const periodToilet = selectedCleanlinessDisplayToilet ?? selectedToilet;
+    const previousTotal = Number(periodToilet?.cleanlinessSurvey?.ratingTotal);
+    const previousCount = Number(periodToilet?.cleanlinessSurvey?.ratingCount);
     const safeRating = Number(rating);
 
     if (
@@ -1394,11 +1513,16 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       throw new Error("Cleanliness response did not include the updated toilet.");
     }
 
-    const toiletUpdate = createCurrentRangeCleanlinessUpdate(result.toilet, rating);
-    updateToiletCleanliness(toiletUpdate, {
+    updateToiletCleanliness(result.toilet, {
       store: true,
-      cleanlinessRange: currentCleanlinessRange
+      cleanlinessRange: "all"
     });
+
+    const toiletUpdate = createCurrentRangeCleanlinessUpdate(result.toilet, rating);
+    cacheCleanlinessDisplay(toiletUpdate, currentCleanlinessRange);
+    if (selectedToilet?.id === result.toilet.id) {
+      setSelectedCleanlinessDisplay(mergeCleanlinessSnapshot(selectedToilet, getCleanlinessSnapshot(toiletUpdate)));
+    }
 
     if (refreshToilets) {
       try {
@@ -1567,6 +1691,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     getSelectedToilet,
     getBounds,
     setToilet,
+    setCleanlinessRange,
     openCommentThread,
     updateToiletCleanliness,
     selectCleanlinessRating,

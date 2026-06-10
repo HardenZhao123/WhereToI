@@ -23,7 +23,7 @@ export function createApp() {
       tabController?.setTab("account");
     },
     onCleanlinessSaved: () =>
-      initializeToilets(elements.cleanlinessRangeSelect?.value ?? "3days", {
+      initializeToilets("all", {
         allowFallback: false,
         force: true
       }),
@@ -34,7 +34,7 @@ export function createApp() {
 
       boundsFetchTimeoutId = window.setTimeout(() => {
         boundsFetchTimeoutId = null;
-        initializeToilets(elements.cleanlinessRangeSelect?.value ?? "3days", {
+        initializeToilets("all", {
           bounds,
           merge: true,
           allowFallback: false
@@ -109,7 +109,7 @@ export function createApp() {
       currentSelectedId = null,
       currentSection = null,
       hideDetails = true,
-      cleanlinessRange = elements.cleanlinessRangeSelect?.value ?? "3days",
+      cleanlinessRange = "all",
       status = "",
       merge = false
     } = {}
@@ -144,7 +144,7 @@ export function createApp() {
   }
 
   async function initializeToilets(
-    range = elements.cleanlinessRangeSelect?.value ?? "3days",
+    range = "all",
     { allowFallback = true, force = false, bounds = null, merge = false } = {}
   ) {
     if (!force && !bounds && range === lastLoadedRange && hasLoadedApiToilets) {
@@ -261,7 +261,7 @@ export function createApp() {
     });
     elements.sortSelect?.addEventListener("change", (event) => mapController.setSortMode(event.target.value));
     elements.cleanlinessRangeSelect?.addEventListener("change", (event) => {
-      initializeToilets(event.target.value, { allowFallback: !hasLoadedApiToilets });
+      mapController.setCleanlinessRange(event.target.value);
     });
     elements.featureFilterInputs.forEach((input) => {
       input?.addEventListener("change", () => mapController.setFeatureFilter(input.value, input.checked));
@@ -317,7 +317,7 @@ export function createApp() {
 
     // 2. Fetch live data in the background (using current map bounds)
     await Promise.all([
-      initializeToilets(elements.cleanlinessRangeSelect?.value ?? "3days", {
+      initializeToilets("all", {
         allowFallback: false,
         force: true,
         merge: true

@@ -302,7 +302,8 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         return;
       }
 
-      const toilet = await database.getToiletById(toiletId);
+      const cleanlinessRange = url.searchParams.get("cleanlinessRange") ?? "all";
+      const toilet = await database.getToiletById(toiletId, { cleanlinessRange });
       if (!toilet) {
         sendJson(response, 404, { error: "Toilet not found." });
         return;

@@ -304,18 +304,56 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
     async getUserById(userId) {
       return db.prepare("SELECT id, username, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias FROM users WHERE id = ?").get(userId);
     },
-    async getToiletById(toiletId) {
+    async getToiletById(toiletId, { cleanlinessRange = "all" } = {}) {
+      const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
+      const isAllTime = startDate === null;
+      const recentCleanlinessCte = isAllTime
+        ? ""
+        : `
+          WITH recent_cleanliness AS (
+            SELECT
+              toilet_id,
+              AVG(rating) AS cleanliness,
+              COALESCE(SUM(rating), 0) AS cleanliness_rating_total,
+              COUNT(rating) AS cleanliness_rating_count
+            FROM cleanliness_surveys
+            WHERE toilet_id = ? AND created_at >= ?
+            GROUP BY toilet_id
+          )
+        `;
+      const joinClause = isAllTime
+        ? ""
+        : "LEFT JOIN recent_cleanliness rc ON t.id = rc.toilet_id";
+      const cleanlinessColumns = isAllTime
+        ? `
+          t.cleanliness AS cleanliness,
+          t.cleanliness_yes_count,
+          t.cleanliness_no_count,
+          t.cleanliness_rating_total AS cleanliness_rating_total,
+          t.cleanliness_rating_count AS cleanliness_rating_count
+        `
+        : `
+          CASE WHEN rc.cleanliness_rating_count > 0 THEN rc.cleanliness ELSE NULL END AS cleanliness,
+          t.cleanliness_yes_count,
+          t.cleanliness_no_count,
+          COALESCE(rc.cleanliness_rating_total, 0) AS cleanliness_rating_total,
+          COALESCE(rc.cleanliness_rating_count, 0) AS cleanliness_rating_count
+        `;
+      const params = isAllTime ? [toiletId] : [toiletId, startDate, toiletId];
+
       const row = db.prepare(
         `
+        ${recentCleanlinessCte}
         SELECT
-          id, name, area, lat, lng, paid, comment,
-          women, men, accessible, neutral, children, baby_changing, bidet,
-          automatic, urinal_only, radar_key, free_access, opening_times, cleanliness,
-          cleanliness_yes_count, cleanliness_no_count, cleanliness_rating_total, cleanliness_rating_count
-        FROM toilets
-        WHERE id = ?
+          t.id, t.name, t.area, t.lat, t.lng, t.paid, t.comment,
+          t.women, t.men, t.accessible, t.neutral, t.children, t.baby_changing, t.bidet,
+          t.automatic, t.urinal_only, t.radar_key, t.free_access, t.opening_times,
+          ${cleanlinessColumns}
+        FROM toilets t
+        ${joinClause}
+        WHERE t.id = ?
         `
-      ).get(toiletId);
+      ).get(...params);
 
       return row ? mapRowToToilet(row) : null;
     },

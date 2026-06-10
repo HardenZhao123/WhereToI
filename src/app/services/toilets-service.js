@@ -25,6 +25,10 @@ function getToiletsApiCacheKey(cleanlinessRange, bounds) {
   return `${String(cleanlinessRange || "3days")}::${getBoundsCacheKey(bounds)}`;
 }
 
+function getToiletDetailCacheKey(toiletId, cleanlinessRange = "all") {
+  return `${String(toiletId)}::${String(cleanlinessRange || "all")}`;
+}
+
 export function getCachedToiletsFromApi(cleanlinessRange = "3days", bounds = null) {
   const cacheKey = getToiletsApiCacheKey(cleanlinessRange, bounds);
   const cached = toiletsApiCache.get(cacheKey);
@@ -61,13 +65,14 @@ function cloneToilet(toilet) {
   };
 }
 
-export function getCachedToiletDetail(toiletId) {
-  const cached = toiletDetailCache.get(toiletId);
+export function getCachedToiletDetail(toiletId, cleanlinessRange = "all") {
+  const cacheKey = getToiletDetailCacheKey(toiletId, cleanlinessRange);
+  const cached = toiletDetailCache.get(cacheKey);
   if (!cached) return null;
 
   if (Date.now() - cached.loadedAt > toiletDetailCacheTtlMs) {
     toiletDetailCache = new Map(toiletDetailCache);
-    toiletDetailCache.delete(toiletId);
+    toiletDetailCache.delete(cacheKey);
     return null;
   }
 
@@ -123,16 +128,23 @@ export async function loadToiletsFromApi(
   throw new Error("Invalid toilets API response.");
 }
 
-export async function fetchToiletDetail(toiletId, { force = false } = {}) {
+export async function fetchToiletDetail(toiletId, { force = false, cleanlinessRange = "all" } = {}) {
   if (!force) {
-    const cached = getCachedToiletDetail(toiletId);
+    const cached = getCachedToiletDetail(toiletId, cleanlinessRange);
     if (cached) return cached;
   }
 
-  const payload = await fetchJson(`${appConfig.apiBasePath}/toilets/detail?toiletId=${encodeURIComponent(toiletId)}`);
+  const safeRange = String(cleanlinessRange || "all");
+  let url = `${appConfig.apiBasePath}/toilets/detail?toiletId=${encodeURIComponent(toiletId)}`;
+  if (safeRange !== "all") {
+    url += `&cleanlinessRange=${encodeURIComponent(safeRange)}`;
+  }
+
+  const payload = await fetchJson(url);
   if (payload.toilet?.id) {
+    const cacheKey = getToiletDetailCacheKey(toiletId, safeRange);
     toiletDetailCache = new Map(toiletDetailCache);
-    toiletDetailCache.set(toiletId, {
+    toiletDetailCache.set(cacheKey, {
       toilet: cloneToilet(payload.toilet),
       loadedAt: Date.now()
     });

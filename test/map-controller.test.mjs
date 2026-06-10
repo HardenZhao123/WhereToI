@@ -804,6 +804,140 @@ test("map controller refreshes cleanliness when the rating period changes after 
   }
 });
 
+test("map controller rating period changes only the selected detail rating", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+
+  const elementsBySelector = new Map(
+    [
+      "#cleanliness-stars",
+      "#cleanliness-star-icons",
+      "#cleanliness-score",
+      "#cleanliness-rating-count",
+      "#toilet-name",
+      "#toilet-area",
+      "#toilet-comment",
+      "#feature-women",
+      "#feature-men",
+      "#feature-accessible",
+      "#feature-neutral",
+      "#feature-children",
+      "#feature-baby-changing",
+      "#feature-bidet",
+      "#feature-automatic",
+      "#feature-urinal-only",
+      "#feature-radar-key",
+      "#feature-free",
+      "#hours-today",
+      "#hours-sat",
+      "#hours-sun",
+      "#distance-line"
+    ].map((selector) => [selector, createTextElement()])
+  );
+  const resultsList = createTextElement();
+  const cleanlinessRangeSelect = { value: "all" };
+
+  function getResultTitle(button) {
+    return button.children?.[0]?.children?.[0]?.textContent ?? "";
+  }
+
+  function getResultCleanliness(button) {
+    return button.children?.[0]?.children?.[2]?.children?.[0]?.textContent ?? "";
+  }
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    location: { href: "http://localhost/" },
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+  globalThis.fetch = async (url) => {
+    assert.equal(String(url), "/api/toilets/detail?toiletId=test-toilet&cleanlinessRange=1day");
+    return {
+      ok: true,
+      async json() {
+        return {
+          toilet: {
+            ...createTestToilet(),
+            cleanliness: 5,
+            cleanlinessSurvey: {
+              ratingTotal: 5,
+              ratingCount: 1
+            }
+          }
+        };
+      }
+    };
+  };
+
+  try {
+    const controller = createMapController({
+      statusText: { textContent: "" },
+      detailsCard: { classList: createClassList() },
+      mapPanel: { classList: createClassList() },
+      directionsButton: { disabled: false },
+      resultsList,
+      resultsSummary: createTextElement(),
+      sortSelect: {
+        selectedOptions: [{ textContent: "Cleanliness" }]
+      },
+      cleanlinessRangeSelect
+    });
+
+    const selectedToilet = {
+      ...createTestToilet(),
+      cleanliness: 1,
+      cleanlinessSurvey: {
+        ratingTotal: 1,
+        ratingCount: 1
+      }
+    };
+    const cleanerToilet = {
+      ...createTestToilet(),
+      id: "cleaner-toilet",
+      name: "Cleaner toilet",
+      lat: 51.5001,
+      cleanliness: 4,
+      cleanlinessSurvey: {
+        ratingTotal: 8,
+        ratingCount: 2
+      }
+    };
+
+    controller.setToilets([selectedToilet, cleanerToilet], { cleanlinessRange: "all" });
+    controller.setSortMode("cleanliness");
+    await controller.setToilet(selectedToilet.id, { fly: false });
+
+    assert.equal(getResultTitle(resultsList.children[0]), "Cleaner toilet");
+
+    await controller.setCleanlinessRange("1day");
+
+    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "5.0/5");
+    assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "1 rating");
+    assert.equal(getResultTitle(resultsList.children[0]), "Cleaner toilet");
+
+    const selectedResult = resultsList.children.find((button) => getResultTitle(button) === "Test toilet");
+    assert.match(getResultCleanliness(selectedResult), /1\.0\/5/);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("map controller patches saved cleanliness without reloading all toilets", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
