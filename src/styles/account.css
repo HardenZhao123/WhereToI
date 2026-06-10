@@ -1,0 +1,492 @@
+.view-account {
+  padding-top: 26px;
+}
+
+.account-own-view {
+  position: relative;
+}
+
+.account-own-view.is-hidden,
+.public-profile-view.is-hidden {
+  display: none;
+}
+
+.account-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.account-title {
+  min-width: 0;
+}
+
+.account-title h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: white;
+  box-shadow: 0 8px 22px rgb(31 42 51 / 8%);
+}
+
+.settings-button:hover,
+.settings-button:focus-visible,
+.settings-button[aria-expanded="true"] {
+  border-color: rgb(40 118 102 / 38%);
+  color: var(--teal);
+  background: #f8fbf8;
+}
+
+.settings-button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.settings-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.account-settings-panel {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  width: min(292px, calc(100% - 8px));
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 18px 48px rgb(31 42 51 / 18%);
+}
+
+.account-settings-panel.is-hidden {
+  display: none;
+}
+
+.account-settings-panel h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.account-settings-panel .privacy-note {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.account-settings-panel .privacy-note h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
+.account-settings-panel .privacy-note p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.settings-action {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.settings-action:hover,
+.settings-action:focus-visible {
+  color: var(--teal);
+}
+
+.settings-action:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.settings-action.credits-link {
+  margin: 0;
+  opacity: 1;
+  text-decoration: none;
+}
+
+.settings-action.logout-button {
+  margin: 0;
+  color: #9c2b2e;
+}
+
+.settings-action.logout-button:hover,
+.settings-action.logout-button:focus-visible {
+  color: #7d1f23;
+}
+
+.public-profile-back {
+  margin-bottom: 14px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--teal);
+  background: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.solid-button,
+.outline-button {
+  height: 44px;
+  border-radius: 999px;
+}
+
+.solid-button {
+  color: white;
+  background: var(--teal);
+}
+
+.outline-button {
+  border: 1px solid #b8c1ba;
+  color: var(--muted);
+  background: white;
+}
+
+.account-card,
+.privacy-note {
+  margin-top: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: white;
+}
+
+.account-card h3 {
+  margin-bottom: 8px;
+}
+
+.account-card p,
+.privacy-note p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.account-activity-card {
+  padding: 0 20px 8px;
+  overflow: hidden;
+}
+
+.account-activity-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 -20px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-activity-tab {
+  position: relative;
+  min-width: 0;
+  min-height: 54px;
+  padding: 0 12px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.account-activity-tab::after {
+  position: absolute;
+  right: 28%;
+  bottom: 0;
+  left: 28%;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: transparent;
+  content: "";
+}
+
+.account-activity-tab.is-active {
+  color: var(--ink);
+}
+
+.account-activity-tab.is-active::after {
+  background: var(--teal);
+}
+
+.account-activity-tab:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: -4px;
+}
+
+.account-activity-panel {
+  padding: 4px 0 0;
+}
+
+.account-activity-panel.is-hidden,
+.account-activity-panel[hidden] {
+  display: none;
+}
+
+.history-item {
+  display: block;
+  width: 100%;
+  padding: 12px 0;
+  border-top: 1px solid #b8c6b9;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+}
+
+.history-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.history-item[type="button"] {
+  cursor: pointer;
+}
+
+.history-item[type="button"]:hover strong {
+  color: var(--teal);
+}
+
+.history-item[type="button"]:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+.history-list strong {
+  font-size: 12px;
+}
+
+.my-comment-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid #b8c6b9;
+}
+
+.my-comment-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.my-comment-open {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+}
+
+.my-comment-open strong {
+  font-size: 12px;
+}
+
+.profile-feedback-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profile-feedback-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-comment-text,
+.my-comment-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-comment-text {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.my-comment-meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.profile-feedback-rating {
+  flex: 0 0 auto;
+  color: var(--gold);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.my-comment-visibility {
+  inline-size: 116px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--teal);
+  background: white;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.my-comment-media {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.my-comment-media-item,
+.my-comment-media-more {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #edf2ee;
+}
+
+.my-comment-media-item img,
+.my-comment-media-item video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.my-comment-media-metadata {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.my-comment-media-more {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.my-comment-open:hover strong,
+.my-comment-open:focus-visible strong {
+  color: var(--teal);
+}
+
+.my-comment-open:focus-visible,
+.my-comment-visibility:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.my-comment-visibility:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.public-profile-comment-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid #b8c6b9;
+}
+
+.public-profile-comment-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.public-profile-comment-open {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+}
+
+.public-profile-comment-open strong {
+  font-size: 12px;
+}
+
+.public-profile-comment-text,
+.public-profile-comment-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-profile-comment-text {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.public-profile-comment-meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.public-profile-comment-open:hover strong,
+.public-profile-comment-open:focus-visible strong {
+  color: var(--teal);
+}
+
+.public-profile-comment-open:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.privacy-note {
+  border: 0;
+  background: var(--teal-soft);
+}
+

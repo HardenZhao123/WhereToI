@@ -1,8 +1,31 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import test from "node:test";
 
-const css = await readFile("src/styles.css", "utf8");
+async function readCssWithImports(filePath, seen = new Set()) {
+  const fullPath = resolve(filePath);
+  if (seen.has(fullPath)) return "";
+  seen.add(fullPath);
+
+  const content = await readFile(fullPath, "utf8");
+  const importPattern = /@import\s+(?:url\(\s*)?["']([^"']+)["']\s*\)?[^;]*;/g;
+  let output = "";
+  let lastIndex = 0;
+
+  for (const match of content.matchAll(importPattern)) {
+    output += content.slice(lastIndex, match.index);
+    const specifier = match[1].split("?")[0];
+    if (!/^(?:https?:)?\/\//.test(specifier)) {
+      output += await readCssWithImports(resolve(dirname(fullPath), specifier), seen);
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  return output + content.slice(lastIndex);
+}
+
+const css = await readCssWithImports("src/styles.css");
 const html = await readFile("index.html", "utf8");
 
 function cssRuleFor(selector) {
