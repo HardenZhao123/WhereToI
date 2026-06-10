@@ -25,6 +25,15 @@ import {
   toCleanlinessUpdate
 } from "./repository-utils.mjs";
 
+const LEGACY_DEMO_ACCESS_HISTORY_NAMES = [
+  "city & guilds building",
+  "imperial library",
+  "museum quater",
+  "museum quarter",
+  "south kensington station",
+  "southkensington station"
+];
+
 function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
   const derivedKey = scryptSync(password, salt, 64);
@@ -251,6 +260,19 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       `
     ).run(demoUserId, 8.4, "Campus Plus", "2026-06-26", 3);
 
+  }
+
+  demoUserId ??= db.prepare("SELECT id FROM users WHERE username = ?").get("demo")?.id ?? null;
+  if (demoUserId) {
+    const placeholders = LEGACY_DEMO_ACCESS_HISTORY_NAMES.map(() => "?").join(", ");
+    db.prepare(
+      `
+      DELETE FROM access_history
+      WHERE user_id = ?
+        AND toilet_id IS NULL
+        AND LOWER(TRIM(toilet_name)) IN (${placeholders})
+      `
+    ).run(demoUserId, ...LEGACY_DEMO_ACCESS_HISTORY_NAMES);
   }
 
   return {
@@ -563,17 +585,18 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       const rows = db
         .prepare(
           `
-          SELECT
-            id,
-            toilet_id,
-            toilet_name,
-            event_type,
-            amount_gbp,
-            access_time
-          FROM access_history
-          WHERE user_id = ?
-          ORDER BY access_time DESC
-          LIMIT ?
+        SELECT
+          access_history.id,
+          access_history.toilet_id,
+          COALESCE(toilets.name, access_history.toilet_name) AS toilet_name,
+          access_history.event_type,
+          access_history.amount_gbp,
+          access_history.access_time
+        FROM access_history
+        LEFT JOIN toilets ON toilets.id = access_history.toilet_id
+        WHERE access_history.user_id = ?
+        ORDER BY access_history.access_time DESC
+        LIMIT ?
           `
         )
         .all(userId, safeLimit);

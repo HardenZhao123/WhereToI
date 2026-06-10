@@ -51,13 +51,13 @@ test("API exposes health and expanded toilet feature details", async () => {
   });
 });
 
-test("static assets use browser cache headers and Last-Modified validation", async () => {
+test("static app code revalidates and supports Last-Modified validation", async () => {
   await withAppServer(async (baseUrl) => {
     const firstResponse = await fetch(`${baseUrl}/src/styles.css`);
     const lastModified = firstResponse.headers.get("last-modified");
 
     assert.equal(firstResponse.status, 200);
-    assert.match(firstResponse.headers.get("cache-control"), /max-age=3600/);
+    assert.equal(firstResponse.headers.get("cache-control"), "no-cache, max-age=0, must-revalidate");
     assert.ok(lastModified);
     assert.equal(await firstResponse.text(), ".map { color: green; }");
 

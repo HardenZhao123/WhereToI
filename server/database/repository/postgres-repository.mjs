@@ -89,6 +89,15 @@ const COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL = `
   END
 `;
 
+const LEGACY_DEMO_ACCESS_HISTORY_NAMES = [
+  "city & guilds building",
+  "imperial library",
+  "museum quater",
+  "museum quarter",
+  "south kensington station",
+  "southkensington station"
+];
+
 async function ensureDemoUser(pool) {
   const existingDemo = await pool.query(
     "SELECT id FROM users WHERE username = $1",
@@ -159,6 +168,15 @@ async function ensurePostgresUserSupport(pool) {
 
   await pool.query("UPDATE app_account SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
   await pool.query("UPDATE access_history SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
+  await pool.query(
+    `
+    DELETE FROM access_history
+    WHERE user_id = $1
+      AND toilet_id IS NULL
+      AND LOWER(TRIM(toilet_name)) = ANY($2::text[])
+    `,
+    [demoUserId, LEGACY_DEMO_ACCESS_HISTORY_NAMES]
+  );
   await pool.query("UPDATE toilet_comments SET username = $1 WHERE username IS NULL", ["Anonymous"]);
   await pool.query("UPDATE toilet_comments SET comment_visibility = $1 WHERE user_id IS NULL OR LOWER(COALESCE(username, '')) = $1", ["anonymous"]);
 
@@ -824,15 +842,16 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       const result = await pool.query(
         `
         SELECT
-          id,
-          toilet_id,
-          toilet_name,
-          event_type,
-          amount_gbp,
-          access_time
+          access_history.id,
+          access_history.toilet_id,
+          COALESCE(toilets.name, access_history.toilet_name) AS toilet_name,
+          access_history.event_type,
+          access_history.amount_gbp,
+          access_history.access_time
         FROM access_history
-        WHERE user_id = $1
-        ORDER BY access_time DESC
+        LEFT JOIN toilets ON toilets.id = access_history.toilet_id
+        WHERE access_history.user_id = $1
+        ORDER BY access_history.access_time DESC
         LIMIT $2
         `,
         [userId, safeLimit]

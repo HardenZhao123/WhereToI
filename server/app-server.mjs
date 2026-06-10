@@ -26,11 +26,13 @@ const API_CACHE_CONTROL = "no-cache";
 const PRIVATE_API_CACHE_CONTROL = "no-store";
 const SENSITIVE_CACHE_CONTROL = "no-store";
 const PUBLIC_TOILETS_CACHE_CONTROL = "no-store";
-const STATIC_DOCUMENT_CACHE_CONTROL = "no-cache";
+const STATIC_DOCUMENT_CACHE_CONTROL = "no-cache, max-age=0, must-revalidate";
 const STATIC_ASSET_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
+const STATIC_APP_CODE_CACHE_CONTROL = "no-cache, max-age=0, must-revalidate";
 const STATIC_IMAGE_CACHE_CONTROL = "public, max-age=604800, immutable";
 const STATIC_DEV_CACHE_CONTROL = "no-store";
 const STATIC_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".svg"]);
+const STATIC_APP_CODE_EXTENSIONS = new Set([".js", ".css", ".json", ".csv", ".txt"]);
 const COMPRESSIBLE_STATIC_EXTENSIONS = new Set([".html", ".css", ".js", ".json", ".csv", ".txt", ".svg"]);
 const COMPRESSION_MIN_BYTES = 1024;
 const responseRequests = new WeakMap();
@@ -563,6 +565,10 @@ function getStaticCacheControl(file, staticCacheMode = "production") {
 
   if (extension === ".html") {
     return STATIC_DOCUMENT_CACHE_CONTROL;
+  }
+
+  if (STATIC_APP_CODE_EXTENSIONS.has(extension)) {
+    return STATIC_APP_CODE_CACHE_CONTROL;
   }
 
   if (STATIC_IMAGE_EXTENSIONS.has(extension)) {

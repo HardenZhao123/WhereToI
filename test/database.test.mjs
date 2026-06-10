@@ -148,8 +148,66 @@ test("recordAccess validates inputs and persists wallet/history changes", async 
     assert.equal(result.account.walletBalanceGbp, before.walletBalanceGbp - 0.5);
     assert.equal(result.account.monthlyFreeTicketsLeft, before.monthlyFreeTicketsLeft - 1);
     assert.equal(result.history[0].toiletId, "detail-test");
+    assert.equal(result.history[0].toiletName, "Prayer room washroom");
     assert.equal(result.history[0].eventType, "Paid access");
   });
+});
+
+test("access history displays the current toilet name when a toilet id is available", async () => {
+  await withSeededDatabase(async (database) => {
+    const user = await database.getUserByUsername("demo");
+
+    await database.recordAccess({
+      userId: user.id,
+      toiletId: "detail-test",
+      toiletName: "Old short name",
+      eventType: "Directions",
+      amountGbp: 0
+    });
+
+    const history = await database.getAccessHistory(user.id);
+    assert.equal(history[0].toiletId, "detail-test");
+    assert.equal(history[0].toiletName, "Prayer room washroom");
+  });
+});
+
+test("database startup removes old demo access history rows without toilet ids", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "wheretoi-db-legacy-history-test-"));
+  const seedCsvPath = join(directory, "toilets.csv");
+  const dbFilePath = join(directory, "wheretoi.sqlite");
+  let database;
+
+  try {
+    await writeFile(seedCsvPath, sampleToiletsCsv, "utf8");
+    database = await createDatabase({
+      rootDirectory: directory,
+      dbFilePath,
+      seedCsvPath
+    });
+    const user = await database.getUserByUsername("demo");
+    await database.close();
+
+    const db = new DatabaseSync(dbFilePath);
+    try {
+      db.prepare(
+        "INSERT INTO access_history (user_id, toilet_id, toilet_name, event_type, amount_gbp, access_time) VALUES (?, NULL, ?, ?, 0, ?)"
+      ).run(user.id, "Imperial Library", "Legacy demo", new Date().toISOString());
+    } finally {
+      db.close();
+    }
+
+    database = await createDatabase({
+      rootDirectory: directory,
+      dbFilePath,
+      seedCsvPath
+    });
+
+    const history = await database.getAccessHistory(user.id);
+    assert.equal(history.some((entry) => entry.toiletName === "Imperial Library"), false);
+  } finally {
+    await database?.close?.();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("database saves and retrieves comments for toilets", async () => {
