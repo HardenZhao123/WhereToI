@@ -15,7 +15,6 @@ const requiredFiles = [
   "src/app/views/account-view.js",
   "src/app/config/app-config.js",
   "src/app/config/dom-refs.js",
-  "src/app/config/fallback-toilets.js",
   "src/app/toilets/toilet-record-mapper.js",
   "src/app/utils/csv.js",
   "src/app/utils/geo.js",
