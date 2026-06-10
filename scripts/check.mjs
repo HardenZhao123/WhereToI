@@ -72,9 +72,8 @@ const requiredCopy = [
   "Most facilities",
   "Most liked",
   "Photo",
-  "Visual check",
-  "Visual cleanliness check",
-  "Visual checks",
+  "Cleanliness picture",
+  "Match the picture to what you saw.",
   "Confirm password",
   "Create an account to unlock more features",
   "Attach image"
@@ -146,14 +145,14 @@ if (
   html.includes("cleanliness-clean-bar") ||
   html.includes("cleanliness-not-clean-bar") ||
   js.includes("formatCleanlinessVotes") ||
-  !html.includes("data-survey-rating=\"5\"") ||
+  !html.includes("data-visual-rating=\"5\"") ||
   !html.includes("cleanliness-star-icons") ||
   !html.includes("cleanliness-rating-count") ||
-  !css.includes(".star-survey-actions") ||
+  !css.includes(".visual-star-rating") ||
   !js.includes("formatCleanlinessRating") ||
   !js.includes("formatCleanlinessRatingCount")
 ) {
-  throw new Error("Expected cleanliness to display and submit 1-5 star ratings.");
+  throw new Error("Expected cleanliness to display and submit 0.5-5 star ratings.");
 }
 
 if (!html.includes("feature-filters") || !html.includes("toilet-results") || !js.includes("setFeatureFilter")) {
@@ -164,7 +163,6 @@ if (
   !html.includes("data-detail-section=\"overview\"") ||
   !html.includes("data-detail-panel=\"overview\"") ||
   !html.includes("overview-features-disclosure") ||
-  !html.includes("data-detail-panel=\"survey\"") ||
   !js.includes("setDetailSection") ||
   !css.includes(".details-section-link")
 ) {
@@ -193,36 +191,35 @@ if (
 }
 
 const feedbackDetailPanelIndex = html.indexOf("id=\"details-comment-panel\"");
-const visualDetailTabIndex = html.indexOf("data-detail-section=\"visual\"");
-const visualDetailPanelIndex = html.indexOf("id=\"details-visual-panel\"");
-const visualFeedbackListIndex = html.indexOf("id=\"visual-feedback-list\"");
-const visualComposerPanelIndex = html.indexOf("id=\"visual-feedback-panel\"");
+const commentComposerIndex = html.indexOf("id=\"comment-composer\"");
+const visualCleanlinessStarsIndex = html.indexOf("id=\"visual-cleanliness-stars\"");
 
 if (
   !html.includes("id=\"feedback-action-bar\"") ||
-  !html.includes("id=\"visual-feedback-toggle\"") ||
-  !html.includes("id=\"visual-feedback-panel\"") ||
-  !html.includes("id=\"visual-cleanliness-slider\"") ||
-  visualDetailTabIndex < 0 ||
-  visualDetailPanelIndex < 0 ||
-  !html.includes("id=\"visual-feedback-list\"") ||
-  visualDetailPanelIndex <= feedbackDetailPanelIndex ||
-  visualFeedbackListIndex <= visualDetailPanelIndex ||
-  visualFeedbackListIndex >= visualComposerPanelIndex ||
-  !js.includes("visualFeedbackStorageKey") ||
+  html.includes("id=\"visual-feedback-toggle\"") ||
+  html.includes("id=\"visual-feedback-panel\"") ||
+  html.includes("data-detail-section=\"visual\"") ||
+  html.includes("id=\"details-visual-panel\"") ||
+  html.includes("data-detail-panel=\"survey\"") ||
+  html.includes("data-survey-rating=") ||
+  html.includes("data-open-visual-feedback") ||
+  html.includes("Rate visually") ||
+  !html.includes("id=\"visual-cleanliness-stars\"") ||
+  !html.includes("data-visual-rating=\"4.5\"") ||
+  html.includes("id=\"visual-feedback-comment\"") ||
+  html.includes("Rate urinal visually") ||
+  html.includes("id=\"overview-urinal-panel\"") ||
+  visualCleanlinessStarsIndex <= commentComposerIndex ||
   !js.includes("setVisualCleanlinessLevel") ||
-  !js.includes("submitVisualFeedback") ||
-  !js.includes("setDetailSection(\"visual\")") ||
-  !js.includes("renderVisualFeedbackDiscussion") ||
-  !js.includes("createVisualFeedbackImage") ||
-  !js.includes("image: level.image") ||
+  !js.includes("selectCleanlinessRating(button.dataset.visualRating)") ||
+  !js.includes("image: definition.image") ||
+  js.includes("level_3_urinal") ||
   !css.includes(".feedback-action-bar") ||
-  !css.includes(".visual-feedback-panel") ||
+  !css.includes(".feedback-visual-rating") ||
   !css.includes(".visual-preview-card") ||
-  !css.includes(".visual-feedback-item") ||
-  !css.includes(".visual-feedback-image")
+  !css.includes(".visual-star-button")
 ) {
-  throw new Error("Expected visual cleanliness feedback to use an adjustable toilet image and a separate Visual check detail tab with real image thumbnails.");
+  throw new Error("Expected Write feedback cleanliness rating to use the half-star visual toilet image rating, without a separate Visual check panel.");
 }
 
 if (
