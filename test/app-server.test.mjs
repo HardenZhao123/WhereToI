@@ -72,6 +72,26 @@ test("static assets use browser cache headers and Last-Modified validation", asy
   });
 });
 
+test("development static assets disable browser caching", async () => {
+  await withAppServer(async (baseUrl) => {
+    const firstResponse = await fetch(`${baseUrl}/src/styles.css`);
+    const lastModified = firstResponse.headers.get("last-modified");
+
+    assert.equal(firstResponse.status, 200);
+    assert.equal(firstResponse.headers.get("cache-control"), "no-store");
+    assert.ok(lastModified);
+
+    const revalidatedResponse = await fetch(`${baseUrl}/src/styles.css`, {
+      headers: {
+        "If-Modified-Since": lastModified
+      }
+    });
+
+    assert.equal(revalidatedResponse.status, 200);
+    assert.equal(await revalidatedResponse.text(), ".map { color: green; }");
+  }, { staticCacheMode: "development" });
+});
+
 test("static text assets are compressed when the browser supports gzip", async () => {
   await withAppServer(async (baseUrl) => {
     const response = await fetch(`${baseUrl}/src/large.js`, {
