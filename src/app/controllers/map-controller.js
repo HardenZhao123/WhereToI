@@ -521,6 +521,26 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return commentAnonymousInput?.checked ? "anonymous" : "real";
   }
 
+  function scrollFeedbackSceneIntoDesktopView() {
+    if (
+      !commentComposer ||
+      !commentScenePanel ||
+      !globalThis.matchMedia?.("(min-width: 900px)")?.matches
+    ) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const nextScrollTop = Math.max(0, commentScenePanel.offsetTop - 12);
+      if (typeof commentComposer.scrollTo === "function") {
+        commentComposer.scrollTo({ top: nextScrollTop, behavior: "auto" });
+        return;
+      }
+
+      commentComposer.scrollTop = nextScrollTop;
+    });
+  }
+
   function setFeedbackSceneOpen(open) {
     const shouldOpen = Boolean(open && selectedToilet && commentScenePanel);
 
@@ -538,6 +558,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       commentSceneStatus.textContent = shouldOpen
         ? "Optional scene for this feedback."
         : "Optional scene for this feedback.";
+    }
+
+    if (shouldOpen) {
+      scrollFeedbackSceneIntoDesktopView();
     }
   }
 
