@@ -452,7 +452,7 @@ test("map controller renders overview visual from the toilet cleanliness average
     const starIcons = elementsBySelector.get("#cleanliness-star-icons").children;
     assert.deepEqual(
       starIcons.map((icon) => icon.className),
-      ["star-icon is-full", "star-icon is-full", "star-icon is-full", "star-icon is-empty", "star-icon is-empty"]
+      ["star-icon is-full", "star-icon is-full", "star-icon is-full", "star-icon is-half", "star-icon is-empty"]
     );
   } finally {
     globalThis.document = originalDocument;

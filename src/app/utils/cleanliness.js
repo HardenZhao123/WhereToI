@@ -2,6 +2,7 @@ const defaultCleanlinessScore = 3;
 const maxStarRating = 5;
 const fullStar = "\u2605";
 const emptyStar = "\u2606";
+const halfStar = "\u00bd";
 
 function normaliseLegacyScore(score) {
   if (score > maxStarRating && score <= 10) {
@@ -27,9 +28,10 @@ function getSurveyAverage(toilet) {
 }
 
 function getStarCounts(rating) {
-  const full = Math.min(Math.floor(rating), maxStarRating);
-  const half = 0;
-  const empty = Math.max(maxStarRating - full, 0);
+  const visualRating = Math.min(Math.max(Math.round(rating * 2) / 2, 0), maxStarRating);
+  const full = Math.min(Math.floor(visualRating), maxStarRating);
+  const half = visualRating > full && full < maxStarRating ? 1 : 0;
+  const empty = Math.max(maxStarRating - full - half, 0);
 
   return { full, half, empty };
 }
@@ -72,7 +74,7 @@ export function getCleanlinessStars(toilet) {
     full,
     half,
     empty,
-    text: `${fullStar.repeat(full)}${emptyStar.repeat(empty)}`
+    text: `${fullStar.repeat(full)}${half ? halfStar : ""}${emptyStar.repeat(empty)}`
   };
 }
 
