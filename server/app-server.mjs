@@ -35,7 +35,7 @@ const COMPRESSION_MIN_BYTES = 1024;
 const responseRequests = new WeakMap();
 
 const TRUTHY_QUERY_FLAGS = new Set(["1", "true", "yes"]);
-const BODY_SIZE_LIMIT_BYTES = 110 * 1024 * 1024;
+const BODY_SIZE_LIMIT_BYTES = 8 * 1024 * 1024;
 const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "required",
   "non-negative",

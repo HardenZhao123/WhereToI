@@ -114,36 +114,58 @@ function normaliseCommentMedia(media = null) {
   };
 }
 
-function parseCommentMediaAttachments(row) {
-  if (Array.isArray(row.media_attachments)) {
-    return row.media_attachments;
-  }
+function stripCommentMediaData(attachment) {
+  if (!attachment || typeof attachment !== "object") return null;
 
-  if (typeof row.media_attachments === "string" && row.media_attachments.trim()) {
+  const size = Number(attachment.size ?? 0);
+  return {
+    type: normaliseText(attachment.type).toLowerCase(),
+    mimeType: normaliseText(attachment.mimeType).toLowerCase(),
+    name: normaliseText(attachment.name) || "attachment",
+    size: Number.isFinite(size) && size > 0 ? Math.floor(size) : 0,
+    hasData: Boolean(attachment.dataUrl) || Boolean(attachment.hasData)
+  };
+}
+
+function stripCommentMediaDataUrls(attachments) {
+  return attachments
+    .map(stripCommentMediaData)
+    .filter((attachment) => attachment?.type && attachment?.mimeType);
+}
+
+function parseCommentMediaAttachments(row, { includeMediaData = false } = {}) {
+  let attachments = [];
+
+  if (Array.isArray(row.media_attachments)) {
+    attachments = row.media_attachments;
+  } else if (typeof row.media_attachments === "string" && row.media_attachments.trim()) {
     try {
       const parsed = JSON.parse(row.media_attachments);
-      return Array.isArray(parsed) ? parsed : [];
+      attachments = Array.isArray(parsed) ? parsed : [];
     } catch {
-      return [];
+      attachments = [];
     }
-  }
-
-  if (row.media_url && row.media_type && row.media_mime_type) {
-    return [
+  } else if (row.media_type && row.media_mime_type) {
+    attachments = [
       {
         type: row.media_type,
         mimeType: row.media_mime_type,
         name: row.media_name ?? "attachment",
         size: Number(row.media_size ?? 0),
-        dataUrl: row.media_url
+        dataUrl: row.media_url,
+        hasData: Boolean(row.media_url)
       }
     ];
   }
 
-  return [];
+  if (includeMediaData) {
+    return attachments;
+  }
+
+  return stripCommentMediaDataUrls(attachments);
 }
 
-export function mapCommentRow(row, { viewerUserId = null } = {}) {
+export function mapCommentRow(row, { viewerUserId = null, includeMediaData = false } = {}) {
   if (!row) return row;
 
   const commentVisibility = normaliseStoredCommentVisibility(row);
@@ -178,7 +200,8 @@ export function mapCommentRow(row, { viewerUserId = null } = {}) {
         : null,
     like_count: Number(row.like_count ?? 0),
     viewer_has_liked: Boolean(row.viewer_has_liked),
-    media_attachments: parseCommentMediaAttachments(row)
+    media_url: includeMediaData ? row.media_url : null,
+    media_attachments: parseCommentMediaAttachments(row, { includeMediaData })
   };
 }
 
