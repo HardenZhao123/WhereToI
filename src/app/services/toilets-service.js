@@ -47,8 +47,16 @@ export function clearToiletsApiCache() {
   toiletsApiCache = new Map();
 }
 
-export function clearToiletDetailCache() {
-  toiletDetailCache = new Map();
+export function clearToiletDetailCache(toiletId = null) {
+  if (!toiletId) {
+    toiletDetailCache = new Map();
+    return;
+  }
+
+  const prefix = `${String(toiletId)}::`;
+  toiletDetailCache = new Map(
+    [...toiletDetailCache].filter(([cacheKey]) => !String(cacheKey).startsWith(prefix))
+  );
 }
 
 function cloneToilet(toilet) {

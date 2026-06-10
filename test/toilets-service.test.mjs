@@ -135,3 +135,42 @@ test("toilets service reuses cached toilet detail requests and supports force re
     globalThis.fetch = originalFetch;
   }
 });
+
+test("toilets service can invalidate cached detail entries for one toilet", async () => {
+  const originalFetch = globalThis.fetch;
+  clearToiletDetailCache();
+  let fetchCount = 0;
+
+  globalThis.fetch = async (url) => {
+    fetchCount += 1;
+    const searchParams = new URL(`http://localhost${String(url)}`).searchParams;
+    const toiletId = searchParams.get("toiletId");
+    const cleanlinessRange = searchParams.get("cleanlinessRange") ?? "all";
+
+    return {
+      ok: true,
+      json: async () => ({
+        toilet: {
+          id: toiletId,
+          name: `${toiletId} ${cleanlinessRange} load ${fetchCount}`,
+          cleanlinessSurvey: { ratingTotal: fetchCount, ratingCount: 1 }
+        }
+      })
+    };
+  };
+
+  try {
+    await fetchToiletDetail("detail-test", { cleanlinessRange: "1day" });
+    await fetchToiletDetail("detail-test", { cleanlinessRange: "3days" });
+    const otherDetail = await fetchToiletDetail("other-test", { cleanlinessRange: "3days" });
+
+    clearToiletDetailCache("detail-test");
+
+    assert.equal(getCachedToiletDetail("detail-test", "1day"), null);
+    assert.equal(getCachedToiletDetail("detail-test", "3days"), null);
+    assert.deepEqual(getCachedToiletDetail("other-test", "3days"), otherDetail);
+  } finally {
+    clearToiletDetailCache();
+    globalThis.fetch = originalFetch;
+  }
+});

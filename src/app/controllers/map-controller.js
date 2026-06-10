@@ -1,5 +1,6 @@
 import { appConfig } from "../config/app-config.js";
 import {
+  clearToiletDetailCache,
   fetchAiSummary,
   fetchToiletDetail,
   submitCleanlinessSurvey,
@@ -1549,6 +1550,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (!result?.toilet?.id) {
       throw new Error("Cleanliness response did not include the updated toilet.");
     }
+
+    clearToiletDetailCache(result.toilet.id);
 
     updateToiletCleanliness(result.toilet, {
       store: true,
