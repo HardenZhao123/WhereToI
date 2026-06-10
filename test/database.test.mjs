@@ -103,6 +103,28 @@ test("cleanliness time ranges exclude older ratings except all time", async () =
   }, { modelType: "average" });
 });
 
+test("database accepts repeated cleanliness feedback without cooldown", async () => {
+  await withSeededDatabase(async (database) => {
+    const user = await database.getUserByUsername("demo");
+
+    await database.recordCleanlinessSurvey({
+      userId: user.id,
+      toiletId: "detail-test",
+      rating: 4.5
+    });
+    await database.recordCleanlinessSurvey({
+      userId: user.id,
+      toiletId: "detail-test",
+      rating: 2
+    });
+
+    const toilet = await database.getToiletById("detail-test", { cleanlinessRange: "all" });
+    assert.equal(toilet.cleanlinessSurvey.ratingTotal, 6.5);
+    assert.equal(toilet.cleanlinessSurvey.ratingCount, 2);
+    assert.equal(toilet.cleanliness, 3.25);
+  }, { modelType: "average" });
+});
+
 test("recordAccess validates inputs and persists wallet/history changes", async () => {
   await withSeededDatabase(async (database) => {
     const user = await database.getUserByUsername("demo");
@@ -480,7 +502,7 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
     // newToiletBias = 0 + 0.01 * (2 - 0.02 * 0) = 0.02.
     // adjustedRating = 3 + 0.02 = 3.02. Clamped to 3.
     
-    const result = await database.recordCleanlinessSurvey({
+    await database.recordCleanlinessSurvey({
       userId,
       toiletId: "extra-test-4",
       rating: 5
@@ -493,7 +515,6 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
     // So the second rating might already be high.
     
     // Just verify that we can keep recording and biases update.
-    // We need to use different toilets to avoid the 30-minute cooldown
     await database.recordCleanlinessSurvey({ userId, toiletId: "extra-test-5", rating: 5 });
     
     const finalUser = await database.getUserById(userId);

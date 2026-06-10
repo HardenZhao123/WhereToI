@@ -419,35 +419,6 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     );
   }
 
-  const historyCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM access_history")).rows[0]?.count ?? 0);
-
-  if (historyCount === 0) {
-    const now = new Date();
-    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-
-    await pool.query(
-      `
-      INSERT INTO access_history (user_id, toilet_id, toilet_name, event_type, amount_gbp, access_time)
-      VALUES ($1, $2, $3, $4, $5, $6), ($7, $8, $9, $10, $11, $12)
-      `,
-      [
-        demoUserId,
-        null,
-        "South Kensington Station",
-        "Paid access",
-        0.5,
-        twoHoursAgo,
-        demoUserId,
-        null,
-        "Imperial Library",
-        "Free access",
-        0,
-        oneDayAgo
-      ]
-    );
-  }
-
   return {
     backend: "postgres",
     async close() {
@@ -612,7 +583,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       return null;
     },
-    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days", bounds = null } = {}) {
+    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "all", bounds = null } = {}) {
       const query = normaliseSearchQuery(search);
       const safeBounds = normaliseBounds(bounds);
       const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
@@ -779,18 +750,6 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       if (!row) {
         throw new Error("toilet not found.");
-      }
-
-      if (userId) {
-        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-        const recentSurveyResult = await pool.query(
-          "SELECT id FROM cleanliness_surveys WHERE toilet_id = $1 AND user_id = $2 AND created_at >= $3 LIMIT 1",
-          [row.id, userId, thirtyMinutesAgo]
-        );
-
-        if (recentSurveyResult.rows.length > 0) {
-          throw new Error("You can only rate this toilet once every 30 minutes.");
-        }
       }
 
       const globalStatsResult = await pool.query("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users");

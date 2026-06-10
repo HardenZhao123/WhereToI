@@ -1,6 +1,5 @@
 import { appConfig } from "./config/app-config.js";
 import { getDomRefs } from "./config/dom-refs.js";
-import { fallbackToilets } from "./config/fallback-toilets.js";
 import { createAccountController } from "./controllers/account-controller.js";
 import { createMapController } from "./controllers/map-controller.js";
 import { createTabController } from "./controllers/tab-controller.js";
@@ -24,7 +23,6 @@ export function createApp() {
     },
     onCleanlinessSaved: () =>
       initializeToilets("all", {
-        allowFallback: false,
         force: true
       }),
     onBoundsChanged: (bounds) => {
@@ -36,8 +34,7 @@ export function createApp() {
         boundsFetchTimeoutId = null;
         initializeToilets("all", {
           bounds,
-          merge: true,
-          allowFallback: false
+          merge: true
         });
       }, 400);
     }
@@ -91,7 +88,7 @@ export function createApp() {
     clearToiletRetry();
     toiletRetryTimerId = window.setTimeout(() => {
       toiletRetryTimerId = null;
-      initializeToilets(range, { allowFallback: false });
+      initializeToilets(range);
     }, 5000);
   }
 
@@ -136,16 +133,9 @@ export function createApp() {
     }
   }
 
-  function loadStarterToilets() {
-    return {
-      toilets: fallbackToilets,
-      status: "Using starter toilet data. Connecting to database..."
-    };
-  }
-
   async function initializeToilets(
     range = "all",
-    { allowFallback = true, force = false, bounds = null, merge = false } = {}
+    { force = false, bounds = null, merge = false } = {}
   ) {
     if (!force && !bounds && range === lastLoadedRange && hasLoadedApiToilets) {
       return;
@@ -211,31 +201,6 @@ export function createApp() {
       console.warn("Toilets API loading failed:", error);
     }
 
-    if (allowFallback && !hasLoadedApiToilets && !merge) {
-      try {
-        const localData = loadStarterToilets();
-
-        if (requestId !== toiletLoadRequestId) {
-          return;
-        }
-
-        await setLoadedToilets(localData.toilets, {
-          currentSelectedId,
-          currentSection,
-          hideDetails: !currentSelectedId,
-          cleanlinessRange: range,
-          status: localData.status,
-          merge: false
-        });
-      } catch (error) {
-        if (requestId !== toiletLoadRequestId) {
-          return;
-        }
-
-        console.warn("Initial local load failed:", error);
-      }
-    }
-
     if (requestId === toiletLoadRequestId && !hasLoadedApiToilets) {
       scheduleToiletRetry(range);
     }
@@ -271,8 +236,17 @@ export function createApp() {
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
     elements.commentComposerToggle?.addEventListener("click", () => mapController.toggleCommentComposer());
     elements.closeCommentComposerButton?.addEventListener("click", () => mapController.closeCommentComposer());
-    elements.visualCleanlinessRatingButtons?.forEach((button) => {
-      button?.addEventListener("click", () => mapController.selectCleanlinessRating(button.dataset.visualRating));
+    elements.visualCleanlinessStars?.addEventListener("click", (event) => {
+      const target = event.target;
+      const ratingTarget = target?.closest?.("[data-visual-rating]");
+      if (ratingTarget && elements.visualCleanlinessStars.contains(ratingTarget)) {
+        mapController.selectCleanlinessRating(ratingTarget.dataset.visualRating);
+        return;
+      }
+      const starButton = target?.closest?.("[data-visual-star]");
+      if (starButton && elements.visualCleanlinessStars.contains(starButton)) {
+        mapController.selectCleanlinessRating(starButton.dataset.visualStar);
+      }
     });
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
     elements.commentPresetButtons.forEach((button) => {
@@ -302,25 +276,13 @@ export function createApp() {
 
     bindEvents();
 
-    // 1. Show the tiny starter set immediately while live, bounded API data loads.
-    try {
-      const localData = loadStarterToilets();
-      await setLoadedToilets(localData.toilets, {
-        status: localData.status,
-        merge: false
-      });
-    } catch (error) {
-      console.warn("Failed to load local toilets on startup:", error);
-    }
-
     mapController.requestLocation();
 
-    // 2. Fetch live data in the background (using current map bounds)
+    // Fetch live data using current map bounds.
     await Promise.all([
       initializeToilets("all", {
-        allowFallback: false,
         force: true,
-        merge: true
+        merge: false
       }),
       accountController.loadPanelData()
     ]);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createMapController } from "../src/app/controllers/map-controller.js";
+import { clearToiletDetailCache } from "../src/app/services/toilets-service.js";
 
 function createClassList() {
   return {
@@ -451,7 +452,7 @@ test("map controller renders overview visual from the toilet cleanliness average
     const starIcons = elementsBySelector.get("#cleanliness-star-icons").children;
     assert.deepEqual(
       starIcons.map((icon) => icon.className),
-      ["star-icon is-full", "star-icon is-full", "star-icon is-full", "star-icon is-empty", "star-icon is-empty"]
+      ["star-icon is-full", "star-icon is-full", "star-icon is-full", "star-icon is-half", "star-icon is-empty"]
     );
   } finally {
     globalThis.document = originalDocument;
@@ -557,7 +558,7 @@ test("map controller can hide empty details after loading toilets", () => {
   }
 });
 
-test("map controller lazy-loads comments when the feedback section opens", async () => {
+test("map controller reloads comments when the feedback section opens", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
   const originalFetch = globalThis.fetch;
@@ -630,7 +631,7 @@ test("map controller lazy-loads comments when the feedback section opens", async
     controller.setDetailSection("comment");
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    assert.equal(commentsFetchCount, 1);
+    assert.equal(commentsFetchCount, 2);
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
@@ -797,7 +798,7 @@ test("map controller refreshes cleanliness when the rating period changes after 
     await controller.setToilet(oneDayToilet.id, { fly: false });
 
     assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "0 ratings");
-    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "0.0/5");
+    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "3.0/5");
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
@@ -865,16 +866,21 @@ test("map controller rating period changes only the selected detail rating", asy
     }
   };
   globalThis.fetch = async (url) => {
-    assert.equal(String(url), "/api/toilets/detail?toiletId=test-toilet&cleanlinessRange=1day");
+    const requestUrl = String(url);
+    assert.match(
+      requestUrl,
+      /^\/api\/toilets\/detail\?toiletId=test-toilet&cleanlinessRange=(3days|1day)$/
+    );
+    const cleanliness = requestUrl.endsWith("cleanlinessRange=1day") ? 5 : 2;
     return {
       ok: true,
       async json() {
         return {
           toilet: {
             ...createTestToilet(),
-            cleanliness: 5,
+            cleanliness,
             cleanlinessSurvey: {
-              ratingTotal: 5,
+              ratingTotal: cleanliness,
               ratingCount: 1
             }
           }
@@ -931,6 +937,133 @@ test("map controller rating period changes only the selected detail rating", asy
 
     const selectedResult = resultsList.children.find((button) => getResultTitle(button) === "Test toilet");
     assert.match(getResultCleanliness(selectedResult), /1\.0\/5/);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("map controller keeps rating period independent per toilet", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+  clearToiletDetailCache();
+
+  const elementsBySelector = new Map(
+    [
+      "#cleanliness-stars",
+      "#cleanliness-star-icons",
+      "#cleanliness-score",
+      "#cleanliness-rating-count",
+      "#toilet-name",
+      "#toilet-area",
+      "#toilet-comment",
+      "#feature-women",
+      "#feature-men",
+      "#feature-accessible",
+      "#feature-neutral",
+      "#feature-children",
+      "#feature-baby-changing",
+      "#feature-bidet",
+      "#feature-automatic",
+      "#feature-urinal-only",
+      "#feature-radar-key",
+      "#feature-free",
+      "#hours-today",
+      "#hours-sat",
+      "#hours-sun",
+      "#distance-line"
+    ].map((selector) => [selector, createTextElement()])
+  );
+  const cleanlinessRangeSelect = { value: "all" };
+  const requestedUrls = [];
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    location: { href: "http://localhost/" },
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    requestedUrls.push(requestUrl);
+
+    const searchParams = new URL(`http://localhost${requestUrl}`).searchParams;
+    const toiletId = searchParams.get("toiletId");
+    const range = searchParams.get("cleanlinessRange") ?? "all";
+    const cleanliness = range === "1day" ? 5 : toiletId === "second-toilet" ? 4 : 3;
+
+    return {
+      ok: true,
+      async json() {
+        return {
+          toilet: {
+            ...createTestToilet(),
+            id: toiletId,
+            name: toiletId === "second-toilet" ? "Second toilet" : "Test toilet",
+            cleanliness,
+            cleanlinessSurvey: {
+              ratingTotal: cleanliness,
+              ratingCount: 1
+            }
+          }
+        };
+      }
+    };
+  };
+
+  try {
+    const firstToilet = createTestToilet();
+    const secondToilet = {
+      ...createTestToilet(),
+      id: "second-toilet",
+      name: "Second toilet",
+      lat: 51.501,
+      cleanliness: 2,
+      cleanlinessSurvey: {
+        ratingTotal: 2,
+        ratingCount: 1
+      }
+    };
+
+    const controller = createMapController({
+      statusText: { textContent: "" },
+      detailsCard: { classList: createClassList() },
+      mapPanel: { classList: createClassList() },
+      directionsButton: { disabled: false },
+      cleanlinessRangeSelect
+    });
+
+    controller.setToilets([firstToilet, secondToilet], { cleanlinessRange: "all" });
+    await controller.setToilet(firstToilet.id, { fly: false });
+    assert.equal(cleanlinessRangeSelect.value, "3days");
+
+    await controller.setCleanlinessRange("1day");
+    assert.equal(cleanlinessRangeSelect.value, "1day");
+    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "5.0/5");
+
+    await controller.setToilet(secondToilet.id, { fly: false });
+    assert.equal(cleanlinessRangeSelect.value, "3days");
+    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "4.0/5");
+
+    assert.deepEqual(requestedUrls, [
+      "/api/toilets/detail?toiletId=test-toilet&cleanlinessRange=3days",
+      "/api/toilets/detail?toiletId=test-toilet&cleanlinessRange=1day",
+      "/api/toilets/detail?toiletId=second-toilet&cleanlinessRange=3days"
+    ]);
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;

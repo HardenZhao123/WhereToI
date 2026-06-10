@@ -23,12 +23,13 @@ const STATIC_CONTENT_TYPES = {
 };
 
 const API_CACHE_CONTROL = "no-cache";
-const PRIVATE_API_CACHE_CONTROL = "private, no-cache";
+const PRIVATE_API_CACHE_CONTROL = "no-store";
 const SENSITIVE_CACHE_CONTROL = "no-store";
-const PUBLIC_TOILETS_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=120";
+const PUBLIC_TOILETS_CACHE_CONTROL = "no-store";
 const STATIC_DOCUMENT_CACHE_CONTROL = "no-cache";
 const STATIC_ASSET_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
 const STATIC_IMAGE_CACHE_CONTROL = "public, max-age=604800, immutable";
+const STATIC_DEV_CACHE_CONTROL = "no-store";
 const STATIC_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".svg"]);
 const COMPRESSIBLE_STATIC_EXTENSIONS = new Set([".html", ".css", ".js", ".json", ".csv", ".txt", ".svg"]);
 const COMPRESSION_MIN_BYTES = 1024;
@@ -46,8 +47,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "comment visibility",
   "comment profile visibility",
   "too large",
-  "not found",
-  "once every 30 minutes"
+  "not found"
 ];
 
 function appendVaryHeader(headers, value) {
@@ -274,7 +274,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
     "GET /api/toilets": async ({ response, url }) => {
       const search = url.searchParams.get("search") ?? "";
       const accessibleOnly = parseAccessibleOnly(url.searchParams.get("accessibleOnly"));
-      const cleanlinessRange = url.searchParams.get("cleanlinessRange") ?? "3days";
+      const cleanlinessRange = url.searchParams.get("cleanlinessRange") ?? "all";
 
       const bounds = {
         minLat: url.searchParams.get("minLat"),
@@ -554,7 +554,11 @@ function resolveStaticFilePath(root, pathname) {
   return resolve(join(root, safePathname === "/" ? "index.html" : safePathname));
 }
 
-function getStaticCacheControl(file) {
+function getStaticCacheControl(file, staticCacheMode = "production") {
+  if (staticCacheMode === "development") {
+    return STATIC_DEV_CACHE_CONTROL;
+  }
+
   const extension = extname(file).toLowerCase();
 
   if (extension === ".html") {
@@ -586,7 +590,7 @@ function isStaticFileFresh(request, fileStat) {
   return modifiedSinceTime >= getRoundedModifiedTime(fileStat);
 }
 
-async function serveStaticFile({ root, pathname, request, response }) {
+async function serveStaticFile({ root, pathname, request, response, staticCacheMode }) {
   const candidate = resolveStaticFilePath(root, pathname);
 
   if (!candidate.startsWith(root)) {
@@ -600,11 +604,11 @@ async function serveStaticFile({ root, pathname, request, response }) {
   const lastModified = new Date(getRoundedModifiedTime(fileStat)).toUTCString();
   const headers = {
     "Content-Type": STATIC_CONTENT_TYPES[extname(file)] ?? "application/octet-stream",
-    "Cache-Control": getStaticCacheControl(file),
+    "Cache-Control": getStaticCacheControl(file, staticCacheMode),
     "Last-Modified": lastModified
   };
 
-  if (isStaticFileFresh(request, fileStat)) {
+  if (staticCacheMode !== "development" && isStaticFileFresh(request, fileStat)) {
     response.writeHead(304, headers);
     response.end();
     return;
@@ -629,7 +633,7 @@ async function serveStaticFile({ root, pathname, request, response }) {
   createReadStream(file).pipe(response);
 }
 
-function createRequestHandler({ root, port, database, emailService, aiService, logger }) {
+function createRequestHandler({ root, port, database, emailService, aiService, logger, staticCacheMode }) {
   const routeHandlers = createApiRouteHandlers(database, { emailService, logger });
 
   return async function handleRequest(request, response) {
@@ -640,7 +644,7 @@ function createRequestHandler({ root, port, database, emailService, aiService, l
       const apiHandled = await handleApiRoute({ routeHandlers, request, response, url, aiService });
       if (apiHandled) return;
 
-      await serveStaticFile({ root, pathname: url.pathname, request, response });
+      await serveStaticFile({ root, pathname: url.pathname, request, response, staticCacheMode });
     } catch (error) {
       if (error?.code === "ENOENT") {
         sendPlainText(response, 404, "Not found");
@@ -664,12 +668,13 @@ export async function createAppServer({
   logger = console,
   emailService = createRegistrationEmailService(),
   aiService: providedAiService,
+  staticCacheMode = "production",
   databaseOptions = {}
 } = {}) {
   const root = resolve(rootDirectory);
   const database = await createDatabase({ rootDirectory: root, ...databaseOptions });
   const aiService = providedAiService ?? (await createAiService());
-  const requestHandler = createRequestHandler({ root, port, database, emailService, aiService, logger });
+  const requestHandler = createRequestHandler({ root, port, database, emailService, aiService, logger, staticCacheMode });
 
   const server = createServer(requestHandler);
 

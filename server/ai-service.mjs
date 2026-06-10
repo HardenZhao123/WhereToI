@@ -8,7 +8,6 @@ export async function createAiService({
   modelName = "gemini-1.5-flash"
 } = {}) {
   if (!apiKey || apiKey.trim().length === 0) {
-    console.warn("GOOGLE_AI_API_KEY is not set or empty. AI summarization will be disabled.");
     return null;
   }
 
@@ -32,8 +31,16 @@ export async function createAiService({
         return "No comments available to summarize.";
       }
 
-      const commentsText = comments
-        .map((c, i) => `${i + 1}. ${c.comment_text}`)
+      const writtenComments = comments
+        .map((comment) => String(comment?.comment_text ?? "").trim())
+        .filter(Boolean);
+
+      if (writtenComments.length === 0) {
+        return "No written comments available to summarize.";
+      }
+
+      const commentsText = writtenComments
+        .map((commentText, i) => `${i + 1}. ${commentText}`)
         .join("\n");
 
       const prompt = `

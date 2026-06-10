@@ -11,6 +11,7 @@ import {
 
 const fullStar = "\u2605";
 const emptyStar = "\u2606";
+const halfStar = "\u00bd";
 
 test("formats cleanliness as a 1-5 star rating", () => {
   const toilet = { cleanliness: 4 };
@@ -26,10 +27,10 @@ test("formats cleanliness as a 1-5 star rating", () => {
   });
   assert.equal(getCleanlinessRatingCount(toilet), 0);
   assert.equal(formatCleanlinessRatingCount(toilet), "0 ratings");
-  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(4)}${emptyStar} 4.0/5 · 0 ratings`);
+  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(4)}${emptyStar} 4.0/5 \u00b7 0 ratings`);
 });
 
-test("formats cleanliness survey averages with integer star positions and the actual score", () => {
+test("formats cleanliness survey averages with half-star positions and the actual score", () => {
   const toilet = {
     cleanliness: 4,
     cleanlinessSurvey: {
@@ -44,13 +45,13 @@ test("formats cleanliness survey averages with integer star positions and the ac
     displayRating: "3.5",
     maxRating: 5,
     full: 3,
-    half: 0,
-    empty: 2,
-    text: `${fullStar.repeat(3)}${emptyStar.repeat(2)}`
+    half: 1,
+    empty: 1,
+    text: `${fullStar.repeat(3)}${halfStar}${emptyStar}`
   });
   assert.equal(getCleanlinessRatingCount(toilet), 2);
   assert.equal(formatCleanlinessRatingCount(toilet), "2 ratings");
-  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(3)}${emptyStar.repeat(2)} 3.5/5 · 2 ratings`);
+  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(3)}${halfStar}${emptyStar} 3.5/5 \u00b7 2 ratings`);
 });
 
 test("rounds cleanliness visual levels to the nearest half star without rounding the displayed score", () => {
@@ -69,9 +70,9 @@ test("rounds cleanliness visual levels to the nearest half star without rounding
     displayRating: "3.25",
     maxRating: 5,
     full: 3,
-    half: 0,
-    empty: 2,
-    text: `${fullStar.repeat(3)}${emptyStar.repeat(2)}`
+    half: 1,
+    empty: 1,
+    text: `${fullStar.repeat(3)}${halfStar}${emptyStar}`
   });
 });
 
@@ -87,8 +88,22 @@ test("formats a single cleanliness rating count", () => {
   assert.equal(formatCleanlinessRatingCount(toilet), "1 rating");
 });
 
+test("uses the default score when a rating period has no feedback", () => {
+  const toilet = {
+    cleanliness: null,
+    cleanlinessSurvey: {
+      ratingTotal: 0,
+      ratingCount: 0
+    }
+  };
+
+  assert.equal(getCleanlinessScore(toilet), 3);
+  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(3)}${emptyStar.repeat(2)} 3.0/5 \u00b7 0 ratings`);
+});
+
 test("normalises missing and legacy cleanliness scores to star ratings", () => {
   assert.equal(getCleanlinessScore({}), 3);
+  assert.equal(getCleanlinessScore({ cleanliness: null }), 3);
   assert.equal(getCleanlinessScore({ cleanliness: 9.4 }), 4.7);
   assert.equal(getCleanlinessScore({ cleanliness: "bad" }), 3);
 });

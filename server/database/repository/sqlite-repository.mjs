@@ -251,17 +251,6 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       `
     ).run(demoUserId, 8.4, "Campus Plus", "2026-06-26", 3);
 
-    const insertHistory = db.prepare(`
-      INSERT INTO access_history (user_id, toilet_id, toilet_name, event_type, amount_gbp, access_time)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    const now = new Date();
-    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-
-    insertHistory.run(demoUserId, null, "South Kensington Station", "Paid access", 0.5, twoHoursAgo);
-    insertHistory.run(demoUserId, null, "Imperial Library", "Free access", 0, oneDayAgo);
   }
 
   return {
@@ -372,7 +361,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       }
       return null;
     },
-    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "3days", bounds = null } = {}) {
+    async getToilets({ search = "", accessibleOnly = false, cleanlinessRange = "all", bounds = null } = {}) {
       const query = normaliseSearchQuery(search);
       const safeBounds = normaliseBounds(bounds);
       const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
@@ -506,17 +495,6 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
 
       if (!row) {
         throw new Error("toilet not found.");
-      }
-
-      if (userId) {
-        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-        const recentSurvey = db.prepare(
-          "SELECT id FROM cleanliness_surveys WHERE toilet_id = ? AND user_id = ? AND created_at >= ? LIMIT 1"
-        ).get(row.id, userId, thirtyMinutesAgo);
-
-        if (recentSurvey) {
-          throw new Error("You can only rate this toilet once every 30 minutes.");
-        }
       }
 
       const globalStats = db.prepare("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users").get();

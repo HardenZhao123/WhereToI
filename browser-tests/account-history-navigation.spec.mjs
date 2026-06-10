@@ -81,6 +81,30 @@ function isExpectedLeafletStubResourceError(message) {
   );
 }
 
+function captureBrowserIssues(page) {
+  const consoleErrors = [];
+  const consoleWarnings = [];
+  const pageErrors = [];
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text());
+    }
+    if (message.type() === "warning") {
+      consoleWarnings.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+
+  return { consoleErrors, consoleWarnings, pageErrors };
+}
+
+function expectNoBrowserIssues({ consoleErrors, consoleWarnings, pageErrors }) {
+  expect(pageErrors).toEqual([]);
+  expect(consoleWarnings).toEqual([]);
+  expect(consoleErrors.filter((message) => !isExpectedLeafletStubResourceError(message))).toEqual([]);
+}
+
 test.beforeEach(async ({ context, page }) => {
   await context.grantPermissions(["geolocation"], { origin: "http://127.0.0.1:4173" });
   await context.setGeolocation({ latitude: 51.4974, longitude: -0.1751 });
@@ -96,21 +120,21 @@ test.beforeEach(async ({ context, page }) => {
 });
 
 test("clicking a visit history row opens the matching toilet detail card", async ({ page }, testInfo) => {
-  const consoleErrors = [];
-  const pageErrors = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") {
-      consoleErrors.push(message.text());
-    }
-  });
-  page.on("pageerror", (error) => pageErrors.push(error.message));
+  const browserIssues = captureBrowserIssues(page);
 
   const toiletsResponse = await page.request.get("/api/toilets");
   expect(toiletsResponse.ok()).toBeTruthy();
   const { toilets } = await toiletsResponse.json();
   const targetToilet =
-    toilets.find((toilet) => toilet?.id && /city\s*&?\s*guilds/i.test(toilet?.name ?? "")) ??
-    toilets.find((toilet) => toilet?.id && toilet?.name && toilet.name !== "Unnamed toilet");
+    toilets.find((toilet) => {
+      const name = String(toilet?.name ?? "");
+      return (
+        toilet?.id &&
+        name &&
+        name !== "Unnamed toilet" &&
+        !/city\s*(?:&|and)\s*guilds|imperial library/i.test(name)
+      );
+    }) ?? toilets.find((toilet) => toilet?.id && toilet?.name && toilet.name !== "Unnamed toilet");
   expect(targetToilet).toBeTruthy();
 
   const loginResponse = await page.request.post("/api/login", {
@@ -154,11 +178,7 @@ test("clicking a visit history row opens the matching toilet detail card", async
   await historyItem.click();
   await expect(page.locator("#view-title")).toHaveText("Map");
   await expect(page.locator("#details-card")).toBeVisible();
-  const expectedToiletName = targetToilet.name
-    .split(",")[0]
-    .trim()
-    .replace(/\s*&\s*/g, " and ");
-  await expect(page.locator("#toilet-name")).toHaveText(expectedToiletName);
+  await expect(page.locator("#toilet-name")).toHaveText(targetToilet.name);
 
   const afterScreenshotPath = testInfo.outputPath("toilet-detail-after-history-click.png");
   await page.screenshot({ path: afterScreenshotPath, fullPage: false });
@@ -167,19 +187,11 @@ test("clicking a visit history row opens the matching toilet detail card", async
     contentType: "image/png"
   });
 
-  expect(pageErrors).toEqual([]);
-  expect(consoleErrors.filter((message) => !isExpectedLeafletStubResourceError(message))).toEqual([]);
+  expectNoBrowserIssues(browserIssues);
 });
 
 test("toilet detail close button stays clickable after detail card scrolls", async ({ page }, testInfo) => {
-  const consoleErrors = [];
-  const pageErrors = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") {
-      consoleErrors.push(message.text());
-    }
-  });
-  page.on("pageerror", (error) => pageErrors.push(error.message));
+  const browserIssues = captureBrowserIssues(page);
 
   const loginResponse = await page.request.post("/api/login", {
     data: { username: "demo", password: "demo123" }
@@ -231,6 +243,5 @@ test("toilet detail close button stays clickable after detail card scrolls", asy
   );
   await expect(detailsCard).toHaveClass(/is-hidden/);
 
-  expect(pageErrors).toEqual([]);
-  expect(consoleErrors.filter((message) => !isExpectedLeafletStubResourceError(message))).toEqual([]);
+  expectNoBrowserIssues(browserIssues);
 });

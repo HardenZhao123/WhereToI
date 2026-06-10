@@ -1,5 +1,6 @@
 import { appConfig } from "../config/app-config.js";
 import {
+  clearToiletDetailCache,
   fetchAiSummary,
   fetchToiletDetail,
   submitCleanlinessSurvey,
@@ -125,9 +126,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let hiddenByMarkerLimit = 0;
   let cleanlinessSurveyAnswers = loadSurveyAnswers();
   let cleanlinessUpdateById = new Map();
-  let cleanlinessDisplayCache = new Map();
   let cleanlinessDisplayRequestId = 0;
-  let currentCleanlinessRange = normaliseCleanlinessRange(cleanlinessRangeSelect?.value ?? defaultCleanlinessRange);
+  let cleanlinessRangeByToiletId = new Map();
+  let currentCleanlinessRange = defaultCleanlinessRange;
   let selectedRating = null;
   let selectedCommentMedia = [];
   let visualCleanlinessLevel = 3;
@@ -290,9 +291,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   function renderCleanlinessSurvey(toilet) {
     const stored = toilet ? cleanlinessSurveyAnswers[toilet.id] : null;
     const storedRating = stored && typeof stored === "object" ? stored.rating : stored;
-    const submittedAt = stored?.submittedAt ? new Date(stored.submittedAt).getTime() : null;
-    const now = Date.now();
-    const isWithinCooldown = submittedAt && now - submittedAt < 30 * 60 * 1000;
 
     const rating = Number(selectedRating ?? storedRating);
     const hasRating = isValidCleanlinessRating(rating);
@@ -306,11 +304,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       if (selectedRating !== null) {
         mapSurveyStatus.textContent = `Selected ${selectedRating}/5 stars. Add details or submit rating only.`;
       } else {
-        mapSurveyStatus.textContent = isWithinCooldown
-          ? `Thanks! You can rate this toilet again in 30 minutes.`
-          : isAuthenticated()
-            ? "Choose 0.5 to 5 stars to continue."
-            : "Log in or sign up to leave feedback.";
+        mapSurveyStatus.textContent = isAuthenticated()
+          ? "Choose 0.5 to 5 stars to continue."
+          : "Log in or sign up to leave feedback.";
       }
     }
 
@@ -870,13 +866,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     let toilet = allToilets.find((item) => item.id === toiletId);
     if (!toilet) return false;
 
+    currentCleanlinessRange = getToiletCleanlinessRange(toiletId);
+    syncCleanlinessRangeSelect(currentCleanlinessRange);
+
     // If the toilet record is missing detail fields (like the detailed comment or actual opening hours), fetch full details
     if (toilet && (typeof toilet.comment === "undefined" || toilet.comment === null || !toilet.hours || toilet.hours.today.includes("Closed"))) {
       try {
-        const fullDetails = await fetchToiletDetail(toiletId);
+        const fullDetails = await fetchToiletDetail(toiletId, {
+          cleanlinessRange: currentCleanlinessRange
+        });
         if (fullDetails) {
-          // Update the local record with full details
-          toilet = { ...toilet, ...fullDetails };
+          toilet = mergeToiletDetailWithoutCleanliness(toilet, fullDetails);
           allToilets = allToilets.map(t => t.id === toiletId ? toilet : t);
         }
       } catch (error) {
@@ -931,8 +931,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
     
     renderCleanlinessSurvey(toilet);
-    renderCleanlinessRating(toilet);
-    updateOverviewVisualCleanlinessPreview(toilet);
+    renderCleanlinessRating(selectedCleanlinessDisplayToilet);
+    updateOverviewVisualCleanlinessPreview(selectedCleanlinessDisplayToilet);
     await refreshSelectedCleanlinessDisplay();
 
     if (currentDetailSection === "comment" || focusCommentId !== null) {
@@ -1288,8 +1288,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return value || defaultCleanlinessRange;
   }
 
-  function getCleanlinessDisplayCacheKey(toiletId, cleanlinessRange = currentCleanlinessRange) {
-    return `${String(toiletId)}::${normaliseCleanlinessRange(cleanlinessRange)}`;
+  function syncCleanlinessRangeSelect(range = currentCleanlinessRange) {
+    if (cleanlinessRangeSelect && cleanlinessRangeSelect.value !== range) {
+      cleanlinessRangeSelect.value = range;
+    }
+  }
+
+  function getToiletCleanlinessRange(toiletId) {
+    return cleanlinessRangeByToiletId.get(toiletId) ?? defaultCleanlinessRange;
   }
 
   function getCleanlinessSnapshot(toilet) {
@@ -1313,12 +1319,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     };
   }
 
-  function cacheCleanlinessDisplay(toilet, cleanlinessRange = currentCleanlinessRange) {
-    if (!toilet?.id) return;
+  function mergeToiletDetailWithoutCleanliness(toilet, detailToilet) {
+    if (!toilet || !detailToilet) return toilet;
 
-    cleanlinessDisplayCache = new Map(cleanlinessDisplayCache);
-    cleanlinessDisplayCache.set(
-      getCleanlinessDisplayCacheKey(toilet.id, cleanlinessRange),
+    return mergeCleanlinessSnapshot(
+      {
+        ...toilet,
+        ...detailToilet
+      },
       getCleanlinessSnapshot(toilet)
     );
   }
@@ -1341,17 +1349,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     cleanlinessDisplayRequestId = requestId;
 
     if (range === "all") {
-      cacheCleanlinessDisplay(selectedToilet, range);
       setSelectedCleanlinessDisplay(selectedToilet);
       return selectedToilet;
-    }
-
-    const cacheKey = getCleanlinessDisplayCacheKey(selectedToilet.id, range);
-    const cachedSnapshot = !force ? cleanlinessDisplayCache.get(cacheKey) : null;
-    if (cachedSnapshot) {
-      const cachedToilet = mergeCleanlinessSnapshot(selectedToilet, cachedSnapshot);
-      setSelectedCleanlinessDisplay(cachedToilet);
-      return cachedToilet;
     }
 
     if (!shouldFetchCleanlinessDisplay()) {
@@ -1375,7 +1374,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       }
 
       const displayToilet = mergeCleanlinessSnapshot(selectedToilet, getCleanlinessSnapshot(detailToilet));
-      cacheCleanlinessDisplay(displayToilet, range);
       setSelectedCleanlinessDisplay(displayToilet);
       return displayToilet;
     } catch (error) {
@@ -1388,10 +1386,15 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function setCleanlinessRange(range) {
-    currentCleanlinessRange = normaliseCleanlinessRange(range);
-    if (cleanlinessRangeSelect && cleanlinessRangeSelect.value !== currentCleanlinessRange) {
-      cleanlinessRangeSelect.value = currentCleanlinessRange;
+    const nextRange = normaliseCleanlinessRange(range);
+    currentCleanlinessRange = nextRange;
+
+    if (selectedToilet?.id) {
+      cleanlinessRangeByToiletId = new Map(cleanlinessRangeByToiletId);
+      cleanlinessRangeByToiletId.set(selectedToilet.id, nextRange);
     }
+
+    syncCleanlinessRangeSelect(nextRange);
     return refreshSelectedCleanlinessDisplay();
   }
 
@@ -1513,13 +1516,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       throw new Error("Cleanliness response did not include the updated toilet.");
     }
 
+    clearToiletDetailCache(result.toilet.id);
+
     updateToiletCleanliness(result.toilet, {
       store: true,
       cleanlinessRange: "all"
     });
 
     const toiletUpdate = createCurrentRangeCleanlinessUpdate(result.toilet, rating);
-    cacheCleanlinessDisplay(toiletUpdate, currentCleanlinessRange);
     if (selectedToilet?.id === result.toilet.id) {
       setSelectedCleanlinessDisplay(mergeCleanlinessSnapshot(selectedToilet, getCleanlinessSnapshot(toiletUpdate)));
     }
@@ -1631,14 +1635,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
           selectedRating = null;
           closeCommentComposer();
           renderCleanlinessSurvey(selectedToilet);
-        }
-        return;
-      }
-
-      if (!hasCommentText) {
-        if (mapSurveyStatus) {
-          mapSurveyStatus.classList.add("warning");
-          mapSurveyStatus.textContent = "Add a short comment before posting media.";
         }
         return;
       }

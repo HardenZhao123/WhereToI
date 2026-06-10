@@ -15,7 +15,6 @@ const requiredFiles = [
   "src/app/views/account-view.js",
   "src/app/config/app-config.js",
   "src/app/config/dom-refs.js",
-  "src/app/config/fallback-toilets.js",
   "src/app/toilets/toilet-record-mapper.js",
   "src/app/utils/csv.js",
   "src/app/utils/geo.js",
@@ -211,7 +210,10 @@ if (
   html.includes("id=\"overview-urinal-panel\"") ||
   visualCleanlinessStarsIndex <= commentComposerIndex ||
   !js.includes("setVisualCleanlinessLevel") ||
-  !js.includes("selectCleanlinessRating(button.dataset.visualRating)") ||
+  !js.includes("visualCleanlinessStars?.addEventListener(\"click\"") ||
+  !js.includes("target?.closest?.(\"[data-visual-rating]\")") ||
+  !js.includes("target?.closest?.(\"[data-visual-star]\")") ||
+  !js.includes("selectCleanlinessRating(starButton.dataset.visualStar)") ||
   !js.includes("image: definition.image") ||
   js.includes("level_3_urinal") ||
   !css.includes(".feedback-action-bar") ||

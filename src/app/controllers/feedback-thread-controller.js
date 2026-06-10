@@ -10,8 +10,6 @@ import {
   normaliseCommentSortMode
 } from "../utils/comments.js";
 
-const commentCacheTtlMs = 60 * 1000;
-
 export function createFeedbackThreadController(elements = {}, options = {}) {
   const {
     commentsList,
@@ -32,32 +30,7 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
   let commentSortMode = "newest";
   let selectedCommentFilters = new Set();
   let pendingFocusedCommentId = null;
-  let commentsCacheByToiletId = new Map();
   let commentRequestsByToiletId = new Map();
-
-  function getCachedComments(toiletId) {
-    const cached = commentsCacheByToiletId.get(toiletId);
-    if (!cached) return null;
-
-    if (Date.now() - cached.loadedAt > commentCacheTtlMs || cached.authenticated !== isAuthenticated()) {
-      commentsCacheByToiletId = new Map(commentsCacheByToiletId);
-      commentsCacheByToiletId.delete(toiletId);
-      return null;
-    }
-
-    return cached.comments;
-  }
-
-  function cacheComments(toiletId, comments) {
-    if (!toiletId || !Array.isArray(comments)) return;
-
-    commentsCacheByToiletId = new Map(commentsCacheByToiletId);
-    commentsCacheByToiletId.set(toiletId, {
-      comments: [...comments],
-      loadedAt: Date.now(),
-      authenticated: isAuthenticated()
-    });
-  }
 
   function renderCommentsPlaceholder(message) {
     currentComments = [];
@@ -142,12 +115,17 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
 
   function createCommentRatingElement(comment) {
     const rating = Number(comment?.cleanliness_rating);
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return null;
+    if (!Number.isFinite(rating) || rating < 0.5 || rating > 5 || !Number.isInteger(rating * 2)) {
+      return null;
+    }
 
     const ratingElement = document.createElement("span");
+    const full = Math.floor(rating);
+    const half = rating > full ? 1 : 0;
+    const empty = Math.max(5 - full - half, 0);
     ratingElement.className = "comment-rating";
     ratingElement.setAttribute("aria-label", `Cleanliness rating ${rating} out of 5`);
-    ratingElement.textContent = `${"\u2605".repeat(rating)}${"\u2606".repeat(5 - rating)}`;
+    ratingElement.textContent = `${"\u2605".repeat(full)}${half ? "\u00bd" : ""}${"\u2606".repeat(empty)}`;
     return ratingElement;
   }
 
@@ -298,18 +276,20 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
       header.append(authorLine);
       header.append(createCommentActions(comment));
 
-      const text = document.createElement("p");
-      text.className = "comment-text";
-      text.textContent = comment.comment_text;
-
       const media = createCommentMediaElement(comment);
+      const commentText = String(comment.comment_text ?? "").trim();
+      const text = commentText ? document.createElement("p") : null;
+      if (text) {
+        text.className = "comment-text";
+        text.textContent = commentText;
+      }
 
       const date = document.createElement("p");
       date.className = "comment-date";
       date.textContent = new Date(comment.created_at).toLocaleString();
 
       item.append(header);
-      item.append(text);
+      if (text) item.append(text);
       if (media) item.append(media);
       item.append(date);
       commentsList.append(item);
@@ -318,11 +298,8 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
     focusPendingComment();
   }
 
-  function renderComments(comments, { cache = true, toiletId = getSelectedToilet()?.id } = {}) {
+  function renderComments(comments) {
     currentComments = Array.isArray(comments) ? [...comments] : [];
-    if (cache && toiletId) {
-      cacheComments(toiletId, currentComments);
-    }
     renderCommentList();
   }
 
@@ -335,12 +312,6 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
   function resetCommentsForToilet(toilet) {
     if (!commentsList || !toilet?.id) return;
 
-    const cachedComments = getCachedComments(toilet.id);
-    if (cachedComments) {
-      renderComments(cachedComments, { cache: false, toiletId: toilet.id });
-      return;
-    }
-
     renderCommentsPlaceholder("Open Feedback to load comments.");
   }
 
@@ -350,13 +321,7 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
     const focusId = Number(focusCommentId);
     pendingFocusedCommentId = Number.isInteger(focusId) && focusId > 0 ? focusId : null;
 
-    if (!force) {
-      const cachedComments = getCachedComments(toilet.id);
-      if (cachedComments) {
-        renderComments(cachedComments, { cache: false, toiletId: toilet.id });
-        return cachedComments;
-      }
-    }
+    void force;
 
     const existingRequest = commentRequestsByToiletId.get(toilet.id);
     if (existingRequest) return existingRequest;
@@ -365,9 +330,8 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
 
     const request = fetchComments(toilet.id)
       .then((comments) => {
-        cacheComments(toilet.id, comments);
         if (getSelectedToilet()?.id === toilet.id) {
-          renderComments(comments, { cache: false, toiletId: toilet.id });
+          renderComments(comments);
         }
         return comments;
       })

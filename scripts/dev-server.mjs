@@ -8,6 +8,7 @@ const port = Number(process.env.PORT ?? 4173);
 const appServer = await createAppServer({
   rootDirectory: staticRoot,
   port,
+  staticCacheMode: process.env.NODE_ENV === "production" ? "production" : "development",
   databaseOptions: {
     rootDirectory: appRoot
   }

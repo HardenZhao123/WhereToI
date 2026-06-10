@@ -72,6 +72,26 @@ test("static assets use browser cache headers and Last-Modified validation", asy
   });
 });
 
+test("development static assets disable browser caching", async () => {
+  await withAppServer(async (baseUrl) => {
+    const firstResponse = await fetch(`${baseUrl}/src/styles.css`);
+    const lastModified = firstResponse.headers.get("last-modified");
+
+    assert.equal(firstResponse.status, 200);
+    assert.equal(firstResponse.headers.get("cache-control"), "no-store");
+    assert.ok(lastModified);
+
+    const revalidatedResponse = await fetch(`${baseUrl}/src/styles.css`, {
+      headers: {
+        "If-Modified-Since": lastModified
+      }
+    });
+
+    assert.equal(revalidatedResponse.status, 200);
+    assert.equal(await revalidatedResponse.text(), ".map { color: green; }");
+  }, { staticCacheMode: "development" });
+});
+
 test("static text assets are compressed when the browser supports gzip", async () => {
   await withAppServer(async (baseUrl) => {
     const response = await fetch(`${baseUrl}/src/large.js`, {
@@ -127,11 +147,15 @@ test("server can serve dist static files while keeping source data private", asy
   }
 });
 
-test("API cache headers keep public toilets reusable and account data private", async () => {
+test("API cache headers keep mutable toilet and account data private", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletsResponse = await fetch(`${baseUrl}/api/toilets`);
     assert.equal(toiletsResponse.status, 200);
-    assert.match(toiletsResponse.headers.get("cache-control"), /public, max-age=60/);
+    assert.equal(toiletsResponse.headers.get("cache-control"), "no-store");
+
+    const detailResponse = await fetch(`${baseUrl}/api/toilets/detail?toiletId=detail-test`);
+    assert.equal(detailResponse.status, 200);
+    assert.equal(detailResponse.headers.get("cache-control"), "no-store");
 
     const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
       method: "POST",
@@ -315,7 +339,8 @@ test("API supports fetching and posting toilet comments", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletId = "detail-test";
 
-    const { payload: initialPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    const { payload: initialPayload, response: initialResponse } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.equal(initialResponse.headers.get("cache-control"), "no-store");
     assert.equal(initialPayload.comments.length, 0);
 
     const anonymousCommentResponse = await fetch(`${baseUrl}/api/comments`, {
@@ -771,6 +796,36 @@ test("API supports image comment attachments without returning base64 data", asy
       }
     ]);
     assert.equal(JSON.stringify(mediaPayload).includes("data:image"), false);
+
+    const { payload: mediaOnlyPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: "  ",
+        cleanlinessRating: 4.5,
+        media: [media[0]]
+      })
+    });
+    const mediaOnlyComment = mediaOnlyPayload.comments.find((comment) => comment.cleanliness_rating === 4.5);
+
+    assert.ok(mediaOnlyComment);
+    assert.equal(mediaOnlyComment.comment_text, "");
+    assert.equal(mediaOnlyComment.media_type, "image");
+
+    const emptyCommentResponse = await fetch(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId,
+        commentText: " ",
+        cleanlinessRating: 4
+      })
+    });
+    const emptyCommentPayload = await emptyCommentResponse.json();
+
+    assert.equal(emptyCommentResponse.status, 400);
+    assert.match(emptyCommentPayload.error, /commentText or media is required/);
 
     const invalidResponse = await fetch(`${baseUrl}/api/comments`, {
       method: "POST",
