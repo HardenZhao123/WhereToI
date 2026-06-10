@@ -40,7 +40,6 @@ test("only subpage close buttons stay sticky inside scrollable panels", () => {
 
   assertHeaderNotSticky(".details-header");
   assertHeaderNotSticky(".comment-composer-header");
-  assertHeaderNotSticky(".visual-feedback-header");
   assertHeaderNotSticky(".auth-dialog > header");
 });
 
@@ -53,15 +52,9 @@ test("sticky close buttons are direct panel controls, not part of scrolling head
   const commentCloseIndex = html.indexOf("id=\"close-comment-composer\"", commentPanelStart);
   const commentHeaderIndex = html.indexOf("class=\"comment-composer-header\"", commentPanelStart);
 
-  const visualPanelStart = html.indexOf("id=\"visual-feedback-panel\"");
-  const visualCloseIndex = html.indexOf("id=\"close-visual-feedback\"", visualPanelStart);
-  const visualHeaderIndex = html.indexOf("class=\"visual-feedback-header\"", visualPanelStart);
-
   assert.ok(detailCloseIndex > detailPanelStart && detailCloseIndex < detailHeaderIndex);
   assert.ok(commentCloseIndex > commentPanelStart && commentCloseIndex < commentHeaderIndex);
-  assert.ok(visualCloseIndex > visualPanelStart && visualCloseIndex < visualHeaderIndex);
 
   assert.match(html, /class="close-button sticky-close-button" id="close-details"/);
   assert.match(html, /class="close-button sticky-close-button" id="close-comment-composer"/);
-  assert.match(html, /class="close-button sticky-close-button" id="close-visual-feedback"/);
 });

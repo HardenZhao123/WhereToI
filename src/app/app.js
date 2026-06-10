@@ -269,25 +269,11 @@ export function createApp() {
     elements.summarizeCommentsButton?.addEventListener("click", () => mapController.getAiSummary());
     elements.closeDetailsButton?.addEventListener("click", () => mapController.hideToiletDetails());
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
-    elements.mapSurveyRatingButtons.forEach((button) => {
-      button?.addEventListener("click", () => mapController.selectCleanlinessRating(button.dataset.surveyRating));
-    });
-
-    elements.submitCleanlinessSurveyButton?.addEventListener("click", () =>
-      mapController.submitCleanlinessSurveySelection()
-    );
-
     elements.commentComposerToggle?.addEventListener("click", () => mapController.toggleCommentComposer());
     elements.closeCommentComposerButton?.addEventListener("click", () => mapController.closeCommentComposer());
-    elements.visualFeedbackToggle?.addEventListener("click", () => mapController.toggleVisualFeedback());
-    elements.visualFeedbackOpenButtons?.forEach((button) => {
-      button?.addEventListener("click", () => mapController.openVisualFeedback(button.dataset.openVisualFeedback));
+    elements.visualCleanlinessRatingButtons?.forEach((button) => {
+      button?.addEventListener("click", () => mapController.selectCleanlinessRating(button.dataset.visualRating));
     });
-    elements.closeVisualFeedbackButton?.addEventListener("click", () => mapController.closeVisualFeedback());
-    elements.visualCleanlinessSlider?.addEventListener("input", (event) =>
-      mapController.setVisualCleanlinessLevel(event.target.value)
-    );
-    elements.visualFeedbackForm?.addEventListener("submit", (event) => mapController.submitVisualFeedback(event));
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
     elements.commentPresetButtons.forEach((button) => {
       button?.addEventListener("click", () => mapController.applyCommentPreset(button.dataset.commentPreset));

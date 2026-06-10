@@ -5,12 +5,12 @@ import {
   formatCleanlinessRatingCount,
   getCleanlinessRatingCount,
   getCleanlinessScore,
+  getCleanlinessVisualLevel,
   getCleanlinessStars
 } from "../src/app/utils/cleanliness.js";
 
 const fullStar = "\u2605";
 const emptyStar = "\u2606";
-const halfStar = "\u00bd";
 
 test("formats cleanliness as a 1-5 star rating", () => {
   const toilet = { cleanliness: 4 };
@@ -29,7 +29,7 @@ test("formats cleanliness as a 1-5 star rating", () => {
   assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(4)}${emptyStar} 4.0/5 · 0 ratings`);
 });
 
-test("formats cleanliness survey averages with one decimal and a half star", () => {
+test("formats cleanliness survey averages with integer star positions and the actual score", () => {
   const toilet = {
     cleanliness: 4,
     cleanlinessSurvey: {
@@ -44,13 +44,35 @@ test("formats cleanliness survey averages with one decimal and a half star", () 
     displayRating: "3.5",
     maxRating: 5,
     full: 3,
-    half: 1,
-    empty: 1,
-    text: `${fullStar.repeat(3)}${halfStar}${emptyStar}`
+    half: 0,
+    empty: 2,
+    text: `${fullStar.repeat(3)}${emptyStar.repeat(2)}`
   });
   assert.equal(getCleanlinessRatingCount(toilet), 2);
   assert.equal(formatCleanlinessRatingCount(toilet), "2 ratings");
-  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(3)}${halfStar}${emptyStar} 3.5/5 · 2 ratings`);
+  assert.equal(formatCleanlinessRating(toilet), `${fullStar.repeat(3)}${emptyStar.repeat(2)} 3.5/5 · 2 ratings`);
+});
+
+test("rounds cleanliness visual levels to the nearest half star without rounding the displayed score", () => {
+  const toilet = {
+    cleanliness: 4,
+    cleanlinessSurvey: {
+      ratingTotal: 13,
+      ratingCount: 4
+    }
+  };
+
+  assert.equal(getCleanlinessScore(toilet), 3.25);
+  assert.equal(getCleanlinessVisualLevel(toilet), 3.5);
+  assert.deepEqual(getCleanlinessStars(toilet), {
+    rating: 3.25,
+    displayRating: "3.25",
+    maxRating: 5,
+    full: 3,
+    half: 0,
+    empty: 2,
+    text: `${fullStar.repeat(3)}${emptyStar.repeat(2)}`
+  });
 });
 
 test("formats a single cleanliness rating count", () => {

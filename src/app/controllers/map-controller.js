@@ -9,6 +9,7 @@ import { createFeedbackThreadController } from "./feedback-thread-controller.js"
 import {
   formatCleanlinessRating,
   formatCleanlinessRatingCount,
+  getCleanlinessVisualLevel,
   getCleanlinessScore,
   getCleanlinessStars
 } from "../utils/cleanliness.js";
@@ -51,9 +52,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     detailsCard,
     mapPanel,
     mapElement,
-    mapSurveyRatingButtons = [],
     mapSurveyStatus,
-    submitCleanlinessSurveyButton,
     detailSectionLinks = [],
     detailPanels = [],
     commentsList,
@@ -69,24 +68,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentMediaInput,
     commentMediaPreview,
     commentMediaStatus,
-    visualFeedbackToggle,
-    visualFeedbackPanel,
-    overviewUrinalPanel,
     overviewVisualPreview,
     overviewVisualImage,
-    overviewUrinalPreview,
-    overviewUrinalImage,
     overviewVisualState,
-    overviewUrinalState,
     visualCleanlinessPreview,
     visualCleanlinessImage,
-    visualCleanlinessSlider,
+    visualCleanlinessStars,
+    visualCleanlinessRatingButtons = [],
     visualCleanlinessState,
-    visualFeedbackSubtitle,
-    visualFeedbackForm,
-    visualFeedbackComment,
-    visualFeedbackList,
-    visualFeedbackSummary,
     summarizeCommentsButton,
     aiSummaryContainer,
     aiSummaryText,
@@ -106,18 +95,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   } = auth;
 
   const surveyStorageKey = "wheretoi-map-cleanliness-survey";
-  const visualFeedbackStorageKey = "wheretoi-visual-cleanliness-feedback";
   const visualCleanlinessLevels = new Map([
-    [0.5, { label: "Extremely dirty", tone: "Avoid at all costs", images: { toilet: "toilet_levels/level_05_small.jpg", urinal: "toilet_levels/level_05_urinal.png" } }],
-    [1, { label: "Very dirty", tone: "Needs a serious clean", images: { toilet: "toilet_levels/level_1_small.jpg", urinal: "toilet_levels/level_1_urinal.png" } }],
-    [1.5, { label: "Dirty & Messy", tone: "Quite unpleasant", images: { toilet: "toilet_levels/level_15_small.jpg", urinal: "toilet_levels/level_15_urinal.png" } }],
-    [2, { label: "Dirty", tone: "Use only if needed", images: { toilet: "toilet_levels/level_2_small.jpg", urinal: "toilet_levels/level_2_urinal.png" } }],
-    [2.5, { label: "Below average", tone: "Could be better", images: { toilet: "toilet_levels/level_25_small.jpg", urinal: "toilet_levels/level_25_urinal.png" } }],
-    [3, { label: "OK", tone: "Usable but not spotless", images: { toilet: "toilet_levels/level_3_small.jpg", urinal: "toilet_levels/level_3_urinal.png" } }],
-    [3.5, { label: "Above average", tone: "Decent condition", images: { toilet: "toilet_levels/level_35_small.jpg", urinal: "toilet_levels/level_35_urinal.png" } }],
-    [4, { label: "Clean", tone: "Comfortable to use", images: { toilet: "toilet_levels/level_4_small.jpg", urinal: "toilet_levels/level_4_urinal.png" } }],
-    [4.5, { label: "Very clean", tone: "Almost spotless", images: { toilet: "toilet_levels/level_45_small.jpg", urinal: "toilet_levels/level_45_urinal.png" } }],
-    [5, { label: "Excellent", tone: "Fresh and well kept", images: { toilet: "toilet_levels/level_5_small.jpg", urinal: "toilet_levels/level_5_urinal.png" } }]
+    [0.5, { label: "Extremely dirty", tone: "Avoid at all costs", image: "toilet_levels/level_05_small.jpg" }],
+    [1, { label: "Very dirty", tone: "Needs a serious clean", image: "toilet_levels/level_1_small.jpg" }],
+    [1.5, { label: "Dirty & Messy", tone: "Quite unpleasant", image: "toilet_levels/level_15_small.jpg" }],
+    [2, { label: "Dirty", tone: "Use only if needed", image: "toilet_levels/level_2_small.jpg" }],
+    [2.5, { label: "Below average", tone: "Could be better", image: "toilet_levels/level_25_small.jpg" }],
+    [3, { label: "OK", tone: "Usable but not spotless", image: "toilet_levels/level_3_small.jpg" }],
+    [3.5, { label: "Above average", tone: "Decent condition", image: "toilet_levels/level_35_small.jpg" }],
+    [4, { label: "Clean", tone: "Comfortable to use", image: "toilet_levels/level_4_small.jpg" }],
+    [4.5, { label: "Very clean", tone: "Almost spotless", image: "toilet_levels/level_45_small.jpg" }],
+    [5, { label: "Excellent", tone: "Fresh and well kept", image: "toilet_levels/level_5_small.jpg" }]
   ]);
 
   let allToilets = [];
@@ -139,8 +127,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let selectedRating = null;
   let selectedCommentMedia = [];
   let visualCleanlinessLevel = 3;
-  let visualFeedbackFixtureType = null;
-  let visualFeedbackEntriesByToiletId = loadVisualFeedbackEntries();
   let currentDetailSection = "overview";
 
   const feedbackThreadController = createFeedbackThreadController(
@@ -165,34 +151,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     const normalised = String(value ?? "").trim().toUpperCase();
     return normalised === "Y" || normalised === "TRUE" || normalised === "1";
-  }
-
-  function isUrinalOnlyToilet(toilet = selectedToilet) {
-    return hasEnabledFeature(toilet?.features?.urinalOnly);
-  }
-
-  function getVisualFixtureType(toilet = selectedToilet) {
-    return isUrinalOnlyToilet(toilet) ? "urinal" : "toilet";
-  }
-
-  function normaliseVisualFixtureType(fixtureType) {
-    return fixtureType === "urinal" || fixtureType === "toilet" ? fixtureType : null;
-  }
-
-  function getActiveVisualFeedbackFixtureType() {
-    return normaliseVisualFixtureType(visualFeedbackFixtureType) || getVisualFixtureType();
-  }
-
-  function getVisualFixtureLabel(fixture = selectedToilet) {
-    if (fixture === "urinal" || fixture === "toilet") {
-      return fixture === "urinal" ? "Urinal" : "Toilet";
-    }
-
-    return getVisualFixtureType(fixture) === "urinal" ? "Urinal" : "Toilet";
-  }
-
-  function supportsOverviewUrinalPreview(toilet = selectedToilet) {
-    return hasEnabledFeature(toilet?.features?.urinalOnly) || hasEnabledFeature(toilet?.features?.men);
   }
 
   function loadSurveyAnswers() {
@@ -220,58 +178,16 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return visualCleanlinessLevels.has(value) ? value : 3;
   }
 
-  function getVisualCleanlinessLevel(level = visualCleanlinessLevel, fixtureType = getActiveVisualFeedbackFixtureType()) {
+  function getVisualCleanlinessLevel(level = visualCleanlinessLevel) {
     const value = normaliseVisualCleanlinessLevel(level);
     const definition = visualCleanlinessLevels.get(value);
-    const safeFixtureType = fixtureType === "urinal" ? "urinal" : "toilet";
     return {
       value,
       label: definition.label,
       tone: definition.tone,
-      image: definition.images?.[safeFixtureType] || definition.images?.toilet || "",
-      fixtureType: safeFixtureType
+      image: definition.image || "",
+      fixtureType: "toilet"
     };
-  }
-
-  function loadVisualFeedbackEntries() {
-    try {
-      const storedFeedback = window.localStorage?.getItem(visualFeedbackStorageKey);
-      if (!storedFeedback) return {};
-
-      const parsedFeedback = JSON.parse(storedFeedback);
-      if (!parsedFeedback || typeof parsedFeedback !== "object" || Array.isArray(parsedFeedback)) {
-        return {};
-      }
-
-      return Object.fromEntries(
-        Object.entries(parsedFeedback)
-          .filter(([, entries]) => Array.isArray(entries))
-          .map(([toiletId, entries]) => [
-            toiletId,
-            entries
-              .filter((entry) => entry && typeof entry === "object")
-              .map((entry) => ({
-                id: String(entry.id || `visual-${Date.now()}`),
-                level: normaliseVisualCleanlinessLevel(entry.level),
-                label: String(entry.label || getVisualCleanlinessLevel(entry.level).label),
-                tone: String(entry.tone || getVisualCleanlinessLevel(entry.level).tone),
-                image: String(entry.image || ""),
-                comment: String(entry.comment || ""),
-                createdAt: String(entry.createdAt || new Date().toISOString())
-              }))
-          ])
-      );
-    } catch {
-      return {};
-    }
-  }
-
-  function saveVisualFeedbackEntries() {
-    try {
-      window.localStorage?.setItem(visualFeedbackStorageKey, JSON.stringify(visualFeedbackEntriesByToiletId));
-    } catch {
-      // The visual prototype still works for the current session if storage is blocked.
-    }
   }
 
   function renderCleanlinessRating(toilet) {
@@ -362,6 +278,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setLocateButtonState(isMapCenteredOnUserLocation());
   }
 
+  function isValidCleanlinessRating(rating) {
+    const value = Number(rating);
+    return Number.isFinite(value) && value >= 0.5 && value <= 5 && Number.isInteger(value * 2);
+  }
+
   function renderCleanlinessSurvey(toilet) {
     const stored = toilet ? cleanlinessSurveyAnswers[toilet.id] : null;
     const storedRating = stored && typeof stored === "object" ? stored.rating : stored;
@@ -370,19 +291,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const isWithinCooldown = submittedAt && now - submittedAt < 30 * 60 * 1000;
 
     const rating = Number(selectedRating ?? storedRating);
-    const hasRating = Number.isInteger(rating) && rating >= 1 && rating <= 5;
-
-    mapSurveyRatingButtons.forEach((button) => {
-      const buttonRating = Number(button.dataset.surveyRating);
-      const isSelected = hasRating && buttonRating <= rating;
-      button.classList.toggle("is-selected", isSelected);
-      button.setAttribute("aria-pressed", hasRating && buttonRating === rating ? "true" : "false");
-    });
+    const hasRating = isValidCleanlinessRating(rating);
 
     const feedbackSubmitButton = commentForm?.querySelector("button[type='submit']");
-    if (submitCleanlinessSurveyButton) {
-      submitCleanlinessSurveyButton.disabled = selectedRating === null;
-    }
     if (feedbackSubmitButton) {
       feedbackSubmitButton.disabled = selectedRating === null;
     }
@@ -394,10 +305,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         mapSurveyStatus.textContent = isWithinCooldown
           ? `Thanks! You can rate this toilet again in 30 minutes.`
           : isAuthenticated()
-            ? "Choose 1 to 5 stars to continue."
+            ? "Choose 0.5 to 5 stars to continue."
             : "Log in or sign up to leave feedback.";
       }
     }
+
+    setVisualCleanlinessLevel(hasRating ? rating : 3);
   }
 
   function isPlaceholderToiletComment(comment = "") {
@@ -430,25 +343,20 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       preview.dataset.fixtureType = level.fixtureType;
       preview.setAttribute(
         "aria-label",
-        `Cartoon ${level.fixtureType} cleanliness preview: ${level.label}`
+        `Cartoon toilet cleanliness preview: ${level.label}`
       );
 
       const toiletSvg = preview.querySelector(".cartoon-toilet-svg");
-      const urinalSvg = preview.querySelector(".cartoon-urinal-svg");
-      const fallbackGraphic = level.fixtureType === "urinal" ? urinalSvg : toiletSvg;
+      const fallbackGraphic = toiletSvg;
       const shouldShowImage = Boolean(showImage && image && level.image);
 
       if (toiletSvg) {
-        toiletSvg.classList.toggle("is-hidden", level.fixtureType !== "toilet" || shouldShowImage);
-      }
-
-      if (urinalSvg) {
-        urinalSvg.classList.toggle("is-hidden", level.fixtureType !== "urinal" || shouldShowImage);
+        toiletSvg.classList.toggle("is-hidden", shouldShowImage);
       }
 
       if (image) {
-        image.classList.toggle("is-urinal", level.fixtureType === "urinal");
-        image.alt = `${getVisualFixtureLabel(level.fixtureType)} cleanliness preview: ${level.label}`;
+        image.classList.remove("is-urinal");
+        image.alt = `Toilet cleanliness preview: ${level.label}`;
         if (shouldShowImage) {
           image.onerror = () => {
             image.removeAttribute?.("src");
@@ -472,197 +380,56 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
   }
 
-  function updateVisualCleanlinessPreview() {
-    const level = getVisualCleanlinessLevel();
-    const toiletLevel = getVisualCleanlinessLevel(visualCleanlinessLevel, "toilet");
-    const shouldShowOverviewUrinal = supportsOverviewUrinalPreview();
-
-    if (visualFeedbackSubtitle) {
-      visualFeedbackSubtitle.textContent = `Match the ${level.fixtureType} picture to what you saw.`;
-    }
-
-    renderVisualPreview(overviewVisualPreview, null, toiletLevel, {
+  function updateOverviewVisualCleanlinessPreview(toilet = selectedToilet) {
+    const level = getVisualCleanlinessLevel(getCleanlinessVisualLevel(toilet));
+    renderVisualPreview(overviewVisualPreview, null, level, {
       image: overviewVisualImage,
       showImage: true
     });
 
-    if (overviewUrinalPanel) {
-      overviewUrinalPanel.hidden = !shouldShowOverviewUrinal;
-      overviewUrinalPanel.classList.toggle("is-hidden", !shouldShowOverviewUrinal);
-    }
-
-    renderVisualPreview(overviewUrinalPreview, null, getVisualCleanlinessLevel(visualCleanlinessLevel, "urinal"), {
-      image: overviewUrinalImage,
-      showImage: shouldShowOverviewUrinal
-    });
-
     if (overviewVisualState) {
-      overviewVisualState.textContent = `${toiletLevel.label} - ${toiletLevel.tone}`;
+      overviewVisualState.textContent = `${level.label} - ${level.tone}`;
     }
+  }
 
-    if (overviewUrinalState) {
-      const urinalLevel = getVisualCleanlinessLevel(visualCleanlinessLevel, "urinal");
-      overviewUrinalState.textContent = `${urinalLevel.label} - ${urinalLevel.tone}`;
-    }
-
+  function updateFeedbackVisualCleanlinessPreview() {
+    const level = getVisualCleanlinessLevel();
     renderVisualPreview(visualCleanlinessPreview, visualCleanlinessState, level, {
       image: visualCleanlinessImage,
       showImage: true
     });
 
-    if (visualCleanlinessSlider) {
-      visualCleanlinessSlider.value = String(level.value);
-    }
+    renderVisualStarRating(level.value);
   }
 
   function setVisualCleanlinessLevel(level) {
     visualCleanlinessLevel = normaliseVisualCleanlinessLevel(level);
-    updateVisualCleanlinessPreview();
+    updateFeedbackVisualCleanlinessPreview();
   }
 
-  function getVisualFeedbackEntries(toiletId = selectedToilet?.id) {
-    if (!toiletId) return [];
-    const entries = visualFeedbackEntriesByToiletId[toiletId];
-    return Array.isArray(entries) ? entries : [];
-  }
+  function renderVisualStarRating(level = visualCleanlinessLevel) {
+    const selectedLevel = normaliseVisualCleanlinessLevel(level);
+    visualCleanlinessStars?.setAttribute(
+      "aria-label",
+      `Toilet visual cleanliness rating ${selectedLevel} out of 5`
+    );
 
-  function createVisualFeedbackFallbackThumbnail(level) {
-    const thumbnail = document.createElement("span");
-    thumbnail.className = "visual-feedback-thumbnail";
-    thumbnail.dataset.cleanliness = String(normaliseVisualCleanlinessLevel(level));
-    thumbnail.setAttribute("aria-hidden", "true");
+    visualCleanlinessStars?.querySelectorAll?.("[data-visual-star]")?.forEach((button) => {
+      const star = Number(button.dataset.visualStar);
+      const fill = selectedLevel >= star ? 100 : selectedLevel >= star - 0.5 ? 50 : 0;
+      button.style?.setProperty?.("--star-fill", `${fill}%`);
+      button.classList.toggle("is-selected", fill > 0);
+      button.setAttribute("aria-pressed", fill > 0 ? "true" : "false");
+    });
 
-    const tank = document.createElement("span");
-    tank.className = "visual-thumbnail-tank";
-
-    const bowl = document.createElement("span");
-    bowl.className = "visual-thumbnail-bowl";
-
-    const dirt = document.createElement("span");
-    dirt.className = "visual-thumbnail-dirt";
-
-    thumbnail.append(tank, bowl, dirt);
-    return thumbnail;
-  }
-
-  function createVisualFeedbackImage(entry) {
-    const imageSource = entry.image || getVisualCleanlinessLevel(entry.level).image;
-    if (!imageSource) {
-      return createVisualFeedbackFallbackThumbnail(entry.level);
-    }
-
-    const frame = document.createElement("div");
-    frame.className = "visual-feedback-image-frame";
-    frame.dataset.cleanliness = String(normaliseVisualCleanlinessLevel(entry.level));
-
-    const image = document.createElement("img");
-    image.className = "visual-feedback-image";
-    image.src = imageSource;
-    image.alt = `${entry.label} visual cleanliness check`;
-    image.loading = "lazy";
-
-    frame.append(image);
-    return frame;
-  }
-
-  function renderVisualFeedbackDiscussion() {
-    const entries = getVisualFeedbackEntries();
-
-    if (visualFeedbackSummary) {
-      const countText = entries.length === 1 ? "1 visual check" : `${entries.length} visual checks`;
-      visualFeedbackSummary.textContent = countText;
-    }
-
-    if (!visualFeedbackList) return;
-    visualFeedbackList.replaceChildren();
-
-    if (!selectedToilet) {
-      const empty = document.createElement("p");
-      empty.textContent = "Select a toilet to see visual checks.";
-      visualFeedbackList.append(empty);
-      return;
-    }
-
-    if (entries.length === 0) {
-      const empty = document.createElement("p");
-      empty.textContent = "No visual checks yet.";
-      visualFeedbackList.append(empty);
-      return;
-    }
-
-    entries.forEach((entry) => {
-      const item = document.createElement("article");
-      item.className = "visual-feedback-item";
-
-      const thumbnail = createVisualFeedbackImage(entry);
-
-      const body = document.createElement("div");
-      body.className = "visual-feedback-item-body";
-
-      const title = document.createElement("strong");
-      title.textContent = entry.label;
-
-      const tone = document.createElement("p");
-      tone.className = "visual-feedback-tone";
-      tone.textContent = entry.tone;
-
-      const comment = document.createElement("p");
-      comment.className = "visual-feedback-comment";
-      comment.textContent = entry.comment || "Picture-only check.";
-
-      const date = document.createElement("p");
-      date.className = "visual-feedback-date";
-      date.textContent = new Date(entry.createdAt).toLocaleString();
-
-      body.append(title, tone, comment, date);
-      item.append(thumbnail, body);
-      visualFeedbackList.append(item);
+    visualCleanlinessRatingButtons.forEach((hit) => {
+      const rating = Number(hit.dataset.visualRating);
+      hit.classList.toggle("is-selected", rating === selectedLevel);
     });
   }
 
-  function resetVisualFeedbackForm() {
+  function resetVisualCleanlinessRating() {
     setVisualCleanlinessLevel(3);
-    if (visualFeedbackComment) {
-      visualFeedbackComment.value = "";
-    }
-  }
-
-  function submitVisualFeedback(event) {
-    event.preventDefault();
-
-    if (!selectedToilet) {
-      setStatus("Select a toilet marker before leaving visual feedback.");
-      return;
-    }
-
-    const level = getVisualCleanlinessLevel();
-    const entry = {
-      id: `visual-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      level: level.value,
-      label: level.label,
-      tone: level.tone,
-      image: level.image || "",
-      comment: visualFeedbackComment?.value.trim() ?? "",
-      createdAt: new Date().toISOString()
-    };
-
-    const currentEntries = getVisualFeedbackEntries(selectedToilet.id);
-    visualFeedbackEntriesByToiletId = {
-      ...visualFeedbackEntriesByToiletId,
-      [selectedToilet.id]: [entry, ...currentEntries].slice(0, 20)
-    };
-
-    saveVisualFeedbackEntries();
-    resetVisualFeedbackForm();
-    renderVisualFeedbackDiscussion();
-    closeVisualFeedback();
-    setDetailSection("visual");
-    requestAnimationFrame(() => {
-      visualFeedbackList?.closest(".visual-feedback-discussion")?.scrollIntoView({
-        block: "start",
-        behavior: "smooth"
-      });
-    });
   }
 
   function setCommentMediaStatus(message = getCommentMediaStatus(selectedCommentMedia)) {
@@ -766,47 +533,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     mapPanel?.classList.toggle("has-comment-composer", shouldOpen);
 
     if (shouldOpen) {
-      setVisualFeedbackOpen(false);
       renderCleanlinessSurvey(selectedToilet);
       requestAnimationFrame(() => commentInput?.focus());
     }
   }
 
-  function setVisualFeedbackOpen(open, fixtureType = null) {
-    const shouldOpen = Boolean(open && selectedToilet && visualFeedbackPanel);
-    const nextFixtureType = normaliseVisualFixtureType(fixtureType);
-
-    if (nextFixtureType) {
-      visualFeedbackFixtureType = nextFixtureType;
-    } else if (shouldOpen && !visualFeedbackFixtureType) {
-      visualFeedbackFixtureType = getVisualFixtureType();
-    }
-
-    if (visualFeedbackPanel) {
-      visualFeedbackPanel.hidden = !shouldOpen;
-      visualFeedbackPanel.classList.toggle("is-hidden", !shouldOpen);
-    }
-
-    if (visualFeedbackToggle) {
-      visualFeedbackToggle.classList.toggle("is-active", shouldOpen);
-      visualFeedbackToggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
-    }
-
-    mapPanel?.classList.toggle("has-visual-feedback", shouldOpen);
-
-    if (shouldOpen) {
-      setCommentComposerOpen(false);
-      updateVisualCleanlinessPreview();
-      renderVisualFeedbackDiscussion();
-      requestAnimationFrame(() => visualCleanlinessSlider?.focus());
-    } else {
-      visualFeedbackFixtureType = null;
-    }
-  }
-
   function setCommentComposerAvailable(available) {
     const shouldShow = Boolean(
-      available && selectedToilet && (feedbackActionBar || commentComposerToggle || visualFeedbackToggle)
+      available && selectedToilet && (feedbackActionBar || commentComposerToggle)
     );
 
     if (feedbackActionBar) {
@@ -819,14 +553,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       commentComposerToggle.classList.toggle("is-hidden", !shouldShow);
     }
 
-    if (visualFeedbackToggle) {
-      visualFeedbackToggle.hidden = !shouldShow;
-      visualFeedbackToggle.classList.toggle("is-hidden", !shouldShow);
-    }
-
     if (!shouldShow) {
       setCommentComposerOpen(false);
-      setVisualFeedbackOpen(false);
     }
   }
 
@@ -836,18 +564,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function closeCommentComposer() {
     setCommentComposerOpen(false);
-  }
-
-  function toggleVisualFeedback() {
-    setVisualFeedbackOpen(visualFeedbackPanel?.hidden ?? true);
-  }
-
-  function openVisualFeedback(fixtureType = null) {
-    setVisualFeedbackOpen(true, fixtureType);
-  }
-
-  function closeVisualFeedback() {
-    setVisualFeedbackOpen(false);
   }
 
   function applyCommentPreset(presetText) {
@@ -1095,8 +811,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     selectedToilet = null;
     selectedRating = null;
     setCommentComposerAvailable(false);
-    resetVisualFeedbackForm();
-    renderVisualFeedbackDiscussion();
+    resetVisualCleanlinessRating();
     detailsCard?.classList.add("is-hidden");
     mapPanel?.classList.remove("has-details");
 
@@ -1166,7 +881,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     selectedToilet = toilet;
     selectedRating = null;
     closeCommentComposer();
-    closeVisualFeedback();
     setCommentComposerAvailable(true);
     feedbackThreadController.resetCommentsForToilet(toilet);
 
@@ -1211,9 +925,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     
     renderCleanlinessSurvey(toilet);
     renderCleanlinessRating(toilet);
-    resetVisualFeedbackForm();
-    updateVisualCleanlinessPreview();
-    renderVisualFeedbackDiscussion();
+    updateOverviewVisualCleanlinessPreview(toilet);
 
     if (currentDetailSection === "comment" || focusCommentId !== null) {
       await feedbackThreadController.loadComments(toilet, {
@@ -1624,6 +1336,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (selectedToilet?.id === toiletUpdate.id) {
       selectedToilet = applyUpdate(selectedToilet);
       renderCleanlinessRating(selectedToilet);
+      updateOverviewVisualCleanlinessPreview(selectedToilet);
     }
 
     renderResults();
@@ -1636,7 +1349,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     const safeRating = Number(rating);
-    if (!Number.isInteger(safeRating) || safeRating < 1 || safeRating > 5) return;
+    if (!isValidCleanlinessRating(safeRating)) return;
 
     selectedRating = safeRating;
     if (mapSurveyStatus) {
@@ -1708,15 +1421,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     renderCleanlinessSurvey(selectedToilet);
   }
 
-  async function submitCleanlinessSurveySelection() {
-    if (selectedRating === null) return;
-    const saved = await answerCleanlinessSurvey(selectedRating);
-    if (!saved) return;
-
-    selectedRating = null;
-    renderCleanlinessSurvey(selectedToilet);
-  }
-
   async function answerCleanlinessSurvey(rating) {
     if (!selectedToilet) {
       setStatus("Select a toilet marker before leaving feedback.");
@@ -1724,7 +1428,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     const safeRating = Number(rating);
-    if (!Number.isInteger(safeRating) || safeRating < 1 || safeRating > 5) return false;
+    if (!isValidCleanlinessRating(safeRating)) return false;
 
     if (!isAuthenticated()) {
       if (mapSurveyStatus) {
@@ -1774,7 +1478,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (!selectedToilet || !commentInput) return;
 
     const feedbackRating = Number(selectedRating);
-    if (!Number.isInteger(feedbackRating) || feedbackRating < 1 || feedbackRating > 5) {
+    if (!isValidCleanlinessRating(feedbackRating)) {
       if (mapSurveyStatus) {
         mapSurveyStatus.classList.add("warning");
         mapSurveyStatus.textContent = "Choose a rating before submitting feedback.";
@@ -1866,7 +1570,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     openCommentThread,
     updateToiletCleanliness,
     selectCleanlinessRating,
-    submitCleanlinessSurveySelection,
     answerCleanlinessSurvey,
     postComment,
     getAiSummary,
@@ -1874,11 +1577,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setCommentFilter: feedbackThreadController.setCommentFilter,
     toggleCommentComposer,
     closeCommentComposer,
-    toggleVisualFeedback,
-    openVisualFeedback,
-    closeVisualFeedback,
     setVisualCleanlinessLevel,
-    submitVisualFeedback,
     applyCommentPreset,
     previewCommentMediaSelection,
     removeCommentMediaSelection,
