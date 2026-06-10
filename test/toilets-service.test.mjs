@@ -37,14 +37,14 @@ test("toilets service defaults list requests to all-time cleanliness", async () 
 
     assert.equal(requestedUrl, "/api/toilets?cleanlinessRange=all");
     assert.equal(toilets[0].id, "all-time-toilet");
-    assert.deepEqual(getCachedToiletsFromApi(), toilets);
+    assert.equal(getCachedToiletsFromApi(), null);
   } finally {
     clearToiletsApiCache();
     globalThis.fetch = originalFetch;
   }
 });
 
-test("toilets service reuses short-lived API cache for matching range and bounds", async () => {
+test("toilets service does not reuse list responses from client cache", async () => {
   const originalFetch = globalThis.fetch;
   clearToiletsApiCache();
 
@@ -68,17 +68,17 @@ test("toilets service reuses short-lived API cache for matching range and bounds
     const firstLoad = await loadToiletsFromApi("3days", 0, 1000, bounds);
     const secondLoad = await loadToiletsFromApi("3days", 0, 1000, bounds);
 
-    assert.equal(fetchCount, 1);
+    assert.equal(fetchCount, 2);
     assert.equal(firstLoad[0].id, "toilet-1");
-    assert.deepEqual(secondLoad, firstLoad);
-    assert.deepEqual(getCachedToiletsFromApi("3days", bounds), firstLoad);
+    assert.equal(secondLoad[0].id, "toilet-2");
+    assert.equal(getCachedToiletsFromApi("3days", bounds), null);
   } finally {
     clearToiletsApiCache();
     globalThis.fetch = originalFetch;
   }
 });
 
-test("toilets service keeps period and bounds cache entries separate and supports force refresh", async () => {
+test("toilets service sends period and bounds on each list request", async () => {
   const originalFetch = globalThis.fetch;
   clearToiletsApiCache();
 
@@ -115,14 +115,14 @@ test("toilets service keeps period and bounds cache entries separate and support
     assert.equal(southOneDay[0].id, "toilet-2");
     assert.equal(northThreeDays[0].id, "toilet-3");
     assert.equal(forcedSouthThreeDays[0].id, "toilet-4");
-    assert.deepEqual(getCachedToiletsFromApi("3days", southBounds), forcedSouthThreeDays);
+    assert.equal(getCachedToiletsFromApi("3days", southBounds), null);
   } finally {
     clearToiletsApiCache();
     globalThis.fetch = originalFetch;
   }
 });
 
-test("toilets service reuses cached toilet detail requests and supports force refresh", async () => {
+test("toilets service does not reuse detail responses from client cache", async () => {
   const originalFetch = globalThis.fetch;
   clearToiletDetailCache();
   let fetchCount = 0;
@@ -150,18 +150,18 @@ test("toilets service reuses cached toilet detail requests and supports force re
     const secondDetail = await fetchToiletDetail("detail-test");
     const forcedDetail = await fetchToiletDetail("detail-test", { force: true });
 
-    assert.equal(fetchCount, 2);
+    assert.equal(fetchCount, 3);
     assert.equal(firstDetail.name, "Detail load 1");
-    assert.equal(secondDetail.name, "Detail load 1");
-    assert.equal(forcedDetail.name, "Detail load 2");
-    assert.deepEqual(getCachedToiletDetail("detail-test"), forcedDetail);
+    assert.equal(secondDetail.name, "Detail load 2");
+    assert.equal(forcedDetail.name, "Detail load 3");
+    assert.equal(getCachedToiletDetail("detail-test"), null);
   } finally {
     clearToiletDetailCache();
     globalThis.fetch = originalFetch;
   }
 });
 
-test("toilets service can invalidate cached detail entries for one toilet", async () => {
+test("toilets service detail cache invalidation is a no-op while client caching is disabled", async () => {
   const originalFetch = globalThis.fetch;
   clearToiletDetailCache();
   let fetchCount = 0;
@@ -187,13 +187,13 @@ test("toilets service can invalidate cached detail entries for one toilet", asyn
   try {
     await fetchToiletDetail("detail-test", { cleanlinessRange: "1day" });
     await fetchToiletDetail("detail-test", { cleanlinessRange: "3days" });
-    const otherDetail = await fetchToiletDetail("other-test", { cleanlinessRange: "3days" });
+    await fetchToiletDetail("other-test", { cleanlinessRange: "3days" });
 
     clearToiletDetailCache("detail-test");
 
     assert.equal(getCachedToiletDetail("detail-test", "1day"), null);
     assert.equal(getCachedToiletDetail("detail-test", "3days"), null);
-    assert.deepEqual(getCachedToiletDetail("other-test", "3days"), otherDetail);
+    assert.equal(getCachedToiletDetail("other-test", "3days"), null);
   } finally {
     clearToiletDetailCache();
     globalThis.fetch = originalFetch;

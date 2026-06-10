@@ -8,7 +8,6 @@ export async function createAiService({
   modelName = "gemini-1.5-flash"
 } = {}) {
   if (!apiKey || apiKey.trim().length === 0) {
-    console.warn("GOOGLE_AI_API_KEY is not set or empty. AI summarization will be disabled.");
     return null;
   }
 

@@ -558,7 +558,7 @@ test("map controller can hide empty details after loading toilets", () => {
   }
 });
 
-test("map controller lazy-loads comments when the feedback section opens", async () => {
+test("map controller reloads comments when the feedback section opens", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
   const originalFetch = globalThis.fetch;
@@ -631,7 +631,7 @@ test("map controller lazy-loads comments when the feedback section opens", async
     controller.setDetailSection("comment");
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    assert.equal(commentsFetchCount, 1);
+    assert.equal(commentsFetchCount, 2);
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;

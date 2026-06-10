@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev-server.mjs",
-    "start": "node scripts/dev-server.mjs",
+    "dev": "node --disable-warning=ExperimentalWarning scripts/dev-server.mjs",
+    "start": "node --disable-warning=ExperimentalWarning scripts/dev-server.mjs",
     "build": "node scripts/build.mjs",
     "check": "node scripts/check.mjs",
     "check:browser": "playwright test",
-    "repair:postgres": "node scripts/repair-postgres.mjs",
-    "test": "node --test",
-    "check:e2e": "node scripts/e2e-smoke.mjs"
+    "repair:postgres": "node --disable-warning=ExperimentalWarning scripts/repair-postgres.mjs",
+    "test": "node --disable-warning=ExperimentalWarning --test",
+    "check:e2e": "node --disable-warning=ExperimentalWarning scripts/e2e-smoke.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.13.0",

@@ -126,7 +126,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let hiddenByMarkerLimit = 0;
   let cleanlinessSurveyAnswers = loadSurveyAnswers();
   let cleanlinessUpdateById = new Map();
-  let cleanlinessDisplayCache = new Map();
   let cleanlinessDisplayRequestId = 0;
   let cleanlinessRangeByToiletId = new Map();
   let currentCleanlinessRange = defaultCleanlinessRange;
@@ -877,7 +876,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
           cleanlinessRange: currentCleanlinessRange
         });
         if (fullDetails) {
-          cacheCleanlinessDisplay(fullDetails, currentCleanlinessRange);
           toilet = mergeToiletDetailWithoutCleanliness(toilet, fullDetails);
           allToilets = allToilets.map(t => t.id === toiletId ? toilet : t);
         }
@@ -887,7 +885,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     selectedToilet = toilet;
-    selectedCleanlinessDisplayToilet = getCachedCleanlinessDisplayToilet(toilet, currentCleanlinessRange);
+    selectedCleanlinessDisplayToilet = toilet;
     selectedRating = null;
     closeCommentComposer();
     setCommentComposerAvailable(true);
@@ -1300,14 +1298,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return cleanlinessRangeByToiletId.get(toiletId) ?? defaultCleanlinessRange;
   }
 
-  function getCleanlinessDisplaySnapshot(toiletId, cleanlinessRange = currentCleanlinessRange) {
-    return cleanlinessDisplayCache.get(getCleanlinessDisplayCacheKey(toiletId, cleanlinessRange));
-  }
-
-  function getCleanlinessDisplayCacheKey(toiletId, cleanlinessRange = currentCleanlinessRange) {
-    return `${String(toiletId)}::${normaliseCleanlinessRange(cleanlinessRange)}`;
-  }
-
   function getCleanlinessSnapshot(toilet) {
     return {
       cleanliness: toilet?.cleanliness ?? null,
@@ -1341,21 +1331,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     );
   }
 
-  function getCachedCleanlinessDisplayToilet(toilet, cleanlinessRange = currentCleanlinessRange) {
-    const cachedSnapshot = toilet?.id ? getCleanlinessDisplaySnapshot(toilet.id, cleanlinessRange) : null;
-    return cachedSnapshot ? mergeCleanlinessSnapshot(toilet, cachedSnapshot) : toilet;
-  }
-
-  function cacheCleanlinessDisplay(toilet, cleanlinessRange = currentCleanlinessRange) {
-    if (!toilet?.id) return;
-
-    cleanlinessDisplayCache = new Map(cleanlinessDisplayCache);
-    cleanlinessDisplayCache.set(
-      getCleanlinessDisplayCacheKey(toilet.id, cleanlinessRange),
-      getCleanlinessSnapshot(toilet)
-    );
-  }
-
   function setSelectedCleanlinessDisplay(toilet) {
     selectedCleanlinessDisplayToilet = toilet;
     renderCleanlinessRating(toilet);
@@ -1374,17 +1349,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     cleanlinessDisplayRequestId = requestId;
 
     if (range === "all") {
-      cacheCleanlinessDisplay(selectedToilet, range);
       setSelectedCleanlinessDisplay(selectedToilet);
       return selectedToilet;
-    }
-
-    const cacheKey = getCleanlinessDisplayCacheKey(selectedToilet.id, range);
-    const cachedSnapshot = !force ? cleanlinessDisplayCache.get(cacheKey) : null;
-    if (cachedSnapshot) {
-      const cachedToilet = mergeCleanlinessSnapshot(selectedToilet, cachedSnapshot);
-      setSelectedCleanlinessDisplay(cachedToilet);
-      return cachedToilet;
     }
 
     if (!shouldFetchCleanlinessDisplay()) {
@@ -1408,7 +1374,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       }
 
       const displayToilet = mergeCleanlinessSnapshot(selectedToilet, getCleanlinessSnapshot(detailToilet));
-      cacheCleanlinessDisplay(displayToilet, range);
       setSelectedCleanlinessDisplay(displayToilet);
       return displayToilet;
     } catch (error) {
@@ -1559,7 +1524,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     });
 
     const toiletUpdate = createCurrentRangeCleanlinessUpdate(result.toilet, rating);
-    cacheCleanlinessDisplay(toiletUpdate, currentCleanlinessRange);
     if (selectedToilet?.id === result.toilet.id) {
       setSelectedCleanlinessDisplay(mergeCleanlinessSnapshot(selectedToilet, getCleanlinessSnapshot(toiletUpdate)));
     }

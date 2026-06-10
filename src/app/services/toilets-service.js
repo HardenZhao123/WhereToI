@@ -1,62 +1,19 @@
 import { appConfig } from "../config/app-config.js";
 import { fetchJson } from "./http-client.js";
 
-const toiletsApiCacheTtlMs = 2 * 60 * 1000;
-const toiletDetailCacheTtlMs = 5 * 60 * 1000;
-let toiletsApiCache = new Map();
-let toiletDetailCache = new Map();
-
-function getBoundsCacheKey(bounds) {
-  if (!bounds) return "all";
-
-  const minLat = Number(bounds.minLat);
-  const maxLat = Number(bounds.maxLat);
-  const minLng = Number(bounds.minLng);
-  const maxLng = Number(bounds.maxLng);
-
-  if (![minLat, maxLat, minLng, maxLng].every(Number.isFinite)) return "all";
-
-  return [minLat, maxLat, minLng, maxLng]
-    .map((value) => value.toFixed(5))
-    .join(",");
-}
-
-function getToiletsApiCacheKey(cleanlinessRange, bounds) {
-  return `${String(cleanlinessRange || "all")}::${getBoundsCacheKey(bounds)}`;
-}
-
-function getToiletDetailCacheKey(toiletId, cleanlinessRange = "all") {
-  return `${String(toiletId)}::${String(cleanlinessRange || "all")}`;
-}
-
 export function getCachedToiletsFromApi(cleanlinessRange = "all", bounds = null) {
-  const cacheKey = getToiletsApiCacheKey(cleanlinessRange, bounds);
-  const cached = toiletsApiCache.get(cacheKey);
-  if (!cached) return null;
-
-  if (Date.now() - cached.loadedAt > toiletsApiCacheTtlMs) {
-    toiletsApiCache = new Map(toiletsApiCache);
-    toiletsApiCache.delete(cacheKey);
-    return null;
-  }
-
-  return [...cached.toilets];
+  void cleanlinessRange;
+  void bounds;
+  return null;
 }
 
 export function clearToiletsApiCache() {
-  toiletsApiCache = new Map();
+  // Client-side toilet list caching is disabled while feedback/rating behavior is iterating.
 }
 
 export function clearToiletDetailCache(toiletId = null) {
-  if (!toiletId) {
-    toiletDetailCache = new Map();
-    return;
-  }
-
-  const prefix = `${String(toiletId)}::`;
-  toiletDetailCache = new Map(
-    [...toiletDetailCache].filter(([cacheKey]) => !String(cacheKey).startsWith(prefix))
-  );
+  void toiletId;
+  // Client-side toilet detail caching is disabled while feedback/rating behavior is iterating.
 }
 
 function cloneToilet(toilet) {
@@ -74,17 +31,9 @@ function cloneToilet(toilet) {
 }
 
 export function getCachedToiletDetail(toiletId, cleanlinessRange = "all") {
-  const cacheKey = getToiletDetailCacheKey(toiletId, cleanlinessRange);
-  const cached = toiletDetailCache.get(cacheKey);
-  if (!cached) return null;
-
-  if (Date.now() - cached.loadedAt > toiletDetailCacheTtlMs) {
-    toiletDetailCache = new Map(toiletDetailCache);
-    toiletDetailCache.delete(cacheKey);
-    return null;
-  }
-
-  return cloneToilet(cached.toilet);
+  void toiletId;
+  void cleanlinessRange;
+  return null;
 }
 
 export async function loadToiletsFromApi(
@@ -94,13 +43,7 @@ export async function loadToiletsFromApi(
   bounds = null,
   { force = false } = {}
 ) {
-  const cacheKey = getToiletsApiCacheKey(cleanlinessRange, bounds);
-  if (!force) {
-    const cachedToilets = getCachedToiletsFromApi(cleanlinessRange, bounds);
-    if (cachedToilets) {
-      return cachedToilets;
-    }
-  }
+  void force;
 
   let url = `${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`;
 
@@ -115,11 +58,6 @@ export async function loadToiletsFromApi(
     try {
       const payload = await fetchJson(url, { signal: controller.signal });
       if (Array.isArray(payload.toilets)) {
-        toiletsApiCache = new Map(toiletsApiCache);
-        toiletsApiCache.set(cacheKey, {
-          toilets: [...payload.toilets],
-          loadedAt: Date.now()
-        });
         return payload.toilets;
       }
     } catch (error) {
@@ -137,10 +75,7 @@ export async function loadToiletsFromApi(
 }
 
 export async function fetchToiletDetail(toiletId, { force = false, cleanlinessRange = "all" } = {}) {
-  if (!force) {
-    const cached = getCachedToiletDetail(toiletId, cleanlinessRange);
-    if (cached) return cached;
-  }
+  void force;
 
   const safeRange = String(cleanlinessRange || "all");
   let url = `${appConfig.apiBasePath}/toilets/detail?toiletId=${encodeURIComponent(toiletId)}`;
@@ -149,14 +84,6 @@ export async function fetchToiletDetail(toiletId, { force = false, cleanlinessRa
   }
 
   const payload = await fetchJson(url);
-  if (payload.toilet?.id) {
-    const cacheKey = getToiletDetailCacheKey(toiletId, safeRange);
-    toiletDetailCache = new Map(toiletDetailCache);
-    toiletDetailCache.set(cacheKey, {
-      toilet: cloneToilet(payload.toilet),
-      loadedAt: Date.now()
-    });
-  }
   return cloneToilet(payload.toilet);
 }
 

@@ -147,11 +147,15 @@ test("server can serve dist static files while keeping source data private", asy
   }
 });
 
-test("API cache headers keep public toilets reusable and account data private", async () => {
+test("API cache headers keep mutable toilet and account data private", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletsResponse = await fetch(`${baseUrl}/api/toilets`);
     assert.equal(toiletsResponse.status, 200);
-    assert.match(toiletsResponse.headers.get("cache-control"), /public, max-age=60/);
+    assert.equal(toiletsResponse.headers.get("cache-control"), "no-store");
+
+    const detailResponse = await fetch(`${baseUrl}/api/toilets/detail?toiletId=detail-test`);
+    assert.equal(detailResponse.status, 200);
+    assert.equal(detailResponse.headers.get("cache-control"), "no-store");
 
     const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
       method: "POST",
@@ -335,7 +339,8 @@ test("API supports fetching and posting toilet comments", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletId = "detail-test";
 
-    const { payload: initialPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    const { payload: initialPayload, response: initialResponse } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.equal(initialResponse.headers.get("cache-control"), "no-store");
     assert.equal(initialPayload.comments.length, 0);
 
     const anonymousCommentResponse = await fetch(`${baseUrl}/api/comments`, {

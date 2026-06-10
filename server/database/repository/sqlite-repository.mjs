@@ -251,17 +251,6 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       `
     ).run(demoUserId, 8.4, "Campus Plus", "2026-06-26", 3);
 
-    const insertHistory = db.prepare(`
-      INSERT INTO access_history (user_id, toilet_id, toilet_name, event_type, amount_gbp, access_time)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    const now = new Date();
-    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-
-    insertHistory.run(demoUserId, null, "South Kensington Station", "Paid access", 0.5, twoHoursAgo);
-    insertHistory.run(demoUserId, null, "Imperial Library", "Free access", 0, oneDayAgo);
   }
 
   return {

@@ -1,105 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { mapRecordToToilet } from "../mapper/toilet-mapper.mjs";
 
-const fallbackToilets = [
-  {
-    id: "city",
-    name: "City and Guilds building",
-    area: "Imperial College London",
-    lat: 51.49876,
-    lng: -0.17687,
-    paid: false,
-    cleanliness: 4,
-    comment: "Comment: clean today, short queue.",
-    features: {
-      women: "Y",
-      men: "Y",
-      accessible: "N",
-      neutral: "?",
-      children: "?",
-      babyChanging: "N",
-      bidet: "?",
-      automatic: "?",
-      urinalOnly: "N",
-      radarKey: "?",
-      free: "Y"
-    },
-    openingTimes: []
-  },
-  {
-    id: "station",
-    name: "South Kensington Station",
-    area: "Partner paid toilet",
-    lat: 51.49412,
-    lng: -0.17392,
-    paid: true,
-    cleanliness: 3,
-    comment: "Comment: paid gate required, usually busy after lectures.",
-    features: {
-      women: "Y",
-      men: "Y",
-      accessible: "Y",
-      neutral: "N",
-      children: "?",
-      babyChanging: "?",
-      bidet: "Y",
-      automatic: "?",
-      urinalOnly: "N",
-      radarKey: "?",
-      free: "N"
-    },
-    openingTimes: []
-  },
-  {
-    id: "library",
-    name: "Imperial Library",
-    area: "Campus access",
-    lat: 51.49818,
-    lng: -0.17821,
-    paid: false,
-    cleanliness: 4,
-    comment: "Comment: open late with accessible facilities nearby.",
-    features: {
-      women: "Y",
-      men: "Y",
-      accessible: "Y",
-      neutral: "Y",
-      children: "Y",
-      babyChanging: "Y",
-      bidet: "?",
-      automatic: "N",
-      urinalOnly: "N",
-      radarKey: "?",
-      free: "Y"
-    },
-    openingTimes: []
-  },
-  {
-    id: "museum",
-    name: "Museum Quarter",
-    area: "Public toilet",
-    lat: 51.49661,
-    lng: -0.17222,
-    paid: false,
-    cleanliness: 5,
-    comment: "Comment: free access, closes early on Sundays.",
-    features: {
-      women: "Y",
-      men: "Y",
-      accessible: "Y",
-      neutral: "N",
-      children: "Y",
-      babyChanging: "Y",
-      bidet: "?",
-      automatic: "N",
-      urinalOnly: "N",
-      radarKey: "?",
-      free: "Y"
-    },
-    openingTimes: []
-  }
-];
-
 function parseCsv(content) {
   const rows = [];
   let row = [];
@@ -179,10 +80,6 @@ export async function loadSeedToilets(csvPath) {
     toilets = records.map(mapRecordToToilet).filter(Boolean);
   } catch {
     toilets = [];
-  }
-
-  if (toilets.length === 0) {
-    toilets = fallbackToilets;
   }
 
   return toilets;

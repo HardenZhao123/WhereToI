@@ -23,9 +23,9 @@ const STATIC_CONTENT_TYPES = {
 };
 
 const API_CACHE_CONTROL = "no-cache";
-const PRIVATE_API_CACHE_CONTROL = "private, no-cache";
+const PRIVATE_API_CACHE_CONTROL = "no-store";
 const SENSITIVE_CACHE_CONTROL = "no-store";
-const PUBLIC_TOILETS_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=120";
+const PUBLIC_TOILETS_CACHE_CONTROL = "no-store";
 const STATIC_DOCUMENT_CACHE_CONTROL = "no-cache";
 const STATIC_ASSET_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
 const STATIC_IMAGE_CACHE_CONTROL = "public, max-age=604800, immutable";

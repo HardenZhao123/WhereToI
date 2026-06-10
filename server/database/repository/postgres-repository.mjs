@@ -419,35 +419,6 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
     );
   }
 
-  const historyCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM access_history")).rows[0]?.count ?? 0);
-
-  if (historyCount === 0) {
-    const now = new Date();
-    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-
-    await pool.query(
-      `
-      INSERT INTO access_history (user_id, toilet_id, toilet_name, event_type, amount_gbp, access_time)
-      VALUES ($1, $2, $3, $4, $5, $6), ($7, $8, $9, $10, $11, $12)
-      `,
-      [
-        demoUserId,
-        null,
-        "South Kensington Station",
-        "Paid access",
-        0.5,
-        twoHoursAgo,
-        demoUserId,
-        null,
-        "Imperial Library",
-        "Free access",
-        0,
-        oneDayAgo
-      ]
-    );
-  }
-
   return {
     backend: "postgres",
     async close() {
