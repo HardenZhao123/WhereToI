@@ -3253,6 +3253,64 @@ mark {
   .app-shell {
     min-height: 100vh;
   }
+
+  .comment-scene-panel {
+    max-height: min(560px, 64vh);
+  }
+
+  .comment-scene-panel .toilet-playground-workspace {
+    grid-template-columns: minmax(148px, 0.7fr) minmax(360px, 1.7fr) minmax(154px, 0.8fr);
+    align-items: start;
+  }
+
+  .comment-scene-panel .dirt-toolbar,
+  .comment-scene-panel .playground-status-panel {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .comment-scene-panel .dirt-tool-list {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .comment-scene-panel .dirt-tool {
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 6px;
+    min-height: 32px;
+    padding: 5px 6px;
+    font-size: 11px;
+  }
+
+  .comment-scene-panel .dirt-tool-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .comment-scene-panel .toilet-scene-panel {
+    justify-self: center;
+    width: min(100%, 600px);
+    padding: 8px;
+  }
+
+  .comment-scene-panel .playground-status-list {
+    gap: 6px;
+  }
+
+  .comment-scene-panel .playground-status-list li {
+    gap: 2px;
+    padding-bottom: 6px;
+  }
+
+  .comment-scene-panel .playground-actions {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .comment-scene-panel .playground-actions button {
+    height: 32px;
+    font-size: 11px;
+  }
 }
 
 @media (max-width: 760px) {
