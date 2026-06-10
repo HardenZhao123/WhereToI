@@ -160,6 +160,11 @@ test("API exposes toilet details on demand", async () => {
     assert.equal(detailPayload.toilet.features.children, "Y");
     assert.equal(detailPayload.toilet.comment, "Comment: Muslim toilet available");
     assert.deepEqual(detailPayload.toilet.openingTimes, [["09:00", "17:00"], [], [], [], [], [], []]);
+
+    const { payload: recentPayload } = await fetchJson(`${baseUrl}/api/toilets/detail?toiletId=${toiletId}&cleanlinessRange=1day`);
+    assert.equal(recentPayload.toilet.id, toiletId);
+    assert.equal(recentPayload.toilet.cleanliness, null);
+    assert.equal(recentPayload.toilet.cleanlinessSurvey.ratingCount, 0);
   });
 });
 

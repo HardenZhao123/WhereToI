@@ -85,11 +85,21 @@ test("cleanliness time ranges exclude older ratings except all time", async () =
     assert.equal(recentToilet.cleanlinessSurvey.ratingTotal, 0);
     assert.equal(recentToilet.cleanlinessSurvey.ratingCount, 0);
 
+    const recentDetail = await database.getToiletById("detail-test", { cleanlinessRange: "1day" });
+    assert.equal(recentDetail.cleanliness, null);
+    assert.equal(recentDetail.cleanlinessSurvey.ratingTotal, 0);
+    assert.equal(recentDetail.cleanlinessSurvey.ratingCount, 0);
+
     const allTimeToilets = await database.getToilets({ cleanlinessRange: "all" });
     const allTimeToilet = allTimeToilets.find((toilet) => toilet.id === "detail-test");
     assert.equal(allTimeToilet.cleanliness, 5);
     assert.equal(allTimeToilet.cleanlinessSurvey.ratingTotal, 5);
     assert.equal(allTimeToilet.cleanlinessSurvey.ratingCount, 1);
+
+    const allTimeDetail = await database.getToiletById("detail-test", { cleanlinessRange: "all" });
+    assert.equal(allTimeDetail.cleanliness, 5);
+    assert.equal(allTimeDetail.cleanlinessSurvey.ratingTotal, 5);
+    assert.equal(allTimeDetail.cleanlinessSurvey.ratingCount, 1);
   }, { modelType: "average" });
 });
 
