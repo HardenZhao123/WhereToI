@@ -24,7 +24,16 @@ const COMMENT_MEDIA_DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$
 const COMMENT_VISIBILITIES = new Set(["real", "anonymous"]);
 const COMMENT_PROFILE_VISIBILITIES = new Set(["private", "public"]);
 const COMMENT_SCENE_FIXTURES = ["toilet", "urinal", "sink", "floor"];
-const COMMENT_SCENE_DIRT_TYPES = new Set(["stain", "wet", "tissue"]);
+const COMMENT_SCENE_DIRT_TYPES = new Set([
+  "stain",
+  "wet",
+  "tissue",
+  "dust",
+  "urine",
+  "mud",
+  "soap",
+  "hair"
+]);
 const COMMENT_SCENE_MAX_PLACEMENTS = 80;
 export const ANONYMOUS_COMMENT_AUTHOR = "Anonymous";
 

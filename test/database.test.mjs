@@ -252,8 +252,14 @@ test("database saves and retrieves comments for toilets", async () => {
       fixtures: {
         toilet: [{ id: "toilet-stain-1", dirtId: "stain", x: 140, y: 230 }],
         urinal: [],
-        sink: [],
-        floor: [{ id: "floor-wet-2", dirtId: "wet", x: 640, y: 410 }]
+        sink: [
+          { id: "sink-soap-2", dirtId: "soap", x: 640, y: 270 },
+          { id: "sink-dust-3", dirtId: "dust", x: 580, y: 160 }
+        ],
+        floor: [
+          { id: "floor-wet-4", dirtId: "wet", x: 640, y: 410 },
+          { id: "floor-mud-5", dirtId: "mud", x: 520, y: 430 }
+        ]
       }
     };
     const sceneComments = await database.saveComment({
@@ -267,7 +273,7 @@ test("database saves and retrieves comments for toilets", async () => {
     const sceneComment = sceneComments.find((comment) => comment.cleanliness_rating === 3.5);
     assert.ok(sceneComment);
     assert.equal(sceneComment.comment_text, "");
-    assert.deepEqual(sceneComment.scene_snapshot.fixtures.toilet, sceneSnapshot.fixtures.toilet);
+    assert.deepEqual(sceneComment.scene_snapshot.fixtures, sceneSnapshot.fixtures);
 
     const anonymousComments = await database.saveComment({
       toiletId,

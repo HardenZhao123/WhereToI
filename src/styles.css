@@ -2127,6 +2127,46 @@ mark {
   transform: rotate(-8deg);
 }
 
+.dirt-tool-icon-dust {
+  border-radius: 999px;
+  background: #9a9286;
+  box-shadow:
+    -8px 6px 0 -4px #9a9286,
+    8px -4px 0 -5px #9a9286,
+    10px 8px 0 -4px #9a9286;
+}
+
+.dirt-tool-icon-urine {
+  border-radius: 52% 48% 58% 42%;
+  background: #e7c84a;
+  box-shadow: 9px -5px 0 -6px #e7c84a;
+  transform: rotate(-12deg);
+}
+
+.dirt-tool-icon-mud {
+  border-radius: 45% 55% 50% 50%;
+  background: #6b4731;
+  box-shadow:
+    8px 4px 0 -3px #6b4731,
+    -6px -5px 0 -5px #6b4731;
+}
+
+.dirt-tool-icon-soap {
+  border: 2px solid #8dd8e0;
+  border-radius: 999px;
+  background: #f8ffff;
+  box-shadow:
+    -8px 6px 0 -6px #f8ffff,
+    8px -5px 0 -7px #f8ffff;
+}
+
+.dirt-tool-icon-hair {
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 46%, #2d2930 48%, #2d2930 55%, transparent 57%);
+}
+
 .toilet-scene-panel {
   display: grid;
   min-width: 0;
@@ -2294,7 +2334,29 @@ mark {
   stroke: #e5ebf2;
 }
 
-.playground-toilet-tank-face,
+.playground-toilet-tank-face {
+  opacity: 0.86;
+}
+
+.playground-toilet-tank-shadow,
+.playground-toilet-lid-shadow,
+.playground-toilet-bowl-shadow,
+.playground-urinal-side-shadow,
+.playground-urinal-inner-shadow,
+.playground-sink-basin-side-shadow,
+.playground-hand-towel-shadow {
+  fill: rgb(95 108 126 / 12%);
+  stroke: none;
+}
+
+.playground-toilet-lid-shadow,
+.playground-toilet-bowl-shadow {
+  fill: none;
+  stroke: rgb(95 108 126 / 16%);
+  stroke-linecap: round;
+  stroke-width: 9;
+}
+
 .playground-urinal-highlight {
   opacity: 0.7;
 }
@@ -2342,6 +2404,7 @@ mark {
 }
 
 .playground-toilet-handle,
+.playground-toilet-floor-bolt,
 .playground-sink-drain,
 .playground-urinal-drain {
   fill: #293243;
@@ -2372,12 +2435,24 @@ mark {
 
 .playground-toilet-lid-highlight,
 .playground-urinal-highlight,
-.playground-sink-rim-highlight {
+.playground-sink-rim-highlight,
+.playground-sink-tap-highlight {
   fill: none;
   stroke: rgb(255 255 255 / 82%);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 8;
+}
+
+.playground-sink-tap-highlight {
+  stroke-width: 4;
+}
+
+.playground-urinal-trap {
+  fill: #f2f5fa;
+  stroke: #e3e8ef;
+  stroke-linejoin: round;
+  stroke-width: 3;
 }
 
 .playground-mirror {
@@ -2444,6 +2519,56 @@ mark {
   fill: none;
   stroke: #c7d0d4;
   stroke-linecap: round;
+}
+
+.dirt-overlay-dust {
+  fill: #8f887f;
+  opacity: 0.78;
+}
+
+.dirt-overlay-dust-smear {
+  fill: none;
+  stroke: #8f887f;
+  stroke-linecap: round;
+  stroke-width: 4;
+  opacity: 0.5;
+}
+
+.dirt-overlay-urine {
+  fill: #e6c846;
+  stroke: #c9a92c;
+  stroke-width: 2;
+  opacity: 0.8;
+}
+
+.dirt-overlay-urine-shine {
+  fill: none;
+  stroke: rgb(255 255 255 / 55%);
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.dirt-overlay-mud {
+  fill: #6b4731;
+  opacity: 0.86;
+}
+
+.dirt-overlay-soap {
+  fill: rgb(250 255 255 / 78%);
+  stroke: #86d6df;
+  stroke-width: 2;
+}
+
+.dirt-overlay-soap-puddle {
+  fill: rgb(126 211 222 / 34%);
+  stroke: #86d6df;
+}
+
+.dirt-overlay-hair {
+  fill: none;
+  stroke: #2d2930;
+  stroke-linecap: round;
+  stroke-width: 5;
 }
 
 .playground-status-list {
