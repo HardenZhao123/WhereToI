@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { createDatabase } from "../server/database.mjs";
+import { normaliseCommentPayload } from "../server/database/repository/repository-utils.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
 async function withSeededDatabase(callback, options = {}) {
@@ -48,6 +49,38 @@ test("SQLite database seeds and returns expanded toilet feature data", async () 
     assert.equal(detailToilet.features.radarKey, "Y");
     assert.equal(detailToilet.features.free, "Y");
   });
+});
+
+test("comment scene payload preserves accessible scene metadata and omits inactive urinal placements", () => {
+  const comment = normaliseCommentPayload({
+    toiletId: "accessible-toilet",
+    commentText: "",
+    cleanlinessRating: 4,
+    sceneSnapshot: {
+      version: 3,
+      sceneType: "accessible",
+      activeFixtures: ["wall", "toilet", "accessibleDispenser", "accessibleAlarm", "sink", "floor"],
+      toiletId: "accessible-toilet",
+      toiletName: "Accessible toilet",
+      fixtures: {
+        wall: [],
+        toilet: [],
+        urinal: [{ id: "urinal-wet-1", dirtId: "wet", x: 410, y: 250 }],
+        accessibleDispenser: [{ id: "accessibleDispenser-soap-1", dirtId: "soap", x: 262, y: 184 }],
+        accessibleAlarm: [{ id: "accessibleAlarm-dust-2", dirtId: "dust", x: 334, y: 356 }],
+        sink: [],
+        floor: [{ id: "floor-wet-2", dirtId: "wet", x: 620, y: 430 }]
+      }
+    }
+  });
+
+  assert.equal(comment.sceneSnapshot.version, 3);
+  assert.equal(comment.sceneSnapshot.sceneType, "accessible");
+  assert.deepEqual(comment.sceneSnapshot.activeFixtures, ["wall", "toilet", "accessibleDispenser", "accessibleAlarm", "sink", "floor"]);
+  assert.deepEqual(comment.sceneSnapshot.fixtures.urinal ?? [], []);
+  assert.equal(comment.sceneSnapshot.fixtures.accessibleDispenser.length, 1);
+  assert.equal(comment.sceneSnapshot.fixtures.accessibleAlarm.length, 1);
+  assert.equal(comment.sceneSnapshot.fixtures.floor.length, 1);
 });
 
 test("SQLite database keeps accessible-only filtering behavior", async () => {
