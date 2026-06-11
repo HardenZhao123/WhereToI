@@ -1,0 +1,18 @@
+          <section class="view view-map is-active" id="map-panel" aria-labelledby="map-tab">
+            <div class="map-canvas" id="map" aria-label="Interactive map of nearby toilets"></div>
+            <div class="map-legend" aria-hidden="true">
+              <div class="legend-item">
+                <span class="legend-color free"></span>
+                <span>Free</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color paid"></span>
+                <span>Paid</span>
+              </div>
+            </div>
+
+            <template data-html-include="./search-card.html"></template>
+
+            <template data-html-include="./details-card.html"></template>
+            <template data-html-include="./comment-composer.html"></template>
+          </section>

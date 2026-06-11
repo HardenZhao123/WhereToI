@@ -11,7 +11,31 @@ foreach ($File in $RequiredFiles) {
   }
 }
 
-$Html = Get-Content -LiteralPath "index.html" -Raw
+function Get-HtmlWithIncludes {
+  param(
+    [string]$Path,
+    [hashtable]$Seen = @{}
+  )
+
+  $FullPath = (Resolve-Path -LiteralPath $Path).Path
+  if ($Seen.ContainsKey($FullPath)) {
+    return ""
+  }
+  $Seen[$FullPath] = $true
+
+  $Content = Get-Content -LiteralPath $FullPath -Raw
+  $Output = $Content
+  $IncludeMatches = [regex]::Matches($Content, '<template\b[^>]*\bdata-html-include=["'']([^"'']+)["''][^>]*>\s*</template>')
+  foreach ($Match in $IncludeMatches) {
+    $Specifier = ($Match.Groups[1].Value -split "\?")[0]
+    $IncludePath = Join-Path -Path (Split-Path -Parent $FullPath) -ChildPath $Specifier
+    $Output += "`n" + (Get-HtmlWithIncludes -Path $IncludePath -Seen $Seen)
+  }
+
+  return $Output
+}
+
+$Html = Get-HtmlWithIncludes -Path "index.html"
 function Get-CssWithImports {
   param(
     [string]$Path,

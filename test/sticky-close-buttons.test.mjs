@@ -25,8 +25,28 @@ async function readCssWithImports(filePath, seen = new Set()) {
   return output + content.slice(lastIndex);
 }
 
+async function readHtmlWithIncludes(filePath, seen = new Set()) {
+  const fullPath = resolve(filePath);
+  if (seen.has(fullPath)) return "";
+  seen.add(fullPath);
+
+  const content = await readFile(fullPath, "utf8");
+  const includePattern = /<template\b[^>]*\bdata-html-include=["']([^"']+)["'][^>]*>\s*<\/template>/g;
+  let output = "";
+  let lastIndex = 0;
+
+  for (const match of content.matchAll(includePattern)) {
+    output += content.slice(lastIndex, match.index);
+    const specifier = match[1].split("?")[0];
+    output += await readHtmlWithIncludes(resolve(dirname(fullPath), specifier), seen);
+    lastIndex = match.index + match[0].length;
+  }
+
+  return output + content.slice(lastIndex);
+}
+
 const css = await readCssWithImports("src/styles.css");
-const html = await readFile("index.html", "utf8");
+const html = await readHtmlWithIncludes("index.html");
 
 function cssRuleFor(selector) {
   const blocks = css.matchAll(/(?<selectors>[^{}]+)\{(?<body>[\s\S]*?)\}/g);
