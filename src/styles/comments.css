@@ -704,3 +704,7 @@
   opacity: 0.65;
 }
 
+.comment-form > button[type="submit"][data-rating-required="true"]:not(:disabled) {
+  background: #7f8d89;
+  cursor: not-allowed;
+}

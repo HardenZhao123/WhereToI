@@ -4,6 +4,17 @@
     min-height: 100vh;
   }
 
+  .comment-scene-preview {
+    width: min(100%, 420px);
+  }
+
+  .comment-scene-preview .comment-scene-svg {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    aspect-ratio: 820 / 500;
+  }
+
   .comment-scene-panel {
     max-height: min(560px, 64vh);
   }
