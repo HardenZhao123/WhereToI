@@ -23,7 +23,8 @@ async function withSeededDatabase(callback, options = {}) {
     database = await createDatabase({
       rootDirectory: directory,
       dbFilePath,
-      seedCsvPath
+      seedCsvPath,
+      enableDemoAccount: true
     });
     await callback(database, { dbFilePath, seedCsvPath });
   } finally {
@@ -48,6 +49,189 @@ test("SQLite database seeds and returns expanded toilet feature data", async () 
     assert.equal(detailToilet.features.radarKey, "Y");
     assert.equal(detailToilet.features.free, "Y");
   });
+});
+
+test("database fails closed when PostgreSQL is unavailable", async () => {
+  const postgresError = new Error("PostgreSQL unavailable");
+  let sqliteCalls = 0;
+
+  await assert.rejects(
+    () => createDatabase({
+      databaseUrl: "postgres://example.invalid/wheretoi",
+      createPostgres: async () => {
+        throw postgresError;
+      },
+      createSqlite: async () => {
+        sqliteCalls += 1;
+        return { backend: "sqlite" };
+      }
+    }),
+    postgresError
+  );
+  assert.equal(sqliteCalls, 0);
+});
+
+test("database fallback remains available only when explicitly enabled", async () => {
+  const database = await createDatabase({
+    databaseUrl: "postgres://example.invalid/wheretoi",
+    allowDatabaseFallback: true,
+    createPostgres: async () => {
+      throw new Error("PostgreSQL unavailable");
+    },
+    createSqlite: async () => ({ backend: "sqlite" })
+  });
+
+  assert.equal(database.backend, "sqlite");
+});
+
+test("database can require a PostgreSQL URL instead of starting SQLite", async () => {
+  await assert.rejects(
+    () => createDatabase({ requireDatabaseUrl: true, databaseUrl: "" }),
+    /WHERETOI_DATABASE_URL is required/
+  );
+});
+
+test("SQLite does not create the built-in demo account by default", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "wheretoi-no-demo-test-"));
+  const seedCsvPath = join(directory, "toilets.csv");
+  const dbFilePath = join(directory, "wheretoi.sqlite");
+  let database;
+
+  try {
+    await writeFile(seedCsvPath, sampleToiletsCsv, "utf8");
+    database = await createDatabase({
+      rootDirectory: directory,
+      dbFilePath,
+      seedCsvPath,
+      enableDemoAccount: false
+    });
+
+    assert.equal(await database.getUserByUsername("demo"), undefined);
+  } finally {
+    await database?.close?.();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("SQLite removes built-in demo data when the demo account is disabled", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "wheretoi-demo-cleanup-test-"));
+  const seedCsvPath = join(directory, "toilets.csv");
+  const dbFilePath = join(directory, "wheretoi.sqlite");
+  let database;
+
+  try {
+    await writeFile(seedCsvPath, sampleToiletsCsv, "utf8");
+    database = await createDatabase({
+      rootDirectory: directory,
+      dbFilePath,
+      seedCsvPath,
+      enableDemoAccount: true
+    });
+    const demoUser = await database.getUserByUsername("demo");
+
+    await database.recordCleanlinessSurvey({
+      userId: demoUser.id,
+      toiletId: "detail-test",
+      rating: 5
+    });
+    await database.recordAccess({
+      userId: demoUser.id,
+      toiletId: "detail-test",
+      toiletName: "Prayer room washroom",
+      eventType: "Demo directions",
+      amountGbp: 0
+    });
+    const comments = await database.saveComment({
+      toiletId: "detail-test",
+      userId: demoUser.id,
+      username: demoUser.username,
+      commentText: "Demo feedback",
+      cleanlinessRating: 5
+    });
+    await database.toggleCommentLike({
+      toiletId: "detail-test",
+      commentId: comments[0].id,
+      userId: demoUser.id
+    });
+    await database.close();
+    database = null;
+
+    database = await createDatabase({
+      rootDirectory: directory,
+      dbFilePath,
+      seedCsvPath,
+      enableDemoAccount: false
+    });
+
+    assert.equal(await database.getUserByUsername("demo"), undefined);
+
+    const db = new DatabaseSync(dbFilePath);
+    try {
+      for (const table of [
+        "users",
+        "app_account",
+        "access_history",
+        "toilet_comments",
+        "cleanliness_surveys",
+        "comment_likes"
+      ]) {
+        assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count, 0);
+      }
+
+      const toilet = db.prepare(
+        "SELECT cleanliness, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias FROM toilets WHERE id = ?"
+      ).get("detail-test");
+      assert.deepEqual({ ...toilet }, {
+        cleanliness: 3,
+        cleanliness_rating_total: 0,
+        cleanliness_rating_count: 0,
+        cleanliness_rating_sum_squares: 0,
+        bias: 0
+      });
+    } finally {
+      db.close();
+    }
+  } finally {
+    await database?.close?.();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("SQLite preserves a user-created account named demo", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "wheretoi-user-demo-test-"));
+  const seedCsvPath = join(directory, "toilets.csv");
+  const dbFilePath = join(directory, "wheretoi.sqlite");
+  let database;
+
+  try {
+    await writeFile(seedCsvPath, sampleToiletsCsv, "utf8");
+    database = await createDatabase({
+      rootDirectory: directory,
+      dbFilePath,
+      seedCsvPath,
+      enableDemoAccount: false
+    });
+    await database.createUser({
+      username: "demo",
+      password: "a-user-selected-password",
+      email: "person@example.com"
+    });
+    await database.close();
+    database = null;
+
+    database = await createDatabase({
+      rootDirectory: directory,
+      dbFilePath,
+      seedCsvPath,
+      enableDemoAccount: false
+    });
+
+    const user = await database.getUserByUsername("demo");
+    assert.equal(user.email, "person@example.com");
+  } finally {
+    await database?.close?.();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("SQLite database keeps accessible-only filtering behavior", async () => {
@@ -205,7 +389,8 @@ test("database startup removes old demo access history rows without toilet ids",
     database = await createDatabase({
       rootDirectory: directory,
       dbFilePath,
-      seedCsvPath
+      seedCsvPath,
+      enableDemoAccount: true
     });
     const user = await database.getUserByUsername("demo");
     await database.close();
@@ -222,7 +407,8 @@ test("database startup removes old demo access history rows without toilet ids",
     database = await createDatabase({
       rootDirectory: directory,
       dbFilePath,
-      seedCsvPath
+      seedCsvPath,
+      enableDemoAccount: true
     });
 
     const history = await database.getAccessHistory(user.id);

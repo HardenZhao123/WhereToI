@@ -17,6 +17,12 @@ services:
         value: bias_training
       - key: WHERETOI_DATABASE_URL
         sync: false
+      - key: WHERETOI_REQUIRE_DATABASE_URL
+        value: "true"
+      - key: WHERETOI_ALLOW_DB_FALLBACK
+        value: "false"
+      - key: WHERETOI_ENABLE_DEMO_ACCOUNT
+        value: "false"
       - key: WHERETOI_RESEND_API_KEY
         sync: false
       - key: WHERETOI_EMAIL_FROM

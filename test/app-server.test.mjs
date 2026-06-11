@@ -23,7 +23,16 @@ async function withAppServer(callback, serverOptions = {}) {
     await writeFile(join(assetsDirectory, "signup-intro.mp4"), "fake mp4", "utf8");
     await writeFile(join(dataDirectory, "toilets.csv"), sampleToiletsCsv, "utf8");
 
-    appServer = await createAppServer({ rootDirectory, port: 0, ...serverOptions });
+    const { databaseOptions = {}, ...appServerOptions } = serverOptions;
+    appServer = await createAppServer({
+      rootDirectory,
+      port: 0,
+      ...appServerOptions,
+      databaseOptions: {
+        enableDemoAccount: true,
+        ...databaseOptions
+      }
+    });
     const port = await appServer.listen("127.0.0.1");
     await callback(`http://127.0.0.1:${port}`);
   } finally {
@@ -47,6 +56,7 @@ test("API exposes health and expanded toilet feature details", async () => {
     const detailToilet = toiletsPayload.toilets.find((toilet) => toilet.id === "detail-test");
 
     assert.equal(health.status, "ok");
+    assert.equal(health.database, "sqlite");
     assert.equal(detailToilet.features.children, "Y");
     assert.equal(detailToilet.features.babyChanging, "Y");
     assert.equal(detailToilet.features.bidet, "Y");
@@ -131,7 +141,8 @@ test("server can serve dist static files while keeping source data private", asy
       rootDirectory: staticRoot,
       port: 0,
       databaseOptions: {
-        rootDirectory: appRoot
+        rootDirectory: appRoot,
+        enableDemoAccount: true
       }
     });
     const port = await appServer.listen("127.0.0.1");

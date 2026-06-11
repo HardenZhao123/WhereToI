@@ -116,6 +116,11 @@ npm run build
 npm run check:e2e
 ```
 
+The built-in `demo/demo123` account is disabled by default. For isolated local
+or test data only, opt in with `WHERETOI_ENABLE_DEMO_ACCOUNT=true`. Production
+must set `WHERETOI_REQUIRE_DATABASE_URL=true`, keep
+`WHERETOI_ALLOW_DB_FALLBACK=false`, and keep the demo account disabled.
+
 This repository is maintained by the project team. We are not accepting external PRs right now; please use GitHub Issues for suggestions only.
 
 这个仓库由项目团队维护。目前不接受外部 PR；请只通过 GitHub Issues 提建议。

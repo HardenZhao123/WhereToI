@@ -14,7 +14,11 @@ export async function createDatabase({
   seedCsvPath = process.env.WHERETOI_SEED_CSV,
   databaseUrl = process.env.WHERETOI_DATABASE_URL,
   cleanlinessScoringModel = getConfiguredCleanlinessScoringModel(),
-  allowDatabaseFallback = process.env.WHERETOI_ALLOW_DB_FALLBACK !== "false"
+  allowDatabaseFallback = process.env.WHERETOI_ALLOW_DB_FALLBACK === "true",
+  requireDatabaseUrl = process.env.WHERETOI_REQUIRE_DATABASE_URL === "true",
+  enableDemoAccount = process.env.WHERETOI_ENABLE_DEMO_ACCOUNT === "true",
+  createPostgres = createPostgresDatabase,
+  createSqlite = createSqliteDatabase
 } = {}) {
   const resolvedSeedCsvPath =
     resolvePath(rootDirectory, seedCsvPath) ?? resolve(rootDirectory, "src", "data", "toilets.csv");
@@ -23,18 +27,20 @@ export async function createDatabase({
     resolvePath(rootDirectory, dbFilePath) ?? resolve(rootDirectory, "data", "wheretoi.sqlite");
 
   const createSqliteFallback = () =>
-    createSqliteDatabase({
+    createSqlite({
       dbFilePath: resolvedDbFilePath,
       seedCsvPath: resolvedSeedCsvPath,
-      cleanlinessScoringModel
+      cleanlinessScoringModel,
+      enableDemoAccount
     });
 
   if (databaseUrl) {
     try {
-      return await createPostgresDatabase({
+      return await createPostgres({
         connectionString: databaseUrl,
         seedCsvPath: resolvedSeedCsvPath,
-        cleanlinessScoringModel
+        cleanlinessScoringModel,
+        enableDemoAccount
       });
     } catch (error) {
       if (!allowDatabaseFallback) {
@@ -47,6 +53,12 @@ export async function createDatabase({
       );
       return createSqliteFallback();
     }
+  }
+
+  if (requireDatabaseUrl) {
+    throw new Error(
+      "WHERETOI_DATABASE_URL is required. Refusing to start with local SQLite."
+    );
   }
 
   return createSqliteFallback();
