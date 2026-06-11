@@ -10,6 +10,7 @@ import {
   normaliseCommentSortMode
 } from "../utils/comments.js";
 import { createToiletScenePreview } from "../toilet-playground/toilet-playground.js";
+import { createStarRatingElement } from "../utils/star-rating.js";
 
 export function createFeedbackThreadController(elements = {}, options = {}) {
   const {
@@ -115,19 +116,7 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
   }
 
   function createCommentRatingElement(comment) {
-    const rating = Number(comment?.cleanliness_rating);
-    if (!Number.isFinite(rating) || rating < 0.5 || rating > 5 || !Number.isInteger(rating * 2)) {
-      return null;
-    }
-
-    const ratingElement = document.createElement("span");
-    const full = Math.floor(rating);
-    const half = rating > full ? 1 : 0;
-    const empty = Math.max(5 - full - half, 0);
-    ratingElement.className = "comment-rating";
-    ratingElement.setAttribute("aria-label", `Cleanliness rating ${rating} out of 5`);
-    ratingElement.textContent = `${"\u2605".repeat(full)}${half ? "\u00bd" : ""}${"\u2606".repeat(empty)}`;
-    return ratingElement;
+    return createStarRatingElement(comment?.cleanliness_rating, "comment-rating");
   }
 
   function updateCommentsSummary(totalCount, visibleCount) {
