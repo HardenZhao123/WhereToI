@@ -70,7 +70,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentMediaPreview,
     commentMediaStatus,
     commentSceneToggle,
-    commentScenePanel,
     commentSceneStatus,
     overviewVisualPreview,
     overviewVisualImage,
@@ -98,6 +97,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     onCleanlinessSaved = async () => {},
     getFeedbackSceneSnapshot = () => null,
     resetFeedbackScene = () => {},
+    openFeedbackSceneView = () => {},
     onBoundsChanged = () => {}
   } = auth;
 
@@ -546,48 +546,28 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return commentAnonymousInput?.checked ? "anonymous" : "real";
   }
 
-  function scrollFeedbackSceneIntoDesktopView() {
-    if (
-      !commentComposer ||
-      !commentScenePanel ||
-      !globalThis.matchMedia?.("(min-width: 900px)")?.matches
-    ) {
-      return;
-    }
-
-    requestAnimationFrame(() => {
-      const nextScrollTop = Math.max(0, commentScenePanel.offsetTop - 12);
-      if (typeof commentComposer.scrollTo === "function") {
-        commentComposer.scrollTo({ top: nextScrollTop, behavior: "auto" });
-        return;
-      }
-
-      commentComposer.scrollTop = nextScrollTop;
-    });
-  }
-
-  function setFeedbackSceneOpen(open) {
-    const shouldOpen = Boolean(open && selectedToilet && commentScenePanel);
-
-    if (commentScenePanel) {
-      commentScenePanel.hidden = !shouldOpen;
-      commentScenePanel.classList.toggle("is-hidden", !shouldOpen);
-    }
-
+  function refreshFeedbackSceneStatus() {
+    const hasScene = Boolean(getFeedbackSceneSnapshot());
     if (commentSceneToggle) {
-      commentSceneToggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
-      commentSceneToggle.textContent = shouldOpen ? "Hide interactive scene" : "Add interactive scene";
+      commentSceneToggle.textContent = hasScene ? "Edit interactive scene" : "Add interactive scene";
     }
 
     if (commentSceneStatus) {
-      commentSceneStatus.textContent = shouldOpen
-        ? "Optional scene for this feedback."
+      commentSceneStatus.textContent = hasScene
+        ? "Interactive scene will be attached to this feedback."
         : "Optional scene for this feedback.";
     }
+  }
 
-    if (shouldOpen) {
-      scrollFeedbackSceneIntoDesktopView();
+  function openFeedbackScene() {
+    if (!selectedToilet) return;
+
+    if (!commentComposer || commentComposer.hidden) {
+      setCommentComposerOpen(true);
     }
+
+    refreshFeedbackSceneStatus();
+    openFeedbackSceneView();
   }
 
   function setCommentComposerOpen(open) {
@@ -610,9 +590,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       selectedRating = null;
       feedbackSubmitAttemptedWithoutRating = false;
       renderCleanlinessSurvey(selectedToilet);
+      refreshFeedbackSceneStatus();
       requestAnimationFrame(() => commentInput?.focus());
-    } else {
-      setFeedbackSceneOpen(false);
     }
   }
 
@@ -645,7 +624,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function toggleFeedbackScene() {
-    setFeedbackSceneOpen(commentScenePanel?.hidden ?? true);
+    openFeedbackScene();
   }
 
   function applyCommentPreset(presetText) {
@@ -1744,6 +1723,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       feedbackSubmitAttemptedWithoutRating = false;
       resetCommentMediaAttachment();
       resetFeedbackScene();
+      refreshFeedbackSceneStatus();
       closeCommentComposer();
       renderCleanlinessSurvey(selectedToilet);
     } catch (error) {
@@ -1796,6 +1776,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setCommentFilter: feedbackThreadController.setCommentFilter,
     toggleCommentComposer,
     toggleFeedbackScene,
+    refreshFeedbackSceneStatus,
     closeCommentComposer,
     setVisualCleanlinessLevel,
     applyCommentPreset,

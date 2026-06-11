@@ -14,7 +14,12 @@ export function createApp() {
   let tabController = null;
   let boundsFetchTimeoutId = null;
   const mapCleanlinessRange = "3days";
-  const toiletPlayground = createToiletPlayground(elements.feedbackSceneRoot);
+  const toiletPlayground = createToiletPlayground(elements.feedbackSceneRoot, {
+    onDone: () => {
+      tabController?.setTab("map");
+      mapController?.refreshFeedbackSceneStatus();
+    }
+  });
 
   const mapController = createMapController(elements, (toilet) => toiletPlayground.setContext(toilet), {
     isAuthenticated: () => accountController?.isAuthenticated() ?? false,
@@ -30,6 +35,7 @@ export function createApp() {
       }),
     getFeedbackSceneSnapshot: () => toiletPlayground.getSubmissionSnapshot(),
     resetFeedbackScene: () => toiletPlayground.reset(),
+    openFeedbackSceneView: () => tabController?.setTab("scene"),
     onBoundsChanged: (bounds) => {
       if (boundsFetchTimeoutId) {
         window.clearTimeout(boundsFetchTimeoutId);
@@ -255,6 +261,10 @@ export function createApp() {
     });
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
     elements.commentSceneToggle?.addEventListener("click", () => mapController.toggleFeedbackScene());
+    elements.sceneBackButton?.addEventListener("click", () => {
+      tabController?.setTab("map");
+      mapController.refreshFeedbackSceneStatus();
+    });
     elements.commentPresetButtons.forEach((button) => {
       button?.addEventListener("click", () => mapController.applyCommentPreset(button.dataset.commentPreset));
     });

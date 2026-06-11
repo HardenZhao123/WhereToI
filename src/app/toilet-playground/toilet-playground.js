@@ -922,7 +922,8 @@ function ToiletPlayground({ state, selectedDirt, toilet, lastAction, callbacks }
   return wrapper;
 }
 
-export function createToiletPlayground(rootElement) {
+export function createToiletPlayground(rootElement, options = {}) {
+  const { onDone = () => {} } = options;
   const defaultSceneKey = "__unselected_toilet__";
   const sceneStatesByKey = new Map([[defaultSceneKey, createInitialDirtState()]]);
   const sceneLastActionsByKey = new Map([[defaultSceneKey, "Ready"]]);
@@ -1051,6 +1052,7 @@ export function createToiletPlayground(rootElement) {
     }
 
     render();
+    onDone(getSubmissionSnapshot());
   }
 
   function setContext(nextToilet) {
