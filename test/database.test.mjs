@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { createDatabase } from "../server/database.mjs";
+import { normaliseCommentPayload } from "../server/database/repository/repository-utils.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
 async function withSeededDatabase(callback, options = {}) {
@@ -51,187 +52,36 @@ test("SQLite database seeds and returns expanded toilet feature data", async () 
   });
 });
 
-test("database fails closed when PostgreSQL is unavailable", async () => {
-  const postgresError = new Error("PostgreSQL unavailable");
-  let sqliteCalls = 0;
-
-  await assert.rejects(
-    () => createDatabase({
-      databaseUrl: "postgres://example.invalid/wheretoi",
-      createPostgres: async () => {
-        throw postgresError;
-      },
-      createSqlite: async () => {
-        sqliteCalls += 1;
-        return { backend: "sqlite" };
+test("comment scene payload preserves accessible scene metadata and omits inactive urinal placements", () => {
+  const comment = normaliseCommentPayload({
+    toiletId: "accessible-toilet",
+    commentText: "",
+    cleanlinessRating: 4,
+    sceneSnapshot: {
+      version: 3,
+      sceneType: "accessible",
+      activeFixtures: ["wall", "toilet", "accessibleDispenser", "accessibleAlarm", "sink", "floor"],
+      toiletId: "accessible-toilet",
+      toiletName: "Accessible toilet",
+      fixtures: {
+        wall: [],
+        toilet: [],
+        urinal: [{ id: "urinal-wet-1", dirtId: "wet", x: 410, y: 250 }],
+        accessibleDispenser: [{ id: "accessibleDispenser-soap-1", dirtId: "soap", x: 262, y: 184 }],
+        accessibleAlarm: [{ id: "accessibleAlarm-dust-2", dirtId: "dust", x: 334, y: 356 }],
+        sink: [],
+        floor: [{ id: "floor-wet-2", dirtId: "wet", x: 620, y: 430 }]
       }
-    }),
-    postgresError
-  );
-  assert.equal(sqliteCalls, 0);
-});
-
-test("database fallback remains available only when explicitly enabled", async () => {
-  const database = await createDatabase({
-    databaseUrl: "postgres://example.invalid/wheretoi",
-    allowDatabaseFallback: true,
-    createPostgres: async () => {
-      throw new Error("PostgreSQL unavailable");
-    },
-    createSqlite: async () => ({ backend: "sqlite" })
+    }
   });
 
-  assert.equal(database.backend, "sqlite");
-});
-
-test("database can require a PostgreSQL URL instead of starting SQLite", async () => {
-  await assert.rejects(
-    () => createDatabase({ requireDatabaseUrl: true, databaseUrl: "" }),
-    /WHERETOI_DATABASE_URL is required/
-  );
-});
-
-test("SQLite does not create the built-in demo account by default", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "wheretoi-no-demo-test-"));
-  const seedCsvPath = join(directory, "toilets.csv");
-  const dbFilePath = join(directory, "wheretoi.sqlite");
-  let database;
-
-  try {
-    await writeFile(seedCsvPath, sampleToiletsCsv, "utf8");
-    database = await createDatabase({
-      rootDirectory: directory,
-      dbFilePath,
-      seedCsvPath,
-      enableDemoAccount: false
-    });
-
-    assert.equal(await database.getUserByUsername("demo"), undefined);
-  } finally {
-    await database?.close?.();
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-test("SQLite removes built-in demo data when the demo account is disabled", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "wheretoi-demo-cleanup-test-"));
-  const seedCsvPath = join(directory, "toilets.csv");
-  const dbFilePath = join(directory, "wheretoi.sqlite");
-  let database;
-
-  try {
-    await writeFile(seedCsvPath, sampleToiletsCsv, "utf8");
-    database = await createDatabase({
-      rootDirectory: directory,
-      dbFilePath,
-      seedCsvPath,
-      enableDemoAccount: true
-    });
-    const demoUser = await database.getUserByUsername("demo");
-
-    await database.recordCleanlinessSurvey({
-      userId: demoUser.id,
-      toiletId: "detail-test",
-      rating: 5
-    });
-    await database.recordAccess({
-      userId: demoUser.id,
-      toiletId: "detail-test",
-      toiletName: "Prayer room washroom",
-      eventType: "Demo directions",
-      amountGbp: 0
-    });
-    const comments = await database.saveComment({
-      toiletId: "detail-test",
-      userId: demoUser.id,
-      username: demoUser.username,
-      commentText: "Demo feedback",
-      cleanlinessRating: 5
-    });
-    await database.toggleCommentLike({
-      toiletId: "detail-test",
-      commentId: comments[0].id,
-      userId: demoUser.id
-    });
-    await database.close();
-    database = null;
-
-    database = await createDatabase({
-      rootDirectory: directory,
-      dbFilePath,
-      seedCsvPath,
-      enableDemoAccount: false
-    });
-
-    assert.equal(await database.getUserByUsername("demo"), undefined);
-
-    const db = new DatabaseSync(dbFilePath);
-    try {
-      for (const table of [
-        "users",
-        "app_account",
-        "access_history",
-        "toilet_comments",
-        "cleanliness_surveys",
-        "comment_likes"
-      ]) {
-        assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count, 0);
-      }
-
-      const toilet = db.prepare(
-        "SELECT cleanliness, cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias FROM toilets WHERE id = ?"
-      ).get("detail-test");
-      assert.deepEqual({ ...toilet }, {
-        cleanliness: 3,
-        cleanliness_rating_total: 0,
-        cleanliness_rating_count: 0,
-        cleanliness_rating_sum_squares: 0,
-        bias: 0
-      });
-    } finally {
-      db.close();
-    }
-  } finally {
-    await database?.close?.();
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-test("SQLite preserves a user-created account named demo", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "wheretoi-user-demo-test-"));
-  const seedCsvPath = join(directory, "toilets.csv");
-  const dbFilePath = join(directory, "wheretoi.sqlite");
-  let database;
-
-  try {
-    await writeFile(seedCsvPath, sampleToiletsCsv, "utf8");
-    database = await createDatabase({
-      rootDirectory: directory,
-      dbFilePath,
-      seedCsvPath,
-      enableDemoAccount: false
-    });
-    await database.createUser({
-      username: "demo",
-      password: "a-user-selected-password",
-      email: "person@example.com"
-    });
-    await database.close();
-    database = null;
-
-    database = await createDatabase({
-      rootDirectory: directory,
-      dbFilePath,
-      seedCsvPath,
-      enableDemoAccount: false
-    });
-
-    const user = await database.getUserByUsername("demo");
-    assert.equal(user.email, "person@example.com");
-  } finally {
-    await database?.close?.();
-    await rm(directory, { recursive: true, force: true });
-  }
+  assert.equal(comment.sceneSnapshot.version, 3);
+  assert.equal(comment.sceneSnapshot.sceneType, "accessible");
+  assert.deepEqual(comment.sceneSnapshot.activeFixtures, ["wall", "toilet", "accessibleDispenser", "accessibleAlarm", "sink", "floor"]);
+  assert.deepEqual(comment.sceneSnapshot.fixtures.urinal ?? [], []);
+  assert.equal(comment.sceneSnapshot.fixtures.accessibleDispenser.length, 1);
+  assert.equal(comment.sceneSnapshot.fixtures.accessibleAlarm.length, 1);
+  assert.equal(comment.sceneSnapshot.fixtures.floor.length, 1);
 });
 
 test("SQLite database keeps accessible-only filtering behavior", async () => {

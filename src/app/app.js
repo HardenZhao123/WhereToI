@@ -218,20 +218,12 @@ export function createApp() {
   }
 
   function bindEvents() {
-    elements.toggleSearchButton?.addEventListener("click", () => {
-      const isCollapsed = elements.searchCard?.classList.toggle("is-collapsed");
-      if (elements.toggleSearchButton) {
-        elements.toggleSearchButton.setAttribute("aria-label", isCollapsed ? "Expand search panel" : "Collapse search panel");
-      }
-    });
+    elements.toggleSearchButton?.addEventListener("click", () => mapController.toggleSearchPanel());
 
     elements.resetMapButton?.addEventListener("click", () => mapController.resetFilters());
     elements.searchInput?.addEventListener("input", (event) => {
       if (event.target.value.trim().length > 0 && elements.searchCard?.classList.contains("is-collapsed")) {
-        elements.searchCard.classList.remove("is-collapsed");
-        if (elements.toggleSearchButton) {
-          elements.toggleSearchButton.setAttribute("aria-label", "Collapse search panel");
-        }
+        mapController.expandSearchPanel();
       }
       mapController.setSearchQuery(event.target.value);
     });

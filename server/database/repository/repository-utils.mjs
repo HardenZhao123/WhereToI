@@ -23,7 +23,25 @@ export function normaliseUserId(value) {
 const COMMENT_MEDIA_DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
 const COMMENT_VISIBILITIES = new Set(["real", "anonymous"]);
 const COMMENT_PROFILE_VISIBILITIES = new Set(["private", "public"]);
-const COMMENT_SCENE_FIXTURES = ["wall", "toilet", "urinal", "sink", "floor"];
+const COMMENT_SCENE_FIXTURES = [
+  "wall",
+  "toilet",
+  "urinal",
+  "accessibleSupport",
+  "accessibleAlarm",
+  "accessibleDispenser",
+  "accessibleMirror",
+  "womenSanitaryBin",
+  "womenProductDispenser",
+  "womenShelf",
+  "sink",
+  "floor"
+];
+const COMMENT_SCENE_FIXTURE_SET = new Set(COMMENT_SCENE_FIXTURES);
+const COMMENT_SCENE_FIXTURE_ID_BY_KEY = new Map(
+  COMMENT_SCENE_FIXTURES.map((fixtureId) => [fixtureId.toLowerCase(), fixtureId])
+);
+const COMMENT_SCENE_TYPES = new Set(["standard", "women", "accessible"]);
 const COMMENT_SCENE_DIRT_TYPES = new Set([
   "stain",
   "wet",
@@ -200,6 +218,38 @@ function normaliseSceneCoordinate(value, max, fallback = 0) {
   return Math.round(Math.min(Math.max(coordinate, 0), max));
 }
 
+function normaliseCommentSceneType(value) {
+  const sceneType = normaliseText(value).toLowerCase();
+  return COMMENT_SCENE_TYPES.has(sceneType) ? sceneType : "standard";
+}
+
+function getDefaultCommentSceneFixtures(sceneType) {
+  if (sceneType === "accessible") {
+    return ["wall", "toilet", "accessibleSupport", "accessibleAlarm", "accessibleDispenser", "accessibleMirror", "sink", "floor"];
+  }
+
+  if (sceneType === "women") {
+    return ["wall", "toilet", "womenProductDispenser", "womenShelf", "womenSanitaryBin", "sink", "floor"];
+  }
+
+  return ["wall", "toilet", "urinal", "sink", "floor"];
+}
+
+function normaliseCommentSceneActiveFixtures(rawActiveFixtures, sceneType) {
+  const activeFixtures = Array.isArray(rawActiveFixtures)
+    ? rawActiveFixtures
+        .map((fixtureId) => COMMENT_SCENE_FIXTURE_ID_BY_KEY.get(normaliseText(fixtureId).toLowerCase()))
+        .filter(Boolean)
+    : [];
+
+  const validActiveFixtures = activeFixtures.filter((fixtureId) => COMMENT_SCENE_FIXTURE_SET.has(fixtureId));
+  if (validActiveFixtures.length === 0) {
+    return getDefaultCommentSceneFixtures(sceneType);
+  }
+
+  return [...new Set(validActiveFixtures)];
+}
+
 function normaliseCommentSceneSnapshot(sceneSnapshot = null, expectedToiletId = "") {
   if (sceneSnapshot === null || sceneSnapshot === undefined || sceneSnapshot === "") {
     return {
@@ -227,7 +277,9 @@ function normaliseCommentSceneSnapshot(sceneSnapshot = null, expectedToiletId = 
   }
 
   let totalPlacements = 0;
-  const fixtures = COMMENT_SCENE_FIXTURES.reduce((snapshot, fixtureId) => {
+  const sceneType = normaliseCommentSceneType(rawSnapshot.sceneType);
+  const activeFixtures = normaliseCommentSceneActiveFixtures(rawSnapshot.activeFixtures, sceneType);
+  const fixtures = activeFixtures.reduce((snapshot, fixtureId) => {
     const rawPlacements = Array.isArray(rawFixtures[fixtureId]) ? rawFixtures[fixtureId] : [];
     snapshot[fixtureId] = rawPlacements
       .map((placement, index) => {
@@ -257,7 +309,9 @@ function normaliseCommentSceneSnapshot(sceneSnapshot = null, expectedToiletId = 
   }
 
   const snapshot = {
-    version: 2,
+    version: 3,
+    sceneType,
+    activeFixtures,
     toiletId: normaliseText(rawSnapshot.toiletId) || expectedToiletId,
     toiletName: normaliseText(rawSnapshot.toiletName).slice(0, 160),
     fixtures
