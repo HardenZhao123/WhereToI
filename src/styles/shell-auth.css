@@ -1,0 +1,141 @@
+.tabbar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  height: 74px;
+  border-top: 1px solid var(--line);
+  background: #fbfcf7;
+}
+
+.tab {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  border: 0;
+  color: var(--muted);
+  font-size: 11px;
+  background: transparent;
+}
+
+.tab span {
+  font-size: 18px;
+}
+
+.tab.is-active {
+  color: var(--teal);
+}
+
+.auth-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(31 42 51 / 60%);
+}
+
+.auth-modal.is-hidden {
+  display: none;
+}
+
+.auth-dialog {
+  position: relative;
+  width: min(360px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  scroll-padding-top: 64px;
+  padding: 24px;
+  border-radius: 18px;
+  background: white;
+  box-shadow: 0 24px 72px rgb(31 42 51 / 28%);
+}
+
+.auth-dialog h2 {
+  margin-bottom: 4px;
+  color: #142c72;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.auth-form .is-hidden,
+.account-unlock-card.is-hidden,
+.logout-button.is-hidden {
+  display: none;
+}
+
+.auth-form label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #142c72;
+}
+
+.auth-form input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfcf8;
+}
+
+.auth-form button {
+  height: 44px;
+  margin-top: 8px;
+}
+
+.auth-switch {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.auth-switch button {
+  padding: 0;
+  border: 0;
+  color: var(--blue);
+  font-weight: 600;
+  background: transparent;
+}
+
+.auth-status {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--pink);
+  text-align: center;
+}
+
+.logout-button {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.account-unlock-card {
+  border-color: rgb(40 118 102 / 28%);
+  background: var(--teal-soft);
+}
+
+.account-unlock-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.account-unlock-actions button {
+  height: 40px;
+}

@@ -1,0 +1,127 @@
+            <div class="feedback-action-bar is-hidden" id="feedback-action-bar" hidden>
+              <button class="comment-composer-toggle" id="comment-composer-toggle" type="button" aria-controls="comment-composer" aria-expanded="false">
+                Write feedback
+              </button>
+            </div>
+            <section class="comment-composer is-hidden" id="comment-composer" aria-labelledby="comment-composer-title" hidden>
+              <button class="close-button sticky-close-button" id="close-comment-composer" type="button" aria-label="Close feedback editor">X</button>
+              <header class="comment-composer-header">
+                <h3 id="comment-composer-title">Write feedback</h3>
+              </header>
+              <form id="comment-form" class="comment-form">
+                <section class="map-cleanliness-survey feedback-rating-field" aria-labelledby="map-cleanliness-survey-title">
+                  <div>
+                    <h4 id="map-cleanliness-survey-title">Cleanliness rating</h4>
+                    <p>Required for feedback. Match the picture to what you saw.</p>
+                  </div>
+                  <div class="feedback-visual-rating">
+                    <div class="visual-preview-card feedback-visual-preview" id="visual-cleanliness-preview" data-cleanliness="3" role="img" aria-label="Cartoon toilet cleanliness preview: OK">
+                      <img id="visual-cleanliness-image" class="visual-cleanliness-image is-hidden" src="" alt="Real toilet cleanliness preview" />
+                      <svg class="cartoon-toilet-svg" viewBox="0 0 220 180" aria-hidden="true" focusable="false">
+                        <rect class="toilet-room-floor" x="22" y="128" width="176" height="18" rx="9"></rect>
+                        <path class="toilet-bowl" d="M58 76h92c15 0 27 12 27 27v3c0 29-24 52-53 52H94c-29 0-53-23-53-52V93c0-9 8-17 17-17Z"></path>
+                        <path class="toilet-seat" d="M64 82h82c12 0 22 10 22 22v2c0 20-17 36-37 36H95c-20 0-37-16-37-36V88c0-3 3-6 6-6Z"></path>
+                        <path class="toilet-water" d="M82 106c8-7 48-7 56 0 3 17-9 28-28 28s-31-11-28-28Z"></path>
+                        <rect class="toilet-tank" x="74" y="34" width="78" height="45" rx="12"></rect>
+                        <path class="toilet-pipe" d="M143 34V24c0-5 4-9 9-9h22"></path>
+                        <circle class="toilet-handle" cx="91" cy="52" r="4"></circle>
+                        <path class="toilet-base" d="M90 154h46l8 12H82l8-12Z"></path>
+                        <g class="toilet-sparkles">
+                          <path d="M48 44l4 9 9 4-9 4-4 9-4-9-9-4 9-4 4-9Z"></path>
+                          <path d="M174 72l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z"></path>
+                        </g>
+                        <g class="toilet-dirt">
+                          <circle class="dirt-one" cx="67" cy="102" r="8"></circle>
+                          <circle class="dirt-two" cx="142" cy="119" r="6"></circle>
+                          <circle class="dirt-three" cx="98" cy="55" r="5"></circle>
+                          <path class="dirt-four" d="M155 91c8 2 13 8 10 14-5 5-17 3-21-3-2-6 4-12 11-11Z"></path>
+                          <path class="dirt-five" d="M48 135c12-7 25-6 36 0"></path>
+                        </g>
+                      </svg>
+                    </div>
+                    <div class="feedback-visual-controls">
+                      <span class="visual-rating-label">Cleanliness picture</span>
+                      <div class="visual-star-rating" id="visual-cleanliness-stars" role="group" aria-label="Toilet visual cleanliness rating">
+                        <button class="visual-star-button" type="button" data-visual-star="1" aria-label="Rate up to 1 star">
+                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="0.5" aria-hidden="true"></span>
+                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="1" aria-hidden="true"></span>
+                        </button>
+                        <button class="visual-star-button" type="button" data-visual-star="2" aria-label="Rate up to 2 stars">
+                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="1.5" aria-hidden="true"></span>
+                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="2" aria-hidden="true"></span>
+                        </button>
+                        <button class="visual-star-button" type="button" data-visual-star="3" aria-label="Rate up to 3 stars">
+                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="2.5" aria-hidden="true"></span>
+                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="3" aria-hidden="true"></span>
+                        </button>
+                        <button class="visual-star-button" type="button" data-visual-star="4" aria-label="Rate up to 4 stars">
+                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="3.5" aria-hidden="true"></span>
+                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="4" aria-hidden="true"></span>
+                        </button>
+                        <button class="visual-star-button" type="button" data-visual-star="5" aria-label="Rate up to 5 stars">
+                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="4.5" aria-hidden="true"></span>
+                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="5" aria-hidden="true"></span>
+                        </button>
+                      </div>
+                      <div class="visual-scale-labels" aria-hidden="true">
+                        <span>Dirtier</span>
+                        <span>Cleaner</span>
+                      </div>
+                      <p class="visual-cleanliness-state" id="visual-cleanliness-state" aria-live="polite">OK</p>
+                    </div>
+                  </div>
+                  <p class="survey-status" id="map-survey-status" aria-live="polite">Choose 1 to 5 stars to continue.</p>
+                </section>
+                <textarea id="comment-input" placeholder="Add details if useful..."></textarea>
+                <div class="comment-preset-tags" aria-label="Quick comment tags">
+                  <span class="comment-preset-label">Quick tags</span>
+                  <button type="button" data-comment-preset="The space is roomy enough to turn around and place a bag.">Spacious</button>
+                  <button type="button" data-comment-preset="Toilet seat covers are available.">Seat covers</button>
+                  <button type="button" data-comment-preset="The entrance is easy to find from the signs.">Easy to find</button>
+                  <button type="button" data-comment-preset="Period products or hygiene supplies are available.">Hygiene supplies</button>
+                  <button type="button" data-comment-preset="This toilet is free to use without making a purchase.">Free</button>
+                  <button type="button" data-comment-preset="The queue was short when I visited.">Short queue</button>
+                  <button type="button" data-comment-preset="It felt clean overall and did not have a strong smell.">Clean</button>
+                  <button type="button" data-comment-preset="It was open when the app said it would be.">Open as listed</button>
+                  <button type="button" data-comment-preset="There is an accessible stall.">Accessible stall</button>
+                  <button type="button" data-comment-preset="Baby changing facilities are available.">Baby changing</button>
+                  <button type="button" data-comment-preset="Gender-neutral access is available.">Gender-neutral</button>
+                  <button type="button" data-comment-preset="There is washing or bidet support.">Washing support</button>
+                  <button type="button" data-comment-preset="Soap was available at the sink.">Soap available</button>
+                  <button type="button" data-comment-preset="The hand dryer or paper towels were working.">Drying works</button>
+                  <button type="button" data-comment-preset="The lighting felt safe and clear.">Good lighting</button>
+                  <button type="button" data-comment-preset="It felt private enough to use comfortably.">Private enough</button>
+                </div>
+                <label class="comment-anonymous-option">
+                  <input id="comment-anonymous" type="checkbox" />
+                  Anonymous
+                </label>
+                <div class="comment-media-field">
+                  <span class="comment-media-label">Attach image</span>
+                  <label for="comment-media" class="comment-media-browse">Browse</label>
+                  <input id="comment-media" type="file" accept="image/*" multiple class="is-hidden" />
+                  <div class="comment-media-preview" id="comment-media-preview" aria-live="polite"></div>
+                  <p class="comment-media-status" id="comment-media-status" aria-live="polite">Up to 3 image attachments.</p>
+                </div>
+                <div class="comment-scene-field">
+                  <button class="comment-scene-toggle" id="comment-scene-toggle" type="button" aria-expanded="false" aria-controls="comment-scene-panel">
+                    Add interactive scene
+                  </button>
+                  <div class="comment-scene-panel is-hidden" id="comment-scene-panel" hidden>
+                    <div id="feedback-scene-root"></div>
+                  </div>
+                  <p class="comment-scene-status" id="comment-scene-status" aria-live="polite">Optional scene for this feedback.</p>
+                </div>
+                <button type="submit" id="submit-comment" disabled>Submit feedback</button>
+              </form>
+            </section>

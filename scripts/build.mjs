@@ -64,6 +64,18 @@ async function versionStaticAppReferences() {
       ])
     )
   );
+
+  const cssFiles = (await listFiles(resolve(dist, "src"))).filter((file) => file.endsWith(".css"));
+  await Promise.all(
+    cssFiles.map((file) =>
+      rewriteFile(file, [
+        [
+          /(@import\s+(?:url\(\s*)?["'])(\.{1,2}\/[^"')]+\.css)(?:\?[^"')]+)?(["']\s*\)?[^;]*;)/g,
+          (_, prefix, specifier, suffix) => `${prefix}${withVersion(specifier)}${suffix}`
+        ]
+      ])
+    )
+  );
 }
 
 await rm(dist, { recursive: true, force: true });
