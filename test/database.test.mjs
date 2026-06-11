@@ -24,7 +24,8 @@ async function withSeededDatabase(callback, options = {}) {
     database = await createDatabase({
       rootDirectory: directory,
       dbFilePath,
-      seedCsvPath
+      seedCsvPath,
+      enableDemoAccount: true
     });
     await callback(database, { dbFilePath, seedCsvPath });
   } finally {
@@ -238,7 +239,8 @@ test("database startup removes old demo access history rows without toilet ids",
     database = await createDatabase({
       rootDirectory: directory,
       dbFilePath,
-      seedCsvPath
+      seedCsvPath,
+      enableDemoAccount: true
     });
     const user = await database.getUserByUsername("demo");
     await database.close();
@@ -255,7 +257,8 @@ test("database startup removes old demo access history rows without toilet ids",
     database = await createDatabase({
       rootDirectory: directory,
       dbFilePath,
-      seedCsvPath
+      seedCsvPath,
+      enableDemoAccount: true
     });
 
     const history = await database.getAccessHistory(user.id);

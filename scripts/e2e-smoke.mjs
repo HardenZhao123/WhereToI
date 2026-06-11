@@ -12,7 +12,11 @@ if (tempDatabaseDirectory) {
   process.env.WHERETOI_DB_FILE = join(tempDatabaseDirectory, "wheretoi.sqlite");
 }
 
-const appServer = await createAppServer({ rootDirectory: root, port: 0 });
+const appServer = await createAppServer({
+  rootDirectory: root,
+  port: 0,
+  databaseOptions: { enableDemoAccount: true }
+});
 
 function assert(condition, message) {
   if (!condition) {

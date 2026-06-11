@@ -49,7 +49,80 @@ function verifyPassword(password, hash) {
   return timingSafeEqual(keyBuffer, derivedKey);
 }
 
-export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlinessScoringModel }) {
+function isBuiltInDemoUser(user) {
+  if (user?.username !== "demo" || user?.email !== "demo@example.com") {
+    return false;
+  }
+
+  try {
+    return verifyPassword("demo123", user.password_hash);
+  } catch {
+    return false;
+  }
+}
+
+function removeBuiltInDemoUser(db) {
+  const demoUser = db.prepare(
+    "SELECT id, username, email, password_hash FROM users WHERE username = ?"
+  ).get("demo");
+
+  if (!isBuiltInDemoUser(demoUser)) {
+    return;
+  }
+
+  const affectedToiletIds = db.prepare(
+    "SELECT DISTINCT toilet_id FROM cleanliness_surveys WHERE user_id = ?"
+  ).all(demoUser.id).map((row) => row.toilet_id);
+
+  db.exec("BEGIN;");
+  try {
+    db.prepare(
+      "DELETE FROM comment_likes WHERE user_id = ? OR comment_id IN (SELECT id FROM toilet_comments WHERE user_id = ?)"
+    ).run(demoUser.id, demoUser.id);
+    db.prepare("DELETE FROM toilet_comments WHERE user_id = ?").run(demoUser.id);
+    db.prepare("DELETE FROM cleanliness_surveys WHERE user_id = ?").run(demoUser.id);
+    db.prepare("DELETE FROM access_history WHERE user_id = ?").run(demoUser.id);
+    db.prepare("DELETE FROM app_account WHERE user_id = ?").run(demoUser.id);
+    db.prepare("DELETE FROM users WHERE id = ?").run(demoUser.id);
+
+    const recalculateToilet = db.prepare(`
+      UPDATE toilets
+      SET
+        cleanliness = COALESCE(
+          (SELECT AVG(rating) FROM cleanliness_surveys WHERE toilet_id = ?),
+          3
+        ),
+        cleanliness_rating_total = COALESCE(
+          (SELECT SUM(rating) FROM cleanliness_surveys WHERE toilet_id = ?),
+          0
+        ),
+        cleanliness_rating_count = (
+          SELECT COUNT(*) FROM cleanliness_surveys WHERE toilet_id = ?
+        ),
+        cleanliness_rating_sum_squares = COALESCE(
+          (SELECT SUM(rating * rating) FROM cleanliness_surveys WHERE toilet_id = ?),
+          0
+        ),
+        bias = 0
+      WHERE id = ?
+    `);
+    for (const toiletId of affectedToiletIds) {
+      recalculateToilet.run(toiletId, toiletId, toiletId, toiletId, toiletId);
+    }
+
+    db.exec("COMMIT;");
+  } catch (error) {
+    db.exec("ROLLBACK;");
+    throw error;
+  }
+}
+
+export async function createSqliteDatabase({
+  dbFilePath,
+  seedCsvPath,
+  cleanlinessScoringModel,
+  enableDemoAccount = false
+}) {
   await mkdir(dirname(dbFilePath), { recursive: true });
   const db = new DatabaseSync(dbFilePath);
 
@@ -241,32 +314,31 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
     }
   }
 
-  const userCount = Number(db.prepare("SELECT COUNT(*) AS count FROM users").get()?.count ?? 0);
   let demoUserId = null;
 
-  if (userCount === 0) {
-    const insertUser = db.prepare(
-      "INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)"
-    );
-    insertUser.run("demo", hashPassword("demo123"), "demo@example.com");
-    demoUserId = Number(db.prepare("SELECT last_insert_rowid() AS id").get().id);
+  if (enableDemoAccount) {
+    const existingDemo = db.prepare("SELECT id FROM users WHERE username = ?").get("demo");
+    demoUserId = existingDemo?.id ?? null;
 
-    db.prepare(
-      `
-      INSERT INTO app_account (
-        user_id,
-        wallet_balance_gbp,
-        subscription_name,
-        subscription_renews_on,
-        monthly_free_tickets_left
-      ) VALUES (?, ?, ?, ?, ?)
-      `
-    ).run(demoUserId, 8.4, "Campus Plus", "2026-06-26", 3);
+    if (!demoUserId) {
+      db.prepare(
+        "INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)"
+      ).run("demo", hashPassword("demo123"), "demo@example.com");
+      demoUserId = Number(db.prepare("SELECT last_insert_rowid() AS id").get().id);
 
-  }
+      db.prepare(
+        `
+        INSERT INTO app_account (
+          user_id,
+          wallet_balance_gbp,
+          subscription_name,
+          subscription_renews_on,
+          monthly_free_tickets_left
+        ) VALUES (?, ?, ?, ?, ?)
+        `
+      ).run(demoUserId, 8.4, "Campus Plus", "2026-06-26", 3);
+    }
 
-  demoUserId ??= db.prepare("SELECT id FROM users WHERE username = ?").get("demo")?.id ?? null;
-  if (demoUserId) {
     const placeholders = LEGACY_DEMO_ACCESS_HISTORY_NAMES.map(() => "?").join(", ");
     db.prepare(
       `
@@ -276,6 +348,8 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         AND LOWER(TRIM(toilet_name)) IN (${placeholders})
       `
     ).run(demoUserId, ...LEGACY_DEMO_ACCESS_HISTORY_NAMES);
+  } else {
+    removeBuiltInDemoUser(db);
   }
 
   return {
