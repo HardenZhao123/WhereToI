@@ -185,6 +185,22 @@ function isKnownClientError(error) {
   );
 }
 
+function getHttpClientErrorStatus(error) {
+  const statusCode = Number(error?.statusCode ?? error?.status);
+  return Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 500
+    ? statusCode
+    : null;
+}
+
+function getHttpClientErrorHeaders(error) {
+  const retryAfterSeconds = Number(error?.retryAfterSeconds);
+  if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds <= 0) {
+    return {};
+  }
+
+  return { "Retry-After": String(Math.ceil(retryAfterSeconds)) };
+}
+
 function normaliseOptionalToiletId(toiletId) {
   if (typeof toiletId !== "string") return null;
 
@@ -657,6 +673,12 @@ function createRequestHandler({ root, port, database, emailService, aiService, l
     } catch (error) {
       if (error?.code === "ENOENT") {
         sendPlainText(response, 404, "Not found");
+        return;
+      }
+
+      const clientErrorStatus = getHttpClientErrorStatus(error);
+      if (clientErrorStatus) {
+        sendJson(response, clientErrorStatus, { error: error.message }, getHttpClientErrorHeaders(error));
         return;
       }
 

@@ -1752,6 +1752,13 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         showLoginPrompt("Log in to leave feedback.");
         return;
       }
+      if (error.status === 429) {
+        if (mapSurveyStatus) {
+          mapSurveyStatus.classList.add("warning");
+          mapSurveyStatus.textContent = error.message || "Please wait before rating this toilet again.";
+        }
+        return;
+      }
       alert(error?.message || "Could not submit feedback. Please try again later.");
     } finally {
       if (submitButton) {
