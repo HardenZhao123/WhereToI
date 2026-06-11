@@ -158,6 +158,10 @@ async function removeBuiltInDemoUser(pool) {
       "DELETE FROM comment_likes WHERE user_id = $1 OR comment_id IN (SELECT id FROM toilet_comments WHERE user_id = $1)",
       [demoUser.id]
     );
+    await client.query(
+      "DELETE FROM comment_dislikes WHERE user_id = $1 OR comment_id IN (SELECT id FROM toilet_comments WHERE user_id = $1)",
+      [demoUser.id]
+    );
     await client.query("DELETE FROM toilet_comments WHERE user_id = $1", [demoUser.id]);
     await client.query("DELETE FROM cleanliness_surveys WHERE user_id = $1", [demoUser.id]);
     await client.query("DELETE FROM access_history WHERE user_id = $1", [demoUser.id]);
@@ -461,6 +465,14 @@ export async function createPostgresDatabase({
       created_at TEXT NOT NULL,
       UNIQUE (comment_id, user_id)
     );
+
+    CREATE TABLE IF NOT EXISTS comment_dislikes (
+      id SERIAL PRIMARY KEY,
+      comment_id INTEGER NOT NULL REFERENCES toilet_comments(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL,
+      UNIQUE (comment_id, user_id)
+    );
   `);
   await pool.query("ALTER TABLE cleanliness_surveys ALTER COLUMN rating TYPE DOUBLE PRECISION USING rating::double precision");
 
@@ -503,6 +515,11 @@ export async function createPostgresDatabase({
   `);
 
   await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_comment_dislikes_comment_id
+    ON comment_dislikes(comment_id);
+  `);
+
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_toilet_user_created_id
     ON cleanliness_surveys(toilet_id, user_id, created_at DESC, id DESC);
   `);
@@ -525,6 +542,50 @@ export async function createPostgresDatabase({
       `,
       [demoUserId, 8.4, "Campus Plus", "2026-06-26", 3]
     );
+  }
+
+  async function toggleCommentReaction({ toiletId, commentId, userId, reactionTable, oppositeTable }) {
+    const comment = normaliseCommentLikePayload({ toiletId, commentId });
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+      const existingComment = await client.query(
+        "SELECT id FROM toilet_comments WHERE id = $1 AND toilet_id = $2 FOR UPDATE",
+        [comment.commentId, comment.toiletId]
+      );
+
+      if (existingComment.rowCount === 0) {
+        await client.query("COMMIT");
+        return { found: false, active: false, toiletId: comment.toiletId };
+      }
+
+      const existingReaction = await client.query(
+        `DELETE FROM ${reactionTable} WHERE comment_id = $1 AND user_id = $2 RETURNING id`,
+        [comment.commentId, userId]
+      );
+
+      if (existingReaction.rowCount > 0) {
+        await client.query("COMMIT");
+        return { found: true, active: false, toiletId: comment.toiletId };
+      }
+
+      await client.query(
+        `DELETE FROM ${oppositeTable} WHERE comment_id = $1 AND user_id = $2`,
+        [comment.commentId, userId]
+      );
+      await client.query(
+        `INSERT INTO ${reactionTable} (comment_id, user_id, created_at) VALUES ($1, $2, $3)`,
+        [comment.commentId, userId, new Date().toISOString()]
+      );
+      await client.query("COMMIT");
+      return { found: true, active: true, toiletId: comment.toiletId };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   return {
@@ -1053,7 +1114,18 @@ export async function createPostgresDatabase({
             FROM comment_likes
             WHERE comment_likes.comment_id = toilet_comments.id
               AND comment_likes.user_id = $2
-          ) AS viewer_has_liked
+          ) AS viewer_has_liked,
+          (
+            SELECT COUNT(*)::int
+            FROM comment_dislikes
+            WHERE comment_dislikes.comment_id = toilet_comments.id
+          ) AS dislike_count,
+          EXISTS (
+            SELECT 1
+            FROM comment_dislikes
+            WHERE comment_dislikes.comment_id = toilet_comments.id
+              AND comment_dislikes.user_id = $2
+          ) AS viewer_has_disliked
         FROM toilet_comments
         WHERE toilet_id = $1
         ORDER BY created_at DESC, id DESC
@@ -1106,7 +1178,18 @@ export async function createPostgresDatabase({
             FROM comment_likes
             WHERE comment_likes.comment_id = toilet_comments.id
               AND comment_likes.user_id = $1
-          ) AS viewer_has_liked
+          ) AS viewer_has_liked,
+          (
+            SELECT COUNT(*)::int
+            FROM comment_dislikes
+            WHERE comment_dislikes.comment_id = toilet_comments.id
+          ) AS dislike_count,
+          EXISTS (
+            SELECT 1
+            FROM comment_dislikes
+            WHERE comment_dislikes.comment_id = toilet_comments.id
+              AND comment_dislikes.user_id = $1
+          ) AS viewer_has_disliked
         FROM toilet_comments
         LEFT JOIN toilets ON toilets.id = toilet_comments.toilet_id
         WHERE toilet_comments.user_id = $1
@@ -1170,7 +1253,18 @@ export async function createPostgresDatabase({
             FROM comment_likes
             WHERE comment_likes.comment_id = toilet_comments.id
               AND comment_likes.user_id = $2
-          ) AS viewer_has_liked
+          ) AS viewer_has_liked,
+          (
+            SELECT COUNT(*)::int
+            FROM comment_dislikes
+            WHERE comment_dislikes.comment_id = toilet_comments.id
+          ) AS dislike_count,
+          EXISTS (
+            SELECT 1
+            FROM comment_dislikes
+            WHERE comment_dislikes.comment_id = toilet_comments.id
+              AND comment_dislikes.user_id = $2
+          ) AS viewer_has_disliked
         FROM toilet_comments
         LEFT JOIN toilets ON toilets.id = toilet_comments.toilet_id
         WHERE toilet_comments.user_id = $1
@@ -1276,45 +1370,33 @@ export async function createPostgresDatabase({
       };
     },
     async toggleCommentLike({ toiletId, commentId, userId }) {
-      const comment = normaliseCommentLikePayload({ toiletId, commentId });
-      const existingLike = await pool.query(
-        `
-        DELETE FROM comment_likes
-        USING toilet_comments
-        WHERE comment_likes.comment_id = toilet_comments.id
-          AND toilet_comments.id = $1
-          AND toilet_comments.toilet_id = $2
-          AND comment_likes.user_id = $3
-        RETURNING comment_likes.id
-        `,
-        [comment.commentId, comment.toiletId, userId]
-      );
-
-      if (existingLike.rowCount > 0) {
-        return {
-          found: true,
-          liked: false,
-          comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
-        };
-      }
-
-      const insertLike = await pool.query(
-        `
-        INSERT INTO comment_likes (comment_id, user_id, created_at)
-        SELECT id, $3, $4
-        FROM toilet_comments
-        WHERE id = $1
-          AND toilet_id = $2
-        ON CONFLICT (comment_id, user_id) DO NOTHING
-        RETURNING id
-        `,
-        [comment.commentId, comment.toiletId, userId, new Date().toISOString()]
-      );
+      const result = await toggleCommentReaction({
+        toiletId,
+        commentId,
+        userId,
+        reactionTable: "comment_likes",
+        oppositeTable: "comment_dislikes"
+      });
 
       return {
-        found: insertLike.rowCount > 0,
-        liked: insertLike.rowCount > 0,
-        comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+        found: result.found,
+        liked: result.active,
+        comments: await this.getComments(result.toiletId, { viewerUserId: userId })
+      };
+    },
+    async toggleCommentDislike({ toiletId, commentId, userId }) {
+      const result = await toggleCommentReaction({
+        toiletId,
+        commentId,
+        userId,
+        reactionTable: "comment_dislikes",
+        oppositeTable: "comment_likes"
+      });
+
+      return {
+        found: result.found,
+        disliked: result.active,
+        comments: await this.getComments(result.toiletId, { viewerUserId: userId })
       };
     }
   };

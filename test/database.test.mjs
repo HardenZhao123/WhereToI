@@ -372,6 +372,11 @@ test("database lists own comments and updates profile visibility", async () => {
       password: "demo123",
       email: "comment-liker@example.com"
     });
+    const disliker = await database.createUser({
+      username: "comment-disliker",
+      password: "demo123",
+      email: "comment-disliker@example.com"
+    });
     const toiletId = "detail-test";
 
     const comments = await database.saveComment({
@@ -389,6 +394,11 @@ test("database lists own comments and updates profile visibility", async () => {
       commentId,
       userId: liker.id
     });
+    await database.toggleCommentDislike({
+      toiletId,
+      commentId,
+      userId: disliker.id
+    });
 
     const ownComments = await database.getUserComments(owner.id);
     assert.equal(ownComments.length, 1);
@@ -398,6 +408,7 @@ test("database lists own comments and updates profile visibility", async () => {
     assert.equal(ownComments[0].author_name, "Anonymous");
     assert.equal(ownComments[0].profile_visibility, "private");
     assert.equal(ownComments[0].like_count, 1);
+    assert.equal(ownComments[0].dislike_count, 1);
     assert.equal(ownComments[0].can_delete, true);
 
     const otherUpdate = await database.updateCommentProfileVisibility({
@@ -460,7 +471,7 @@ test("database exposes public profile feedback ratings with survey fallback", as
   });
 });
 
-test("database toggles one like per user for comments", async () => {
+test("database toggles mutually exclusive likes and dislikes per user", async () => {
   await withSeededDatabase(async (database) => {
     const user = await database.getUserByUsername("demo");
     const toiletId = "detail-test";
@@ -483,10 +494,38 @@ test("database toggles one like per user for comments", async () => {
     assert.equal(liked.liked, true);
     assert.equal(liked.comments[0].like_count, 1);
     assert.equal(liked.comments[0].viewer_has_liked, true);
+    assert.equal(liked.comments[0].dislike_count, 0);
+    assert.equal(liked.comments[0].viewer_has_disliked, false);
 
     const publicComments = await database.getComments(toiletId);
     assert.equal(publicComments[0].like_count, 1);
     assert.equal(publicComments[0].viewer_has_liked, false);
+
+    const disliked = await database.toggleCommentDislike({
+      toiletId,
+      commentId,
+      userId: user.id
+    });
+
+    assert.equal(disliked.found, true);
+    assert.equal(disliked.disliked, true);
+    assert.equal(disliked.comments[0].like_count, 0);
+    assert.equal(disliked.comments[0].viewer_has_liked, false);
+    assert.equal(disliked.comments[0].dislike_count, 1);
+    assert.equal(disliked.comments[0].viewer_has_disliked, true);
+
+    const undisliked = await database.toggleCommentDislike({
+      toiletId,
+      commentId,
+      userId: user.id
+    });
+
+    assert.equal(undisliked.found, true);
+    assert.equal(undisliked.disliked, false);
+    assert.equal(undisliked.comments[0].dislike_count, 0);
+    assert.equal(undisliked.comments[0].viewer_has_disliked, false);
+
+    await database.toggleCommentLike({ toiletId, commentId, userId: user.id });
 
     const unliked = await database.toggleCommentLike({
       toiletId,
@@ -507,6 +546,15 @@ test("database toggles one like per user for comments", async () => {
 
     assert.equal(missing.found, false);
     assert.equal(missing.liked, false);
+
+    const missingDislike = await database.toggleCommentDislike({
+      toiletId,
+      commentId: 99999,
+      userId: user.id
+    });
+
+    assert.equal(missingDislike.found, false);
+    assert.equal(missingDislike.disliked, false);
   });
 });
 

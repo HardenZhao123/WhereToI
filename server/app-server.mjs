@@ -548,6 +548,31 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         liked: result.liked,
         comments: result.comments
       });
+    },
+    "POST /api/comment-dislikes": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendSensitiveJson(response, 401, { error: "Log in to dislike comments." });
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const result = await database.toggleCommentDislike({
+        toiletId: body.toiletId,
+        commentId: body.commentId,
+        userId
+      });
+
+      if (!result.found) {
+        sendSensitiveJson(response, 404, { error: "Comment not found." });
+        return;
+      }
+
+      sendSensitiveJson(response, 200, {
+        disliked: result.disliked,
+        comments: result.comments
+      });
     }
   };
 }

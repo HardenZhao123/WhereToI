@@ -300,15 +300,23 @@ if (
 
 if (
   !server.includes("\"POST /api/comment-likes\"") ||
+  !server.includes("\"POST /api/comment-dislikes\"") ||
   !server.includes("toggleCommentLike") ||
+  !server.includes("toggleCommentDislike") ||
   !js.includes("toggleCommentLikeRequest") ||
+  !js.includes("toggleCommentDislikeRequest") ||
   !js.includes("comment.viewer_has_liked") ||
   !js.includes("comment.like_count") ||
+  !js.includes("comment.viewer_has_disliked") ||
+  !js.includes("comment.dislike_count") ||
   !css.includes(".comment-like-button") ||
   !css.includes(".comment-like-icon") ||
-  !css.includes(".comment-like-button.is-liked")
+  !css.includes(".comment-like-button.is-liked") ||
+  !css.includes(".comment-dislike-button") ||
+  !css.includes(".comment-dislike-icon") ||
+  !css.includes(".comment-dislike-button.is-disliked")
 ) {
-  throw new Error("Expected logged-in users to toggle one like per comment with a right-side thumbs-up button.");
+  throw new Error("Expected logged-in users to toggle mutually exclusive likes and dislikes on comments.");
 }
 
 if (

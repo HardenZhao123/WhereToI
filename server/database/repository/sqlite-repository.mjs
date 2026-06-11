@@ -79,6 +79,9 @@ function removeBuiltInDemoUser(db) {
     db.prepare(
       "DELETE FROM comment_likes WHERE user_id = ? OR comment_id IN (SELECT id FROM toilet_comments WHERE user_id = ?)"
     ).run(demoUser.id, demoUser.id);
+    db.prepare(
+      "DELETE FROM comment_dislikes WHERE user_id = ? OR comment_id IN (SELECT id FROM toilet_comments WHERE user_id = ?)"
+    ).run(demoUser.id, demoUser.id);
     db.prepare("DELETE FROM toilet_comments WHERE user_id = ?").run(demoUser.id);
     db.prepare("DELETE FROM cleanliness_surveys WHERE user_id = ?").run(demoUser.id);
     db.prepare("DELETE FROM access_history WHERE user_id = ?").run(demoUser.id);
@@ -235,6 +238,16 @@ export async function createSqliteDatabase({
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) STRICT;
 
+    CREATE TABLE IF NOT EXISTS comment_dislikes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      comment_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (comment_id, user_id),
+      FOREIGN KEY (comment_id) REFERENCES toilet_comments(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) STRICT;
+
     CREATE INDEX IF NOT EXISTS idx_access_history_access_time
     ON access_history(access_time DESC);
 
@@ -256,6 +269,9 @@ export async function createSqliteDatabase({
 
     CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id
     ON comment_likes(comment_id);
+
+    CREATE INDEX IF NOT EXISTS idx_comment_dislikes_comment_id
+    ON comment_dislikes(comment_id);
 
     CREATE INDEX IF NOT EXISTS idx_cleanliness_surveys_toilet_user_created_id
     ON cleanliness_surveys(toilet_id, user_id, created_at DESC, id DESC);
@@ -350,6 +366,41 @@ export async function createSqliteDatabase({
     ).run(demoUserId, ...LEGACY_DEMO_ACCESS_HISTORY_NAMES);
   } else {
     removeBuiltInDemoUser(db);
+  }
+
+  function toggleCommentReaction({ toiletId, commentId, userId, reactionTable, oppositeTable }) {
+    const comment = normaliseCommentLikePayload({ toiletId, commentId });
+    const existingComment = db
+      .prepare("SELECT id FROM toilet_comments WHERE id = ? AND toilet_id = ?")
+      .get(comment.commentId, comment.toiletId);
+
+    if (!existingComment) {
+      return { found: false, active: false, toiletId: comment.toiletId };
+    }
+
+    const existingReaction = db
+      .prepare(`SELECT id FROM ${reactionTable} WHERE comment_id = ? AND user_id = ?`)
+      .get(comment.commentId, userId);
+
+    if (existingReaction) {
+      db.prepare(`DELETE FROM ${reactionTable} WHERE id = ?`).run(existingReaction.id);
+      return { found: true, active: false, toiletId: comment.toiletId };
+    }
+
+    db.exec("BEGIN;");
+    try {
+      db.prepare(`DELETE FROM ${oppositeTable} WHERE comment_id = ? AND user_id = ?`)
+        .run(comment.commentId, userId);
+      db.prepare(
+        `INSERT INTO ${reactionTable} (comment_id, user_id, created_at) VALUES (?, ?, ?)`
+      ).run(comment.commentId, userId, new Date().toISOString());
+      db.exec("COMMIT;");
+    } catch (error) {
+      db.exec("ROLLBACK;");
+      throw error;
+    }
+
+    return { found: true, active: true, toiletId: comment.toiletId };
   }
 
   return {
@@ -783,13 +834,24 @@ export async function createSqliteDatabase({
               FROM comment_likes
               WHERE comment_likes.comment_id = toilet_comments.id
                 AND comment_likes.user_id = ?
-            ) AS viewer_has_liked
+            ) AS viewer_has_liked,
+            (
+              SELECT COUNT(*)
+              FROM comment_dislikes
+              WHERE comment_dislikes.comment_id = toilet_comments.id
+            ) AS dislike_count,
+            EXISTS (
+              SELECT 1
+              FROM comment_dislikes
+              WHERE comment_dislikes.comment_id = toilet_comments.id
+                AND comment_dislikes.user_id = ?
+            ) AS viewer_has_disliked
           FROM toilet_comments
           WHERE toilet_id = ?
           ORDER BY created_at DESC, id DESC
           `
         )
-        .all(viewerUserId, toiletId)
+        .all(viewerUserId, viewerUserId, toiletId)
         .map((row) => mapCommentRow(row, { viewerUserId }));
     },
     async getUserComments(userId, limit = 30) {
@@ -837,7 +899,18 @@ export async function createSqliteDatabase({
               FROM comment_likes
               WHERE comment_likes.comment_id = toilet_comments.id
                 AND comment_likes.user_id = ?
-            ) AS viewer_has_liked
+            ) AS viewer_has_liked,
+            (
+              SELECT COUNT(*)
+              FROM comment_dislikes
+              WHERE comment_dislikes.comment_id = toilet_comments.id
+            ) AS dislike_count,
+            EXISTS (
+              SELECT 1
+              FROM comment_dislikes
+              WHERE comment_dislikes.comment_id = toilet_comments.id
+                AND comment_dislikes.user_id = ?
+            ) AS viewer_has_disliked
           FROM toilet_comments
           LEFT JOIN toilets ON toilets.id = toilet_comments.toilet_id
           WHERE toilet_comments.user_id = ?
@@ -845,7 +918,7 @@ export async function createSqliteDatabase({
           LIMIT ?
           `
         )
-        .all(userId, userId, safeLimit)
+        .all(userId, userId, userId, safeLimit)
         .map((row) => mapCommentRow(row, { viewerUserId: userId }));
     },
     async getPublicProfile(userId, { viewerUserId = null, limit = 30 } = {}) {
@@ -899,7 +972,18 @@ export async function createSqliteDatabase({
               FROM comment_likes
               WHERE comment_likes.comment_id = toilet_comments.id
                 AND comment_likes.user_id = ?
-            ) AS viewer_has_liked
+            ) AS viewer_has_liked,
+            (
+              SELECT COUNT(*)
+              FROM comment_dislikes
+              WHERE comment_dislikes.comment_id = toilet_comments.id
+            ) AS dislike_count,
+            EXISTS (
+              SELECT 1
+              FROM comment_dislikes
+              WHERE comment_dislikes.comment_id = toilet_comments.id
+                AND comment_dislikes.user_id = ?
+            ) AS viewer_has_disliked
           FROM toilet_comments
           LEFT JOIN toilets ON toilets.id = toilet_comments.toilet_id
           WHERE toilet_comments.user_id = ?
@@ -909,7 +993,7 @@ export async function createSqliteDatabase({
           LIMIT ?
           `
         )
-        .all(viewerUserId, safeUserId, safeLimit)
+        .all(viewerUserId, viewerUserId, safeUserId, safeLimit)
         .map((row) => mapCommentRow(row, { viewerUserId }));
 
       return {
@@ -1007,43 +1091,33 @@ export async function createSqliteDatabase({
       };
     },
     async toggleCommentLike({ toiletId, commentId, userId }) {
-      const comment = normaliseCommentLikePayload({ toiletId, commentId });
-      const existingComment = db
-        .prepare("SELECT id FROM toilet_comments WHERE id = ? AND toilet_id = ?")
-        .get(comment.commentId, comment.toiletId);
-
-      if (!existingComment) {
-        return {
-          found: false,
-          liked: false,
-          comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
-        };
-      }
-
-      const existingLike = db
-        .prepare("SELECT id FROM comment_likes WHERE comment_id = ? AND user_id = ?")
-        .get(comment.commentId, userId);
-
-      if (existingLike) {
-        db.prepare("DELETE FROM comment_likes WHERE id = ?").run(existingLike.id);
-        return {
-          found: true,
-          liked: false,
-          comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
-        };
-      }
-
-      db.prepare(
-        `
-        INSERT INTO comment_likes (comment_id, user_id, created_at)
-        VALUES (?, ?, ?)
-        `
-      ).run(comment.commentId, userId, new Date().toISOString());
+      const result = toggleCommentReaction({
+        toiletId,
+        commentId,
+        userId,
+        reactionTable: "comment_likes",
+        oppositeTable: "comment_dislikes"
+      });
 
       return {
-        found: true,
-        liked: true,
-        comments: await this.getComments(comment.toiletId, { viewerUserId: userId })
+        found: result.found,
+        liked: result.active,
+        comments: await this.getComments(result.toiletId, { viewerUserId: userId })
+      };
+    },
+    async toggleCommentDislike({ toiletId, commentId, userId }) {
+      const result = toggleCommentReaction({
+        toiletId,
+        commentId,
+        userId,
+        reactionTable: "comment_dislikes",
+        oppositeTable: "comment_likes"
+      });
+
+      return {
+        found: result.found,
+        disliked: result.active,
+        comments: await this.getComments(result.toiletId, { viewerUserId: userId })
       };
     }
   };

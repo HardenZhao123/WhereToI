@@ -137,3 +137,11 @@ export async function toggleCommentLike(toiletId, commentId) {
   });
   return payload.comments || [];
 }
+
+export async function toggleCommentDislike(toiletId, commentId) {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/comment-dislikes`, {
+    method: "POST",
+    body: JSON.stringify({ toiletId, commentId })
+  });
+  return payload.comments || [];
+}

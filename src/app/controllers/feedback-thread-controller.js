@@ -1,6 +1,7 @@
 import {
   deleteComment as deleteCommentRequest,
   fetchComments,
+  toggleCommentDislike as toggleCommentDislikeRequest,
   toggleCommentLike as toggleCommentLikeRequest
 } from "../services/toilets-service.js";
 import {
@@ -177,7 +178,31 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
       toggleCommentLike(comment, likeButton);
     });
 
-    actions.append(likeButton);
+    const dislikeButton = document.createElement("button");
+    dislikeButton.className = "comment-dislike-button";
+    dislikeButton.type = "button";
+    dislikeButton.setAttribute(
+      "aria-label",
+      comment.viewer_has_disliked ? "Remove dislike from feedback" : "Dislike feedback"
+    );
+    dislikeButton.setAttribute("aria-pressed", comment.viewer_has_disliked ? "true" : "false");
+    dislikeButton.classList.toggle("is-disliked", Boolean(comment.viewer_has_disliked));
+
+    const dislikeIcon = document.createElement("span");
+    dislikeIcon.className = "comment-dislike-icon";
+    dislikeIcon.textContent = "\u{1F44E}";
+
+    const dislikeCount = document.createElement("span");
+    dislikeCount.className = "comment-dislike-count";
+    dislikeCount.textContent = String(comment.dislike_count ?? 0);
+
+    dislikeButton.append(dislikeIcon, dislikeCount);
+    dislikeButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleCommentDislike(comment, dislikeButton);
+    });
+
+    actions.append(likeButton, dislikeButton);
 
     if (!comment.can_delete) {
       return actions;
@@ -397,6 +422,37 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
         return;
       }
       alertUser(error?.message || "Could not update like. Please try again later.");
+    } finally {
+      if (button) {
+        button.disabled = false;
+      }
+    }
+  }
+
+  async function toggleCommentDislike(comment, button) {
+    const selectedToilet = getSelectedToilet();
+    if (!selectedToilet || !comment?.id) return;
+    closeOpenCommentMenus();
+
+    if (!isAuthenticated()) {
+      showLoginPrompt("Log in to dislike feedback.");
+      return;
+    }
+
+    if (button) {
+      button.disabled = true;
+    }
+
+    try {
+      const updatedComments = await toggleCommentDislikeRequest(selectedToilet.id, comment.id);
+      renderComments(updatedComments);
+    } catch (error) {
+      console.error("Failed to dislike feedback:", error);
+      if (error.status === 401) {
+        showLoginPrompt("Log in to dislike feedback.");
+        return;
+      }
+      alertUser(error?.message || "Could not update dislike. Please try again later.");
     } finally {
       if (button) {
         button.disabled = false;

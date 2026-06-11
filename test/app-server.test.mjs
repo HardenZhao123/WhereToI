@@ -544,7 +544,7 @@ test("API supports fetching and posting toilet comments", async () => {
   });
 });
 
-test("API toggles one like per logged-in user for comments", async () => {
+test("API toggles mutually exclusive likes and dislikes for comments", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletId = "detail-test";
 
@@ -579,6 +579,16 @@ test("API toggles one like per logged-in user for comments", async () => {
     assert.equal(likeWithoutLoginResponse.status, 401);
     assert.equal(likeWithoutLoginPayload.error, "Log in to like comments.");
 
+    const dislikeWithoutLoginResponse = await fetch(`${baseUrl}/api/comment-dislikes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toiletId, commentId })
+    });
+    const dislikeWithoutLoginPayload = await dislikeWithoutLoginResponse.json();
+
+    assert.equal(dislikeWithoutLoginResponse.status, 401);
+    assert.equal(dislikeWithoutLoginPayload.error, "Log in to dislike comments.");
+
     const { payload: likedPayload } = await fetchJson(`${baseUrl}/api/comment-likes`, {
       method: "POST",
       headers: {
@@ -591,10 +601,49 @@ test("API toggles one like per logged-in user for comments", async () => {
     assert.equal(likedPayload.liked, true);
     assert.equal(likedPayload.comments[0].like_count, 1);
     assert.equal(likedPayload.comments[0].viewer_has_liked, true);
+    assert.equal(likedPayload.comments[0].dislike_count, 0);
+    assert.equal(likedPayload.comments[0].viewer_has_disliked, false);
 
     const { payload: publicFetchedPayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
     assert.equal(publicFetchedPayload.comments[0].like_count, 1);
     assert.equal(publicFetchedPayload.comments[0].viewer_has_liked, false);
+
+    const { payload: dislikedPayload } = await fetchJson(`${baseUrl}/api/comment-dislikes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId })
+    });
+
+    assert.equal(dislikedPayload.disliked, true);
+    assert.equal(dislikedPayload.comments[0].like_count, 0);
+    assert.equal(dislikedPayload.comments[0].viewer_has_liked, false);
+    assert.equal(dislikedPayload.comments[0].dislike_count, 1);
+    assert.equal(dislikedPayload.comments[0].viewer_has_disliked, true);
+
+    const { payload: undislikedPayload } = await fetchJson(`${baseUrl}/api/comment-dislikes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId })
+    });
+
+    assert.equal(undislikedPayload.disliked, false);
+    assert.equal(undislikedPayload.comments[0].dislike_count, 0);
+    assert.equal(undislikedPayload.comments[0].viewer_has_disliked, false);
+
+    await fetchJson(`${baseUrl}/api/comment-likes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId })
+    });
 
     const { payload: unlikedPayload } = await fetchJson(`${baseUrl}/api/comment-likes`, {
       method: "POST",
@@ -621,7 +670,72 @@ test("API toggles one like per logged-in user for comments", async () => {
 
     assert.equal(missingCommentResponse.status, 404);
     assert.equal(missingCommentPayload.error, "Comment not found.");
+
+    const missingDislikeResponse = await fetch(`${baseUrl}/api/comment-dislikes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId: 99999 })
+    });
+    const missingDislikePayload = await missingDislikeResponse.json();
+
+    assert.equal(missingDislikeResponse.status, 404);
+    assert.equal(missingDislikePayload.error, "Comment not found.");
   });
+});
+
+test("AI summary receives comment dislike counts from the database", async () => {
+  const summarizedCommentSets = [];
+  const aiService = {
+    summarizeComments(comments) {
+      summarizedCommentSets.push(comments);
+      return Promise.resolve("Community-weighted summary");
+    }
+  };
+
+  await withAppServer(async (baseUrl) => {
+    const toiletId = "detail-test";
+    const { response: loginResponse } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginResponse.headers.get("set-cookie");
+
+    const { payload: postedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "This claim should be marked as disputed.",
+        cleanlinessRating: 4
+      })
+    });
+    const commentId = postedPayload.comments[0].id;
+
+    await fetchJson(`${baseUrl}/api/comment-dislikes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ toiletId, commentId })
+    });
+
+    const { payload: summaryPayload } = await fetchJson(
+      `${baseUrl}/api/toilets/summary?toiletId=${toiletId}`
+    );
+
+    assert.equal(summaryPayload.summary, "Community-weighted summary");
+    assert.equal(summarizedCommentSets.length, 1);
+    assert.equal(summarizedCommentSets[0][0].like_count, 0);
+    assert.equal(summarizedCommentSets[0][0].dislike_count, 1);
+  }, { aiService });
 });
 
 test("API exposes own comments in account and updates profile visibility", async () => {

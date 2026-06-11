@@ -103,6 +103,8 @@ test("feedback thread controller renders and filters comment threads", () => {
         comment_text: "Photo feedback",
         created_at: "2026-06-02T10:00:00.000Z",
         like_count: 0,
+        dislike_count: 3,
+        viewer_has_disliked: true,
         media_attachments: [
           {
             type: "image",
@@ -124,6 +126,14 @@ test("feedback thread controller renders and filters comment threads", () => {
     assert.equal(rating?.children[4].className, "rating-star is-half");
     assert.equal(rating?.children[4].textContent, "\u2606");
     assert.equal(rating?.attributes["aria-label"], "Cleanliness rating 4.5 out of 5");
+    const commentActions = commentsList.children[0].children[0].children[1];
+    const dislikeButton = commentActions.children[1];
+    assert.equal(dislikeButton.className, "comment-dislike-button");
+    assert.equal(dislikeButton.attributes["aria-label"], "Remove dislike from feedback");
+    assert.equal(dislikeButton.attributes["aria-pressed"], "true");
+    assert.equal(dislikeButton.classList.contains("is-disliked"), true);
+    assert.equal(dislikeButton.children[0].textContent, "\u{1F44E}");
+    assert.equal(dislikeButton.children[1].textContent, "3");
 
     controller.setCommentFilter("media", true);
 
