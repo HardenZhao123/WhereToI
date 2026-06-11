@@ -97,7 +97,8 @@
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.view-map.has-details .map-legend {
+.view-map.has-details .map-legend,
+.view-map.has-expanded-search .map-legend {
   opacity: 0;
   pointer-events: none;
   transform: translateY(10px);
