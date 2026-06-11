@@ -492,6 +492,102 @@ test("map controller uses half-star visual rating as the feedback cleanliness ra
   }
 });
 
+test("map controller opens feedback rating at zero instead of the previous local rating", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+
+  const { elementsBySelector, elements } = createMapDetailTestHarness();
+  const { element: overviewVisualPreview } = createPreviewElement();
+  const { element: visualCleanlinessPreview } = createPreviewElement();
+  const overviewVisualState = createTextElement();
+  const visualCleanlinessState = createTextElement();
+  const overviewVisualImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+  const visualCleanlinessImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+  const commentComposer = createTextElement();
+  commentComposer.hidden = true;
+  commentComposer.classList = createRecordingClassList();
+  const commentComposerToggle = createTextElement();
+  const commentInput = {
+    focus() {}
+  };
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return JSON.stringify({
+          "test-toilet": {
+            rating: 4.5,
+            toiletName: "Test toilet",
+            submittedAt: "2026-06-11T00:00:00.000Z"
+          }
+        });
+      },
+      setItem() {}
+    },
+    setTimeout: globalThis.setTimeout
+  };
+  globalThis.requestAnimationFrame = (callback) => {
+    callback();
+    return 1;
+  };
+
+  try {
+    const controller = createMapController({
+      ...elements,
+      commentComposer,
+      commentComposerToggle,
+      commentInput,
+      overviewVisualPreview,
+      overviewVisualImage,
+      overviewVisualState,
+      visualCleanlinessPreview,
+      visualCleanlinessImage,
+      visualCleanlinessState
+    });
+
+    controller.setToilets([createTestToilet()]);
+    await controller.setToilet("test-toilet", { fly: false });
+    controller.toggleCommentComposer();
+
+    assert.equal(visualCleanlinessPreview.dataset.cleanliness, "0");
+    assert.equal(visualCleanlinessImage.src, "");
+    assert.equal(visualCleanlinessState.textContent, "No rating selected - Choose a cleanliness rating");
+
+    controller.selectCleanlinessRating(4.5);
+    assert.equal(visualCleanlinessPreview.dataset.cleanliness, "4.5");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_45_small.jpg");
+
+    controller.closeCommentComposer();
+    controller.toggleCommentComposer();
+
+    assert.equal(visualCleanlinessPreview.dataset.cleanliness, "0");
+    assert.equal(visualCleanlinessImage.src, "");
+    assert.equal(visualCleanlinessState.textContent, "No rating selected - Choose a cleanliness rating");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+  }
+});
+
 test("map controller renders overview visual from the toilet cleanliness average", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;

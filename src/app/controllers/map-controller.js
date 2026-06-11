@@ -320,10 +320,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function renderCleanlinessSurvey(toilet) {
-    const stored = toilet ? cleanlinessSurveyAnswers[toilet.id] : null;
-    const storedRating = stored && typeof stored === "object" ? stored.rating : stored;
-
-    const rating = Number(selectedRating ?? storedRating);
+    const rating = Number(selectedRating);
     const hasRating = isValidCleanlinessRating(rating);
 
     updateFeedbackSubmitButton();
@@ -610,6 +607,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     mapPanel?.classList.toggle("has-comment-composer", shouldOpen);
 
     if (shouldOpen) {
+      selectedRating = null;
+      feedbackSubmitAttemptedWithoutRating = false;
       renderCleanlinessSurvey(selectedToilet);
       requestAnimationFrame(() => commentInput?.focus());
     } else {
