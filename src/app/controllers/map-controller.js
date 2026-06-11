@@ -135,6 +135,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let cleanlinessRangeByToiletId = new Map();
   let currentCleanlinessRange = defaultCleanlinessRange;
   let selectedRating = null;
+  let feedbackSubmitAttemptedWithoutRating = false;
   let selectedCommentMedia = [];
   let visualCleanlinessLevel = 3;
   let currentDetailSection = "overview";
@@ -293,6 +294,18 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return Number.isFinite(value) && value >= 0.5 && value <= 5 && Number.isInteger(value * 2);
   }
 
+  function updateFeedbackSubmitButton({ submitting = false } = {}) {
+    const feedbackSubmitButton = commentForm?.querySelector("button[type='submit']");
+    if (!feedbackSubmitButton) return;
+
+    const hasSelectedRating = selectedRating !== null && isValidCleanlinessRating(selectedRating);
+    feedbackSubmitButton.disabled = Boolean(submitting);
+    feedbackSubmitButton.dataset.ratingRequired = hasSelectedRating ? "false" : "true";
+    feedbackSubmitButton.title = hasSelectedRating ? "" : "Choose a star rating before submitting feedback.";
+    feedbackSubmitButton.textContent =
+      feedbackSubmitAttemptedWithoutRating && !hasSelectedRating ? "Rate stars first" : "Submit feedback";
+  }
+
   function renderCleanlinessSurvey(toilet) {
     const stored = toilet ? cleanlinessSurveyAnswers[toilet.id] : null;
     const storedRating = stored && typeof stored === "object" ? stored.rating : stored;
@@ -300,15 +313,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const rating = Number(selectedRating ?? storedRating);
     const hasRating = isValidCleanlinessRating(rating);
 
-    const feedbackSubmitButton = commentForm?.querySelector("button[type='submit']");
-    if (feedbackSubmitButton) {
-      feedbackSubmitButton.disabled = selectedRating === null;
-    }
+    updateFeedbackSubmitButton();
 
     if (mapSurveyStatus) {
       if (selectedRating !== null) {
+        mapSurveyStatus.classList.remove("warning");
         mapSurveyStatus.textContent = `Selected ${selectedRating}/5 stars. Add details or submit rating only.`;
+      } else if (feedbackSubmitAttemptedWithoutRating) {
+        mapSurveyStatus.classList.add("warning");
+        mapSurveyStatus.textContent = "Choose a star rating before submitting feedback.";
       } else {
+        mapSurveyStatus.classList.remove("warning");
         mapSurveyStatus.textContent = isAuthenticated()
           ? "Choose 0.5 to 5 stars to continue."
           : "Log in or sign up to leave feedback.";
@@ -867,6 +882,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     selectedCleanlinessDisplayToilet = null;
     cleanlinessDisplayRequestId += 1;
     selectedRating = null;
+    feedbackSubmitAttemptedWithoutRating = false;
     setCommentComposerAvailable(false);
     resetVisualCleanlinessRating();
     detailsCard?.classList.add("is-hidden");
@@ -942,6 +958,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     selectedToilet = toilet;
     selectedCleanlinessDisplayToilet = toilet;
     selectedRating = null;
+    feedbackSubmitAttemptedWithoutRating = false;
     closeCommentComposer();
     setCommentComposerAvailable(true);
     feedbackThreadController.resetCommentsForToilet(toilet);
@@ -1528,6 +1545,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (!isValidCleanlinessRating(safeRating)) return;
 
     selectedRating = safeRating;
+    feedbackSubmitAttemptedWithoutRating = false;
     if (mapSurveyStatus) {
       mapSurveyStatus.classList.remove("warning");
     }
@@ -1662,6 +1680,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     const feedbackRating = Number(selectedRating);
     if (!isValidCleanlinessRating(feedbackRating)) {
+      feedbackSubmitAttemptedWithoutRating = true;
+      updateFeedbackSubmitButton();
       if (mapSurveyStatus) {
         mapSurveyStatus.classList.add("warning");
         mapSurveyStatus.textContent = "Choose a rating before submitting feedback.";
@@ -1681,15 +1701,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     const submitButton = commentForm?.querySelector("button[type='submit']");
-    if (submitButton) {
-      submitButton.disabled = true;
-    }
+    updateFeedbackSubmitButton({ submitting: true });
 
     try {
       if (!hasCommentText && !hasMedia && !hasScene) {
         const saved = await answerCleanlinessSurvey(feedbackRating);
         if (saved) {
           selectedRating = null;
+          feedbackSubmitAttemptedWithoutRating = false;
           closeCommentComposer();
           renderCleanlinessSurvey(selectedToilet);
         }
@@ -1710,6 +1729,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       feedbackThreadController.renderComments(result.comments);
       commentInput.value = "";
       selectedRating = null;
+      feedbackSubmitAttemptedWithoutRating = false;
       resetCommentMediaAttachment();
       resetFeedbackScene();
       closeCommentComposer();
@@ -1723,7 +1743,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       alert(error?.message || "Could not submit feedback. Please try again later.");
     } finally {
       if (submitButton) {
-        submitButton.disabled = selectedRating === null;
+        updateFeedbackSubmitButton();
       }
     }
   }
