@@ -68,6 +68,56 @@
   font-weight: 800;
 }
 
+.scene-type-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.scene-type-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.scene-type-options {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #d8dfd6;
+  border-radius: 8px;
+  background: #f7faf3;
+}
+
+.scene-type-option {
+  min-height: 30px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 6px;
+  color: #27414a;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.scene-type-option:hover,
+.scene-type-option:focus-visible {
+  background: rgb(40 118 102 / 12%);
+}
+
+.scene-type-option:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.scene-type-option.is-selected {
+  color: #ffffff;
+  background: #287666;
+}
+
 .toilet-playground-workspace {
   display: grid;
   grid-template-columns: minmax(112px, 0.58fr) minmax(420px, 2.7fr) minmax(168px, 0.95fr);
@@ -369,6 +419,16 @@
   fill: rgb(20 27 34 / 22%);
 }
 
+.fixture-art-accessible-support,
+.fixture-art-accessible-alarm,
+.fixture-art-accessible-dispenser,
+.fixture-art-accessible-mirror,
+.fixture-art-women-sanitary-bin,
+.fixture-art-women-product-dispenser,
+.fixture-art-women-shelf {
+  pointer-events: none;
+}
+
 .playground-toilet-tank,
 .playground-toilet-tank-face,
 .playground-toilet-tank-top,
@@ -496,18 +556,198 @@
   fill: #202834;
 }
 
+.playground-accessible-turning-space {
+  fill: rgb(76 188 199 / 16%);
+  stroke: rgb(30 119 130 / 42%);
+  stroke-dasharray: 10 8;
+  stroke-width: 3;
+}
+
+.playground-accessible-turning-arrow {
+  fill: none;
+  stroke: rgb(30 119 130 / 46%);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+}
+
+.playground-accessible-backrest,
+.playground-accessible-paper-dispenser,
+.playground-accessible-alarm-reset {
+  fill: #eef8f9;
+  stroke: #a8d7dc;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
 .playground-toilet-pipe,
 .playground-toilet-wall-pipe,
 .playground-sink-tap,
 .playground-sink-pipe,
 .playground-urinal-pipe,
 .playground-urinal-flush-handle,
-.playground-urinal-lip {
+.playground-urinal-lip,
+.playground-accessible-wall-rail,
+.playground-accessible-drop-rail,
+.playground-accessible-side-rail,
+.playground-accessible-drop-rail-shadow {
   fill: none;
   stroke: #7c8796;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 5;
+}
+
+.playground-accessible-wall-rail,
+.playground-accessible-drop-rail,
+.playground-accessible-side-rail {
+  stroke: #2a7f88;
+  stroke-width: 8;
+}
+
+.playground-accessible-drop-rail-shadow {
+  stroke: rgb(31 42 51 / 12%);
+  stroke-width: 7;
+}
+
+.playground-accessible-rail-mount {
+  fill: #e7fbfd;
+  stroke: #2a7f88;
+  stroke-width: 3;
+}
+
+.playground-accessible-paper-slot {
+  fill: none;
+  stroke: #7baeb5;
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.playground-accessible-emergency-cord {
+  fill: none;
+  stroke: #c43e4d;
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.playground-accessible-cord-pull {
+  fill: #fff8f8;
+  stroke: #c43e4d;
+  stroke-width: 4;
+}
+
+.playground-accessible-cord-pull-tab {
+  fill: #fff8f8;
+  stroke: #c43e4d;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.playground-accessible-alarm-reset-button {
+  fill: #c43e4d;
+  stroke: none;
+}
+
+.playground-accessible-sign {
+  fill: #2a7f88;
+  stroke: #e7fbfd;
+  stroke-width: 4;
+}
+
+.playground-accessible-sign-symbol {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+}
+
+circle.playground-accessible-sign-symbol {
+  fill: #ffffff;
+  stroke: none;
+}
+
+.playground-accessible-lower-mirror {
+  fill: #a8b2c0;
+  stroke: #d5e0e6;
+  stroke-width: 3;
+  opacity: 0.82;
+}
+
+.playground-accessible-lower-mirror-glint {
+  fill: none;
+  stroke: rgb(238 243 249 / 38%);
+  stroke-linecap: round;
+  stroke-width: 8;
+}
+
+.playground-women-sanitary-bin-shadow {
+  fill: rgb(20 27 34 / 16%);
+}
+
+.playground-women-sanitary-bin,
+.playground-women-sanitary-bin-lid {
+  fill: #f6f3f4;
+  stroke: #c9b8c0;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.playground-women-sanitary-bin-lid {
+  fill: #ffffff;
+}
+
+.playground-women-sanitary-bin-pedal {
+  fill: none;
+  stroke: #7c8796;
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.playground-women-product-dispenser {
+  fill: #fbfcff;
+  stroke: #c8d0db;
+  stroke-linejoin: round;
+  stroke-width: 4;
+  filter: drop-shadow(0 7px 4px rgb(31 42 51 / 9%));
+}
+
+.playground-women-product-window {
+  fill: #e7edf4;
+  stroke: #b8c3d0;
+  stroke-width: 2;
+}
+
+.playground-women-product-slot,
+.playground-women-wall-shelf,
+.playground-women-wall-shelf-bracket,
+.playground-women-bag-hook {
+  fill: none;
+  stroke: #7c8796;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+}
+
+.playground-women-wall-shelf {
+  stroke: #6f7b88;
+  stroke-width: 7;
+}
+
+.playground-women-wall-shelf-bracket {
+  stroke: #9aa6b3;
+  stroke-width: 4;
+}
+
+.playground-women-bag-hook-base {
+  fill: #f7f9fb;
+  stroke: #c8d0db;
+  stroke-width: 3;
+}
+
+.playground-women-bag-hook {
+  stroke: #6f7b88;
+  stroke-width: 4;
 }
 
 .playground-urinal-flush-handle {

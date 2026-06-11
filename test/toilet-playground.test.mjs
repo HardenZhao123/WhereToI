@@ -4,7 +4,9 @@ import {
   addDirtToFixture,
   createInitialDirtState,
   createToiletPlayground,
+  createToiletScenePreview,
   createSceneSnapshot,
+  fixtures,
   getFixtureStatusRows
 } from "../src/app/toilet-playground/toilet-playground.js";
 
@@ -128,28 +130,33 @@ function withFakeDom(callback) {
   }
 }
 
+function textContentDeep(node) {
+  return `${node?.textContent ?? ""}${(node?.children ?? []).map(textContentDeep).join("")}`;
+}
+
 test("toilet playground stores dirt by fixture", () => {
   const initialState = createInitialDirtState();
 
-  assert.deepEqual(initialState, {
-    wall: [],
-    toilet: [],
-    urinal: [],
-    sink: [],
-    floor: []
+  assert.deepEqual(Object.keys(initialState), fixtures.map((fixture) => fixture.id));
+  fixtures.forEach((fixture) => {
+    assert.deepEqual(initialState[fixture.id], []);
   });
 
   const withToiletStain = addDirtToFixture(initialState, "toilet", "stain", { x: 128, y: 234 });
   const withUrinalWet = addDirtToFixture(withToiletStain, "urinal", "wet", { x: 406, y: 244 });
   const withSinkWet = addDirtToFixture(withUrinalWet, "sink", "wet", { x: 642, y: 226 });
   const withFloorTissue = addDirtToFixture(withSinkWet, "floor", "tissue", { x: 460, y: 430 });
-  const withWallFeces = addDirtToFixture(withFloorTissue, "wall", "feces", { x: 260, y: 160 });
+  const withAccessibleDispenserSoap = addDirtToFixture(withFloorTissue, "accessibleDispenser", "soap", { x: 262, y: 180 });
+  const withWomenBinDust = addDirtToFixture(withAccessibleDispenserSoap, "womenSanitaryBin", "dust", { x: 316, y: 300 });
+  const withWallFeces = addDirtToFixture(withWomenBinDust, "wall", "feces", { x: 260, y: 160 });
 
   assert.deepEqual(withWallFeces.wall.map((placement) => placement.dirtId), ["feces"]);
   assert.deepEqual(withWallFeces.toilet.map((placement) => placement.dirtId), ["stain"]);
   assert.deepEqual(withWallFeces.urinal.map((placement) => placement.dirtId), ["wet"]);
   assert.deepEqual(withWallFeces.sink.map((placement) => placement.dirtId), ["wet"]);
   assert.deepEqual(withWallFeces.floor.map((placement) => placement.dirtId), ["tissue"]);
+  assert.deepEqual(withWallFeces.accessibleDispenser.map((placement) => placement.dirtId), ["soap"]);
+  assert.deepEqual(withWallFeces.womenSanitaryBin.map((placement) => placement.dirtId), ["dust"]);
   assert.deepEqual(withWallFeces.floor[0], {
     id: "floor-tissue-4",
     dirtId: "tissue",
@@ -191,30 +198,235 @@ test("toilet playground status rows and scene snapshot use display labels", () =
     "tissue"
   ]);
 
-  assert.deepEqual(
-    createSceneSnapshot(state, {
-      id: "toilet-1",
-      name: "Library toilet"
-    }),
-    {
-      version: 2,
-      toiletId: "toilet-1",
-      toiletName: "Library toilet",
-      fixtures: {
-        wall: [{ id: "wall-feces-6", dirtId: "feces", x: 260, y: 160 }],
-        toilet: [],
-        urinal: [],
-        sink: [],
-        floor: [
-          { id: "floor-wet-1", dirtId: "wet", x: 420, y: 370 },
-          { id: "floor-wet-2", dirtId: "wet", x: 760, y: 440 },
-          { id: "floor-urine-3", dirtId: "urine", x: 550, y: 390 },
-          { id: "floor-dust-4", dirtId: "dust", x: 250, y: 360 },
-          { id: "floor-tissue-5", dirtId: "tissue", x: 300, y: 400 }
-        ]
+  const snapshot = createSceneSnapshot(state, {
+    id: "toilet-1",
+    name: "Library toilet"
+  });
+  assert.equal(snapshot.version, 3);
+  assert.equal(snapshot.sceneType, "standard");
+  assert.deepEqual(snapshot.activeFixtures, ["wall", "toilet", "urinal", "sink", "floor"]);
+  assert.equal(snapshot.toiletId, "toilet-1");
+  assert.equal(snapshot.toiletName, "Library toilet");
+  assert.deepEqual(snapshot.fixtures.wall, [{ id: "wall-feces-6", dirtId: "feces", x: 260, y: 160 }]);
+  assert.deepEqual(snapshot.fixtures.floor, [
+    { id: "floor-wet-1", dirtId: "wet", x: 420, y: 370 },
+    { id: "floor-wet-2", dirtId: "wet", x: 760, y: 440 },
+    { id: "floor-urine-3", dirtId: "urine", x: 550, y: 390 },
+    { id: "floor-dust-4", dirtId: "dust", x: 250, y: 360 },
+    { id: "floor-tissue-5", dirtId: "tissue", x: 300, y: 400 }
+  ]);
+  assert.deepEqual(snapshot.fixtures.accessibleDispenser, []);
+  assert.deepEqual(snapshot.fixtures.womenSanitaryBin, []);
+});
+
+test("toilet playground lets multi-feature toilets switch scene type", () => {
+  withFakeDom(() => {
+    const root = new FakeElement("div");
+    const playground = createToiletPlayground(root);
+
+    playground.setContext({
+      id: "accessible-toilet",
+      name: "Accessible toilet",
+      features: {
+        accessible: "Y",
+        men: "Y",
+        women: "Y"
       }
-    }
-  );
+    });
+    assert.equal(root.querySelectorAll(".scene-type-option[data-scene-type=\"standard\"]").length, 1);
+    assert.equal(root.querySelectorAll(".scene-type-option[data-scene-type=\"women\"]").length, 1);
+    assert.equal(root.querySelectorAll(".scene-type-option[data-scene-type=\"accessible\"]").length, 1);
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"urinal\"]").length, 0);
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"accessibleSupport\"]").length, 1);
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"accessibleAlarm\"]").length, 1);
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"accessibleDispenser\"]").length, 1);
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"accessibleMirror\"]").length, 1);
+    assert.equal(root.querySelectorAll(".fixture-art-accessible-support").length, 1);
+    assert.equal(root.querySelectorAll(".playground-accessible-paper-dispenser").length, 1);
+    assert.equal(root.querySelectorAll(".playground-accessible-alarm-reset").length, 1);
+    assert.equal(root.querySelectorAll(".playground-accessible-lower-mirror").length, 1);
+    assert.equal(textContentDeep(root).includes("Urinal:"), false);
+
+    const accessibleSnapshot = playground.getState();
+    assert.equal(accessibleSnapshot.sceneType, "accessible");
+    assert.deepEqual(accessibleSnapshot.activeFixtures, [
+      "wall",
+      "toilet",
+      "accessibleSupport",
+      "accessibleAlarm",
+      "accessibleDispenser",
+      "accessibleMirror",
+      "sink",
+      "floor"
+    ]);
+
+    playground.setSceneType("standard");
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"urinal\"]").length, 1);
+    assert.equal(root.querySelectorAll(".fixture-art-accessible-support").length, 0);
+    assert.equal(textContentDeep(root).includes("Urinal:"), true);
+    assert.equal(playground.getState().sceneType, "standard");
+
+    playground.setSceneType("women");
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"urinal\"]").length, 0);
+    assert.equal(root.querySelectorAll(".fixture-art-accessible-support").length, 0);
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"womenSanitaryBin\"]").length, 1);
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"womenProductDispenser\"]").length, 1);
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"womenShelf\"]").length, 1);
+    assert.equal(root.querySelectorAll(".fixture-art-women-sanitary-bin").length, 1);
+    assert.equal(root.querySelectorAll(".playground-women-sanitary-bin").length, 1);
+    assert.equal(root.querySelectorAll(".playground-women-product-dispenser").length, 1);
+    assert.equal(playground.getState().sceneType, "women");
+
+    playground.setContext({
+      id: "women-toilet",
+      name: "Women toilet",
+      features: {
+        accessible: "N",
+        women: "Y",
+        men: "N"
+      }
+    });
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"urinal\"]").length, 0);
+    assert.equal(root.querySelectorAll(".fixture-art-accessible-support").length, 0);
+    assert.equal(root.querySelectorAll(".fixture-art-women-sanitary-bin").length, 1);
+    assert.equal(playground.getState().sceneType, "women");
+
+    playground.setContext({
+      id: "men-toilet",
+      name: "Men toilet",
+      features: {
+        accessible: "N",
+        women: "N",
+        men: "Y"
+      }
+    });
+    assert.equal(root.querySelectorAll(".playground-fixture[data-fixture-id=\"urinal\"]").length, 1);
+    assert.equal(playground.getState().sceneType, "standard");
+  });
+});
+
+test("toilet playground keeps scene state independent per selected scene type", () => {
+  withFakeDom(() => {
+    const root = new FakeElement("div");
+    const playground = createToiletPlayground(root);
+
+    playground.setContext({
+      id: "multi-toilet",
+      name: "Multi toilet",
+      features: {
+        accessible: "Y",
+        men: "Y",
+        women: "Y"
+      }
+    });
+
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"wet\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"floor\"]")[0].click({ offsetX: 620, offsetY: 430 });
+    assert.equal(playground.getState().sceneType, "accessible");
+    assert.equal(playground.getState().fixtures.floor.length, 1);
+
+    playground.setSceneType("standard");
+    assert.equal(playground.getState().sceneType, "standard");
+    assert.deepEqual(playground.getState().fixtures.floor, []);
+
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"stain\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"urinal\"]")[0].click({ offsetX: 410, offsetY: 250 });
+    assert.equal(playground.getState().fixtures.urinal.length, 1);
+
+    playground.setSceneType("accessible");
+    assert.equal(playground.getState().sceneType, "accessible");
+    assert.equal(playground.getState().fixtures.floor.length, 1);
+    assert.deepEqual(playground.getState().fixtures.urinal, []);
+
+    playground.setSceneType("standard");
+    assert.equal(playground.getState().fixtures.urinal.length, 1);
+    assert.deepEqual(playground.getState().fixtures.floor, []);
+  });
+});
+
+test("toilet playground supports dirt placement on added scene facilities", () => {
+  withFakeDom(() => {
+    const root = new FakeElement("div");
+    const playground = createToiletPlayground(root);
+
+    playground.setContext({
+      id: "multi-toilet",
+      name: "Multi toilet",
+      features: {
+        accessible: "Y",
+        men: "Y",
+        women: "Y"
+      }
+    });
+
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"soap\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"accessibleDispenser\"]")[0].click({ offsetX: 262, offsetY: 184 });
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"dust\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"accessibleAlarm\"]")[0].click({ offsetX: 334, offsetY: 356 });
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"mud\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"accessibleSupport\"]")[0].click({ offsetX: 86, offsetY: 232 });
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"stain\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"accessibleMirror\"]")[0].click({ offsetX: 530, offsetY: 146 });
+    assert.deepEqual(
+      playground.getState().fixtures.accessibleDispenser.map((placement) => [placement.dirtId, placement.x, placement.y]),
+      [["soap", 262, 184]]
+    );
+    assert.deepEqual(
+      playground.getState().fixtures.accessibleAlarm.map((placement) => [placement.dirtId, placement.x, placement.y]),
+      [["dust", 334, 356]]
+    );
+    assert.deepEqual(
+      playground.getState().fixtures.accessibleSupport.map((placement) => [placement.dirtId, placement.x, placement.y]),
+      [["mud", 86, 232]]
+    );
+    assert.deepEqual(
+      playground.getState().fixtures.accessibleMirror.map((placement) => [placement.dirtId, placement.x, placement.y]),
+      [["stain", 530, 146]]
+    );
+
+    playground.setSceneType("women");
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"dust\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"womenProductDispenser\"]")[0].click({ offsetX: 407, offsetY: 146 });
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"tissue\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"womenSanitaryBin\"]")[0].click({ offsetX: 316, offsetY: 300 });
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"hair\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"womenShelf\"]")[0].click({ offsetX: 486, offsetY: 224 });
+    assert.deepEqual(
+      playground.getState().fixtures.womenProductDispenser.map((placement) => [placement.dirtId, placement.x, placement.y]),
+      [["dust", 407, 146]]
+    );
+    assert.deepEqual(
+      playground.getState().fixtures.womenSanitaryBin.map((placement) => [placement.dirtId, placement.x, placement.y]),
+      [["tissue", 316, 300]]
+    );
+    assert.deepEqual(
+      playground.getState().fixtures.womenShelf.map((placement) => [placement.dirtId, placement.x, placement.y]),
+      [["hair", 486, 224]]
+    );
+  });
+});
+
+test("toilet scene preview respects accessible snapshot fixtures", () => {
+  withFakeDom(() => {
+    let state = createInitialDirtState();
+    state = addDirtToFixture(state, "floor", "wet", { x: 620, y: 430 });
+
+    const sceneSnapshot = createSceneSnapshot(state, {
+      id: "accessible-toilet",
+      name: "Accessible toilet",
+      features: {
+        accessible: "Y",
+        men: "Y",
+        women: "Y"
+      }
+    });
+    const preview = createToiletScenePreview(sceneSnapshot);
+
+    assert.ok(preview);
+    assert.equal(preview.querySelectorAll(".playground-fixture-preview-urinal").length, 0);
+    assert.equal(preview.querySelectorAll(".playground-fixture-preview-accessibleSupport").length, 1);
+    assert.equal(preview.querySelectorAll(".fixture-art-accessible-support").length, 1);
+  });
 });
 
 test("toilet playground keeps scene state independent per selected toilet", () => {

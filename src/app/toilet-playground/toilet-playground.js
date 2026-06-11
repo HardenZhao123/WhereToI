@@ -17,21 +17,154 @@ export const fixtures = [
   { id: "wall", label: "Wall" },
   { id: "toilet", label: "Toilet" },
   { id: "urinal", label: "Urinal" },
+  { id: "accessibleSupport", label: "Support rails" },
+  { id: "accessibleAlarm", label: "Emergency alarm" },
+  { id: "accessibleDispenser", label: "Reachable dispenser" },
+  { id: "accessibleMirror", label: "Low mirror" },
+  { id: "womenSanitaryBin", label: "Sanitary bin" },
+  { id: "womenProductDispenser", label: "Product dispenser" },
+  { id: "womenShelf", label: "Shelf & hook" },
   { id: "sink", label: "Sink" },
   { id: "floor", label: "Floor" }
 ];
+
+const sceneTypes = {
+  standard: {
+    id: "standard",
+    label: "Men's toilet scene",
+    optionLabel: "Men",
+    fixtureIds: ["wall", "toilet", "urinal", "sink", "floor"],
+    ariaLabel: "Realistic men's toilet scene with toilet, urinal, sink, and floor drop targets"
+  },
+  women: {
+    id: "women",
+    label: "Women's toilet scene",
+    optionLabel: "Women",
+    fixtureIds: ["wall", "toilet", "womenProductDispenser", "womenShelf", "womenSanitaryBin", "sink", "floor"],
+    ariaLabel: "Realistic women's toilet scene with toilet, sink, and floor drop targets"
+  },
+  accessible: {
+    id: "accessible",
+    label: "Accessible toilet scene",
+    optionLabel: "Accessible",
+    fixtureIds: ["wall", "toilet", "accessibleSupport", "accessibleAlarm", "accessibleDispenser", "accessibleMirror", "sink", "floor"],
+    ariaLabel: "Accessible toilet scene with toilet, support rails, emergency cord, sink, and floor drop targets"
+  }
+};
 
 const fixtureHitBoxes = {
   wall: { x: 34, y: 34, width: 752, height: 306 },
   toilet: { x: 64, y: 118, width: 244, height: 238 },
   urinal: { x: 316, y: 78, width: 184, height: 268 },
-  sink: { x: 526, y: 56, width: 240, height: 292 },
+  accessibleSupport: [
+    { x: 68, y: 216, width: 166, height: 34 },
+    { x: 72, y: 282, width: 112, height: 30 },
+    { x: 112, y: 176, width: 148, height: 34 },
+    { x: 266, y: 204, width: 30, height: 114 },
+    { x: 408, y: 104, width: 86, height: 78 }
+  ],
+  accessibleAlarm: [
+    { x: 326, y: 64, width: 18, height: 306 },
+    { x: 350, y: 204, width: 50, height: 42 },
+    { x: 316, y: 342, width: 36, height: 34 }
+  ],
+  accessibleDispenser: { x: 226, y: 150, width: 78, height: 96 },
+  accessibleMirror: { x: 502, y: 86, width: 62, height: 112 },
+  womenSanitaryBin: { x: 286, y: 252, width: 64, height: 112 },
+  womenProductDispenser: { x: 346, y: 98, width: 134, height: 108 },
+  womenShelf: { x: 360, y: 214, width: 144, height: 54 },
+  sink: [
+    { x: 522, y: 222, width: 244, height: 124 },
+    { x: 632, y: 126, width: 78, height: 96 },
+    { x: 554, y: 54, width: 172, height: 124 },
+    { x: 738, y: 136, width: 72, height: 70 },
+    { x: 596, y: 337, width: 96, height: 108 }
+  ],
   floor: { x: 42, y: 340, width: 736, height: 126 }
 };
 
-const renderFixtureOrder = ["wall", "floor", "toilet", "urinal", "sink"];
+const renderFixtureOrder = [
+  "wall",
+  "floor",
+  "toilet",
+  "accessibleSupport",
+  "womenSanitaryBin",
+  "womenProductDispenser",
+  "womenShelf",
+  "accessibleDispenser",
+  "accessibleAlarm",
+  "accessibleMirror",
+  "urinal",
+  "sink"
+];
 const validFixtureIds = new Set(fixtures.map((fixture) => fixture.id));
 const validDirtIds = new Set(dirtTypes.map((dirt) => dirt.id));
+
+function hasEnabledFeature(value) {
+  if (value === true || value === 1) return true;
+
+  const normalised = String(value ?? "").trim().toUpperCase();
+  return normalised === "Y" || normalised === "TRUE" || normalised === "1";
+}
+
+function getSceneTypeForToilet(toilet = null) {
+  const features = toilet?.features ?? {};
+  if (hasEnabledFeature(features.accessible)) return sceneTypes.accessible;
+
+  const hasWomen = hasEnabledFeature(features.women);
+  const hasMen = hasEnabledFeature(features.men);
+  if (hasWomen && !hasMen) return sceneTypes.women;
+
+  return sceneTypes.standard;
+}
+
+function getAvailableSceneTypesForToilet(toilet = null) {
+  const features = toilet?.features ?? {};
+  const availableSceneTypes = [];
+
+  if (hasEnabledFeature(features.men)) {
+    availableSceneTypes.push(sceneTypes.standard);
+  }
+
+  if (hasEnabledFeature(features.women)) {
+    availableSceneTypes.push(sceneTypes.women);
+  }
+
+  if (hasEnabledFeature(features.accessible)) {
+    availableSceneTypes.push(sceneTypes.accessible);
+  }
+
+  if (availableSceneTypes.length === 0) {
+    availableSceneTypes.push(getSceneTypeForToilet(toilet));
+  }
+
+  return availableSceneTypes;
+}
+
+function getSceneTypeFromSnapshot(sceneSnapshot = null) {
+  const sceneType = sceneTypes[String(sceneSnapshot?.sceneType ?? "")];
+  if (sceneType) return sceneType;
+
+  const activeFixtureIds = Array.isArray(sceneSnapshot?.activeFixtures)
+    ? sceneSnapshot.activeFixtures.filter((fixtureId) => validFixtureIds.has(fixtureId))
+    : [];
+
+  if (activeFixtureIds.length > 0 && !activeFixtureIds.includes("urinal")) {
+    return sceneTypes.women;
+  }
+
+  return sceneTypes.standard;
+}
+
+function getFixtureList(fixtureIds = sceneTypes.standard.fixtureIds) {
+  return fixtureIds
+    .map((fixtureId) => fixtures.find((fixture) => fixture.id === fixtureId))
+    .filter(Boolean);
+}
+
+function getRenderFixtureOrder(sceneType = sceneTypes.standard) {
+  return renderFixtureOrder.filter((fixtureId) => sceneType.fixtureIds.includes(fixtureId));
+}
 
 function getDirtDefinition(dirtId) {
   return dirtTypes.find((dirt) => dirt.id === dirtId) ?? dirtTypes[0];
@@ -45,8 +178,17 @@ function getFixtureLabel(fixtureId) {
   return fixtures.find((fixture) => fixture.id === fixtureId)?.label ?? fixtureId;
 }
 
-function getFixtureCenter(fixtureId) {
+function getFixtureHitBoxes(fixtureId) {
   const hitBox = fixtureHitBoxes[fixtureId] ?? fixtureHitBoxes.floor;
+  return Array.isArray(hitBox) ? hitBox : [hitBox];
+}
+
+function getPrimaryFixtureHitBox(fixtureId) {
+  return getFixtureHitBoxes(fixtureId)[0] ?? fixtureHitBoxes.floor;
+}
+
+function getFixtureCenter(fixtureId) {
+  const hitBox = getPrimaryFixtureHitBox(fixtureId);
   return {
     x: hitBox.x + hitBox.width / 2,
     y: hitBox.y + hitBox.height / 2
@@ -58,10 +200,47 @@ function clamp(value, min, max) {
 }
 
 function clampPointToFixture(fixtureId, point = getFixtureCenter(fixtureId)) {
-  const hitBox = fixtureHitBoxes[fixtureId] ?? fixtureHitBoxes.floor;
+  const hitBoxes = getFixtureHitBoxes(fixtureId);
+  const normalisedPoint = {
+    x: Number(point.x),
+    y: Number(point.y)
+  };
+
+  if (!Number.isFinite(normalisedPoint.x) || !Number.isFinite(normalisedPoint.y)) {
+    return getFixtureCenter(fixtureId);
+  }
+
+  const containingHitBox = hitBoxes.find((hitBox) => {
+    return (
+      normalisedPoint.x >= hitBox.x &&
+      normalisedPoint.x <= hitBox.x + hitBox.width &&
+      normalisedPoint.y >= hitBox.y &&
+      normalisedPoint.y <= hitBox.y + hitBox.height
+    );
+  });
+
+  if (containingHitBox) {
+    return {
+      x: Math.round(normalisedPoint.x),
+      y: Math.round(normalisedPoint.y)
+    };
+  }
+
+  const closestPoint = hitBoxes
+    .map((hitBox) => {
+      const x = clamp(normalisedPoint.x, hitBox.x, hitBox.x + hitBox.width);
+      const y = clamp(normalisedPoint.y, hitBox.y, hitBox.y + hitBox.height);
+      return {
+        x,
+        y,
+        distance: (x - normalisedPoint.x) ** 2 + (y - normalisedPoint.y) ** 2
+      };
+    })
+    .sort((first, second) => first.distance - second.distance)[0];
+
   return {
-    x: Math.round(clamp(Number(point.x), hitBox.x, hitBox.x + hitBox.width)),
-    y: Math.round(clamp(Number(point.y), hitBox.y, hitBox.y + hitBox.height))
+    x: Math.round(closestPoint.x),
+    y: Math.round(closestPoint.y)
   };
 }
 
@@ -93,8 +272,8 @@ function getFixturePlacements(state, fixtureId) {
     .filter((placement) => validDirtIds.has(placement.dirtId));
 }
 
-function getScenePlacementCount(state) {
-  return fixtures.reduce((total, fixture) => {
+function getScenePlacementCount(state, sceneType = sceneTypes.standard) {
+  return getFixtureList(sceneType.fixtureIds).reduce((total, fixture) => {
     return total + getFixturePlacements(state, fixture.id).length;
   }, 0);
 }
@@ -150,8 +329,8 @@ export function addDirtToFixture(state, fixtureId, dirtId, point = getFixtureCen
   };
 }
 
-export function getFixtureStatusRows(state) {
-  return fixtures.map((fixture) => {
+export function getFixtureStatusRows(state, fixtureIds = sceneTypes.standard.fixtureIds) {
+  return getFixtureList(fixtureIds).map((fixture) => {
     const placements = getFixturePlacements(state, fixture.id);
     return {
       fixtureId: fixture.id,
@@ -163,25 +342,34 @@ export function getFixtureStatusRows(state) {
   });
 }
 
-export function createSceneSnapshot(state, toilet = null) {
+export function createSceneSnapshot(state, toilet = null, selectedSceneType = null) {
+  const sceneType = sceneTypes[selectedSceneType?.id] ?? getSceneTypeForToilet(toilet);
+  const fixtureSnapshot = {
+    ...createInitialDirtState()
+  };
+
+  getFixtureStatusRows(state, sceneType.fixtureIds).forEach((row) => {
+    fixtureSnapshot[row.fixtureId] = row.placements.map((placement) => ({
+      id: placement.id,
+      dirtId: placement.dirtId,
+      x: placement.x,
+      y: placement.y
+    }));
+  });
+
   return {
-    version: 2,
+    version: 3,
+    sceneType: sceneType.id,
+    activeFixtures: [...sceneType.fixtureIds],
     toiletId: toilet?.id ?? null,
     toiletName: toilet?.name ?? "",
-    fixtures: getFixtureStatusRows(state).reduce((snapshot, row) => {
-      snapshot[row.fixtureId] = row.placements.map((placement) => ({
-        id: placement.id,
-        dirtId: placement.dirtId,
-        x: placement.x,
-        y: placement.y
-      }));
-      return snapshot;
-    }, createInitialDirtState())
+    fixtures: fixtureSnapshot
   };
 }
 
 export function sceneSnapshotHasPlacements(sceneSnapshot) {
-  return fixtures.some((fixture) => {
+  const sceneType = getSceneTypeFromSnapshot(sceneSnapshot);
+  return getFixtureList(sceneType.fixtureIds).some((fixture) => {
     const placements = Array.isArray(sceneSnapshot?.fixtures?.[fixture.id])
       ? sceneSnapshot.fixtures[fixture.id]
       : [];
@@ -304,8 +492,8 @@ function createFixtureLabel(text, x, y, extraClass = "") {
 }
 
 function createHighlightRect(fixtureId) {
-  const hitBox = fixtureHitBoxes[fixtureId];
-  return createSvgElement("rect", {
+  const hitBoxes = getFixtureHitBoxes(fixtureId);
+  const createRect = (hitBox) => createSvgElement("rect", {
     class: "fixture-highlight",
     x: hitBox.x,
     y: hitBox.y,
@@ -313,6 +501,14 @@ function createHighlightRect(fixtureId) {
     height: hitBox.height,
     rx: fixtureId === "floor" || fixtureId === "wall" ? 8 : 18
   });
+
+  if (hitBoxes.length === 1) {
+    return createRect(hitBoxes[0]);
+  }
+
+  const group = createSvgElement("g", { class: "fixture-highlight-group" });
+  hitBoxes.forEach((hitBox) => group.append(createRect(hitBox)));
+  return group;
 }
 
 function createWallArt() {
@@ -439,6 +635,116 @@ function createUrinalArt() {
   return group;
 }
 
+function createAccessibleSupportArt() {
+  const group = createSvgElement("g", { class: "fixture-art fixture-art-accessible-support" });
+  group.append(
+    createSvgElement("circle", { class: "playground-accessible-turning-space", cx: 404, cy: 412, r: 72 }),
+    createSvgElement("path", {
+      class: "playground-accessible-turning-arrow",
+      d: "M371 375c31-22 78-9 93 27M464 402l-7-27 26 9"
+    }),
+    createSvgElement("rect", { class: "playground-accessible-backrest", x: 116, y: 182, width: 136, height: 18, rx: 8 }),
+    createSvgElement("path", {
+      class: "playground-accessible-wall-rail",
+      d: "M72 232h102c18 0 36 10 47 26"
+    }),
+    createSvgElement("path", { class: "playground-accessible-wall-rail", d: "M76 294h88" }),
+    createSvgElement("circle", { class: "playground-accessible-rail-mount", cx: 278, cy: 216, r: 8 }),
+    createSvgElement("circle", { class: "playground-accessible-rail-mount", cx: 278, cy: 304, r: 8 }),
+    createSvgElement("path", {
+      class: "playground-accessible-drop-rail",
+      d: "M278 214v92"
+    }),
+    createSvgElement("path", {
+      class: "playground-accessible-drop-rail-shadow",
+      d: "M291 219v84"
+    }),
+    createSvgElement("rect", { class: "playground-accessible-sign", x: 408, y: 104, width: 86, height: 78, rx: 10 }),
+    createSvgElement("circle", { class: "playground-accessible-sign-symbol", cx: 440, cy: 130, r: 7 }),
+    createSvgElement("path", {
+      class: "playground-accessible-sign-symbol",
+      d: "M440 142v19h24M440 151h17M462 161c7 0 13 6 13 13s-6 13-13 13-13-6-13-13"
+    })
+  );
+  appendSvgTitle(group, "accessible toilet support rails, transfer space, backrest, and accessibility sign");
+  return group;
+}
+
+function createAccessibleAlarmArt() {
+  const group = createSvgElement("g", { class: "fixture-art fixture-art-accessible-alarm" });
+  group.append(
+    createSvgElement("rect", { class: "playground-accessible-alarm-reset", x: 354, y: 206, width: 42, height: 34, rx: 8 }),
+    createSvgElement("circle", { class: "playground-accessible-alarm-reset-button", cx: 374, cy: 223, r: 7 }),
+    createSvgElement("path", {
+      class: "playground-accessible-emergency-cord",
+      d: "M334 68v278"
+    }),
+    createSvgElement("circle", { class: "playground-accessible-cord-pull", cx: 334, cy: 356, r: 13 }),
+    createSvgElement("path", { class: "playground-accessible-cord-pull-tab", d: "M334 342l-13 22h26Z" })
+  );
+  appendSvgTitle(group, "accessible toilet emergency alarm cord and reset button");
+  return group;
+}
+
+function createAccessibleDispenserArt() {
+  const group = createSvgElement("g", { class: "fixture-art fixture-art-accessible-dispenser" });
+  group.append(
+    createSvgElement("rect", { class: "playground-accessible-paper-dispenser", x: 236, y: 158, width: 52, height: 46, rx: 8 }),
+    createSvgElement("path", { class: "playground-accessible-paper-slot", d: "M247 183h30" })
+  );
+  appendSvgTitle(group, "reachable paper dispenser");
+  return group;
+}
+
+function createAccessibleMirrorArt() {
+  const group = createSvgElement("g", { class: "fixture-art fixture-art-accessible-mirror" });
+  group.append(
+    createSvgElement("rect", { class: "playground-accessible-lower-mirror", x: 510, y: 96, width: 46, height: 94, rx: 4 }),
+    createSvgElement("path", { class: "playground-accessible-lower-mirror-glint", d: "M520 112l28 54M548 120l-28 60" })
+  );
+  appendSvgTitle(group, "low accessible mirror");
+  return group;
+}
+
+function createWomenSanitaryBinArt() {
+  const group = createSvgElement("g", { class: "fixture-art fixture-art-women-sanitary-bin" });
+  group.append(
+    createSvgElement("rect", { class: "playground-women-sanitary-bin-shadow", x: 292, y: 326, width: 54, height: 14, rx: 7 }),
+    createSvgElement("path", {
+      class: "playground-women-sanitary-bin",
+      d: "M292 276h52l-7 72h-38l-7-72Z"
+    }),
+    createSvgElement("path", { class: "playground-women-sanitary-bin-lid", d: "M286 272h64c-2-12-12-20-32-20s-30 8-32 20Z" }),
+    createSvgElement("path", { class: "playground-women-sanitary-bin-pedal", d: "M306 350h26" })
+  );
+  appendSvgTitle(group, "women's toilet sanitary bin");
+  return group;
+}
+
+function createWomenProductDispenserArt() {
+  const group = createSvgElement("g", { class: "fixture-art fixture-art-women-product-dispenser" });
+  group.append(
+    createSvgElement("rect", { class: "playground-women-product-dispenser", x: 354, y: 108, width: 116, height: 94, rx: 10 }),
+    createSvgElement("rect", { class: "playground-women-product-window", x: 372, y: 126, width: 32, height: 42, rx: 4 }),
+    createSvgElement("rect", { class: "playground-women-product-window", x: 420, y: 126, width: 32, height: 42, rx: 4 }),
+    createSvgElement("path", { class: "playground-women-product-slot", d: "M372 184h80" })
+  );
+  appendSvgTitle(group, "women's toilet sanitary product dispenser");
+  return group;
+}
+
+function createWomenShelfArt() {
+  const group = createSvgElement("g", { class: "fixture-art fixture-art-women-shelf" });
+  group.append(
+    createSvgElement("path", { class: "playground-women-wall-shelf", d: "M352 226h118" }),
+    createSvgElement("path", { class: "playground-women-wall-shelf-bracket", d: "M374 226l-18 22M448 226l18 22" }),
+    createSvgElement("circle", { class: "playground-women-bag-hook-base", cx: 486, cy: 220, r: 11 }),
+    createSvgElement("path", { class: "playground-women-bag-hook", d: "M486 223c0 18-24 18-24 2" })
+  );
+  appendSvgTitle(group, "women's toilet shelf and bag hook");
+  return group;
+}
+
 function createSinkArt() {
   const group = createSvgElement("g", { class: "fixture-art fixture-art-sink" });
   group.append(
@@ -524,6 +830,13 @@ function createFixtureBase(fixtureId) {
   if (fixtureId === "wall") return createWallArt();
   if (fixtureId === "toilet") return createToiletArt();
   if (fixtureId === "urinal") return createUrinalArt();
+  if (fixtureId === "accessibleSupport") return createAccessibleSupportArt();
+  if (fixtureId === "accessibleAlarm") return createAccessibleAlarmArt();
+  if (fixtureId === "accessibleDispenser") return createAccessibleDispenserArt();
+  if (fixtureId === "accessibleMirror") return createAccessibleMirrorArt();
+  if (fixtureId === "womenSanitaryBin") return createWomenSanitaryBinArt();
+  if (fixtureId === "womenProductDispenser") return createWomenProductDispenserArt();
+  if (fixtureId === "womenShelf") return createWomenShelfArt();
   if (fixtureId === "sink") return createSinkArt();
   return createFloorArt();
 }
@@ -733,6 +1046,7 @@ function createRoomBackground() {
 
 export function createToiletScenePreview(sceneSnapshot) {
   if (!sceneSnapshotHasPlacements(sceneSnapshot)) return null;
+  const sceneType = getSceneTypeFromSnapshot(sceneSnapshot);
 
   const wrapper = createElement("div", {
     className: "comment-scene-preview",
@@ -742,12 +1056,12 @@ export function createToiletScenePreview(sceneSnapshot) {
     class: "comment-scene-svg toilet-playground-svg",
     viewBox: "0 0 820 500",
     role: "img",
-    "aria-label": "Submitted interactive toilet scene",
+    "aria-label": `Submitted ${sceneType.label.toLowerCase()}`,
     focusable: "false"
   });
 
   svg.append(createRoomBackground());
-  renderFixtureOrder.forEach((fixtureId) => {
+  getRenderFixtureOrder(sceneType).forEach((fixtureId) => {
     const fixtureGroup = createSvgElement("g", { class: `playground-fixture-preview playground-fixture-preview-${fixtureId}` });
     fixtureGroup.append(createFixtureBase(fixtureId));
     getFixturePlacements(sceneSnapshot.fixtures, fixtureId).forEach((placement) => {
@@ -805,22 +1119,22 @@ function Fixture({ fixture, state, selectedDirt, onFixtureDrop, onFixtureSelect 
   return group;
 }
 
-function ToiletScene({ state, selectedDirt, onFixtureDrop, onFixtureSelect }) {
+function ToiletScene({ state, selectedDirt, sceneType, onFixtureDrop, onFixtureSelect }) {
   const scenePanel = createElement("section", {
     className: "toilet-scene-panel",
-    attrs: { "aria-label": "Interactive toilet scene" }
+    attrs: { "aria-label": sceneType.label }
   });
 
   const svg = createSvgElement("svg", {
     class: "toilet-playground-svg",
     viewBox: "0 0 820 500",
     role: "img",
-    "aria-label": "Realistic toilet scene with toilet, urinal, sink, and floor drop targets",
+    "aria-label": sceneType.ariaLabel,
     focusable: "false"
   });
 
   svg.append(createRoomBackground());
-  renderFixtureOrder.forEach((fixtureId) => {
+  getRenderFixtureOrder(sceneType).forEach((fixtureId) => {
     const fixture = fixtures.find((item) => item.id === fixtureId);
     if (!fixture) return;
 
@@ -839,7 +1153,7 @@ function ToiletScene({ state, selectedDirt, onFixtureDrop, onFixtureSelect }) {
   return scenePanel;
 }
 
-function StatusPanel({ state, lastAction, onReset, onPrepareUpload }) {
+function StatusPanel({ state, lastAction, sceneType, onReset, onPrepareUpload }) {
   const panel = createElement("aside", {
     className: "playground-status-panel",
     attrs: { "aria-label": "Toilet playground state" }
@@ -848,7 +1162,7 @@ function StatusPanel({ state, lastAction, onReset, onPrepareUpload }) {
   const title = createElement("h2", { text: "State" });
   const list = createElement("ul", { className: "playground-status-list" });
 
-  getFixtureStatusRows(state).forEach((row) => {
+  getFixtureStatusRows(state, sceneType.fixtureIds).forEach((row) => {
     const item = createElement("li");
     const label = createElement("strong", { text: `${row.fixtureLabel}:` });
     const value = createElement("span", {
@@ -884,7 +1198,34 @@ function StatusPanel({ state, lastAction, onReset, onPrepareUpload }) {
   return panel;
 }
 
-function ToiletPlayground({ state, selectedDirt, toilet, lastAction, callbacks }) {
+function SceneTypeSelector({ sceneType, availableSceneTypes, onSelectSceneType }) {
+  const control = createElement("div", {
+    className: "scene-type-selector",
+    attrs: { "aria-label": "Interactive scene type" }
+  });
+  const label = createElement("span", { className: "scene-type-label", text: "Scene" });
+  const options = createElement("div", { className: "scene-type-options", attrs: { role: "group" } });
+
+  availableSceneTypes.forEach((availableSceneType) => {
+    const button = createElement("button", {
+      className: "scene-type-option",
+      text: availableSceneType.optionLabel,
+      attrs: {
+        type: "button",
+        "aria-pressed": String(availableSceneType.id === sceneType.id)
+      },
+      dataset: { sceneType: availableSceneType.id }
+    });
+    button.classList.toggle("is-selected", availableSceneType.id === sceneType.id);
+    button.addEventListener("click", () => onSelectSceneType(availableSceneType.id));
+    options.append(button);
+  });
+
+  control.append(label, options);
+  return control;
+}
+
+function ToiletPlayground({ state, selectedDirt, toilet, sceneType, availableSceneTypes, lastAction, callbacks }) {
   const wrapper = createElement("div", { className: "toilet-playground" });
   const header = createElement("header", { className: "toilet-playground-header" });
   const titleBlock = createElement("div");
@@ -895,6 +1236,15 @@ function ToiletPlayground({ state, selectedDirt, toilet, lastAction, callbacks }
     })
   );
   header.append(titleBlock);
+  if (availableSceneTypes.length > 1) {
+    header.append(
+      SceneTypeSelector({
+        sceneType,
+        availableSceneTypes,
+        onSelectSceneType: callbacks.onSelectSceneType
+      })
+    );
+  }
 
   const workspace = createElement("div", { className: "toilet-playground-workspace" });
   workspace.append(
@@ -907,12 +1257,14 @@ function ToiletPlayground({ state, selectedDirt, toilet, lastAction, callbacks }
     ToiletScene({
       state,
       selectedDirt,
+      sceneType,
       onFixtureDrop: callbacks.onFixtureDrop,
       onFixtureSelect: callbacks.onFixtureSelect
     }),
     StatusPanel({
       state,
       lastAction,
+      sceneType,
       onReset: callbacks.onReset,
       onPrepareUpload: callbacks.onPrepareUpload
     })
@@ -924,18 +1276,25 @@ function ToiletPlayground({ state, selectedDirt, toilet, lastAction, callbacks }
 
 export function createToiletPlayground(rootElement, options = {}) {
   const { onDone = () => {} } = options;
-  const defaultSceneKey = "__unselected_toilet__";
+  const defaultToiletKey = "__unselected_toilet__";
+  const defaultSceneKey = `${defaultToiletKey}::${sceneTypes.standard.id}`;
   const sceneStatesByKey = new Map([[defaultSceneKey, createInitialDirtState()]]);
   const sceneLastActionsByKey = new Map([[defaultSceneKey, "Ready"]]);
+  const sceneTypeByToiletKey = new Map();
 
   let state = createInitialDirtState();
   let selectedDirt = null;
   let toilet = null;
   let lastAction = "Ready";
   let activeSceneKey = defaultSceneKey;
+  let activeSceneType = sceneTypes.standard;
 
-  function getSceneKey(nextToilet = toilet) {
-    return nextToilet?.id ? String(nextToilet.id) : defaultSceneKey;
+  function getToiletKey(nextToilet = toilet) {
+    return nextToilet?.id ? String(nextToilet.id) : defaultToiletKey;
+  }
+
+  function getSceneKey(nextToilet = toilet, nextSceneType = activeSceneType) {
+    return `${getToiletKey(nextToilet)}::${nextSceneType.id}`;
   }
 
   function getStoredSceneState(sceneKey) {
@@ -973,9 +1332,12 @@ export function createToiletPlayground(rootElement, options = {}) {
         state,
         selectedDirt,
         toilet,
+        sceneType: activeSceneType,
+        availableSceneTypes: getAvailableSceneTypesForToilet(toilet),
         lastAction,
         callbacks: {
           onSelectDirt: selectDirt,
+          onSelectSceneType: selectSceneType,
           onDragStart: handleDragStart,
           onDragEnd: handleDragEnd,
           onFixtureDrop: placeDirtOnFixture,
@@ -991,6 +1353,22 @@ export function createToiletPlayground(rootElement, options = {}) {
     if (!validDirtIds.has(dirtId)) return;
     selectedDirt = dirtId;
     setSceneLastAction(`${getDirtLabel(dirtId)} selected`);
+    render();
+  }
+
+  function selectSceneType(sceneTypeId) {
+    const nextSceneType = sceneTypes[sceneTypeId];
+    const availableSceneTypes = getAvailableSceneTypesForToilet(toilet);
+    if (!nextSceneType || !availableSceneTypes.some((sceneTypeOption) => sceneTypeOption.id === nextSceneType.id)) {
+      return;
+    }
+
+    const toiletKey = getToiletKey(toilet);
+    sceneTypeByToiletKey.set(toiletKey, nextSceneType.id);
+    activeSceneType = nextSceneType;
+    activeSceneKey = getSceneKey(toilet, activeSceneType);
+    state = getStoredSceneState(activeSceneKey);
+    lastAction = sceneLastActionsByKey.get(activeSceneKey) ?? "Ready";
     render();
   }
 
@@ -1010,7 +1388,13 @@ export function createToiletPlayground(rootElement, options = {}) {
   }
 
   function placeDirtOnFixture(fixtureId, dirtId, point) {
-    if (!validFixtureIds.has(fixtureId) || !validDirtIds.has(dirtId)) return;
+    if (
+      !validFixtureIds.has(fixtureId) ||
+      !activeSceneType.fixtureIds.includes(fixtureId) ||
+      !validDirtIds.has(dirtId)
+    ) {
+      return;
+    }
 
     setSceneState(addDirtToFixture(state, fixtureId, dirtId, point));
     selectedDirt = dirtId;
@@ -1038,7 +1422,7 @@ export function createToiletPlayground(rootElement, options = {}) {
 
   function prepareUpload() {
     const snapshot = {
-      ...createSceneSnapshot(state, toilet),
+      ...createSceneSnapshot(state, toilet, activeSceneType),
       updatedAt: new Date().toISOString()
     };
 
@@ -1057,19 +1441,25 @@ export function createToiletPlayground(rootElement, options = {}) {
 
   function setContext(nextToilet) {
     toilet = nextToilet ?? null;
-    activeSceneKey = getSceneKey(toilet);
+    const toiletKey = getToiletKey(toilet);
+    const availableSceneTypes = getAvailableSceneTypesForToilet(toilet);
+    const storedSceneType = sceneTypes[sceneTypeByToiletKey.get(toiletKey)];
+    activeSceneType = storedSceneType && availableSceneTypes.some((sceneTypeOption) => sceneTypeOption.id === storedSceneType.id)
+      ? storedSceneType
+      : getSceneTypeForToilet(toilet);
+    activeSceneKey = getSceneKey(toilet, activeSceneType);
     state = getStoredSceneState(activeSceneKey);
     lastAction = sceneLastActionsByKey.get(activeSceneKey) ?? "Ready";
     render();
   }
 
   function getState() {
-    return createSceneSnapshot(state, toilet);
+    return createSceneSnapshot(state, toilet, activeSceneType);
   }
 
   function getSubmissionSnapshot() {
-    if (getScenePlacementCount(state) === 0) return null;
-    return createSceneSnapshot(state, toilet);
+    if (getScenePlacementCount(state, activeSceneType) === 0) return null;
+    return createSceneSnapshot(state, toilet, activeSceneType);
   }
 
   render();
@@ -1078,6 +1468,7 @@ export function createToiletPlayground(rootElement, options = {}) {
     getSubmissionSnapshot,
     getState,
     reset,
+    setSceneType: selectSceneType,
     setContext
   };
 }
