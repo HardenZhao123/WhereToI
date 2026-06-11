@@ -1,5 +1,6 @@
 import { formatAccessTime, formatCharge, formatCurrency } from "../utils/account-formatters.js";
 import { getCommentMediaAttachments } from "../utils/comments.js";
+import { createStarRatingElement, getHalfStepRating } from "../utils/star-rating.js";
 
 export function renderAccount({ accountUsername, accountWelcome, displayGender, displayNeeds }, account, user) {
   if (user && accountUsername) {
@@ -67,22 +68,12 @@ function getCommentProfileVisibilityLabel(comment) {
 }
 
 function getCommentRating(comment) {
-  const rating = Number(comment?.cleanliness_rating ?? comment?.cleanlinessRating);
-  return Number.isFinite(rating) && rating >= 0.5 && rating <= 5 && Number.isInteger(rating * 2) ? rating : null;
+  return getHalfStepRating(comment?.cleanliness_rating ?? comment?.cleanlinessRating);
 }
 
 function createCommentRatingElement(comment) {
   const rating = getCommentRating(comment);
-  if (!rating) return null;
-
-  const ratingElement = document.createElement("span");
-  const full = Math.floor(rating);
-  const half = rating > full ? 1 : 0;
-  const empty = Math.max(5 - full - half, 0);
-  ratingElement.className = "profile-feedback-rating";
-  ratingElement.setAttribute("aria-label", `Cleanliness rating ${rating} out of 5`);
-  ratingElement.textContent = `${"\u2605".repeat(full)}${half ? "\u00bd" : ""}${"\u2606".repeat(empty)}`;
-  return ratingElement;
+  return createStarRatingElement(rating, "profile-feedback-rating");
 }
 
 function createCommentHeading(comment) {

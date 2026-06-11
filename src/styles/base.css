@@ -206,3 +206,22 @@ h3 {
 .view.is-active {
   display: block;
 }
+.rating-star {
+  position: relative;
+  display: inline-block;
+  color: currentColor;
+}
+
+.rating-star.is-empty,
+.rating-star.is-half {
+  color: #b7b9b3;
+}
+
+.rating-star.is-half::before {
+  position: absolute;
+  inset: 0;
+  width: 50%;
+  overflow: hidden;
+  color: var(--gold);
+  content: "\2605";
+}
