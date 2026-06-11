@@ -379,6 +379,8 @@ export function mapCommentRow(row, { viewerUserId = null, includeMediaData = fal
         : null,
     like_count: Number(row.like_count ?? 0),
     viewer_has_liked: Boolean(row.viewer_has_liked),
+    dislike_count: Number(row.dislike_count ?? 0),
+    viewer_has_disliked: Boolean(row.viewer_has_disliked),
     media_url: includeMediaData ? row.media_url : null,
     media_attachments: parseCommentMediaAttachments(row, { includeMediaData }),
     scene_snapshot: parseCommentSceneSnapshot(row)

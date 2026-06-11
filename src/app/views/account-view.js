@@ -194,6 +194,7 @@ export function renderMyComments(commentsContainer, comments, { onOpenComment = 
       getCommentIdentityLabel(comment),
       getCommentProfileVisibilityLabel(comment),
       `${Number(comment.like_count ?? 0)} likes`,
+      `${Number(comment.dislike_count ?? 0)} dislikes`,
       formatAccessTime(comment.created_at)
     ]);
 
@@ -264,6 +265,7 @@ export function renderPublicProfile(
     meta.className = "public-profile-comment-meta";
     renderCommentMeta(meta, [
       `${Number(comment.like_count ?? 0)} likes`,
+      `${Number(comment.dislike_count ?? 0)} dislikes`,
       formatAccessTime(comment.created_at)
     ]);
 

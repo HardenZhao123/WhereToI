@@ -193,7 +193,8 @@
   flex: 0 0 auto;
 }
 
-.comment-like-button {
+.comment-like-button,
+.comment-dislike-button {
   display: inline-flex;
   min-width: 42px;
   height: 24px;
@@ -212,18 +213,23 @@
 
 .comment-like-button:hover,
 .comment-like-button:focus-visible,
-.comment-like-button.is-liked {
+.comment-like-button.is-liked,
+.comment-dislike-button:hover,
+.comment-dislike-button:focus-visible,
+.comment-dislike-button.is-disliked {
   border-color: #c9ddcf;
   background: #ffffff;
   color: var(--ink);
 }
 
-.comment-like-button:disabled {
+.comment-like-button:disabled,
+.comment-dislike-button:disabled {
   cursor: wait;
   opacity: 0.7;
 }
 
-.comment-like-icon {
+.comment-like-icon,
+.comment-dislike-icon {
   font-size: 14px;
   line-height: 1;
 }

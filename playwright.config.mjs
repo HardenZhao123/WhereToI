@@ -20,7 +20,8 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
-      WHERETOI_DB_FILE: "data/playwright.sqlite"
+      WHERETOI_DB_FILE: "data/playwright.sqlite",
+      WHERETOI_ENABLE_DEMO_ACCOUNT: "true"
     }
   }
 });

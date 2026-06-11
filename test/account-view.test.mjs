@@ -91,6 +91,7 @@ function createComment(overrides = {}) {
     comment_text: "Clean enough.",
     cleanliness_rating: 4,
     like_count: 2,
+    dislike_count: 1,
     created_at: "2026-06-02T18:14:10.000Z",
     comment_visibility: "real",
     profile_visibility: "public",
@@ -120,6 +121,8 @@ test("account feedback history renders cleanliness ratings as stars", () => {
     );
     assert.equal(rating?.attributes["aria-label"], "Cleanliness rating 3 out of 5");
     assert.doesNotMatch(collectText(container), /Rating:|3\/5/);
+    assert.match(collectText(container), /2 likes/);
+    assert.match(collectText(container), /1 dislikes/);
   });
 });
 
@@ -192,5 +195,7 @@ test("public profiles render feedback ratings as stars", () => {
     );
     assert.equal(rating?.attributes["aria-label"], "Cleanliness rating 5 out of 5");
     assert.doesNotMatch(collectText(publicProfileCommentsList), /Rating:|5\/5/);
+    assert.match(collectText(publicProfileCommentsList), /2 likes/);
+    assert.match(collectText(publicProfileCommentsList), /1 dislikes/);
   });
 });
