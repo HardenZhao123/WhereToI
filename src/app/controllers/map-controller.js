@@ -439,17 +439,21 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function renderVisualStarRating(level = visualCleanlinessLevel) {
     const selectedLevel = normaliseVisualCleanlinessLevel(level);
+    const isUnrated = selectedLevel === 0;
     visualCleanlinessStars?.setAttribute(
       "aria-label",
-      `Toilet visual cleanliness rating ${selectedLevel} out of 5`
+      isUnrated
+        ? "No cleanliness rating selected. Each star supports half-star and full-star choices."
+        : `Toilet visual cleanliness rating ${selectedLevel} out of 5`
     );
+    visualCleanlinessStars?.classList?.toggle("is-unrated", isUnrated);
 
     visualCleanlinessStars?.querySelectorAll?.("[data-visual-star]")?.forEach((button) => {
       const star = Number(button.dataset.visualStar);
-      const fill = selectedLevel >= star ? 100 : selectedLevel >= star - 0.5 ? 50 : 0;
+      const fill = isUnrated ? 50 : selectedLevel >= star ? 100 : selectedLevel >= star - 0.5 ? 50 : 0;
       button.style?.setProperty?.("--star-fill", `${fill}%`);
-      button.classList.toggle("is-selected", fill > 0);
-      button.setAttribute("aria-pressed", fill > 0 ? "true" : "false");
+      button.classList.toggle("is-selected", !isUnrated && fill > 0);
+      button.setAttribute("aria-pressed", !isUnrated && fill > 0 ? "true" : "false");
     });
 
     visualCleanlinessRatingButtons.forEach((hit) => {

@@ -284,6 +284,16 @@
   transition: clip-path 120ms ease;
 }
 
+.visual-star-rating.is-unrated .visual-star-outline {
+  fill: #d9dedb;
+  stroke: #aeb6b1;
+}
+
+.visual-star-rating.is-unrated .visual-star-fill {
+  fill: #7b837e;
+  stroke: #7b837e;
+}
+
 .visual-star-hit {
   position: absolute;
   top: 0;
