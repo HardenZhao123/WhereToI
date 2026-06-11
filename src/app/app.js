@@ -13,6 +13,7 @@ export function createApp() {
   let accountController = null;
   let tabController = null;
   let boundsFetchTimeoutId = null;
+  const mapCleanlinessRange = "3days";
   const toiletPlayground = createToiletPlayground(elements.feedbackSceneRoot);
 
   const mapController = createMapController(elements, (toilet) => toiletPlayground.setContext(toilet), {
@@ -24,7 +25,7 @@ export function createApp() {
       tabController?.setTab("account");
     },
     onCleanlinessSaved: () =>
-      initializeToilets("all", {
+      initializeToilets(mapCleanlinessRange, {
         force: true
       }),
     getFeedbackSceneSnapshot: () => toiletPlayground.getSubmissionSnapshot(),
@@ -36,7 +37,7 @@ export function createApp() {
 
       boundsFetchTimeoutId = window.setTimeout(() => {
         boundsFetchTimeoutId = null;
-        initializeToilets("all", {
+        initializeToilets(mapCleanlinessRange, {
           bounds,
           merge: true
         });
@@ -285,7 +286,7 @@ export function createApp() {
 
     // Fetch live data using current map bounds.
     await Promise.all([
-      initializeToilets("all", {
+      initializeToilets(mapCleanlinessRange, {
         force: true,
         merge: false
       }),
