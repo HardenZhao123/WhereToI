@@ -25,6 +25,9 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     accountWelcome,
     accountUsername,
     authModal,
+    signupIntro,
+    signupIntroVideo,
+    signupIntroSkipButton,
     authForm,
     closeAuthButton,
     authTitle,
@@ -63,6 +66,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   const autoFilterStorageKey = "wheretoi-auto-filter-enabled";
   let currentUser = null;
   let isRegisterMode = false;
+  let signupIntroActive = false;
   let publicProfileActive = false;
   let activePublicProfileUserId = null;
   let activeAccountActivityTab = "feedback";
@@ -115,6 +119,73 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     authModal?.classList.add("is-hidden");
   }
 
+  function focusAuthStartField() {
+    window.setTimeout(() => {
+      if (isRegisterMode && authEmail && !emailGroup?.classList.contains("is-hidden")) {
+        authEmail.focus();
+        return;
+      }
+
+      authUsername?.focus();
+    }, 0);
+  }
+
+  function finishSignupIntro(message = "") {
+    if (!signupIntroActive) return;
+    signupIntroActive = false;
+    signupIntro?.classList.add("is-hidden");
+    signupIntro?.setAttribute("aria-hidden", "true");
+
+    if (signupIntroVideo) {
+      signupIntroVideo.pause();
+      signupIntroVideo.muted = false;
+      try {
+        signupIntroVideo.currentTime = 0;
+      } catch {
+        // Some browsers reject seeking before metadata is ready.
+      }
+    }
+
+    showAuthModal("register", message);
+    focusAuthStartField();
+  }
+
+  function startSignupIntro() {
+    hideSettingsPanel();
+    hideAuthModal();
+
+    if (!signupIntro || !signupIntroVideo) {
+      showAuthModal("register");
+      focusAuthStartField();
+      return;
+    }
+
+    signupIntroActive = true;
+    signupIntro.classList.remove("is-hidden");
+    signupIntro.removeAttribute("aria-hidden");
+
+    try {
+      signupIntroVideo.currentTime = 0;
+    } catch {
+      // The browser can start playback from the beginning once metadata arrives.
+    }
+    signupIntroVideo.muted = false;
+
+    const playAttempt = signupIntroVideo.play();
+    if (playAttempt && typeof playAttempt.catch === "function") {
+      playAttempt.catch(() => {
+        if (!signupIntroActive) return;
+        signupIntroVideo.muted = true;
+        const mutedPlayAttempt = signupIntroVideo.play();
+        if (mutedPlayAttempt && typeof mutedPlayAttempt.catch === "function") {
+          mutedPlayAttempt.catch(() => {
+            finishSignupIntro("Intro video could not be played. Continue sign up below.");
+          });
+        }
+      });
+    }
+  }
+
   function showProfileModal() {
     hideSettingsPanel();
     profileModal?.classList.remove("is-hidden");
@@ -146,8 +217,13 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     if (authPassword) authPassword.autocomplete = isRegisterMode ? "new-password" : "current-password";
   }
 
-  function toggleAuthMode() {
-    setAuthMode(isRegisterMode ? "login" : "register");
+  function handleAuthToggle() {
+    if (isRegisterMode) {
+      setAuthMode("login");
+      return;
+    }
+
+    startSignupIntro();
   }
 
   function setSettingsPanelOpen(isOpen) {
@@ -450,15 +526,20 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
   function bindEvents() {
     authForm?.addEventListener("submit", handleAuthSubmit);
-    authToggle?.addEventListener("click", toggleAuthMode);
+    authToggle?.addEventListener("click", handleAuthToggle);
     closeAuthButton?.addEventListener("click", hideAuthModal);
+    signupIntroVideo?.addEventListener("ended", () => finishSignupIntro());
+    signupIntroVideo?.addEventListener("error", () => {
+      finishSignupIntro("Intro video could not be loaded. Continue sign up below.");
+    });
+    signupIntroSkipButton?.addEventListener("click", () => finishSignupIntro());
     accountActivityTabs?.forEach((button) => {
       button.addEventListener("click", handleAccountActivityTabClick);
     });
     setAccountActivityTab(activeAccountActivityTab);
     accountSettingsButton?.addEventListener("click", toggleSettingsPanel);
     logoutButton?.addEventListener("click", handleLogout);
-    accountSignupButton?.addEventListener("click", () => showAuthModal("register"));
+    accountSignupButton?.addEventListener("click", startSignupIntro);
     accountLoginButton?.addEventListener("click", () => showAuthModal("login"));
     publicProfileBackButton?.addEventListener("click", () => handlePublicProfileBack());
 
