@@ -26,7 +26,7 @@ jobs:
             payload=$(curl -fsS "$PUBLIC_APP_URL/api/health" || true)
             echo "Attempt $i health payload: $payload"
 
-            if echo "$payload" | grep -q '"status":"ok"' && echo "$payload" | grep -Fq "\"commit\":\"${EXPECTED_SHA}\""; then
+            if echo "$payload" | grep -q '"status":"ok"' && echo "$payload" | grep -q '"database":"postgres"' && echo "$payload" | grep -Fq "\"commit\":\"${EXPECTED_SHA}\""; then
               echo "Render deployed ${EXPECTED_SHA}"
               exit 0
             fi
@@ -41,13 +41,5 @@ jobs:
         run: |
           set -euo pipefail
 
-          cookie_file=$(mktemp)
-          curl -fsS \
-            -c "$cookie_file" \
-            -H "Content-Type: application/json" \
-            -d '{"username":"demo","password":"demo123"}' \
-            "$PUBLIC_APP_URL/api/login" > /tmp/wheretoi-login.json
-
-          payload=$(curl -fsS -b "$cookie_file" "$PUBLIC_APP_URL/api/account")
-          echo "$payload" | grep -q '"account"' || (echo "Missing account payload" >&2; exit 1)
-          echo "$payload" | grep -q '"history"' || (echo "Missing history payload" >&2; exit 1)
+          payload=$(curl -fsS "$PUBLIC_APP_URL/api/toilets")
+          echo "$payload" | grep -q '"toilets":\[' || (echo "Missing toilets payload" >&2; exit 1)

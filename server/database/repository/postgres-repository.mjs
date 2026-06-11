@@ -123,7 +123,84 @@ async function ensureDemoUser(pool) {
   return insertedDemo.rows[0].id;
 }
 
-async function ensurePostgresUserSupport(pool) {
+function isBuiltInDemoUser(user) {
+  if (user?.username !== "demo" || user?.email !== "demo@example.com") {
+    return false;
+  }
+
+  try {
+    return verifyPassword("demo123", user.password_hash);
+  } catch {
+    return false;
+  }
+}
+
+async function removeBuiltInDemoUser(pool) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      "SELECT id, username, email, password_hash FROM users WHERE username = $1 FOR UPDATE",
+      ["demo"]
+    );
+    const demoUser = result.rows[0];
+
+    if (!isBuiltInDemoUser(demoUser)) {
+      await client.query("COMMIT");
+      return;
+    }
+
+    const affectedToilets = await client.query(
+      "SELECT DISTINCT toilet_id FROM cleanliness_surveys WHERE user_id = $1",
+      [demoUser.id]
+    );
+    await client.query(
+      "DELETE FROM comment_likes WHERE user_id = $1 OR comment_id IN (SELECT id FROM toilet_comments WHERE user_id = $1)",
+      [demoUser.id]
+    );
+    await client.query("DELETE FROM toilet_comments WHERE user_id = $1", [demoUser.id]);
+    await client.query("DELETE FROM cleanliness_surveys WHERE user_id = $1", [demoUser.id]);
+    await client.query("DELETE FROM access_history WHERE user_id = $1", [demoUser.id]);
+    await client.query("DELETE FROM app_account WHERE user_id = $1", [demoUser.id]);
+    await client.query("DELETE FROM users WHERE id = $1", [demoUser.id]);
+
+    for (const { toilet_id: toiletId } of affectedToilets.rows) {
+      await client.query(
+        `
+        UPDATE toilets
+        SET
+          cleanliness = COALESCE(
+            (SELECT AVG(rating) FROM cleanliness_surveys WHERE toilet_id = $1),
+            3
+          ),
+          cleanliness_rating_total = COALESCE(
+            (SELECT SUM(rating) FROM cleanliness_surveys WHERE toilet_id = $1),
+            0
+          ),
+          cleanliness_rating_count = (
+            SELECT COUNT(*) FROM cleanliness_surveys WHERE toilet_id = $1
+          ),
+          cleanliness_rating_sum_squares = COALESCE(
+            (SELECT SUM(rating * rating) FROM cleanliness_surveys WHERE toilet_id = $1),
+            0
+          ),
+          bias = 0
+        WHERE id = $1
+        `,
+        [toiletId]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function ensurePostgresUserSupport(pool, { enableDemoAccount }) {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_total DOUBLE PRECISION NOT NULL DEFAULT 0");
@@ -166,19 +243,24 @@ async function ensurePostgresUserSupport(pool) {
   await pool.query("ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS username TEXT");
   await ensurePostgresCommentMediaColumns(pool);
 
-  const demoUserId = await ensureDemoUser(pool);
+  let demoUserId = null;
+  if (enableDemoAccount) {
+    demoUserId = await ensureDemoUser(pool);
 
-  await pool.query("UPDATE app_account SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
-  await pool.query("UPDATE access_history SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
-  await pool.query(
-    `
-    DELETE FROM access_history
-    WHERE user_id = $1
-      AND toilet_id IS NULL
-      AND LOWER(TRIM(toilet_name)) = ANY($2::text[])
-    `,
-    [demoUserId, LEGACY_DEMO_ACCESS_HISTORY_NAMES]
-  );
+    await pool.query("UPDATE app_account SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
+    await pool.query("UPDATE access_history SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
+    await pool.query(
+      `
+      DELETE FROM access_history
+      WHERE user_id = $1
+        AND toilet_id IS NULL
+        AND LOWER(TRIM(toilet_name)) = ANY($2::text[])
+      `,
+      [demoUserId, LEGACY_DEMO_ACCESS_HISTORY_NAMES]
+    );
+  } else {
+    await removeBuiltInDemoUser(pool);
+  }
   await pool.query("UPDATE toilet_comments SET username = $1 WHERE username IS NULL", ["Anonymous"]);
   await pool.query("UPDATE toilet_comments SET comment_visibility = $1 WHERE user_id IS NULL OR LOWER(COALESCE(username, '')) = $1", ["anonymous"]);
 
@@ -256,7 +338,12 @@ export async function seedPostgresToiletsIfEmpty(pool, seedCsvPath) {
   return { seeded: true, existingCount: 0, ...result };
 }
 
-export async function createPostgresDatabase({ connectionString, seedCsvPath, cleanlinessScoringModel }) {
+export async function createPostgresDatabase({
+  connectionString,
+  seedCsvPath,
+  cleanlinessScoringModel,
+  enableDemoAccount = false
+}) {
   let Pool;
   try {
     ({ Pool } = await import("pg"));
@@ -377,7 +464,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
   `);
   await pool.query("ALTER TABLE cleanliness_surveys ALTER COLUMN rating TYPE DOUBLE PRECISION USING rating::double precision");
 
-  const demoUserId = await ensurePostgresUserSupport(pool);
+  const demoUserId = await ensurePostgresUserSupport(pool, { enableDemoAccount });
 
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_access_history_access_time
@@ -424,7 +511,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
   const accountCount = Number((await pool.query("SELECT COUNT(*)::int AS count FROM app_account")).rows[0]?.count ?? 0);
 
-  if (accountCount === 0) {
+  if (enableDemoAccount && demoUserId && accountCount === 0) {
     await pool.query(
       `
       INSERT INTO app_account (

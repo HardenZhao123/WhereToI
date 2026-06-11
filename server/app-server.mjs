@@ -232,7 +232,8 @@ function createApiRouteHandlers(database, { emailService, logger }) {
     "GET /api/health": async ({ response }) => {
       sendJson(response, 200, {
         status: "ok",
-        commit: process.env.RENDER_GIT_COMMIT ?? null
+        commit: process.env.RENDER_GIT_COMMIT ?? null,
+        database: database.backend
       });
     },
     "POST /api/register": async ({ request, response }) => {
