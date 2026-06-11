@@ -247,3 +247,25 @@ test("toilet playground keeps scene state independent per selected toilet", () =
     assert.deepEqual(playground.getState().fixtures.wall, []);
   });
 });
+
+test("toilet playground done callback keeps the current scene snapshot", () => {
+  withFakeDom(() => {
+    const root = new FakeElement("div");
+    let completedSnapshot = null;
+    const playground = createToiletPlayground(root, {
+      onDone: (snapshot) => {
+        completedSnapshot = snapshot;
+      }
+    });
+
+    playground.setContext({ id: "toilet-a", name: "Toilet A" });
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"wet\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"floor\"]")[0].click({ offsetX: 620, offsetY: 430 });
+    root.querySelectorAll(".playground-upload-button")[0].click();
+
+    assert.equal(completedSnapshot.toiletId, "toilet-a");
+    assert.deepEqual(completedSnapshot.fixtures.floor, [
+      { id: "floor-wet-1", dirtId: "wet", x: 620, y: 430 }
+    ]);
+  });
+});

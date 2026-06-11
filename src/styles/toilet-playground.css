@@ -1,5 +1,53 @@
-.view-playground {
+.view-playground,
+.view-scene {
   padding: 4px 0 22px;
+}
+
+.view-scene {
+  min-height: calc(100vh - 176px);
+}
+
+.scene-page-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.scene-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgb(40 118 102 / 34%);
+  border-radius: 999px;
+  color: #1f5f54;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 6px 18px rgb(31 42 51 / 9%);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.scene-back-button:hover,
+.scene-back-button:focus-visible {
+  border-color: rgb(40 118 102 / 54%);
+  background: var(--teal-soft);
+}
+
+.scene-back-button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.scene-back-button span {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.scene-page-body {
+  min-height: 0;
 }
 
 .toilet-playground {
