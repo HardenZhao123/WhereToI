@@ -48,6 +48,12 @@ const COMMENT_CLEANLINESS_RATING_COLUMN = {
   postgresDefinition: "DOUBLE PRECISION"
 };
 
+const COMMENT_SCENE_SNAPSHOT_COLUMN = {
+  name: "scene_snapshot",
+  sqliteDefinition: "TEXT",
+  postgresDefinition: "JSONB"
+};
+
 function getFeatureColumnValues(toilet) {
   return [
     toilet.features.children,
@@ -215,6 +221,7 @@ function rebuildSqliteRatingTablesForDecimals(db) {
           media_size INTEGER,
           media_url TEXT,
           media_attachments TEXT,
+          scene_snapshot TEXT,
           created_at TEXT NOT NULL,
           FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE CASCADE,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -222,12 +229,12 @@ function rebuildSqliteRatingTablesForDecimals(db) {
         INSERT INTO toilet_comments (
           id, toilet_id, user_id, username, comment_visibility, profile_visibility,
           cleanliness_rating, comment_text, media_type, media_mime_type, media_name,
-          media_size, media_url, media_attachments, created_at
+          media_size, media_url, media_attachments, scene_snapshot, created_at
         )
         SELECT
           id, toilet_id, user_id, username, comment_visibility, profile_visibility,
           cleanliness_rating, comment_text, media_type, media_mime_type, media_name,
-          media_size, media_url, media_attachments, created_at
+          media_size, media_url, media_attachments, scene_snapshot, created_at
         FROM toilet_comments_integer_rating_backup;
         DROP TABLE toilet_comments_integer_rating_backup;
       `);
@@ -451,6 +458,9 @@ function ensureSqliteUserSupport(db) {
   if (!commentCols.has(COMMENT_CLEANLINESS_RATING_COLUMN.name)) {
     db.exec(`ALTER TABLE toilet_comments ADD COLUMN ${COMMENT_CLEANLINESS_RATING_COLUMN.name} ${COMMENT_CLEANLINESS_RATING_COLUMN.sqliteDefinition};`);
   }
+  if (!commentCols.has(COMMENT_SCENE_SNAPSHOT_COLUMN.name)) {
+    db.exec(`ALTER TABLE toilet_comments ADD COLUMN ${COMMENT_SCENE_SNAPSHOT_COLUMN.name} ${COMMENT_SCENE_SNAPSHOT_COLUMN.sqliteDefinition};`);
+  }
   for (const column of COMMENT_MEDIA_COLUMNS) {
     if (!commentCols.has(column.name)) {
       db.exec(`ALTER TABLE toilet_comments ADD COLUMN ${column.name} ${column.sqliteDefinition};`);
@@ -489,6 +499,7 @@ export async function ensurePostgresCommentMediaColumns(pool) {
   await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${COMMENT_PROFILE_VISIBILITY_COLUMN.name} ${COMMENT_PROFILE_VISIBILITY_COLUMN.postgresDefinition}`);
   await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${COMMENT_CLEANLINESS_RATING_COLUMN.name} ${COMMENT_CLEANLINESS_RATING_COLUMN.postgresDefinition}`);
   await pool.query("ALTER TABLE toilet_comments ALTER COLUMN cleanliness_rating TYPE DOUBLE PRECISION USING cleanliness_rating::double precision");
+  await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${COMMENT_SCENE_SNAPSHOT_COLUMN.name} ${COMMENT_SCENE_SNAPSHOT_COLUMN.postgresDefinition}`);
 
   for (const column of COMMENT_MEDIA_COLUMNS) {
     await pool.query(`ALTER TABLE toilet_comments ADD COLUMN IF NOT EXISTS ${column.name} ${column.postgresDefinition}`);

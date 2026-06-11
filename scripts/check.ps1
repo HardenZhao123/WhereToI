@@ -11,8 +11,58 @@ foreach ($File in $RequiredFiles) {
   }
 }
 
-$Html = Get-Content -LiteralPath "index.html" -Raw
-$Css = Get-Content -LiteralPath "src/styles.css" -Raw
+function Get-HtmlWithIncludes {
+  param(
+    [string]$Path,
+    [hashtable]$Seen = @{}
+  )
+
+  $FullPath = (Resolve-Path -LiteralPath $Path).Path
+  if ($Seen.ContainsKey($FullPath)) {
+    return ""
+  }
+  $Seen[$FullPath] = $true
+
+  $Content = Get-Content -LiteralPath $FullPath -Raw
+  $Output = $Content
+  $IncludeMatches = [regex]::Matches($Content, '<template\b[^>]*\bdata-html-include=["'']([^"'']+)["''][^>]*>\s*</template>')
+  foreach ($Match in $IncludeMatches) {
+    $Specifier = ($Match.Groups[1].Value -split "\?")[0]
+    $IncludePath = Join-Path -Path (Split-Path -Parent $FullPath) -ChildPath $Specifier
+    $Output += "`n" + (Get-HtmlWithIncludes -Path $IncludePath -Seen $Seen)
+  }
+
+  return $Output
+}
+
+$Html = Get-HtmlWithIncludes -Path "index.html"
+function Get-CssWithImports {
+  param(
+    [string]$Path,
+    [hashtable]$Seen = @{}
+  )
+
+  $FullPath = (Resolve-Path -LiteralPath $Path).Path
+  if ($Seen.ContainsKey($FullPath)) {
+    return ""
+  }
+  $Seen[$FullPath] = $true
+
+  $Content = Get-Content -LiteralPath $FullPath -Raw
+  $Output = $Content
+  $ImportMatches = [regex]::Matches($Content, '@import\s+(?:url\(\s*)?["'']([^"'']+)["'']\s*\)?[^;]*;')
+  foreach ($Match in $ImportMatches) {
+    $Specifier = ($Match.Groups[1].Value -split "\?")[0]
+    if ($Specifier -notmatch '^(?:https?:)?//') {
+      $ImportPath = Join-Path -Path (Split-Path -Parent $FullPath) -ChildPath $Specifier
+      $Output += "`n" + (Get-CssWithImports -Path $ImportPath -Seen $Seen)
+    }
+  }
+
+  return $Output
+}
+
+$Css = Get-CssWithImports -Path "src/styles.css"
 $JsFiles = @("src/main.js") + (Get-ChildItem -LiteralPath "src/app" -Recurse -Filter "*.js" | ForEach-Object { $_.FullName })
 $Js = ($JsFiles | ForEach-Object { Get-Content -LiteralPath $_ -Raw }) -join "`n"
 

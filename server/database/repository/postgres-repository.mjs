@@ -4,6 +4,8 @@ import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import {
   ANONYMOUS_COMMENT_AUTHOR,
+  CLEANLINESS_RATING_COOLDOWN_MS,
+  createCleanlinessRatingCooldownError,
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
@@ -349,6 +351,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
       media_size INTEGER,
       media_url TEXT,
       media_attachments JSONB,
+      scene_snapshot JSONB,
       created_at TEXT NOT NULL
     );
 
@@ -770,6 +773,28 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         throw new Error("toilet not found.");
       }
 
+      const now = new Date();
+      if (userId) {
+        const latestSurveyResult = await pool.query(
+          `
+          SELECT created_at
+          FROM cleanliness_surveys
+          WHERE toilet_id = $1 AND user_id = $2
+          ORDER BY created_at DESC, id DESC
+          LIMIT 1
+          `,
+          [row.id, userId]
+        );
+        const latestCreatedAt = latestSurveyResult.rows[0]?.created_at;
+        const latestSurveyTime = Date.parse(latestCreatedAt ?? "");
+        if (
+          Number.isFinite(latestSurveyTime) &&
+          now.getTime() - latestSurveyTime < CLEANLINESS_RATING_COOLDOWN_MS
+        ) {
+          throw createCleanlinessRatingCooldownError(latestCreatedAt, now.getTime());
+        }
+      }
+
       const globalStatsResult = await pool.query("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users");
       const globalStats = globalStatsResult.rows[0];
       const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
@@ -810,7 +835,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
 
       await pool.query(
         "INSERT INTO cleanliness_surveys (toilet_id, user_id, rating, created_at) VALUES ($1, $2, $3, $4)",
-        [row.id, userId, safeRating, new Date().toISOString()]
+        [row.id, userId, safeRating, now.toISOString()]
       );
 
       return mapCleanlinessSurveyResponse({
@@ -929,6 +954,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_size,
           NULL::text AS media_url,
           ${COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL} AS media_attachments,
+          scene_snapshot,
           created_at,
           (
             SELECT COUNT(*)::int
@@ -979,6 +1005,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_comments.media_size,
           NULL::text AS media_url,
           ${COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL} AS media_attachments,
+          toilet_comments.scene_snapshot,
           toilet_comments.created_at,
           toilets.name AS toilet_name,
           toilets.area AS toilet_area,
@@ -1042,6 +1069,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           toilet_comments.media_size,
           NULL::text AS media_url,
           ${COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL} AS media_attachments,
+          toilet_comments.scene_snapshot,
           toilet_comments.created_at,
           toilets.name AS toilet_name,
           toilets.area AS toilet_area,
@@ -1075,8 +1103,8 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
         comments: commentsResult.rows.map((row) => mapCommentRow(row, { viewerUserId }))
       };
     },
-    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility, cleanlinessRating }) {
-      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility, cleanlinessRating });
+    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility, cleanlinessRating, sceneSnapshot }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility, cleanlinessRating, sceneSnapshot });
       const displayUsername =
         comment.commentVisibility === "anonymous" ? ANONYMOUS_COMMENT_AUTHOR : username;
 
@@ -1096,9 +1124,10 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           media_size,
           media_url,
           media_attachments,
+          scene_snapshot,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14)
         `,
         [
           comment.toiletId,
@@ -1113,6 +1142,7 @@ export async function createPostgresDatabase({ connectionString, seedCsvPath, cl
           comment.mediaSize,
           comment.mediaUrl,
           comment.mediaAttachmentsJson,
+          comment.sceneSnapshotJson,
           nowIso
         ]
       );

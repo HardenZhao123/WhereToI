@@ -23,7 +23,36 @@ export function normaliseUserId(value) {
 const COMMENT_MEDIA_DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
 const COMMENT_VISIBILITIES = new Set(["real", "anonymous"]);
 const COMMENT_PROFILE_VISIBILITIES = new Set(["private", "public"]);
+const COMMENT_SCENE_FIXTURES = ["wall", "toilet", "urinal", "sink", "floor"];
+const COMMENT_SCENE_DIRT_TYPES = new Set([
+  "stain",
+  "wet",
+  "tissue",
+  "dust",
+  "urine",
+  "feces",
+  "mud",
+  "soap",
+  "hair"
+]);
+const COMMENT_SCENE_MAX_PLACEMENTS = 80;
+export const CLEANLINESS_RATING_COOLDOWN_MS = 30 * 60 * 1000;
 export const ANONYMOUS_COMMENT_AUTHOR = "Anonymous";
+
+export function createCleanlinessRatingCooldownError(latestCreatedAt, nowMs = Date.now()) {
+  const latestTime = Date.parse(latestCreatedAt);
+  const retryAtMs = Number.isFinite(latestTime)
+    ? latestTime + CLEANLINESS_RATING_COOLDOWN_MS
+    : nowMs + CLEANLINESS_RATING_COOLDOWN_MS;
+  const remainingMs = Math.max(0, retryAtMs - nowMs);
+  const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60_000));
+  const error = new Error(
+    `You can rate this toilet again in ${remainingMinutes} ${remainingMinutes === 1 ? "minute" : "minutes"}.`
+  );
+  error.statusCode = 429;
+  error.retryAfterSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+  return error;
+}
 
 function normaliseCommentMediaAttachment(media) {
   if (typeof media !== "object" || Array.isArray(media) || media === null) {
@@ -165,6 +194,102 @@ function parseCommentMediaAttachments(row, { includeMediaData = false } = {}) {
   return stripCommentMediaDataUrls(attachments);
 }
 
+function normaliseSceneCoordinate(value, max, fallback = 0) {
+  const coordinate = Number(value);
+  if (!Number.isFinite(coordinate)) return fallback;
+  return Math.round(Math.min(Math.max(coordinate, 0), max));
+}
+
+function normaliseCommentSceneSnapshot(sceneSnapshot = null, expectedToiletId = "") {
+  if (sceneSnapshot === null || sceneSnapshot === undefined || sceneSnapshot === "") {
+    return {
+      sceneSnapshot: null,
+      sceneSnapshotJson: null
+    };
+  }
+
+  let rawSnapshot = sceneSnapshot;
+  if (typeof sceneSnapshot === "string") {
+    try {
+      rawSnapshot = JSON.parse(sceneSnapshot);
+    } catch {
+      throw new Error("comment scene must be valid JSON.");
+    }
+  }
+
+  if (!rawSnapshot || typeof rawSnapshot !== "object" || Array.isArray(rawSnapshot)) {
+    throw new Error("comment scene must be an object.");
+  }
+
+  const rawFixtures = rawSnapshot.fixtures;
+  if (!rawFixtures || typeof rawFixtures !== "object" || Array.isArray(rawFixtures)) {
+    throw new Error("comment scene fixtures are required.");
+  }
+
+  let totalPlacements = 0;
+  const fixtures = COMMENT_SCENE_FIXTURES.reduce((snapshot, fixtureId) => {
+    const rawPlacements = Array.isArray(rawFixtures[fixtureId]) ? rawFixtures[fixtureId] : [];
+    snapshot[fixtureId] = rawPlacements
+      .map((placement, index) => {
+        if (!placement || typeof placement !== "object" || Array.isArray(placement)) return null;
+        const dirtId = normaliseText(placement.dirtId).toLowerCase();
+        if (!COMMENT_SCENE_DIRT_TYPES.has(dirtId)) return null;
+        totalPlacements += 1;
+        if (totalPlacements > COMMENT_SCENE_MAX_PLACEMENTS) {
+          throw new Error(`comment scene can include at most ${COMMENT_SCENE_MAX_PLACEMENTS} dirt placements.`);
+        }
+        return {
+          id: normaliseText(placement.id).slice(0, 80) || `${fixtureId}-${dirtId}-${index + 1}`,
+          dirtId,
+          x: normaliseSceneCoordinate(placement.x, 820),
+          y: normaliseSceneCoordinate(placement.y, 500)
+        };
+      })
+      .filter(Boolean);
+    return snapshot;
+  }, {});
+
+  if (totalPlacements === 0) {
+    return {
+      sceneSnapshot: null,
+      sceneSnapshotJson: null
+    };
+  }
+
+  const snapshot = {
+    version: 2,
+    toiletId: normaliseText(rawSnapshot.toiletId) || expectedToiletId,
+    toiletName: normaliseText(rawSnapshot.toiletName).slice(0, 160),
+    fixtures
+  };
+
+  if (snapshot.toiletId && expectedToiletId && snapshot.toiletId !== expectedToiletId) {
+    throw new Error("comment scene toiletId must match the comment toiletId.");
+  }
+
+  return {
+    sceneSnapshot: snapshot,
+    sceneSnapshotJson: JSON.stringify(snapshot)
+  };
+}
+
+function parseCommentSceneSnapshot(row) {
+  if (row.scene_snapshot && typeof row.scene_snapshot === "object" && !Array.isArray(row.scene_snapshot)) {
+    return row.scene_snapshot;
+  }
+
+  if (typeof row.scene_snapshot === "string" && row.scene_snapshot.trim()) {
+    try {
+      const parsed = JSON.parse(row.scene_snapshot);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 export function mapCommentRow(row, { viewerUserId = null, includeMediaData = false } = {}) {
   if (!row) return row;
 
@@ -201,7 +326,8 @@ export function mapCommentRow(row, { viewerUserId = null, includeMediaData = fal
     like_count: Number(row.like_count ?? 0),
     viewer_has_liked: Boolean(row.viewer_has_liked),
     media_url: includeMediaData ? row.media_url : null,
-    media_attachments: parseCommentMediaAttachments(row, { includeMediaData })
+    media_attachments: parseCommentMediaAttachments(row, { includeMediaData }),
+    scene_snapshot: parseCommentSceneSnapshot(row)
   };
 }
 
@@ -241,18 +367,20 @@ export function normaliseCommentPayload({
   commentText,
   media = null,
   commentVisibility = "real",
-  cleanlinessRating
+  cleanlinessRating,
+  sceneSnapshot = null
 }) {
   const safeToiletId = normaliseText(toiletId);
   const safeCommentText = typeof commentText === "string" ? commentText.trim() : "";
   const normalisedMedia = normaliseCommentMedia(media);
+  const normalisedScene = normaliseCommentSceneSnapshot(sceneSnapshot, safeToiletId);
 
   if (!safeToiletId) {
     throw new Error("toiletId is required.");
   }
 
-  if (!safeCommentText && normalisedMedia.mediaAttachments.length === 0) {
-    throw new Error("commentText or media is required for comment feedback.");
+  if (!safeCommentText && normalisedMedia.mediaAttachments.length === 0 && !normalisedScene.sceneSnapshot) {
+    throw new Error("commentText, media, or interactive scene is required for comment feedback.");
   }
 
   return {
@@ -260,6 +388,7 @@ export function normaliseCommentPayload({
     commentText: safeCommentText,
     commentVisibility: normaliseCommentVisibility(commentVisibility),
     cleanlinessRating: normaliseRating(cleanlinessRating),
+    ...normalisedScene,
     ...normalisedMedia
   };
 }

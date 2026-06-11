@@ -7,6 +7,8 @@ import { applySqliteToiletMigrations } from "../migration/toilet-schema-migratio
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
 import {
   ANONYMOUS_COMMENT_AUTHOR,
+  CLEANLINESS_RATING_COOLDOWN_MS,
+  createCleanlinessRatingCooldownError,
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
@@ -130,6 +132,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
       media_size INTEGER,
       media_url TEXT,
       media_attachments TEXT,
+      scene_snapshot TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -519,6 +522,28 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         throw new Error("toilet not found.");
       }
 
+      const now = new Date();
+      if (userId) {
+        const latestSurvey = db
+          .prepare(
+            `
+            SELECT created_at
+            FROM cleanliness_surveys
+            WHERE toilet_id = ? AND user_id = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            `
+          )
+          .get(row.id, userId);
+        const latestSurveyTime = Date.parse(latestSurvey?.created_at ?? "");
+        if (
+          Number.isFinite(latestSurveyTime) &&
+          now.getTime() - latestSurveyTime < CLEANLINESS_RATING_COOLDOWN_MS
+        ) {
+          throw createCleanlinessRatingCooldownError(latestSurvey.created_at, now.getTime());
+        }
+      }
+
       const globalStats = db.prepare("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users").get();
       const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
       let globalStandardDeviation = 1;
@@ -553,7 +578,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
 
       db.prepare(
         "INSERT INTO cleanliness_surveys (toilet_id, user_id, rating, created_at) VALUES (?, ?, ?, ?)"
-      ).run(row.id, userId, safeRating, new Date().toISOString());
+      ).run(row.id, userId, safeRating, now.toISOString());
 
       return mapCleanlinessSurveyResponse({
         row,
@@ -672,6 +697,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             media_size,
             media_url,
             media_attachments,
+            scene_snapshot,
             created_at,
             (
               SELECT COUNT(*)
@@ -723,6 +749,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             toilet_comments.media_size,
             toilet_comments.media_url,
             toilet_comments.media_attachments,
+            toilet_comments.scene_snapshot,
             toilet_comments.created_at,
             toilets.name AS toilet_name,
             toilets.area AS toilet_area,
@@ -784,6 +811,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
             toilet_comments.media_size,
             toilet_comments.media_url,
             toilet_comments.media_attachments,
+            toilet_comments.scene_snapshot,
             toilet_comments.created_at,
             toilets.name AS toilet_name,
             toilets.area AS toilet_area,
@@ -818,8 +846,8 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         comments
       };
     },
-    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility, cleanlinessRating }) {
-      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility, cleanlinessRating });
+    async saveComment({ toiletId, userId, username, commentText, media, commentVisibility, cleanlinessRating, sceneSnapshot }) {
+      const comment = normaliseCommentPayload({ toiletId, commentText, media, commentVisibility, cleanlinessRating, sceneSnapshot });
       const displayUsername =
         comment.commentVisibility === "anonymous" ? ANONYMOUS_COMMENT_AUTHOR : username;
 
@@ -839,9 +867,10 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
           media_size,
           media_url,
           media_attachments,
+          scene_snapshot,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       ).run(
         comment.toiletId,
@@ -856,6 +885,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         comment.mediaSize,
         comment.mediaUrl,
         comment.mediaAttachmentsJson,
+        comment.sceneSnapshotJson,
         nowIso
       );
 

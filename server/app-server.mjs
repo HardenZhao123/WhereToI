@@ -19,7 +19,9 @@ const STATIC_CONTENT_TYPES = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
-  ".webp": "image/webp"
+  ".webp": "image/webp",
+  ".mov": "video/quicktime",
+  ".mp4": "video/mp4"
 };
 
 const API_CACHE_CONTROL = "no-cache";
@@ -46,6 +48,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "scoringModel",
   "Unsupported",
   "comment media",
+  "comment scene",
   "comment visibility",
   "comment profile visibility",
   "too large",
@@ -182,6 +185,22 @@ function isKnownClientError(error) {
     error instanceof Error &&
     CLIENT_ERROR_MESSAGE_MATCHERS.some((matcher) => error.message.includes(matcher))
   );
+}
+
+function getHttpClientErrorStatus(error) {
+  const statusCode = Number(error?.statusCode ?? error?.status);
+  return Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 500
+    ? statusCode
+    : null;
+}
+
+function getHttpClientErrorHeaders(error) {
+  const retryAfterSeconds = Number(error?.retryAfterSeconds);
+  if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds <= 0) {
+    return {};
+  }
+
+  return { "Retry-After": String(Math.ceil(retryAfterSeconds)) };
 }
 
 function normaliseOptionalToiletId(toiletId) {
@@ -461,7 +480,8 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         commentText: body.commentText,
         commentVisibility: body.commentVisibility,
         cleanlinessRating: body.cleanlinessRating,
-        media
+        media,
+        sceneSnapshot: body.sceneSnapshot
       });
       const cleanlinessResult = await database.recordCleanlinessSurvey({
         userId,
@@ -475,7 +495,8 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         commentText: comment.commentText,
         commentVisibility: comment.commentVisibility,
         cleanlinessRating: comment.cleanlinessRating,
-        media
+        media,
+        sceneSnapshot: comment.sceneSnapshot
       });
 
       sendSensitiveJson(response, 201, { comments, toilet: cleanlinessResult.toilet });
@@ -654,6 +675,12 @@ function createRequestHandler({ root, port, database, emailService, aiService, l
     } catch (error) {
       if (error?.code === "ENOENT") {
         sendPlainText(response, 404, "Not found");
+        return;
+      }
+
+      const clientErrorStatus = getHttpClientErrorStatus(error);
+      if (clientErrorStatus) {
+        sendJson(response, clientErrorStatus, { error: error.message }, getHttpClientErrorHeaders(error));
         return;
       }
 

@@ -232,6 +232,110 @@ test("map controller keeps feedback visual state synced with the current selecte
   }
 });
 
+test("map controller renders toilet map markers with cleanliness rating images", () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const createdIcons = [];
+  const markerLayer = {
+    addTo() {
+      return markerLayer;
+    },
+    clearLayers() {}
+  };
+  const fakeMap = {
+    setView() {
+      return fakeMap;
+    },
+    getCenter() {
+      return { lat: 51.5, lng: -0.17 };
+    },
+    getBounds() {
+      return {
+        contains() {
+          return true;
+        }
+      };
+    },
+    getZoom() {
+      return 15;
+    },
+    on() {
+      return fakeMap;
+    }
+  };
+
+  globalThis.document = {
+    addEventListener() {},
+    querySelector() {
+      return null;
+    }
+  };
+  globalThis.window = {
+    L: {
+      map() {
+        return fakeMap;
+      },
+      tileLayer() {
+        return {
+          addTo() {}
+        };
+      },
+      layerGroup() {
+        return markerLayer;
+      },
+      divIcon(options) {
+        createdIcons.push(options);
+        return options;
+      },
+      marker() {
+        return {
+          addTo() {
+            return this;
+          },
+          on() {},
+          setIcon() {}
+        };
+      }
+    },
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const controller = createMapController({
+      statusText: { textContent: "" },
+      mapElement: {},
+      detailsCard: { classList: createClassList() },
+      mapPanel: { classList: createClassList() },
+      directionsButton: { disabled: false }
+    });
+    const toilet = createTestToilet();
+    toilet.cleanliness = 4.4;
+    toilet.cleanlinessSurvey = {
+      ratingTotal: 4.4,
+      ratingCount: 1
+    };
+
+    assert.equal(controller.createInteractiveMap(), true);
+    controller.setToilets([toilet], { cleanlinessRange: "3days" });
+
+    const toiletIcon = createdIcons.find((icon) => icon.className === "map-marker-icon");
+    assert.ok(toiletIcon);
+    assert.deepEqual(toiletIcon.iconSize, [44, 58]);
+    assert.deepEqual(toiletIcon.iconAnchor, [22, 58]);
+    assert.match(toiletIcon.html, /class="map-marker"/);
+    assert.match(toiletIcon.html, /class="map-marker-image"/);
+    assert.match(toiletIcon.html, /src="toilet_levels\/level_45_small\.jpg"/);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
 test("map controller keeps visual rating on toilet images for urinal-only toilets", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
@@ -293,11 +397,12 @@ test("map controller keeps visual rating on toilet images for urinal-only toilet
     assert.equal(overviewSvgClassList.contains("is-hidden"), true);
     assert.equal(overviewVisualState.textContent, "OK - Usable but not spotless");
 
-    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_small.jpg");
-    assert.equal(visualCleanlinessImage.alt, "Toilet cleanliness preview: OK");
-    assert.equal(visualCleanlinessPreview.attributes["aria-label"], "Cartoon toilet cleanliness preview: OK");
-    assert.equal(visualSvgClassList.contains("is-hidden"), true);
-    assert.equal(visualCleanlinessState.textContent, "OK - Usable but not spotless");
+    assert.equal(visualCleanlinessImage.src, "");
+    assert.equal(visualCleanlinessImage.alt, "Toilet cleanliness preview: No rating selected");
+    assert.equal(visualCleanlinessPreview.dataset.cleanliness, "0");
+    assert.equal(visualCleanlinessPreview.attributes["aria-label"], "Cartoon toilet cleanliness preview: No rating selected");
+    assert.equal(visualSvgClassList.contains("is-hidden"), false);
+    assert.equal(visualCleanlinessState.textContent, "No rating selected - Choose a cleanliness rating");
 
     controller.setVisualCleanlinessLevel(5);
 
@@ -368,8 +473,9 @@ test("map controller uses half-star visual rating as the feedback cleanliness ra
     controller.setToilets([createTestToilet()]);
     await controller.setToilet("test-toilet", { fly: false });
 
-    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_small.jpg");
-    assert.equal(visualCleanlinessImage.alt, "Toilet cleanliness preview: OK");
+    assert.equal(visualCleanlinessImage.src, "");
+    assert.equal(visualCleanlinessImage.alt, "Toilet cleanliness preview: No rating selected");
+    assert.equal(visualCleanlinessPreview.dataset.cleanliness, "0");
 
     controller.selectCleanlinessRating(4.5);
 
@@ -379,6 +485,102 @@ test("map controller uses half-star visual rating as the feedback cleanliness ra
     assert.equal(visualCleanlinessImage.alt, "Toilet cleanliness preview: Very clean");
     assert.equal(visualCleanlinessPreview.attributes["aria-label"], "Cartoon toilet cleanliness preview: Very clean");
     assert.equal(visualCleanlinessState.textContent, "Very clean - Almost spotless");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+  }
+});
+
+test("map controller opens feedback rating at zero instead of the previous local rating", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+
+  const { elementsBySelector, elements } = createMapDetailTestHarness();
+  const { element: overviewVisualPreview } = createPreviewElement();
+  const { element: visualCleanlinessPreview } = createPreviewElement();
+  const overviewVisualState = createTextElement();
+  const visualCleanlinessState = createTextElement();
+  const overviewVisualImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+  const visualCleanlinessImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+  const commentComposer = createTextElement();
+  commentComposer.hidden = true;
+  commentComposer.classList = createRecordingClassList();
+  const commentComposerToggle = createTextElement();
+  const commentInput = {
+    focus() {}
+  };
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return JSON.stringify({
+          "test-toilet": {
+            rating: 4.5,
+            toiletName: "Test toilet",
+            submittedAt: "2026-06-11T00:00:00.000Z"
+          }
+        });
+      },
+      setItem() {}
+    },
+    setTimeout: globalThis.setTimeout
+  };
+  globalThis.requestAnimationFrame = (callback) => {
+    callback();
+    return 1;
+  };
+
+  try {
+    const controller = createMapController({
+      ...elements,
+      commentComposer,
+      commentComposerToggle,
+      commentInput,
+      overviewVisualPreview,
+      overviewVisualImage,
+      overviewVisualState,
+      visualCleanlinessPreview,
+      visualCleanlinessImage,
+      visualCleanlinessState
+    });
+
+    controller.setToilets([createTestToilet()]);
+    await controller.setToilet("test-toilet", { fly: false });
+    controller.toggleCommentComposer();
+
+    assert.equal(visualCleanlinessPreview.dataset.cleanliness, "0");
+    assert.equal(visualCleanlinessImage.src, "");
+    assert.equal(visualCleanlinessState.textContent, "No rating selected - Choose a cleanliness rating");
+
+    controller.selectCleanlinessRating(4.5);
+    assert.equal(visualCleanlinessPreview.dataset.cleanliness, "4.5");
+    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_45_small.jpg");
+
+    controller.closeCommentComposer();
+    controller.toggleCommentComposer();
+
+    assert.equal(visualCleanlinessPreview.dataset.cleanliness, "0");
+    assert.equal(visualCleanlinessImage.src, "");
+    assert.equal(visualCleanlinessState.textContent, "No rating selected - Choose a cleanliness rating");
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
@@ -515,7 +717,8 @@ test("map controller does not create a urinal overview visual rating for men's t
 
     assert.equal(overviewVisualImage.src, "toilet_levels/level_3_small.jpg");
     assert.equal(overviewVisualState.textContent, "OK - Usable but not spotless");
-    assert.equal(visualCleanlinessImage.src, "toilet_levels/level_3_small.jpg");
+    assert.equal(visualCleanlinessImage.src, "");
+    assert.equal(visualCleanlinessState.textContent, "No rating selected - Choose a cleanliness rating");
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;

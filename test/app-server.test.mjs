@@ -11,13 +11,16 @@ const largeStaticScript = `export const payload = "${"x".repeat(4096)}";`;
 async function withAppServer(callback, serverOptions = {}) {
   const rootDirectory = await mkdtemp(join(tmpdir(), "wheretoi-server-test-"));
   const dataDirectory = join(rootDirectory, "src", "data");
+  const assetsDirectory = join(rootDirectory, "src", "assets");
   let appServer;
 
   try {
     await mkdir(dataDirectory, { recursive: true });
+    await mkdir(assetsDirectory, { recursive: true });
     await writeFile(join(rootDirectory, "index.html"), "<!doctype html><title>WhereToI</title>", "utf8");
     await writeFile(join(rootDirectory, "src", "styles.css"), ".map { color: green; }", "utf8");
     await writeFile(join(rootDirectory, "src", "large.js"), largeStaticScript, "utf8");
+    await writeFile(join(assetsDirectory, "signup-intro.mp4"), "fake mp4", "utf8");
     await writeFile(join(dataDirectory, "toilets.csv"), sampleToiletsCsv, "utf8");
 
     appServer = await createAppServer({ rootDirectory, port: 0, ...serverOptions });
@@ -55,9 +58,12 @@ test("static app code revalidates and supports Last-Modified validation", async 
   await withAppServer(async (baseUrl) => {
     const firstResponse = await fetch(`${baseUrl}/src/styles.css`);
     const lastModified = firstResponse.headers.get("last-modified");
+    const videoResponse = await fetch(`${baseUrl}/src/assets/signup-intro.mp4`);
 
     assert.equal(firstResponse.status, 200);
     assert.equal(firstResponse.headers.get("cache-control"), "no-cache, max-age=0, must-revalidate");
+    assert.equal(videoResponse.status, 200);
+    assert.equal(videoResponse.headers.get("content-type"), "video/mp4");
     assert.ok(lastModified);
     assert.equal(await firstResponse.text(), ".map { color: green; }");
 
@@ -442,6 +448,46 @@ test("API supports fetching and posting toilet comments", async () => {
     assert.equal(postedPayload.toilet.id, toiletId);
     assert.equal(postedPayload.toilet.cleanlinessSurvey.ratingCount, 1);
 
+    const sceneSnapshot = {
+      version: 2,
+      toiletId,
+      toiletName: "Detail test toilet",
+      fixtures: {
+        wall: [{ id: "wall-feces-1", dirtId: "feces", x: 260, y: 160 }],
+        toilet: [
+          { id: "toilet-stain-1", dirtId: "stain", x: 140, y: 230 },
+          { id: "toilet-urine-2", dirtId: "urine", x: 185, y: 240 }
+        ],
+        urinal: [{ id: "urinal-hair-3", dirtId: "hair", x: 410, y: 252 }],
+        sink: [],
+        floor: [{ id: "floor-tissue-4", dirtId: "tissue", x: 690, y: 420 }]
+      }
+    };
+    const { payload: scenePostedPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": otherCookie
+      },
+      body: JSON.stringify({
+        toiletId,
+        commentText: "",
+        commentVisibility: "real",
+        cleanlinessRating: 3.5,
+        sceneSnapshot
+      })
+    });
+    const sceneComment = scenePostedPayload.comments.find((comment) => comment.cleanliness_rating === 3.5);
+    assert.ok(sceneComment);
+    assert.equal(sceneComment.comment_text, "");
+    assert.deepEqual(sceneComment.scene_snapshot.fixtures, sceneSnapshot.fixtures);
+
+    const { payload: publicScenePayload } = await fetchJson(`${baseUrl}/api/comments?toiletId=${toiletId}`);
+    assert.deepEqual(
+      publicScenePayload.comments.find((comment) => comment.cleanliness_rating === 3.5).scene_snapshot.fixtures,
+      sceneSnapshot.fixtures
+    );
+
     const deleteWithoutLoginResponse = await fetch(`${baseUrl}/api/comments`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -797,11 +843,12 @@ test("API supports image comment attachments without returning base64 data", asy
     ]);
     assert.equal(JSON.stringify(mediaPayload).includes("data:image"), false);
 
+    const mediaOnlyToiletId = "extra-test-1";
     const { payload: mediaOnlyPayload } = await fetchJson(`${baseUrl}/api/comments`, {
       method: "POST",
       headers: authHeaders,
       body: JSON.stringify({
-        toiletId,
+        toiletId: mediaOnlyToiletId,
         commentText: "  ",
         cleanlinessRating: 4.5,
         media: [media[0]]
@@ -825,7 +872,7 @@ test("API supports image comment attachments without returning base64 data", asy
     const emptyCommentPayload = await emptyCommentResponse.json();
 
     assert.equal(emptyCommentResponse.status, 400);
-    assert.match(emptyCommentPayload.error, /commentText or media is required/);
+    assert.match(emptyCommentPayload.error, /commentText, media, or interactive scene is required/);
 
     const invalidResponse = await fetch(`${baseUrl}/api/comments`, {
       method: "POST",
@@ -932,6 +979,24 @@ test("API records cleanliness survey as a star rating", async () => {
     assert.equal(payload.toilet.cleanliness, 4.5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingTotal, 4.5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingCount, 1);
+
+    const duplicateResponse = await fetch(`${baseUrl}/api/cleanliness-survey`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId: "detail-test",
+        toiletName: "Prayer room washroom",
+        rating: 2
+      })
+    });
+    const duplicatePayload = await duplicateResponse.json();
+
+    assert.equal(duplicateResponse.status, 429);
+    assert.match(duplicatePayload.error, /rate this toilet again in 30 minutes/);
+    assert.ok(Number(duplicateResponse.headers.get("retry-after")) > 0);
 
     const { payload: toiletsPayload } = await fetchJson(`${baseUrl}/api/toilets?cleanlinessRange=3days`);
     const refreshedToilet = toiletsPayload.toilets.find((toilet) => toilet.id === "detail-test");

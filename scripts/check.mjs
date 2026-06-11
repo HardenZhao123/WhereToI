@@ -1,10 +1,11 @@
 import { access, readFile, stat } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 const requiredFiles = [
   "index.html",
   "src/main.js",
   "src/app/app.js",
+  "src/app/html-includes.js",
   "src/app/controllers/map-controller.js",
   "src/app/controllers/feedback-thread-controller.js",
   "src/app/controllers/account-controller.js",
@@ -45,11 +46,53 @@ const optimizedToiletLevelImages = [
   "toilet_levels/level_5_small.jpg"
 ];
 
+async function readCssWithImports(filePath, seen = new Set()) {
+  const fullPath = resolve(filePath);
+  if (seen.has(fullPath)) return "";
+  seen.add(fullPath);
+
+  const content = await readFile(fullPath, "utf8");
+  const importPattern = /@import\s+(?:url\(\s*)?["']([^"']+)["']\s*\)?[^;]*;/g;
+  let output = "";
+  let lastIndex = 0;
+
+  for (const match of content.matchAll(importPattern)) {
+    output += content.slice(lastIndex, match.index);
+    const specifier = match[1].split("?")[0];
+    if (!/^(?:https?:)?\/\//.test(specifier)) {
+      output += await readCssWithImports(resolve(dirname(fullPath), specifier), seen);
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  return output + content.slice(lastIndex);
+}
+
+async function readHtmlWithIncludes(filePath, seen = new Set()) {
+  const fullPath = resolve(filePath);
+  if (seen.has(fullPath)) return "";
+  seen.add(fullPath);
+
+  const content = await readFile(fullPath, "utf8");
+  const includePattern = /<template\b[^>]*\bdata-html-include=["']([^"']+)["'][^>]*>\s*<\/template>/g;
+  let output = "";
+  let lastIndex = 0;
+
+  for (const match of content.matchAll(includePattern)) {
+    output += content.slice(lastIndex, match.index);
+    const specifier = match[1].split("?")[0];
+    output += await readHtmlWithIncludes(resolve(dirname(fullPath), specifier), seen);
+    lastIndex = match.index + match[0].length;
+  }
+
+  return output + content.slice(lastIndex);
+}
+
 await Promise.all(requiredFiles.map((file) => access(resolve(file))));
 await Promise.all(optimizedToiletLevelImages.map((file) => access(resolve(file))));
 
-const html = await readFile("index.html", "utf8");
-const css = await readFile("src/styles.css", "utf8");
+const html = await readHtmlWithIncludes("index.html");
+const css = await readCssWithImports("src/styles.css");
 const server = await readFile("server/app-server.mjs", "utf8");
 const postgresRepository = await readFile("server/database/repository/postgres-repository.mjs", "utf8");
 const app = await readFile("src/app/app.js", "utf8");

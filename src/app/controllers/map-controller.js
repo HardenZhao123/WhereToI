@@ -69,6 +69,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentMediaInput,
     commentMediaPreview,
     commentMediaStatus,
+    commentSceneToggle,
+    commentScenePanel,
+    commentSceneStatus,
     overviewVisualPreview,
     overviewVisualImage,
     overviewVisualState,
@@ -93,6 +96,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     recordAccessHistory = async () => {},
     onPublicProfileSelected = () => {},
     onCleanlinessSaved = async () => {},
+    getFeedbackSceneSnapshot = () => null,
+    resetFeedbackScene = () => {},
     onBoundsChanged = () => {}
   } = auth;
 
@@ -130,8 +135,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let cleanlinessRangeByToiletId = new Map();
   let currentCleanlinessRange = defaultCleanlinessRange;
   let selectedRating = null;
+  let feedbackSubmitAttemptedWithoutRating = false;
   let selectedCommentMedia = [];
-  let visualCleanlinessLevel = 3;
+  let visualCleanlinessLevel = 0;
   let currentDetailSection = "overview";
 
   const feedbackThreadController = createFeedbackThreadController(
@@ -179,12 +185,25 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function normaliseVisualCleanlinessLevel(level) {
-    const value = Math.round(Number(level) * 2) / 2;
-    return visualCleanlinessLevels.has(value) ? value : 3;
+    const rawValue = Number(level);
+    if (rawValue === 0) return 0;
+
+    const value = Math.round(rawValue * 2) / 2;
+    return visualCleanlinessLevels.has(value) ? value : 0;
   }
 
   function getVisualCleanlinessLevel(level = visualCleanlinessLevel) {
     const value = normaliseVisualCleanlinessLevel(level);
+    if (value === 0) {
+      return {
+        value,
+        label: "No rating selected",
+        tone: "Choose a cleanliness rating",
+        image: "",
+        fixtureType: "toilet"
+      };
+    }
+
     const definition = visualCleanlinessLevels.get(value);
     return {
       value,
@@ -288,29 +307,40 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return Number.isFinite(value) && value >= 0.5 && value <= 5 && Number.isInteger(value * 2);
   }
 
-  function renderCleanlinessSurvey(toilet) {
-    const stored = toilet ? cleanlinessSurveyAnswers[toilet.id] : null;
-    const storedRating = stored && typeof stored === "object" ? stored.rating : stored;
+  function updateFeedbackSubmitButton({ submitting = false } = {}) {
+    const feedbackSubmitButton = commentForm?.querySelector("button[type='submit']");
+    if (!feedbackSubmitButton) return;
 
-    const rating = Number(selectedRating ?? storedRating);
+    const hasSelectedRating = selectedRating !== null && isValidCleanlinessRating(selectedRating);
+    feedbackSubmitButton.disabled = Boolean(submitting);
+    feedbackSubmitButton.dataset.ratingRequired = hasSelectedRating ? "false" : "true";
+    feedbackSubmitButton.title = hasSelectedRating ? "" : "Choose a star rating before submitting feedback.";
+    feedbackSubmitButton.textContent =
+      feedbackSubmitAttemptedWithoutRating && !hasSelectedRating ? "Rate stars first" : "Submit feedback";
+  }
+
+  function renderCleanlinessSurvey(toilet) {
+    const rating = Number(selectedRating);
     const hasRating = isValidCleanlinessRating(rating);
 
-    const feedbackSubmitButton = commentForm?.querySelector("button[type='submit']");
-    if (feedbackSubmitButton) {
-      feedbackSubmitButton.disabled = selectedRating === null;
-    }
+    updateFeedbackSubmitButton();
 
     if (mapSurveyStatus) {
       if (selectedRating !== null) {
+        mapSurveyStatus.classList.remove("warning");
         mapSurveyStatus.textContent = `Selected ${selectedRating}/5 stars. Add details or submit rating only.`;
+      } else if (feedbackSubmitAttemptedWithoutRating) {
+        mapSurveyStatus.classList.add("warning");
+        mapSurveyStatus.textContent = "Choose a star rating before submitting feedback.";
       } else {
+        mapSurveyStatus.classList.remove("warning");
         mapSurveyStatus.textContent = isAuthenticated()
           ? "Choose 0.5 to 5 stars to continue."
           : "Log in or sign up to leave feedback.";
       }
     }
 
-    setVisualCleanlinessLevel(hasRating ? rating : 3);
+    setVisualCleanlinessLevel(hasRating ? rating : 0);
   }
 
   function isPlaceholderToiletComment(comment = "") {
@@ -429,7 +459,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function resetVisualCleanlinessRating() {
-    setVisualCleanlinessLevel(3);
+    setVisualCleanlinessLevel(0);
   }
 
   function setCommentMediaStatus(message = getCommentMediaStatus(selectedCommentMedia)) {
@@ -516,6 +546,50 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     return commentAnonymousInput?.checked ? "anonymous" : "real";
   }
 
+  function scrollFeedbackSceneIntoDesktopView() {
+    if (
+      !commentComposer ||
+      !commentScenePanel ||
+      !globalThis.matchMedia?.("(min-width: 900px)")?.matches
+    ) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const nextScrollTop = Math.max(0, commentScenePanel.offsetTop - 12);
+      if (typeof commentComposer.scrollTo === "function") {
+        commentComposer.scrollTo({ top: nextScrollTop, behavior: "auto" });
+        return;
+      }
+
+      commentComposer.scrollTop = nextScrollTop;
+    });
+  }
+
+  function setFeedbackSceneOpen(open) {
+    const shouldOpen = Boolean(open && selectedToilet && commentScenePanel);
+
+    if (commentScenePanel) {
+      commentScenePanel.hidden = !shouldOpen;
+      commentScenePanel.classList.toggle("is-hidden", !shouldOpen);
+    }
+
+    if (commentSceneToggle) {
+      commentSceneToggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+      commentSceneToggle.textContent = shouldOpen ? "Hide interactive scene" : "Add interactive scene";
+    }
+
+    if (commentSceneStatus) {
+      commentSceneStatus.textContent = shouldOpen
+        ? "Optional scene for this feedback."
+        : "Optional scene for this feedback.";
+    }
+
+    if (shouldOpen) {
+      scrollFeedbackSceneIntoDesktopView();
+    }
+  }
+
   function setCommentComposerOpen(open) {
     const shouldOpen = Boolean(open && selectedToilet && commentComposer);
 
@@ -533,8 +607,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     mapPanel?.classList.toggle("has-comment-composer", shouldOpen);
 
     if (shouldOpen) {
+      selectedRating = null;
+      feedbackSubmitAttemptedWithoutRating = false;
       renderCleanlinessSurvey(selectedToilet);
       requestAnimationFrame(() => commentInput?.focus());
+    } else {
+      setFeedbackSceneOpen(false);
     }
   }
 
@@ -564,6 +642,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function closeCommentComposer() {
     setCommentComposerOpen(false);
+  }
+
+  function toggleFeedbackScene() {
+    setFeedbackSceneOpen(commentScenePanel?.hidden ?? true);
   }
 
   function applyCommentPreset(presetText) {
@@ -606,14 +688,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function createToiletIcon(toilet, selected = false) {
     const classes = ["map-marker"];
-    if (toilet.paid) classes.push("is-paid");
     if (selected) classes.push("is-selected");
+    const level = getVisualCleanlinessLevel(getCleanlinessVisualLevel(toilet));
 
     return window.L.divIcon({
       className: "map-marker-icon",
-      html: `<span class="${classes.join(" ")}" aria-hidden="true"></span>`,
-      iconSize: [30, 30],
-      iconAnchor: [15, 30]
+      html: `<span class="${classes.join(" ")}" aria-hidden="true"><img class="map-marker-image" src="${level.image}" alt="" loading="lazy" /></span>`,
+      iconSize: [44, 58],
+      iconAnchor: [22, 58]
     });
   }
 
@@ -812,6 +894,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     selectedCleanlinessDisplayToilet = null;
     cleanlinessDisplayRequestId += 1;
     selectedRating = null;
+    feedbackSubmitAttemptedWithoutRating = false;
     setCommentComposerAvailable(false);
     resetVisualCleanlinessRating();
     detailsCard?.classList.add("is-hidden");
@@ -887,6 +970,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     selectedToilet = toilet;
     selectedCleanlinessDisplayToilet = toilet;
     selectedRating = null;
+    feedbackSubmitAttemptedWithoutRating = false;
     closeCommentComposer();
     setCommentComposerAvailable(true);
     feedbackThreadController.resetCommentsForToilet(toilet);
@@ -1473,6 +1557,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (!isValidCleanlinessRating(safeRating)) return;
 
     selectedRating = safeRating;
+    feedbackSubmitAttemptedWithoutRating = false;
     if (mapSurveyStatus) {
       mapSurveyStatus.classList.remove("warning");
     }
@@ -1607,6 +1692,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     const feedbackRating = Number(selectedRating);
     if (!isValidCleanlinessRating(feedbackRating)) {
+      feedbackSubmitAttemptedWithoutRating = true;
+      updateFeedbackSubmitButton();
       if (mapSurveyStatus) {
         mapSurveyStatus.classList.add("warning");
         mapSurveyStatus.textContent = "Choose a rating before submitting feedback.";
@@ -1617,6 +1704,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const commentText = commentInput.value.trim();
     const hasCommentText = commentText.length > 0;
     const hasMedia = selectedCommentMedia.length > 0;
+    const sceneSnapshot = getFeedbackSceneSnapshot();
+    const hasScene = Boolean(sceneSnapshot);
 
     if (!isAuthenticated()) {
       showLoginPrompt("Log in to leave feedback.");
@@ -1624,15 +1713,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     const submitButton = commentForm?.querySelector("button[type='submit']");
-    if (submitButton) {
-      submitButton.disabled = true;
-    }
+    updateFeedbackSubmitButton({ submitting: true });
 
     try {
-      if (!hasCommentText && !hasMedia) {
+      if (!hasCommentText && !hasMedia && !hasScene) {
         const saved = await answerCleanlinessSurvey(feedbackRating);
         if (saved) {
           selectedRating = null;
+          feedbackSubmitAttemptedWithoutRating = false;
           closeCommentComposer();
           renderCleanlinessSurvey(selectedToilet);
         }
@@ -1646,13 +1734,16 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         commentText,
         media,
         commentVisibility,
-        feedbackRating
+        feedbackRating,
+        sceneSnapshot
       );
       await applySavedCleanlinessResult(result, feedbackRating);
       feedbackThreadController.renderComments(result.comments);
       commentInput.value = "";
       selectedRating = null;
+      feedbackSubmitAttemptedWithoutRating = false;
       resetCommentMediaAttachment();
+      resetFeedbackScene();
       closeCommentComposer();
       renderCleanlinessSurvey(selectedToilet);
     } catch (error) {
@@ -1661,10 +1752,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         showLoginPrompt("Log in to leave feedback.");
         return;
       }
+      if (error.status === 429) {
+        if (mapSurveyStatus) {
+          mapSurveyStatus.classList.add("warning");
+          mapSurveyStatus.textContent = error.message || "Please wait before rating this toilet again.";
+        }
+        return;
+      }
       alert(error?.message || "Could not submit feedback. Please try again later.");
     } finally {
       if (submitButton) {
-        submitButton.disabled = selectedRating === null;
+        updateFeedbackSubmitButton();
       }
     }
   }
@@ -1697,6 +1795,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setCommentSortMode: feedbackThreadController.setCommentSortMode,
     setCommentFilter: feedbackThreadController.setCommentFilter,
     toggleCommentComposer,
+    toggleFeedbackScene,
     closeCommentComposer,
     setVisualCleanlinessLevel,
     applyCommentPreset,

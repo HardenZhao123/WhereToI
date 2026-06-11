@@ -1,0 +1,353 @@
+.star-rating-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cleanliness-rating-row .star-rating-display {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 0;
+}
+
+.rating-period-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rating-period-control select {
+  max-width: 118px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: white;
+  font-size: 11px;
+}
+
+.cleanliness-range-select {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.cleanliness-range-select:hover {
+  border-color: var(--teal);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.cleanliness-range-select:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 2px var(--teal-soft);
+}
+
+.map-cleanliness-survey {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.feedback-rating-field {
+  margin-bottom: 2px;
+}
+
+.feedback-visual-rating {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.68fr) minmax(190px, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.feedback-visual-preview {
+  --visual-preview-art-size: 116px;
+  height: 136px;
+  min-height: 136px;
+}
+
+.map-cleanliness-survey h4 {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.map-cleanliness-survey p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.survey-status {
+  grid-column: 1 / -1;
+}
+
+.survey-status.warning {
+  color: #d93025; /* Red color for warnings */
+  font-weight: 500;
+}
+
+.visual-preview-card {
+  --visual-preview-art-size: 128px;
+  display: grid;
+  height: 160px;
+  min-height: 160px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(40 118 102 / 22%);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f7fbff 0%, #eef8f4 100%);
+}
+
+.cartoon-toilet-svg {
+  display: block;
+  width: var(--visual-preview-art-size);
+  height: var(--visual-preview-art-size);
+  max-width: 82%;
+  max-height: 82%;
+}
+
+.visual-cleanliness-image {
+  width: var(--visual-preview-art-size);
+  height: var(--visual-preview-art-size);
+  max-width: 82%;
+  max-height: 82%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+}
+
+.toilet-room-floor {
+  fill: #d8dfd6;
+}
+
+.toilet-bowl {
+  fill: #f9fbff;
+  stroke: #8090a1;
+  stroke-width: 4;
+}
+
+.toilet-seat {
+  fill: #ffffff;
+  stroke: #b8c1ba;
+  stroke-width: 3;
+}
+
+.toilet-water {
+  fill: #9de7ef;
+}
+
+.toilet-tank {
+  fill: #fbfcff;
+  stroke: #8090a1;
+  stroke-width: 4;
+}
+
+.toilet-pipe,
+.toilet-base {
+  fill: none;
+  stroke: #8090a1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+}
+
+.toilet-handle {
+  fill: var(--teal);
+}
+
+.toilet-sparkles {
+  fill: #d8aa38;
+  opacity: 0.2;
+  transition: opacity 140ms ease;
+}
+
+.toilet-dirt {
+  fill: #7b5b37;
+  stroke: #7b5b37;
+  stroke-linecap: round;
+  stroke-width: 5;
+  opacity: 0.45;
+  transition: opacity 140ms ease;
+}
+
+.visual-preview-card[data-cleanliness="1"] .toilet-dirt {
+  opacity: 1;
+}
+
+.visual-preview-card[data-cleanliness="1"] .toilet-water {
+  fill: #a9b38c;
+}
+
+.visual-preview-card[data-cleanliness="2"] .toilet-dirt {
+  opacity: 0.72;
+}
+
+.visual-preview-card[data-cleanliness="2"] .toilet-water {
+  fill: #b9d7b8;
+}
+
+.visual-preview-card[data-cleanliness="3"] .toilet-dirt {
+  opacity: 0.38;
+}
+
+.visual-preview-card[data-cleanliness="4"] .toilet-dirt {
+  opacity: 0.14;
+}
+
+.visual-preview-card[data-cleanliness="4"] .toilet-sparkles,
+.visual-preview-card[data-cleanliness="5"] .toilet-sparkles {
+  opacity: 0.9;
+}
+
+.visual-preview-card[data-cleanliness="5"] {
+  background: linear-gradient(180deg, #f5fbff 0%, #e7f8f2 100%);
+}
+
+.visual-preview-card[data-cleanliness="5"] .toilet-dirt {
+  opacity: 0;
+}
+
+.feedback-visual-controls {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.visual-rating-label {
+  color: #142c72;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.visual-star-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: max-content;
+  max-width: 100%;
+}
+
+.visual-star-button {
+  --star-fill: 0%;
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  color: #d8aa38;
+  background: transparent;
+}
+
+.visual-star-icon {
+  position: absolute;
+  inset: 2px 1px;
+  display: block;
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}
+
+.visual-star-button:focus-visible {
+  outline: 3px solid rgb(54 111 171 / 24%);
+  outline-offset: 2px;
+}
+
+.visual-star-outline {
+  fill: white;
+  stroke: #b8c1ba;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.visual-star-fill {
+  clip-path: inset(0 calc(100% - var(--star-fill)) 0 0);
+  fill: #d8aa38;
+  stroke: #d8aa38;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  transition: clip-path 120ms ease;
+}
+
+.visual-star-hit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 50%;
+}
+
+.visual-star-hit-left {
+  left: 0;
+}
+
+.visual-star-hit-right {
+  right: 0;
+}
+
+.visual-rating-step-buttons {
+  display: flex;
+  flex: 0 0 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.visual-rating-step {
+  min-width: 32px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid #d8dfd6;
+  border-radius: 999px;
+  color: #142c72;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  background: #fbfdf8;
+  cursor: pointer;
+}
+
+.visual-rating-step:hover,
+.visual-rating-step:focus-visible,
+.visual-rating-step.is-selected {
+  border-color: #d8aa38;
+  color: #1f2a33;
+  background: rgb(216 170 56 / 18%);
+}
+
+.visual-rating-step:focus-visible {
+  outline: 3px solid rgb(54 111 171 / 24%);
+  outline-offset: 2px;
+}
+
+.visual-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.visual-cleanliness-state {
+  min-height: 32px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}

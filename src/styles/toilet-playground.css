@@ -1,0 +1,687 @@
+.view-playground {
+  padding: 4px 0 22px;
+}
+
+.toilet-playground {
+  display: grid;
+  gap: 14px;
+}
+
+.toilet-playground-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.toilet-playground-header h2 {
+  color: #142c72;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.toilet-playground-workspace {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.58fr) minmax(420px, 2.7fr) minmax(168px, 0.95fr);
+  gap: 12px;
+  align-items: stretch;
+  min-height: min(560px, calc(100vh - 188px));
+}
+
+.dirt-toolbar,
+.toilet-scene-panel,
+.playground-status-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 92%);
+}
+
+.dirt-toolbar,
+.playground-status-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
+}
+
+.dirt-toolbar h2,
+.playground-status-panel h2 {
+  color: #142c72;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dirt-tool-list {
+  display: grid;
+  gap: 8px;
+}
+
+.dirt-tool {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px;
+  border: 1px solid #d8dfd6;
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fbfdf8;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.dirt-tool:hover,
+.dirt-tool:focus-visible,
+.dirt-tool.is-selected {
+  border-color: rgb(40 118 102 / 46%);
+  background: var(--teal-soft);
+}
+
+.dirt-tool:focus-visible,
+.playground-fixture:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.dirt-tool-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+.dirt-tool-icon-stain {
+  border-radius: 48% 52% 42% 58%;
+  background: #7b5b37;
+  box-shadow:
+    7px 3px 0 -2px #7b5b37,
+    -4px 7px 0 -3px #7b5b37;
+}
+
+.dirt-tool-icon-wet {
+  border-radius: 50% 50% 55% 45%;
+  background: #6fb9dd;
+  transform: rotate(45deg);
+}
+
+.dirt-tool-icon-tissue {
+  border: 1px solid #b8c1ba;
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, transparent 48%, #d6dde0 49%, #d6dde0 52%, transparent 53%),
+    #ffffff;
+  transform: rotate(-8deg);
+}
+
+.dirt-tool-icon-dust {
+  border-radius: 999px;
+  background: #9a9286;
+  box-shadow:
+    -8px 6px 0 -4px #9a9286,
+    8px -4px 0 -5px #9a9286,
+    10px 8px 0 -4px #9a9286;
+}
+
+.dirt-tool-icon-urine {
+  border-radius: 52% 48% 58% 42%;
+  background: #e7c84a;
+  box-shadow: 9px -5px 0 -6px #e7c84a;
+  transform: rotate(-12deg);
+}
+
+.dirt-tool-icon-feces {
+  border-radius: 46% 54% 50% 50%;
+  background: #5f3824;
+  box-shadow:
+    0 -7px 0 -3px #6a402b,
+    7px 6px 0 -4px #4d2e1f,
+    -7px 7px 0 -4px #6a402b;
+}
+
+.dirt-tool-icon-mud {
+  border-radius: 45% 55% 50% 50%;
+  background: #6b4731;
+  box-shadow:
+    8px 4px 0 -3px #6b4731,
+    -6px -5px 0 -5px #6b4731;
+}
+
+.dirt-tool-icon-soap {
+  border: 2px solid #8dd8e0;
+  border-radius: 999px;
+  background: #f8ffff;
+  box-shadow:
+    -8px 6px 0 -6px #f8ffff,
+    8px -5px 0 -7px #f8ffff;
+}
+
+.dirt-tool-icon-hair {
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 46%, #2d2930 48%, #2d2930 55%, transparent 57%);
+}
+
+.toilet-scene-panel {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  padding: 10px;
+  background: #e9edf2;
+}
+
+.toilet-playground-svg {
+  width: 100%;
+  max-height: calc(100vh - 204px);
+  aspect-ratio: 820 / 500;
+}
+
+.playground-wall {
+  fill: #c5ccd7;
+  stroke: #9fa9b8;
+  stroke-width: 2;
+}
+
+.playground-side-wall {
+  fill: #aeb7c5;
+  opacity: 0.9;
+}
+
+.playground-wall-line,
+.playground-wall-tiles,
+.playground-window-cross,
+.playground-floor-line,
+.playground-floor-depth,
+.playground-baseboard,
+.playground-window-blinds {
+  fill: none;
+  stroke: #dce4ee;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.playground-wall-tiles {
+  opacity: 0.44;
+  stroke-width: 0.9;
+}
+
+.playground-window-light {
+  fill: #f5f9ff;
+  opacity: 0.88;
+}
+
+.playground-window-blinds {
+  stroke: #ffffff;
+  stroke-linecap: square;
+  stroke-width: 11;
+  filter: drop-shadow(0 5px 0 rgb(107 119 136 / 10%));
+}
+
+.playground-wall-band {
+  fill: #302b29;
+}
+
+.playground-wall-band-side {
+  fill: #272321;
+}
+
+.playground-baseboard {
+  stroke: #f5f7fb;
+  stroke-width: 7;
+}
+
+.playground-soap-dispenser {
+  fill: #e9eef6;
+  stroke: #8390a3;
+  stroke-width: 3;
+}
+
+.playground-soap-button {
+  fill: #6dbbc2;
+}
+
+.playground-window {
+  fill: #d9ecff;
+  stroke: #8db7d6;
+  stroke-width: 3;
+}
+
+.playground-fixture {
+  cursor: copy;
+}
+
+.fixture-highlight {
+  fill: rgb(44 122 130 / 16%);
+  opacity: 0;
+  stroke: #2d7780;
+  stroke-width: 2;
+  transition: opacity 120ms ease;
+}
+
+.playground-fixture:hover .fixture-highlight,
+.playground-fixture:focus-visible .fixture-highlight,
+.playground-fixture.is-drag-over .fixture-highlight {
+  opacity: 0.78;
+}
+
+.fixture-label {
+  fill: #4c5968;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  opacity: 0.58;
+}
+
+.fixture-label-floor {
+  fill: #4c5968;
+}
+
+.playground-floor {
+  fill: #b8c0cb;
+  stroke: #8995a4;
+  stroke-width: 2;
+}
+
+.playground-floor-depth {
+  stroke: #8793a3;
+  stroke-width: 1.5;
+  opacity: 0.62;
+}
+
+.playground-floor-front-shadow {
+  fill: none;
+  stroke: rgb(35 31 30 / 22%);
+  stroke-linecap: round;
+  stroke-width: 8;
+}
+
+.playground-floor-drain-ring {
+  fill: #a3acb8;
+  stroke: #7f8b99;
+  stroke-width: 3;
+}
+
+.playground-floor-drain-lines {
+  fill: none;
+  stroke: #657180;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.playground-floor-scuffs {
+  fill: none;
+  stroke: rgb(85 96 109 / 24%);
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.fixture-shadow {
+  fill: rgb(20 27 34 / 22%);
+}
+
+.playground-toilet-tank,
+.playground-toilet-tank-face,
+.playground-toilet-tank-top,
+.playground-toilet-outer,
+.playground-toilet-bowl,
+.playground-toilet-seat,
+.playground-toilet-seat-opening,
+.playground-toilet-front,
+.playground-toilet-base,
+.playground-toilet-lid,
+.playground-toilet-rear-neck,
+.playground-toilet-bowl-body,
+.playground-toilet-pedestal,
+.playground-toilet-floor-foot,
+.playground-urinal-back,
+.playground-urinal-inner,
+.playground-urinal-flush,
+.playground-urinal-flush-knob,
+.playground-urinal-pipe-joint,
+.playground-sink-counter,
+.playground-sink-basin,
+.playground-sink-inner,
+.playground-sink-pedestal {
+  fill: #fbfcff;
+  stroke: #cdd4de;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.playground-toilet-tank,
+.playground-toilet-tank-face {
+  fill: #e9edf3;
+  stroke: #cfd7e1;
+}
+
+.playground-toilet-tank-face {
+  opacity: 0.86;
+}
+
+.playground-toilet-tank-shadow,
+.playground-toilet-side-shadow,
+.playground-toilet-lid-shadow,
+.playground-toilet-bowl-shadow,
+.playground-urinal-side-shadow,
+.playground-urinal-inner-shadow,
+.playground-sink-basin-side-shadow,
+.playground-hand-towel-shadow {
+  fill: rgb(95 108 126 / 12%);
+  stroke: none;
+}
+
+.playground-toilet-lid-shadow,
+.playground-toilet-bowl-shadow {
+  fill: none;
+  stroke: rgb(76 89 104 / 20%);
+  stroke-linecap: round;
+  stroke-width: 9;
+}
+
+.playground-urinal-highlight {
+  opacity: 0.7;
+}
+
+.playground-toilet-tank-top,
+.playground-toilet-flush-button,
+.playground-urinal-flush,
+.playground-urinal-flush-knob,
+.playground-urinal-pipe-joint,
+.playground-sink-counter {
+  fill: #f7f9fb;
+}
+
+.playground-toilet-outer,
+.playground-toilet-lid,
+.playground-toilet-bowl-body,
+.playground-urinal-back,
+.playground-sink-basin {
+  filter: drop-shadow(0 7px 4px rgb(31 42 51 / 11%));
+}
+
+.playground-toilet-seat {
+  fill: #ffffff;
+  stroke: #d1d8e2;
+  stroke-width: 3;
+}
+
+.playground-toilet-bowl,
+.playground-toilet-seat-opening,
+.playground-sink-inner,
+.playground-urinal-inner {
+  fill: #e8edf3;
+  stroke: #cfd7e1;
+  stroke-width: 3;
+}
+
+.playground-toilet-front,
+.playground-toilet-base,
+.playground-toilet-pedestal,
+.playground-toilet-floor-foot,
+.playground-sink-pedestal {
+  fill: #eceff4;
+}
+
+.playground-toilet-rear-neck {
+  fill: #eef2f6;
+}
+
+.playground-toilet-side-shadow {
+  opacity: 0.75;
+}
+
+.playground-toilet-water {
+  fill: #dfe7ee;
+  stroke: #c8d4dd;
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.playground-toilet-handle,
+.playground-toilet-floor-bolt,
+.playground-toilet-flush-button,
+.playground-sink-drain,
+.playground-sink-overflow,
+.playground-urinal-drain {
+  fill: #202834;
+}
+
+.playground-toilet-pipe,
+.playground-toilet-wall-pipe,
+.playground-sink-tap,
+.playground-sink-pipe,
+.playground-urinal-pipe,
+.playground-urinal-flush-handle,
+.playground-urinal-lip {
+  fill: none;
+  stroke: #7c8796;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 5;
+}
+
+.playground-urinal-flush-handle {
+  stroke: #ffffff;
+  stroke-width: 8;
+}
+
+.playground-urinal-lip,
+.playground-sink-inner {
+  stroke-width: 4;
+}
+
+.playground-toilet-lid-highlight,
+.playground-toilet-rim-highlight,
+.playground-urinal-highlight,
+.playground-sink-rim-highlight,
+.playground-sink-tap-highlight {
+  fill: none;
+  stroke: rgb(255 255 255 / 82%);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 8;
+}
+
+.playground-toilet-rim-highlight {
+  stroke-width: 5;
+  opacity: 0.82;
+}
+
+.playground-toilet-tank-bottom-shadow {
+  fill: none;
+  stroke: rgb(76 89 104 / 20%);
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.playground-sink-tap-highlight {
+  stroke-width: 4;
+}
+
+.playground-urinal-trap {
+  fill: #eceff4;
+  stroke: #cdd4de;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.playground-urinal-drain-slots {
+  fill: none;
+  stroke: #f4f6f8;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.playground-mirror {
+  fill: #a8b2c0;
+  stroke: #cfd7e1;
+  stroke-width: 3;
+}
+
+.playground-mirror-shadow {
+  fill: #9fa8b8;
+  opacity: 0.42;
+}
+
+.playground-mirror-glint {
+  fill: none;
+  stroke: rgb(238 243 249 / 34%);
+  stroke-linecap: round;
+  stroke-width: 34;
+}
+
+.playground-towel-rail {
+  fill: #ffffff;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.playground-hand-towel {
+  fill: #69758a;
+  opacity: 0.96;
+}
+
+.playground-sink-handle-hot {
+  fill: #cf604a;
+}
+
+.playground-sink-handle-cold {
+  fill: #4cbcc7;
+}
+
+.dirt-overlay {
+  pointer-events: none;
+}
+
+.dirt-overlay-stain {
+  fill: #7b5b37;
+  opacity: 0.88;
+}
+
+.dirt-overlay-wet {
+  fill: #6fb9dd;
+  stroke: #2b80c7;
+  stroke-width: 2;
+  opacity: 0.82;
+}
+
+.dirt-overlay-tissue {
+  fill: #ffffff;
+  stroke: #9aa8af;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.dirt-overlay-tissue-fold {
+  fill: none;
+  stroke: #c7d0d4;
+  stroke-linecap: round;
+}
+
+.dirt-overlay-dust {
+  fill: #8f887f;
+  opacity: 0.78;
+}
+
+.dirt-overlay-dust-smear {
+  fill: none;
+  stroke: #8f887f;
+  stroke-linecap: round;
+  stroke-width: 4;
+  opacity: 0.5;
+}
+
+.dirt-overlay-urine {
+  fill: #e6c846;
+  stroke: #c9a92c;
+  stroke-width: 2;
+  opacity: 0.8;
+}
+
+.dirt-overlay-urine-shine {
+  fill: none;
+  stroke: rgb(255 255 255 / 55%);
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.dirt-overlay-mud {
+  fill: #6b4731;
+  opacity: 0.86;
+}
+
+.dirt-overlay-feces {
+  fill: #5c3624;
+  stroke: #3f2418;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.dirt-overlay-feces-shadow {
+  fill: rgb(35 24 18 / 24%);
+  stroke: none;
+}
+
+.dirt-overlay-soap {
+  fill: rgb(250 255 255 / 78%);
+  stroke: #86d6df;
+  stroke-width: 2;
+}
+
+.dirt-overlay-soap-puddle {
+  fill: rgb(126 211 222 / 34%);
+  stroke: #86d6df;
+}
+
+.dirt-overlay-hair {
+  fill: none;
+  stroke: #2d2930;
+  stroke-linecap: round;
+  stroke-width: 5;
+}
+
+.playground-status-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.playground-status-list li {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e4ebe2;
+}
+
+.playground-status-list strong {
+  color: #142c72;
+  font-size: 12px;
+}
+
+.playground-status-list span,
+.playground-live-status {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.playground-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.playground-actions button {
+  width: 100%;
+  height: 38px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.playground-upload-button {
+  height: 38px;
+}

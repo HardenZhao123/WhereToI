@@ -1,0 +1,19 @@
+          <section class="view view-map is-active" id="map-panel" aria-labelledby="map-tab">
+            <div class="map-canvas" id="map" aria-label="Interactive map of nearby toilets"></div>
+            <div class="map-legend" aria-hidden="true">
+              <div class="legend-item">
+                <span>3-day rating</span>
+              </div>
+              <div class="legend-item">
+                <img class="legend-rating-thumb" src="toilet_levels/level_05_small.jpg" alt="" />
+                <span>Dirtier</span>
+                <img class="legend-rating-thumb" src="toilet_levels/level_5_small.jpg" alt="" />
+                <span>Cleaner</span>
+              </div>
+            </div>
+
+            <template data-html-include="./search-card.html"></template>
+
+            <template data-html-include="./details-card.html"></template>
+            <template data-html-include="./comment-composer.html"></template>
+          </section>
