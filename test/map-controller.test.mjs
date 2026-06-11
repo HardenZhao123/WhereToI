@@ -89,6 +89,41 @@ function createPreviewElement() {
   };
 }
 
+function createVisualStarRatingElement() {
+  const buttons = Array.from({ length: 5 }, (_, index) => {
+    const properties = new Map();
+    const attributes = {};
+
+    return {
+      dataset: { visualStar: String(index + 1) },
+      properties,
+      attributes,
+      classList: createRecordingClassList(),
+      style: {
+        setProperty(name, value) {
+          properties.set(name, value);
+        }
+      },
+      setAttribute(name, value) {
+        attributes[name] = String(value);
+      }
+    };
+  });
+  const attributes = {};
+
+  return {
+    buttons,
+    attributes,
+    classList: createRecordingClassList(),
+    setAttribute(name, value) {
+      attributes[name] = String(value);
+    },
+    querySelectorAll(selector) {
+      return selector === "[data-visual-star]" ? buttons : [];
+    }
+  };
+}
+
 function createTestToilet() {
   return {
     id: "test-toilet",
@@ -226,6 +261,55 @@ test("map controller keeps feedback visual state synced with the current selecte
     assert.equal(visualCleanlinessImage.classList.contains("is-hidden"), false);
     assert.equal(visualSvgClassList.contains("is-hidden"), true);
     assert.equal(visualCleanlinessState.textContent, "Very clean - Almost spotless");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test("map controller shows half-star affordances before a cleanliness rating is selected", () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const visualCleanlinessStars = createVisualStarRatingElement();
+
+  globalThis.document = {
+    addEventListener() {},
+    querySelector() {
+      return null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const controller = createMapController({ visualCleanlinessStars });
+
+    controller.setVisualCleanlinessLevel(0);
+
+    assert.equal(visualCleanlinessStars.classList.contains("is-unrated"), true);
+    assert.match(visualCleanlinessStars.attributes["aria-label"], /half-star and full-star choices/);
+    assert.deepEqual(
+      visualCleanlinessStars.buttons.map((button) => button.properties.get("--star-fill")),
+      ["50%", "50%", "50%", "50%", "50%"]
+    );
+    assert.deepEqual(
+      visualCleanlinessStars.buttons.map((button) => button.attributes["aria-pressed"]),
+      ["false", "false", "false", "false", "false"]
+    );
+
+    controller.setVisualCleanlinessLevel(2.5);
+
+    assert.equal(visualCleanlinessStars.classList.contains("is-unrated"), false);
+    assert.deepEqual(
+      visualCleanlinessStars.buttons.map((button) => button.properties.get("--star-fill")),
+      ["100%", "100%", "50%", "0%", "0%"]
+    );
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
