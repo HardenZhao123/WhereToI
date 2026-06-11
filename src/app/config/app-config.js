@@ -11,6 +11,7 @@ export const appConfig = {
   },
   titles: {
     map: "Map",
+    scene: "Interactive scene",
     account: "Account"
   }
 };
