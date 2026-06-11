@@ -453,6 +453,7 @@ test("API supports fetching and posting toilet comments", async () => {
       toiletId,
       toiletName: "Detail test toilet",
       fixtures: {
+        wall: [{ id: "wall-feces-1", dirtId: "feces", x: 260, y: 160 }],
         toilet: [
           { id: "toilet-stain-1", dirtId: "stain", x: 140, y: 230 },
           { id: "toilet-urine-2", dirtId: "urine", x: 185, y: 240 }

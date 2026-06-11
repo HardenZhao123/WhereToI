@@ -132,6 +132,7 @@ test("toilet playground stores dirt by fixture", () => {
   const initialState = createInitialDirtState();
 
   assert.deepEqual(initialState, {
+    wall: [],
     toilet: [],
     urinal: [],
     sink: [],
@@ -142,12 +143,14 @@ test("toilet playground stores dirt by fixture", () => {
   const withUrinalWet = addDirtToFixture(withToiletStain, "urinal", "wet", { x: 406, y: 244 });
   const withSinkWet = addDirtToFixture(withUrinalWet, "sink", "wet", { x: 642, y: 226 });
   const withFloorTissue = addDirtToFixture(withSinkWet, "floor", "tissue", { x: 460, y: 430 });
+  const withWallFeces = addDirtToFixture(withFloorTissue, "wall", "feces", { x: 260, y: 160 });
 
-  assert.deepEqual(withFloorTissue.toilet.map((placement) => placement.dirtId), ["stain"]);
-  assert.deepEqual(withFloorTissue.urinal.map((placement) => placement.dirtId), ["wet"]);
-  assert.deepEqual(withFloorTissue.sink.map((placement) => placement.dirtId), ["wet"]);
-  assert.deepEqual(withFloorTissue.floor.map((placement) => placement.dirtId), ["tissue"]);
-  assert.deepEqual(withFloorTissue.floor[0], {
+  assert.deepEqual(withWallFeces.wall.map((placement) => placement.dirtId), ["feces"]);
+  assert.deepEqual(withWallFeces.toilet.map((placement) => placement.dirtId), ["stain"]);
+  assert.deepEqual(withWallFeces.urinal.map((placement) => placement.dirtId), ["wet"]);
+  assert.deepEqual(withWallFeces.sink.map((placement) => placement.dirtId), ["wet"]);
+  assert.deepEqual(withWallFeces.floor.map((placement) => placement.dirtId), ["tissue"]);
+  assert.deepEqual(withWallFeces.floor[0], {
     id: "floor-tissue-4",
     dirtId: "tissue",
     x: 460,
@@ -177,8 +180,10 @@ test("toilet playground status rows and scene snapshot use display labels", () =
   state = addDirtToFixture(state, "floor", "urine", { x: 550, y: 390 });
   state = addDirtToFixture(state, "floor", "dust", { x: 250, y: 360 });
   state = addDirtToFixture(state, "floor", "tissue", { x: 300, y: 400 });
+  state = addDirtToFixture(state, "wall", "feces", { x: 260, y: 160 });
 
   const rows = getFixtureStatusRows(state);
+  assert.deepEqual(rows.find((row) => row.fixtureId === "wall")?.dirtLabels, ["feces"]);
   assert.deepEqual(rows.find((row) => row.fixtureId === "floor")?.dirtLabels, [
     "wet x2",
     "urine",
@@ -196,6 +201,7 @@ test("toilet playground status rows and scene snapshot use display labels", () =
       toiletId: "toilet-1",
       toiletName: "Library toilet",
       fixtures: {
+        wall: [{ id: "wall-feces-6", dirtId: "feces", x: 260, y: 160 }],
         toilet: [],
         urinal: [],
         sink: [],
@@ -231,8 +237,13 @@ test("toilet playground keeps scene state independent per selected toilet", () =
     root.querySelectorAll(".playground-fixture[data-fixture-id=\"floor\"]")[0].click({ offsetX: 700, offsetY: 420 });
     assert.equal(playground.getState().fixtures.floor.length, 1);
 
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"feces\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"wall\"]")[0].click({ offsetX: 260, offsetY: 160 });
+    assert.equal(playground.getState().fixtures.wall.length, 1);
+
     playground.setContext({ id: "toilet-a", name: "Toilet A" });
     assert.equal(playground.getState().fixtures.toilet.length, 1);
     assert.deepEqual(playground.getState().fixtures.floor, []);
+    assert.deepEqual(playground.getState().fixtures.wall, []);
   });
 });

@@ -7,12 +7,14 @@ export const dirtTypes = [
   { id: "tissue", label: "tissue", scale: 0.78 },
   { id: "dust", label: "dust", scale: 0.84 },
   { id: "urine", label: "urine", scale: 0.78 },
+  { id: "feces", label: "feces", scale: 0.8 },
   { id: "mud", label: "mud", scale: 0.82 },
   { id: "soap", label: "soap", scale: 0.8 },
   { id: "hair", label: "hair", scale: 0.82 }
 ];
 
 export const fixtures = [
+  { id: "wall", label: "Wall" },
   { id: "toilet", label: "Toilet" },
   { id: "urinal", label: "Urinal" },
   { id: "sink", label: "Sink" },
@@ -20,13 +22,14 @@ export const fixtures = [
 ];
 
 const fixtureHitBoxes = {
+  wall: { x: 34, y: 34, width: 752, height: 306 },
   toilet: { x: 64, y: 118, width: 244, height: 238 },
   urinal: { x: 316, y: 78, width: 184, height: 268 },
   sink: { x: 526, y: 56, width: 240, height: 292 },
   floor: { x: 42, y: 340, width: 736, height: 126 }
 };
 
-const renderFixtureOrder = ["floor", "toilet", "urinal", "sink"];
+const renderFixtureOrder = ["wall", "floor", "toilet", "urinal", "sink"];
 const validFixtureIds = new Set(fixtures.map((fixture) => fixture.id));
 const validDirtIds = new Set(dirtTypes.map((dirt) => dirt.id));
 
@@ -308,71 +311,77 @@ function createHighlightRect(fixtureId) {
     y: hitBox.y,
     width: hitBox.width,
     height: hitBox.height,
-    rx: fixtureId === "floor" ? 8 : 18
+    rx: fixtureId === "floor" || fixtureId === "wall" ? 8 : 18
   });
+}
+
+function createWallArt() {
+  const group = createSvgElement("g", { class: "fixture-art fixture-art-wall" });
+  group.append(createFixtureLabel("wall", 52, 72));
+  return group;
 }
 
 function createToiletArt() {
   const group = createSvgElement("g", { class: "fixture-art fixture-art-toilet" });
   group.append(
-    createSvgElement("ellipse", { class: "fixture-shadow", cx: 184, cy: 343, rx: 116, ry: 18 }),
+    createSvgElement("ellipse", { class: "fixture-shadow", cx: 184, cy: 347, rx: 108, ry: 16 }),
     createSvgElement("path", {
-      class: "playground-toilet-base",
-      d: "M151 293h63l20 54H128l23-54Z"
+      class: "playground-toilet-wall-pipe",
+      d: "M184 215v34"
     }),
-    createSvgElement("rect", { class: "playground-toilet-tank", x: 96, y: 150, width: 176, height: 84, rx: 8 }),
+    createSvgElement("rect", { class: "playground-toilet-tank", x: 108, y: 132, width: 152, height: 82, rx: 9 }),
     createSvgElement("path", {
       class: "playground-toilet-tank-face",
-      d: "M107 159h154v64H107Z"
+      d: "M119 145h130v58H119Z"
     }),
     createSvgElement("path", {
       class: "playground-toilet-tank-shadow",
-      d: "M225 156h37v70h-37Z"
+      d: "M224 140h26v66h-26Z"
     }),
-    createSvgElement("rect", { class: "playground-toilet-tank-top", x: 88, y: 140, width: 192, height: 15, rx: 6 }),
-    createSvgElement("circle", { class: "playground-toilet-handle", cx: 247, cy: 183, r: 5 }),
+    createSvgElement("rect", { class: "playground-toilet-tank-top", x: 98, y: 124, width: 172, height: 14, rx: 5 }),
+    createSvgElement("ellipse", { class: "playground-toilet-flush-button", cx: 236, cy: 132, rx: 11, ry: 4 }),
     createSvgElement("path", {
-      class: "playground-toilet-pipe",
-      d: "M184 231v27"
-    }),
-    createSvgElement("ellipse", {
-      class: "playground-toilet-lid",
-      cx: 169,
-      cy: 199,
-      rx: 57,
-      ry: 83,
-      transform: "rotate(-9 169 199)"
+      class: "playground-toilet-tank-bottom-shadow",
+      d: "M117 212h134"
     }),
     createSvgElement("path", {
-      class: "playground-toilet-lid-highlight",
-      d: "M133 141c31 4 62 36 68 83"
+      class: "playground-toilet-rear-neck",
+      d: "M146 214h76c9 0 16 7 16 16v22H130v-22c0-9 7-16 16-16Z"
     }),
     createSvgElement("path", {
-      class: "playground-toilet-lid-shadow",
-      d: "M189 122c23 27 36 65 32 102"
+      class: "playground-toilet-bowl-body",
+      d: "M88 254c0-36 38-60 96-60s96 24 96 60c0 48-41 87-96 87s-96-39-96-87Z"
     }),
     createSvgElement("path", {
-      class: "playground-toilet-outer",
-      d: "M89 241h190c0 45-37 80-95 80-57 0-95-35-95-80Z"
+      class: "playground-toilet-side-shadow",
+      d: "M230 207c32 12 50 29 50 51 0 38-27 71-68 82 26-27 40-70 18-133Z"
     }),
     createSvgElement("path", {
       class: "playground-toilet-seat",
-      d: "M97 238c7-28 41-47 86-47 46 0 80 19 88 47-10 24-43 40-88 40-44 0-77-16-86-40Z"
+      d: "M105 248c7-30 39-49 79-49s72 19 79 49c-8 24-38 40-79 40s-71-16-79-40Z"
+    }),
+    createSvgElement("path", {
+      class: "playground-toilet-seat-opening",
+      d: "M134 249c7-16 27-27 50-27s43 11 50 27c-8 14-27 22-50 22s-42-8-50-22Z"
     }),
     createSvgElement("path", {
       class: "playground-toilet-water",
-      d: "M128 236c14-16 96-16 110 0-12 16-98 16-110 0Z"
+      d: "M147 252c10-9 64-9 74 0-9 8-65 8-74 0Z"
     }),
     createSvgElement("path", {
-      class: "playground-toilet-bowl-shadow",
-      d: "M225 247c-9 23-31 35-66 36 49 3 83-12 101-39"
+      class: "playground-toilet-rim-highlight",
+      d: "M112 242c18-22 47-34 72-34s54 12 72 34"
     }),
     createSvgElement("path", {
-      class: "playground-toilet-front",
-      d: "M100 260c12 36 43 55 84 55s73-19 85-55c-10 49-43 75-85 75s-75-26-84-75Z"
+      class: "playground-toilet-pedestal",
+      d: "M143 318h82l17 31H126l17-31Z"
     }),
-    createSvgElement("circle", { class: "playground-toilet-floor-bolt", cx: 132, cy: 339, r: 4 }),
-    createSvgElement("circle", { class: "playground-toilet-floor-bolt", cx: 232, cy: 339, r: 4 }),
+    createSvgElement("path", {
+      class: "playground-toilet-floor-foot",
+      d: "M111 346h145c8 0 14 6 14 14H97c0-8 6-14 14-14Z"
+    }),
+    createSvgElement("circle", { class: "playground-toilet-floor-bolt", cx: 126, cy: 354, r: 4 }),
+    createSvgElement("circle", { class: "playground-toilet-floor-bolt", cx: 242, cy: 354, r: 4 }),
     createFixtureLabel("toilet", 96, 116)
   );
   return group;
@@ -417,6 +426,10 @@ function createUrinalArt() {
       d: "M432 135h34v112c0 20-9 36-23 45"
     }),
     createSvgElement("circle", { class: "playground-urinal-drain", cx: 410, cy: 257, r: 8 }),
+    createSvgElement("path", {
+      class: "playground-urinal-drain-slots",
+      d: "M402 257h16M410 249v16"
+    }),
     createSvgElement("path", {
       class: "playground-urinal-trap",
       d: "M390 312h40c-3 18-10 27-20 27s-17-9-20-27Z"
@@ -463,6 +476,7 @@ function createSinkArt() {
       class: "playground-sink-rim-highlight",
       d: "M548 249c28 21 163 21 192 0"
     }),
+    createSvgElement("circle", { class: "playground-sink-overflow", cx: 644, cy: 263, r: 4 }),
     createSvgElement("circle", { class: "playground-sink-drain", cx: 644, cy: 279, r: 6 }),
     createSvgElement("path", {
       class: "playground-sink-pedestal",
@@ -492,12 +506,22 @@ function createFloorArt() {
       class: "playground-floor-front-shadow",
       d: "M76 466h668"
     }),
+    createSvgElement("circle", { class: "playground-floor-drain-ring", cx: 502, cy: 430, r: 14 }),
+    createSvgElement("path", {
+      class: "playground-floor-drain-lines",
+      d: "M490 430h24M502 418v24M493 421l18 18M511 421l-18 18"
+    }),
+    createSvgElement("path", {
+      class: "playground-floor-scuffs",
+      d: "M146 393c22 7 43 6 61-3M608 392c27 6 50 4 71-5M318 442c18 5 37 5 55 0"
+    }),
     createFixtureLabel("floor", 62, 442, "fixture-label-floor")
   );
   return group;
 }
 
 function createFixtureBase(fixtureId) {
+  if (fixtureId === "wall") return createWallArt();
   if (fixtureId === "toilet") return createToiletArt();
   if (fixtureId === "urinal") return createUrinalArt();
   if (fixtureId === "sink") return createSinkArt();
@@ -616,6 +640,27 @@ function createMudOverlay(placement, scale) {
   return group;
 }
 
+function createFecesOverlay(placement, scale) {
+  const group = createSvgElement("g", {
+    class: "dirt-overlay dirt-overlay-feces",
+    transform: `translate(${placement.x} ${placement.y}) scale(${scale})`
+  });
+  group.append(
+    createSvgElement("ellipse", { class: "dirt-overlay-feces-shadow", cx: 0, cy: 18, rx: 30, ry: 8 }),
+    createSvgElement("path", {
+      d: "M-31 12c3-16 22-22 38-12 11 7 24 9 31 19-13 11-55 11-69-7Z"
+    }),
+    createSvgElement("path", {
+      d: "M-15-2c2-13 16-18 28-10 8 6 13 14 12 25-13 3-28 0-40-15Z"
+    }),
+    createSvgElement("path", {
+      d: "M-3-18c2-10 12-14 21-8 6 4 9 11 8 19-11 2-21-1-29-11Z"
+    })
+  );
+  appendSvgTitle(group, "feces");
+  return group;
+}
+
 function createSoapOverlay(placement, scale) {
   const group = createSvgElement("g", {
     class: "dirt-overlay dirt-overlay-soap",
@@ -656,6 +701,7 @@ function createDirtOverlay(placement) {
   if (placement.dirtId === "tissue") return createTissueOverlay(placement, scale);
   if (placement.dirtId === "dust") return createDustOverlay(placement, scale);
   if (placement.dirtId === "urine") return createUrineOverlay(placement, scale);
+  if (placement.dirtId === "feces") return createFecesOverlay(placement, scale);
   if (placement.dirtId === "mud") return createMudOverlay(placement, scale);
   if (placement.dirtId === "soap") return createSoapOverlay(placement, scale);
   if (placement.dirtId === "hair") return createHairOverlay(placement, scale);
