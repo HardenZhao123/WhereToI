@@ -187,14 +187,19 @@ if (
   html.includes("cleanliness-clean-bar") ||
   html.includes("cleanliness-not-clean-bar") ||
   js.includes("formatCleanlinessVotes") ||
-  !html.includes("data-visual-rating=\"5\"") ||
+  html.includes("visual-star-hit-left") ||
+  html.includes("visual-star-hit-right") ||
+  !html.includes("data-visual-rating-choice=\"half\"") ||
+  !html.includes("data-visual-rating-choice=\"full\"") ||
   !html.includes("cleanliness-star-icons") ||
   !html.includes("cleanliness-rating-count") ||
   !css.includes(".visual-star-rating") ||
+  !css.includes(".visual-rating-choice-popover") ||
+  !js.includes("openCleanlinessRatingChoices") ||
   !js.includes("formatCleanlinessRating") ||
   !js.includes("formatCleanlinessRatingCount")
 ) {
-  throw new Error("Expected cleanliness to display and submit 0.5-5 star ratings.");
+  throw new Error("Expected cleanliness to use explicit half-star/full-star choices across the 0.5-5 range.");
 }
 
 if (!html.includes("feature-filters") || !html.includes("toilet-results") || !js.includes("setFeatureFilter")) {
@@ -247,16 +252,18 @@ if (
   html.includes("data-open-visual-feedback") ||
   html.includes("Rate visually") ||
   !html.includes("id=\"visual-cleanliness-stars\"") ||
-  !html.includes("data-visual-rating=\"4.5\"") ||
+  !html.includes("data-visual-star=\"5\"") ||
+  !html.includes("data-visual-rating-choice=\"half\"") ||
+  !html.includes("data-visual-rating-choice=\"full\"") ||
   html.includes("id=\"visual-feedback-comment\"") ||
   html.includes("Rate urinal visually") ||
   html.includes("id=\"overview-urinal-panel\"") ||
   visualCleanlinessStarsIndex <= commentComposerIndex ||
   !js.includes("setVisualCleanlinessLevel") ||
   !js.includes("visualCleanlinessStars?.addEventListener(\"click\"") ||
-  !js.includes("target?.closest?.(\"[data-visual-rating]\")") ||
   !js.includes("target?.closest?.(\"[data-visual-star]\")") ||
-  !js.includes("selectCleanlinessRating(starButton.dataset.visualStar)") ||
+  !js.includes("openCleanlinessRatingChoices(starButton.dataset.visualStar") ||
+  !js.includes("selectCleanlinessRating(button.dataset.visualRating)") ||
   !js.includes("image: definition.image") ||
   js.includes("level_3_urinal") ||
   !css.includes(".feedback-action-bar") ||

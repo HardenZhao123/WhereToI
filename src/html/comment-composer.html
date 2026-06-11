@@ -41,37 +41,48 @@
                     </div>
                     <div class="feedback-visual-controls">
                       <span class="visual-rating-label">Cleanliness picture</span>
-                      <div class="visual-star-rating" id="visual-cleanliness-stars" role="group" aria-label="Toilet visual cleanliness rating">
-                        <button class="visual-star-button" type="button" data-visual-star="1" aria-label="Rate up to 1 star">
-                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
-                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
-                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="0.5" aria-hidden="true"></span>
-                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="1" aria-hidden="true"></span>
-                        </button>
-                        <button class="visual-star-button" type="button" data-visual-star="2" aria-label="Rate up to 2 stars">
-                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
-                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
-                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="1.5" aria-hidden="true"></span>
-                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="2" aria-hidden="true"></span>
-                        </button>
-                        <button class="visual-star-button" type="button" data-visual-star="3" aria-label="Rate up to 3 stars">
-                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
-                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
-                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="2.5" aria-hidden="true"></span>
-                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="3" aria-hidden="true"></span>
-                        </button>
-                        <button class="visual-star-button" type="button" data-visual-star="4" aria-label="Rate up to 4 stars">
-                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
-                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
-                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="3.5" aria-hidden="true"></span>
-                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="4" aria-hidden="true"></span>
-                        </button>
-                        <button class="visual-star-button" type="button" data-visual-star="5" aria-label="Rate up to 5 stars">
-                          <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
-                          <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
-                          <span class="visual-star-hit visual-star-hit-left" data-visual-rating="4.5" aria-hidden="true"></span>
-                          <span class="visual-star-hit visual-star-hit-right" data-visual-rating="5" aria-hidden="true"></span>
-                        </button>
+                      <div class="visual-star-picker" id="visual-rating-picker">
+                        <div class="visual-star-rating" id="visual-cleanliness-stars" role="group" aria-label="Toilet visual cleanliness rating">
+                          <button class="visual-star-button" type="button" data-visual-star="1" aria-label="Choose 0.5 or 1 star" aria-haspopup="dialog" aria-expanded="false" aria-controls="visual-rating-choice-popover">
+                            <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                            <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          </button>
+                          <button class="visual-star-button" type="button" data-visual-star="2" aria-label="Choose 1.5 or 2 stars" aria-haspopup="dialog" aria-expanded="false" aria-controls="visual-rating-choice-popover">
+                            <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                            <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          </button>
+                          <button class="visual-star-button" type="button" data-visual-star="3" aria-label="Choose 2.5 or 3 stars" aria-haspopup="dialog" aria-expanded="false" aria-controls="visual-rating-choice-popover">
+                            <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                            <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          </button>
+                          <button class="visual-star-button" type="button" data-visual-star="4" aria-label="Choose 3.5 or 4 stars" aria-haspopup="dialog" aria-expanded="false" aria-controls="visual-rating-choice-popover">
+                            <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                            <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          </button>
+                          <button class="visual-star-button" type="button" data-visual-star="5" aria-label="Choose 4.5 or 5 stars" aria-haspopup="dialog" aria-expanded="false" aria-controls="visual-rating-choice-popover">
+                            <svg class="visual-star-icon visual-star-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                            <svg class="visual-star-icon visual-star-fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                          </button>
+                        </div>
+                        <div class="visual-rating-choice-popover is-hidden" id="visual-rating-choice-popover" role="dialog" aria-labelledby="visual-rating-choice-title" hidden>
+                          <p class="visual-rating-choice-title" id="visual-rating-choice-title">Choose a rating</p>
+                          <div class="visual-rating-choice-options">
+                            <button class="visual-rating-choice" type="button" data-visual-rating-choice="half" data-visual-rating="">
+                              <span class="visual-rating-choice-star" style="--choice-star-fill: 50%" aria-hidden="true">
+                                <svg class="visual-rating-choice-icon visual-rating-choice-outline" viewBox="0 0 24 24" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                                <svg class="visual-rating-choice-icon visual-rating-choice-fill" viewBox="0 0 24 24" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                              </span>
+                              <span class="visual-rating-choice-value" data-rating-choice-value>Half star</span>
+                            </button>
+                            <button class="visual-rating-choice" type="button" data-visual-rating-choice="full" data-visual-rating="">
+                              <span class="visual-rating-choice-star" style="--choice-star-fill: 100%" aria-hidden="true">
+                                <svg class="visual-rating-choice-icon visual-rating-choice-outline" viewBox="0 0 24 24" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                                <svg class="visual-rating-choice-icon visual-rating-choice-fill" viewBox="0 0 24 24" focusable="false"><path d="M12 2.75l2.84 5.76 6.36.92-4.6 4.49 1.09 6.33L12 17.26l-5.69 2.99 1.09-6.33-4.6-4.49 6.36-.92L12 2.75Z"></path></svg>
+                              </span>
+                              <span class="visual-rating-choice-value" data-rating-choice-value>Full star</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
                       <div class="visual-scale-labels" aria-hidden="true">
                         <span>Dirtier</span>
@@ -80,7 +91,7 @@
                       <p class="visual-cleanliness-state" id="visual-cleanliness-state" aria-live="polite">No rating selected - Choose a cleanliness rating</p>
                     </div>
                   </div>
-                  <p class="survey-status" id="map-survey-status" aria-live="polite">Choose 0.5 to 5 stars to continue.</p>
+                  <p class="survey-status" id="map-survey-status" aria-live="polite">Tap a star, then choose half or full.</p>
                 </section>
                 <textarea id="comment-input" placeholder="Add details if useful..."></textarea>
                 <div class="comment-preset-tags" aria-label="Quick comment tags">
