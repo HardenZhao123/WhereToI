@@ -137,7 +137,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let selectedRating = null;
   let feedbackSubmitAttemptedWithoutRating = false;
   let selectedCommentMedia = [];
-  let visualCleanlinessLevel = 3;
+  let visualCleanlinessLevel = 0;
   let currentDetailSection = "overview";
 
   const feedbackThreadController = createFeedbackThreadController(
@@ -185,12 +185,25 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function normaliseVisualCleanlinessLevel(level) {
-    const value = Math.round(Number(level) * 2) / 2;
-    return visualCleanlinessLevels.has(value) ? value : 3;
+    const rawValue = Number(level);
+    if (rawValue === 0) return 0;
+
+    const value = Math.round(rawValue * 2) / 2;
+    return visualCleanlinessLevels.has(value) ? value : 0;
   }
 
   function getVisualCleanlinessLevel(level = visualCleanlinessLevel) {
     const value = normaliseVisualCleanlinessLevel(level);
+    if (value === 0) {
+      return {
+        value,
+        label: "No rating selected",
+        tone: "Choose a cleanliness rating",
+        image: "",
+        fixtureType: "toilet"
+      };
+    }
+
     const definition = visualCleanlinessLevels.get(value);
     return {
       value,
@@ -330,7 +343,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       }
     }
 
-    setVisualCleanlinessLevel(hasRating ? rating : 3);
+    setVisualCleanlinessLevel(hasRating ? rating : 0);
   }
 
   function isPlaceholderToiletComment(comment = "") {
@@ -449,7 +462,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function resetVisualCleanlinessRating() {
-    setVisualCleanlinessLevel(3);
+    setVisualCleanlinessLevel(0);
   }
 
   function setCommentMediaStatus(message = getCommentMediaStatus(selectedCommentMedia)) {
@@ -676,14 +689,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function createToiletIcon(toilet, selected = false) {
     const classes = ["map-marker"];
-    if (toilet.paid) classes.push("is-paid");
     if (selected) classes.push("is-selected");
+    const level = getVisualCleanlinessLevel(getCleanlinessVisualLevel(toilet));
 
     return window.L.divIcon({
       className: "map-marker-icon",
-      html: `<span class="${classes.join(" ")}" aria-hidden="true"></span>`,
-      iconSize: [30, 30],
-      iconAnchor: [15, 30]
+      html: `<span class="${classes.join(" ")}" aria-hidden="true"><img class="map-marker-image" src="${level.image}" alt="" loading="lazy" /></span>`,
+      iconSize: [44, 58],
+      iconAnchor: [22, 58]
     });
   }
 
