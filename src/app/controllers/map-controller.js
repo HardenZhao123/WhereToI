@@ -283,11 +283,32 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     statusText.textContent = message;
   }
 
-  function collapseSearchPanel() {
-    if (!searchCard || searchCard.classList.contains("is-collapsed")) return;
-    searchCard.classList.add("is-collapsed");
-    toggleSearchButton?.setAttribute("aria-label", "Expand search panel");
+  function syncSearchPanelState() {
+    const isCollapsed = Boolean(searchCard?.classList?.contains?.("is-collapsed"));
+    const isExpanded = Boolean(searchCard && !isCollapsed);
+    mapPanel?.classList.toggle("has-expanded-search", isExpanded);
+    toggleSearchButton?.setAttribute("aria-label", isExpanded ? "Collapse search panel" : "Expand search panel");
   }
+
+  function expandSearchPanel() {
+    if (!searchCard) return;
+    searchCard.classList.remove("is-collapsed");
+    syncSearchPanelState();
+  }
+
+  function toggleSearchPanel() {
+    if (!searchCard) return;
+    searchCard.classList.toggle("is-collapsed");
+    syncSearchPanelState();
+  }
+
+  function collapseSearchPanel() {
+    if (!searchCard) return;
+    searchCard.classList.add("is-collapsed");
+    syncSearchPanelState();
+  }
+
+  syncSearchPanelState();
 
   function setLocateButtonState(isLocated) {
     locateButtons.forEach((button) => {
@@ -1835,6 +1856,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   return {
     createInteractiveMap,
     setStatus,
+    expandSearchPanel,
+    toggleSearchPanel,
     setToilets,
     setSearchQuery,
     setFeatureFilter,

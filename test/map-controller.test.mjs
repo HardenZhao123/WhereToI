@@ -34,6 +34,40 @@ function createRecordingClassList() {
   };
 }
 
+function createDomTokenList(initialClasses = []) {
+  const classes = new Set(initialClasses);
+
+  return {
+    add(className) {
+      classes.add(className);
+    },
+    remove(className) {
+      classes.delete(className);
+    },
+    toggle(className, force) {
+      if (typeof force === "boolean") {
+        if (force) {
+          classes.add(className);
+        } else {
+          classes.delete(className);
+        }
+        return force;
+      }
+
+      if (classes.has(className)) {
+        classes.delete(className);
+        return false;
+      }
+
+      classes.add(className);
+      return true;
+    },
+    contains(className) {
+      return classes.has(className);
+    }
+  };
+}
+
 function createTextElement() {
   return {
     textContent: "",
@@ -843,6 +877,62 @@ test("map controller can hide empty details after loading toilets", () => {
 
     assert.doesNotThrow(() => controller.setToilets([createTestToilet()]));
     assert.equal(statusText.textContent, "Showing 1 toilets. 1 visible on map.");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
+test("map controller hides the rating legend while the search panel is expanded", () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const searchClassList = createDomTokenList(["is-collapsed"]);
+  const mapPanelClassList = createDomTokenList();
+  const toggleButtonAttributes = {};
+
+  globalThis.document = {
+    addEventListener() {},
+    querySelector() {
+      return null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const controller = createMapController({
+      searchCard: { classList: searchClassList },
+      mapPanel: { classList: mapPanelClassList },
+      toggleSearchButton: {
+        setAttribute(name, value) {
+          toggleButtonAttributes[name] = String(value);
+        }
+      }
+    });
+
+    assert.equal(mapPanelClassList.contains("has-expanded-search"), false);
+    assert.equal(toggleButtonAttributes["aria-label"], "Expand search panel");
+
+    controller.toggleSearchPanel();
+    assert.equal(searchClassList.contains("is-collapsed"), false);
+    assert.equal(mapPanelClassList.contains("has-expanded-search"), true);
+    assert.equal(toggleButtonAttributes["aria-label"], "Collapse search panel");
+
+    controller.toggleSearchPanel();
+    assert.equal(searchClassList.contains("is-collapsed"), true);
+    assert.equal(mapPanelClassList.contains("has-expanded-search"), false);
+    assert.equal(toggleButtonAttributes["aria-label"], "Expand search panel");
+
+    controller.expandSearchPanel();
+    assert.equal(searchClassList.contains("is-collapsed"), false);
+    assert.equal(mapPanelClassList.contains("has-expanded-search"), true);
+    assert.equal(toggleButtonAttributes["aria-label"], "Collapse search panel");
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
