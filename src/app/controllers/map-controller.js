@@ -44,6 +44,8 @@ const locateActiveCenterToleranceMetres = 20;
 const defaultCleanlinessRange = "3days";
 
 function withStaticAssetVersion(path) {
+  if (/[?&]v=/.test(path)) return path;
+
   const version = String(appConfig.assetVersion ?? "").trim();
   if (!version) return path;
 
