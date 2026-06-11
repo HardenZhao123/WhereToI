@@ -293,7 +293,7 @@ test("map controller shows half-star affordances before a cleanliness rating is 
     controller.setVisualCleanlinessLevel(0);
 
     assert.equal(visualCleanlinessStars.classList.contains("is-unrated"), true);
-    assert.match(visualCleanlinessStars.attributes["aria-label"], /half-star and full-star choices/);
+    assert.match(visualCleanlinessStars.attributes["aria-label"], /half-star or full-star rating/);
     assert.deepEqual(
       visualCleanlinessStars.buttons.map((button) => button.properties.get("--star-fill")),
       ["50%", "50%", "50%", "50%", "50%"]
