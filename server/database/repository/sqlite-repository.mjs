@@ -7,6 +7,8 @@ import { applySqliteToiletMigrations } from "../migration/toilet-schema-migratio
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
 import {
   ANONYMOUS_COMMENT_AUTHOR,
+  CLEANLINESS_RATING_COOLDOWN_MS,
+  createCleanlinessRatingCooldownError,
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
@@ -520,6 +522,28 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
         throw new Error("toilet not found.");
       }
 
+      const now = new Date();
+      if (userId) {
+        const latestSurvey = db
+          .prepare(
+            `
+            SELECT created_at
+            FROM cleanliness_surveys
+            WHERE toilet_id = ? AND user_id = ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            `
+          )
+          .get(row.id, userId);
+        const latestSurveyTime = Date.parse(latestSurvey?.created_at ?? "");
+        if (
+          Number.isFinite(latestSurveyTime) &&
+          now.getTime() - latestSurveyTime < CLEANLINESS_RATING_COOLDOWN_MS
+        ) {
+          throw createCleanlinessRatingCooldownError(latestSurvey.created_at, now.getTime());
+        }
+      }
+
       const globalStats = db.prepare("SELECT SUM(rating_total) AS total, SUM(rating_count) AS count, SUM(rating_sum_squares) AS sum_squares FROM users").get();
       const globalAverageRating = globalStats.count > 0 ? globalStats.total / globalStats.count : 3;
       let globalStandardDeviation = 1;
@@ -554,7 +578,7 @@ export async function createSqliteDatabase({ dbFilePath, seedCsvPath, cleanlines
 
       db.prepare(
         "INSERT INTO cleanliness_surveys (toilet_id, user_id, rating, created_at) VALUES (?, ?, ?, ?)"
-      ).run(row.id, userId, safeRating, new Date().toISOString());
+      ).run(row.id, userId, safeRating, now.toISOString());
 
       return mapCleanlinessSurveyResponse({
         row,

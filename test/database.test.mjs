@@ -103,8 +103,8 @@ test("cleanliness time ranges exclude older ratings except all time", async () =
   }, { modelType: "average" });
 });
 
-test("database accepts repeated cleanliness feedback without cooldown", async () => {
-  await withSeededDatabase(async (database) => {
+test("database blocks repeated cleanliness feedback for the same toilet for 30 minutes", async () => {
+  await withSeededDatabase(async (database, { dbFilePath }) => {
     const user = await database.getUserByUsername("demo");
 
     await database.recordCleanlinessSurvey({
@@ -112,6 +112,29 @@ test("database accepts repeated cleanliness feedback without cooldown", async ()
       toiletId: "detail-test",
       rating: 4.5
     });
+
+    await assert.rejects(
+      () => database.recordCleanlinessSurvey({
+        userId: user.id,
+        toiletId: "detail-test",
+        rating: 2
+      }),
+      (error) => {
+        assert.equal(error.statusCode, 429);
+        assert.match(error.message, /rate this toilet again in 30 minutes/);
+        return true;
+      }
+    );
+
+    const db = new DatabaseSync(dbFilePath);
+    try {
+      const thirtyOneMinutesAgo = new Date(Date.now() - 31 * 60 * 1000).toISOString();
+      db.prepare("UPDATE cleanliness_surveys SET created_at = ? WHERE toilet_id = ? AND user_id = ?")
+        .run(thirtyOneMinutesAgo, "detail-test", user.id);
+    } finally {
+      db.close();
+    }
+
     await database.recordCleanlinessSurvey({
       userId: user.id,
       toiletId: "detail-test",

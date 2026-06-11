@@ -35,7 +35,23 @@ const COMMENT_SCENE_DIRT_TYPES = new Set([
   "hair"
 ]);
 const COMMENT_SCENE_MAX_PLACEMENTS = 80;
+export const CLEANLINESS_RATING_COOLDOWN_MS = 30 * 60 * 1000;
 export const ANONYMOUS_COMMENT_AUTHOR = "Anonymous";
+
+export function createCleanlinessRatingCooldownError(latestCreatedAt, nowMs = Date.now()) {
+  const latestTime = Date.parse(latestCreatedAt);
+  const retryAtMs = Number.isFinite(latestTime)
+    ? latestTime + CLEANLINESS_RATING_COOLDOWN_MS
+    : nowMs + CLEANLINESS_RATING_COOLDOWN_MS;
+  const remainingMs = Math.max(0, retryAtMs - nowMs);
+  const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 60_000));
+  const error = new Error(
+    `You can rate this toilet again in ${remainingMinutes} ${remainingMinutes === 1 ? "minute" : "minutes"}.`
+  );
+  error.statusCode = 429;
+  error.retryAfterSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+  return error;
+}
 
 function normaliseCommentMediaAttachment(media) {
   if (typeof media !== "object" || Array.isArray(media) || media === null) {

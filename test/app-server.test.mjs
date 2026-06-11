@@ -460,7 +460,7 @@ test("API supports fetching and posting toilet comments", async () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Cookie": cookie
+        "Cookie": otherCookie
       },
       body: JSON.stringify({
         toiletId,
@@ -836,11 +836,12 @@ test("API supports image comment attachments without returning base64 data", asy
     ]);
     assert.equal(JSON.stringify(mediaPayload).includes("data:image"), false);
 
+    const mediaOnlyToiletId = "extra-test-1";
     const { payload: mediaOnlyPayload } = await fetchJson(`${baseUrl}/api/comments`, {
       method: "POST",
       headers: authHeaders,
       body: JSON.stringify({
-        toiletId,
+        toiletId: mediaOnlyToiletId,
         commentText: "  ",
         cleanlinessRating: 4.5,
         media: [media[0]]
@@ -971,6 +972,24 @@ test("API records cleanliness survey as a star rating", async () => {
     assert.equal(payload.toilet.cleanliness, 4.5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingTotal, 4.5);
     assert.equal(payload.toilet.cleanlinessSurvey.ratingCount, 1);
+
+    const duplicateResponse = await fetch(`${baseUrl}/api/cleanliness-survey`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        toiletId: "detail-test",
+        toiletName: "Prayer room washroom",
+        rating: 2
+      })
+    });
+    const duplicatePayload = await duplicateResponse.json();
+
+    assert.equal(duplicateResponse.status, 429);
+    assert.match(duplicatePayload.error, /rate this toilet again in 30 minutes/);
+    assert.ok(Number(duplicateResponse.headers.get("retry-after")) > 0);
 
     const { payload: toiletsPayload } = await fetchJson(`${baseUrl}/api/toilets?cleanlinessRange=3days`);
     const refreshedToilet = toiletsPayload.toilets.find((toilet) => toilet.id === "detail-test");
