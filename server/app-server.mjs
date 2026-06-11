@@ -19,7 +19,9 @@ const STATIC_CONTENT_TYPES = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
-  ".webp": "image/webp"
+  ".webp": "image/webp",
+  ".mov": "video/quicktime",
+  ".mp4": "video/mp4"
 };
 
 const API_CACHE_CONTROL = "no-cache";

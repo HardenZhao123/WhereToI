@@ -11,13 +11,16 @@ const largeStaticScript = `export const payload = "${"x".repeat(4096)}";`;
 async function withAppServer(callback, serverOptions = {}) {
   const rootDirectory = await mkdtemp(join(tmpdir(), "wheretoi-server-test-"));
   const dataDirectory = join(rootDirectory, "src", "data");
+  const assetsDirectory = join(rootDirectory, "src", "assets");
   let appServer;
 
   try {
     await mkdir(dataDirectory, { recursive: true });
+    await mkdir(assetsDirectory, { recursive: true });
     await writeFile(join(rootDirectory, "index.html"), "<!doctype html><title>WhereToI</title>", "utf8");
     await writeFile(join(rootDirectory, "src", "styles.css"), ".map { color: green; }", "utf8");
     await writeFile(join(rootDirectory, "src", "large.js"), largeStaticScript, "utf8");
+    await writeFile(join(assetsDirectory, "signup-intro.mp4"), "fake mp4", "utf8");
     await writeFile(join(dataDirectory, "toilets.csv"), sampleToiletsCsv, "utf8");
 
     appServer = await createAppServer({ rootDirectory, port: 0, ...serverOptions });
@@ -55,9 +58,12 @@ test("static app code revalidates and supports Last-Modified validation", async 
   await withAppServer(async (baseUrl) => {
     const firstResponse = await fetch(`${baseUrl}/src/styles.css`);
     const lastModified = firstResponse.headers.get("last-modified");
+    const videoResponse = await fetch(`${baseUrl}/src/assets/signup-intro.mp4`);
 
     assert.equal(firstResponse.status, 200);
     assert.equal(firstResponse.headers.get("cache-control"), "no-cache, max-age=0, must-revalidate");
+    assert.equal(videoResponse.status, 200);
+    assert.equal(videoResponse.headers.get("content-type"), "video/mp4");
     assert.ok(lastModified);
     assert.equal(await firstResponse.text(), ".map { color: green; }");
 
