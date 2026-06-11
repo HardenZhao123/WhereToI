@@ -108,9 +108,33 @@ test("account feedback history renders cleanliness ratings as stars", () => {
 
     const heading = findByClass(container, "profile-feedback-heading");
     const rating = findByClass(heading, "profile-feedback-rating");
-    assert.equal(rating?.textContent, "\u2605\u2605\u2605\u2606\u2606");
+    assert.deepEqual(
+      rating?.children.map((star) => star.className),
+      [
+        "rating-star is-full",
+        "rating-star is-full",
+        "rating-star is-full",
+        "rating-star is-empty",
+        "rating-star is-empty"
+      ]
+    );
     assert.equal(rating?.attributes["aria-label"], "Cleanliness rating 3 out of 5");
     assert.doesNotMatch(collectText(container), /Rating:|3\/5/);
+  });
+});
+
+test("account feedback history renders half-star ratings as a visual half star", () => {
+  withTestDocument(() => {
+    const container = new TestElement("div");
+
+    renderMyComments(container, [createComment({ cleanliness_rating: 3.5 })]);
+
+    const rating = findByClass(container, "profile-feedback-rating");
+    assert.equal(rating?.children.length, 5);
+    assert.equal(rating?.children[2].className, "rating-star is-full");
+    assert.equal(rating?.children[3].className, "rating-star is-half");
+    assert.equal(rating?.children[4].className, "rating-star is-empty");
+    assert.equal(rating?.attributes["aria-label"], "Cleanliness rating 3.5 out of 5");
   });
 });
 
@@ -162,7 +186,10 @@ test("public profiles render feedback ratings as stars", () => {
 
     const heading = findByClass(publicProfileCommentsList, "profile-feedback-heading");
     const rating = findByClass(heading, "profile-feedback-rating");
-    assert.equal(rating?.textContent, "\u2605\u2605\u2605\u2605\u2605");
+    assert.deepEqual(
+      rating?.children.map((star) => star.className),
+      Array(5).fill("rating-star is-full")
+    );
     assert.equal(rating?.attributes["aria-label"], "Cleanliness rating 5 out of 5");
     assert.doesNotMatch(collectText(publicProfileCommentsList), /Rating:|5\/5/);
   });

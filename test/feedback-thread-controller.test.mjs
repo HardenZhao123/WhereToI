@@ -119,7 +119,10 @@ test("feedback thread controller renders and filters comment threads", () => {
     assert.equal(commentsList.children[0].dataset.commentId, "2");
     const rating = commentsList.children[0].children[0].children[0].children
       .find((child) => child.className === "comment-rating");
-    assert.equal(rating?.textContent, "\u2605\u2605\u2605\u2605\u00bd");
+    assert.equal(rating?.children.length, 5);
+    assert.equal(rating?.children[3].className, "rating-star is-full");
+    assert.equal(rating?.children[4].className, "rating-star is-half");
+    assert.equal(rating?.children[4].textContent, "\u2606");
     assert.equal(rating?.attributes["aria-label"], "Cleanliness rating 4.5 out of 5");
 
     controller.setCommentFilter("media", true);
