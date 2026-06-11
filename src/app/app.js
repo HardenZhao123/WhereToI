@@ -249,15 +249,22 @@ export function createApp() {
     elements.closeCommentComposerButton?.addEventListener("click", () => mapController.closeCommentComposer());
     elements.visualCleanlinessStars?.addEventListener("click", (event) => {
       const target = event.target;
-      const ratingTarget = target?.closest?.("[data-visual-rating]");
-      if (ratingTarget && elements.visualCleanlinessStars.contains(ratingTarget)) {
-        mapController.selectCleanlinessRating(ratingTarget.dataset.visualRating);
-        return;
-      }
       const starButton = target?.closest?.("[data-visual-star]");
       if (starButton && elements.visualCleanlinessStars.contains(starButton)) {
-        mapController.selectCleanlinessRating(starButton.dataset.visualStar);
+        mapController.openCleanlinessRatingChoices(starButton.dataset.visualStar, starButton);
       }
+    });
+    elements.visualRatingChoiceButtons.forEach((button) => {
+      button?.addEventListener("click", () => mapController.selectCleanlinessRating(button.dataset.visualRating));
+    });
+    document.addEventListener("click", (event) => {
+      if (elements.visualRatingChoicePopover?.hidden) return;
+      if (elements.visualRatingPicker?.contains(event.target)) return;
+      mapController.closeCleanlinessRatingChoices();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || elements.visualRatingChoicePopover?.hidden) return;
+      mapController.closeCleanlinessRatingChoices({ restoreFocus: true });
     });
     elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
     elements.commentSceneToggle?.addEventListener("click", () => mapController.toggleFeedbackScene());

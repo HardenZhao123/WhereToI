@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-test("unrated cleanliness stars advertise half-star choices", async ({ page }, testInfo) => {
+test("mobile cleanliness stars open explicit half-star and full-star choices", async ({ page }, testInfo) => {
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.setViewportSize({ width: 390, height: 844 });
 
   await page.addInitScript(() => {
     window.L = {
@@ -50,7 +51,7 @@ test("unrated cleanliness stars advertise half-star choices", async ({ page }, t
 
   const stars = page.locator("#visual-cleanliness-stars");
   await expect(stars).toHaveClass(/is-unrated/);
-  await expect(stars).toHaveAttribute("aria-label", /half-star and full-star choices/);
+  await expect(stars).toHaveAttribute("aria-label", /half-star or full-star rating/);
 
   const unratedStyles = await stars.locator(".visual-star-button").evaluateAll((buttons) =>
     buttons.map((button) => ({
@@ -69,13 +70,41 @@ test("unrated cleanliness stars advertise half-star choices", async ({ page }, t
     }))
   );
 
-  const screenshotPath = testInfo.outputPath("unrated-half-star-affordance.png");
-  await page.screenshot({ path: screenshotPath, fullPage: false });
-  await testInfo.attach("unrated-half-star-affordance", { path: screenshotPath, contentType: "image/png" });
+  const thirdStar = stars.locator('[data-visual-star="3"]');
+  await thirdStar.click();
 
-  await stars.locator('[data-visual-rating="2.5"]').click();
+  const choicePopover = page.locator("#visual-rating-choice-popover");
+  await expect(choicePopover).toBeVisible();
+  await expect(choicePopover).toContainText("Choose 2.5 stars or 3 stars");
+  await expect(thirdStar).toHaveAttribute("aria-expanded", "true");
+  await expect(stars.locator(".visual-star-hit")).toHaveCount(0);
+
+  const halfChoice = choicePopover.locator('[data-visual-rating-choice="half"]');
+  const fullChoice = choicePopover.locator('[data-visual-rating-choice="full"]');
+  await expect(halfChoice).toHaveAttribute("data-visual-rating", "2.5");
+  await expect(fullChoice).toHaveAttribute("data-visual-rating", "3");
+  await expect(halfChoice).toContainText("2.5 stars");
+  await expect(fullChoice).toContainText("3 stars");
+
+  const choiceSizes = await choicePopover.locator(".visual-rating-choice").evaluateAll((buttons) =>
+    buttons.map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height }))
+  );
+  expect(choiceSizes.every(({ width, height }) => width >= 70 && height >= 44)).toBeTruthy();
+
+  const screenshotPath = testInfo.outputPath("mobile-rating-choice-popover.png");
+  await page.screenshot({ path: screenshotPath, fullPage: false });
+  await testInfo.attach("mobile-rating-choice-popover", { path: screenshotPath, contentType: "image/png" });
+
+  await halfChoice.click();
+  await expect(choicePopover).toBeHidden();
   await expect(stars).not.toHaveClass(/is-unrated/);
   await expect(page.locator("#map-survey-status")).toContainText("Selected 2.5/5 stars");
   await expect(stars.locator('[data-visual-star="3"]')).toHaveCSS("--star-fill", "50%");
+
+  await stars.locator('[data-visual-star="4"]').click();
+  await expect(fullChoice).toHaveAttribute("data-visual-rating", "4");
+  await fullChoice.click();
+  await expect(page.locator("#map-survey-status")).toContainText("Selected 4/5 stars");
+  await expect(stars.locator('[data-visual-star="4"]')).toHaveCSS("--star-fill", "100%");
   expect(pageErrors).toEqual([]);
 });

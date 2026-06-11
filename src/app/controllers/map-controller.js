@@ -77,7 +77,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     visualCleanlinessPreview,
     visualCleanlinessImage,
     visualCleanlinessStars,
-    visualCleanlinessRatingButtons = [],
+    visualRatingChoicePopover,
+    visualRatingChoiceTitle,
+    visualRatingChoiceButtons = [],
     visualCleanlinessState,
     summarizeCommentsButton,
     aiSummaryContainer,
@@ -139,6 +141,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let selectedCommentMedia = [];
   let visualCleanlinessLevel = 0;
   let currentDetailSection = "overview";
+  let ratingChoiceTrigger = null;
 
   const feedbackThreadController = createFeedbackThreadController(
     {
@@ -335,7 +338,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       } else {
         mapSurveyStatus.classList.remove("warning");
         mapSurveyStatus.textContent = isAuthenticated()
-          ? "Choose 0.5 to 5 stars to continue."
+          ? "Tap a star, then choose half or full."
           : "Log in or sign up to leave feedback.";
       }
     }
@@ -443,7 +446,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     visualCleanlinessStars?.setAttribute(
       "aria-label",
       isUnrated
-        ? "No cleanliness rating selected. Each star supports half-star and full-star choices."
+        ? "No cleanliness rating selected. Tap a star to choose a half-star or full-star rating."
         : `Toilet visual cleanliness rating ${selectedLevel} out of 5`
     );
     visualCleanlinessStars?.classList?.toggle("is-unrated", isUnrated);
@@ -456,9 +459,72 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       button.setAttribute("aria-pressed", !isUnrated && fill > 0 ? "true" : "false");
     });
 
-    visualCleanlinessRatingButtons.forEach((hit) => {
-      const rating = Number(hit.dataset.visualRating);
-      hit.classList.toggle("is-selected", rating === selectedLevel);
+  }
+
+  function formatRatingChoiceLabel(rating) {
+    const value = Number.isInteger(rating) ? String(rating) : rating.toFixed(1);
+    return `${value} ${rating === 1 ? "star" : "stars"}`;
+  }
+
+  function closeCleanlinessRatingChoices({ restoreFocus = false } = {}) {
+    const trigger = ratingChoiceTrigger;
+    ratingChoiceTrigger = null;
+
+    if (visualRatingChoicePopover) {
+      visualRatingChoicePopover.hidden = true;
+      visualRatingChoicePopover.classList.add("is-hidden");
+    }
+
+    visualCleanlinessStars?.classList?.remove("is-choosing");
+    visualCleanlinessStars?.querySelectorAll?.("[data-visual-star]")?.forEach((button) => {
+      button.setAttribute("aria-expanded", "false");
+    });
+
+    if (restoreFocus) {
+      trigger?.focus?.({ preventScroll: true });
+    }
+  }
+
+  function openCleanlinessRatingChoices(star, triggerButton = null) {
+    if (!selectedToilet) {
+      setStatus("Select a toilet marker before leaving feedback.");
+      return;
+    }
+
+    const safeStar = Number(star);
+    if (!Number.isInteger(safeStar) || safeStar < 1 || safeStar > 5) return;
+
+    const starButton =
+      triggerButton ?? visualCleanlinessStars?.querySelector?.(`[data-visual-star="${safeStar}"]`) ?? null;
+    const halfRating = safeStar - 0.5;
+    const fullRating = safeStar;
+    ratingChoiceTrigger = starButton;
+
+    visualRatingChoiceButtons.forEach((button) => {
+      const rating = button.dataset.visualRatingChoice === "half" ? halfRating : fullRating;
+      const label = formatRatingChoiceLabel(rating);
+      button.dataset.visualRating = String(rating);
+      button.setAttribute("aria-label", `Select ${label}`);
+      button.classList.toggle("is-selected", rating === selectedRating);
+      const value = button.querySelector?.("[data-rating-choice-value]");
+      if (value) value.textContent = label;
+    });
+
+    if (visualRatingChoiceTitle) {
+      visualRatingChoiceTitle.textContent = `Choose ${formatRatingChoiceLabel(halfRating)} or ${formatRatingChoiceLabel(fullRating)}`;
+    }
+    if (visualRatingChoicePopover) {
+      visualRatingChoicePopover.hidden = false;
+      visualRatingChoicePopover.classList.remove("is-hidden");
+    }
+
+    visualCleanlinessStars?.classList?.add("is-choosing");
+    visualCleanlinessStars?.querySelectorAll?.("[data-visual-star]")?.forEach((button) => {
+      button.setAttribute("aria-expanded", button === starButton ? "true" : "false");
+    });
+
+    globalThis.requestAnimationFrame?.(() => {
+      visualRatingChoiceButtons[0]?.focus?.({ preventScroll: true });
     });
   }
 
@@ -576,6 +642,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function setCommentComposerOpen(open) {
     const shouldOpen = Boolean(open && selectedToilet && commentComposer);
+
+    if (!shouldOpen) {
+      closeCleanlinessRatingChoices();
+    }
 
     if (commentComposer) {
       commentComposer.hidden = !shouldOpen;
@@ -1540,6 +1610,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (!isValidCleanlinessRating(safeRating)) return;
 
     selectedRating = safeRating;
+    closeCleanlinessRatingChoices();
     feedbackSubmitAttemptedWithoutRating = false;
     if (mapSurveyStatus) {
       mapSurveyStatus.classList.remove("warning");
@@ -1772,6 +1843,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setCleanlinessRange,
     openCommentThread,
     updateToiletCleanliness,
+    openCleanlinessRatingChoices,
+    closeCleanlinessRatingChoices,
     selectCleanlinessRating,
     answerCleanlinessSurvey,
     postComment,
