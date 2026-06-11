@@ -102,6 +102,7 @@
 
 .visual-preview-card {
   --visual-preview-art-size: 128px;
+  --visual-preview-image-scale: 1;
   display: grid;
   height: 160px;
   min-height: 160px;
@@ -121,14 +122,54 @@
 }
 
 .visual-cleanliness-image {
-  width: var(--visual-preview-art-size);
-  height: var(--visual-preview-art-size);
-  max-width: 82%;
-  max-height: 82%;
+  width: calc(var(--visual-preview-art-size) * var(--visual-preview-image-scale));
+  height: calc(var(--visual-preview-art-size) * var(--visual-preview-image-scale));
+  max-width: 94%;
+  max-height: 94%;
   object-fit: contain;
   object-position: center;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+}
+
+.visual-preview-card[data-cleanliness="0.5"] {
+  --visual-preview-image-scale: 0.88;
+}
+
+.visual-preview-card[data-cleanliness="1"] {
+  --visual-preview-image-scale: 0.91;
+}
+
+.visual-preview-card[data-cleanliness="1.5"] {
+  --visual-preview-image-scale: 0.95;
+}
+
+.visual-preview-card[data-cleanliness="2"] {
+  --visual-preview-image-scale: 0.99;
+}
+
+.visual-preview-card[data-cleanliness="2.5"] {
+  --visual-preview-image-scale: 1.03;
+}
+
+.visual-preview-card[data-cleanliness="3"] {
+  --visual-preview-image-scale: 1.06;
+}
+
+.visual-preview-card[data-cleanliness="3.5"] {
+  --visual-preview-image-scale: 1.08;
+}
+
+.visual-preview-card[data-cleanliness="4"] {
+  --visual-preview-image-scale: 1.09;
+}
+
+.visual-preview-card[data-cleanliness="4.5"] {
+  --visual-preview-image-scale: 1.1;
+}
+
+.visual-preview-card[data-cleanliness="5"] {
+  --visual-preview-image-scale: 1.12;
 }
 
 .toilet-room-floor {
