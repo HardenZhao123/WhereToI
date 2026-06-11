@@ -68,15 +68,15 @@
 
 .feedback-visual-rating {
   display: grid;
-  grid-template-columns: minmax(150px, 0.68fr) minmax(190px, 1fr);
+  grid-template-columns: minmax(170px, 0.78fr) minmax(190px, 1fr);
   gap: 12px;
   align-items: center;
 }
 
 .feedback-visual-preview {
-  --visual-preview-art-size: 116px;
-  height: 136px;
-  min-height: 136px;
+  --visual-preview-art-size: 184px;
+  height: 218px;
+  min-height: 218px;
 }
 
 .map-cleanliness-survey h4 {
@@ -122,7 +122,7 @@
 }
 
 .visual-cleanliness-image {
-  width: calc(var(--visual-preview-art-size) * var(--visual-preview-image-scale));
+  width: auto;
   height: calc(var(--visual-preview-art-size) * var(--visual-preview-image-scale));
   max-width: 94%;
   max-height: 94%;

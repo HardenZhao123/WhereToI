@@ -50,6 +50,10 @@ async function versionStaticAppReferences() {
     jsFiles.map((file) =>
       rewriteFile(file, [
         [
+          /(\bassetVersion:\s*["'])([^"']*)(["'])/g,
+          (_, prefix, _version, suffix) => `${prefix}${assetVersion}${suffix}`
+        ],
+        [
           /(from\s+["'])(\.{1,2}\/[^"']+\.js)(?:\?[^"']*)?(["'])/g,
           (_, prefix, specifier, suffix) => `${prefix}${withVersion(specifier)}${suffix}`
         ],
@@ -59,6 +63,18 @@ async function versionStaticAppReferences() {
         ],
         [
           /(import\s*\(\s*["'])(\.{1,2}\/[^"']+\.js)(?:\?[^"']*)?(["']\s*\))/g,
+          (_, prefix, specifier, suffix) => `${prefix}${withVersion(specifier)}${suffix}`
+        ]
+      ])
+    )
+  );
+
+  const htmlFiles = (await listFiles(resolve(dist, "src"))).filter((file) => file.endsWith(".html"));
+  await Promise.all(
+    htmlFiles.map((file) =>
+      rewriteFile(file, [
+        [
+          /(src=["'])(toilet_levels\/[^"']+)(?:\?[^"']*)?(["'])/g,
           (_, prefix, specifier, suffix) => `${prefix}${withVersion(specifier)}${suffix}`
         ]
       ])

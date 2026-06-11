@@ -43,6 +43,14 @@ const resultRenderLimit = 8;
 const locateActiveCenterToleranceMetres = 20;
 const defaultCleanlinessRange = "3days";
 
+function withStaticAssetVersion(path) {
+  const version = String(appConfig.assetVersion ?? "").trim();
+  if (!version) return path;
+
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}v=${encodeURIComponent(version)}`;
+}
+
 export function createMapController(elements, onToiletSelected = () => {}, auth = {}) {
   const {
     statusText,
@@ -209,7 +217,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       value,
       label: definition.label,
       tone: definition.tone,
-      image: definition.image || "",
+      image: definition.image ? withStaticAssetVersion(definition.image) : "",
       fixtureType: "toilet"
     };
   }

@@ -1,5 +1,6 @@
 export const appConfig = {
   apiBasePath: "/api",
+  assetVersion: "toilet-small-floor-20260611",
   dayLabels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
   todayDayIndex: (new Date().getDay() + 6) % 7,
   markerRenderLimit: 2000,
