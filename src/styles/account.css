@@ -370,51 +370,6 @@
   line-height: 1.15;
 }
 
-.my-comment-media {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 6px;
-  min-width: 0;
-}
-
-.my-comment-media-item,
-.my-comment-media-more {
-  width: 54px;
-  height: 54px;
-  flex: 0 0 auto;
-  overflow: hidden;
-  border-radius: 6px;
-  background: #edf2ee;
-}
-
-.my-comment-media-item img,
-.my-comment-media-item video {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-.my-comment-media-metadata {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  place-items: center;
-  padding: 4px;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.2;
-  text-align: center;
-}
-
-.my-comment-media-more {
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .my-comment-open:hover strong,
 .my-comment-open:focus-visible strong {
   color: var(--teal);
@@ -489,4 +444,3 @@
   border: 0;
   background: var(--teal-soft);
 }
-

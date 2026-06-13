@@ -48,6 +48,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "scoringModel",
   "Unsupported",
   "comment media",
+  "Photo attachments",
   "comment scene",
   "comment visibility",
   "comment profile visibility",

@@ -902,7 +902,7 @@ test("API exposes public profiles without leaking anonymous or private comments"
   });
 });
 
-test("API supports image comment attachments without returning base64 data", async () => {
+test("API rejects photo attachments on comment feedback", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletId = "detail-test";
 
@@ -918,72 +918,28 @@ test("API supports image comment attachments without returning base64 data", asy
       "Cookie": cookie
     };
 
-    const media = [
-      {
-        type: "image",
-        mimeType: "image/png",
-        name: "door.png",
-        size: 5,
-        dataUrl: "data:image/png;base64,aW1hZ2U="
-      },
-      {
-        type: "image",
-        mimeType: "image/jpeg",
-        name: "sink.jpg",
-        size: 6,
-        dataUrl: "data:image/jpeg;base64,aW1hZ2Uy"
-      }
-    ];
-
-    const { payload: mediaPayload } = await fetchJson(`${baseUrl}/api/comments`, {
+    const mediaResponse = await fetch(`${baseUrl}/api/comments`, {
       method: "POST",
       headers: authHeaders,
       body: JSON.stringify({
         toiletId,
-        commentText: "Photo and queue evidence",
+        commentText: "Photo evidence",
         cleanlinessRating: 4,
-        media
+        media: [
+          {
+            type: "image",
+            mimeType: "image/png",
+            name: "door.png",
+            size: 5,
+            dataUrl: "data:image/png;base64,aW1hZ2U="
+          }
+        ]
       })
     });
+    const mediaPayload = await mediaResponse.json();
 
-    assert.equal(mediaPayload.comments.length, 1);
-    assert.equal(mediaPayload.comments[0].media_type, "image");
-    assert.equal(mediaPayload.comments[0].media_mime_type, "image/png");
-    assert.equal(mediaPayload.comments[0].media_url, null);
-    assert.deepEqual(mediaPayload.comments[0].media_attachments, [
-      {
-        type: "image",
-        mimeType: "image/png",
-        name: "door.png",
-        size: 5,
-        hasData: true
-      },
-      {
-        type: "image",
-        mimeType: "image/jpeg",
-        name: "sink.jpg",
-        size: 6,
-        hasData: true
-      }
-    ]);
-    assert.equal(JSON.stringify(mediaPayload).includes("data:image"), false);
-
-    const mediaOnlyToiletId = "extra-test-1";
-    const { payload: mediaOnlyPayload } = await fetchJson(`${baseUrl}/api/comments`, {
-      method: "POST",
-      headers: authHeaders,
-      body: JSON.stringify({
-        toiletId: mediaOnlyToiletId,
-        commentText: "  ",
-        cleanlinessRating: 4.5,
-        media: [media[0]]
-      })
-    });
-    const mediaOnlyComment = mediaOnlyPayload.comments.find((comment) => comment.cleanliness_rating === 4.5);
-
-    assert.ok(mediaOnlyComment);
-    assert.equal(mediaOnlyComment.comment_text, "");
-    assert.equal(mediaOnlyComment.media_type, "image");
+    assert.equal(mediaResponse.status, 400);
+    assert.match(mediaPayload.error, /Photo attachments are no longer supported/);
 
     const emptyCommentResponse = await fetch(`${baseUrl}/api/comments`, {
       method: "POST",
@@ -997,70 +953,7 @@ test("API supports image comment attachments without returning base64 data", asy
     const emptyCommentPayload = await emptyCommentResponse.json();
 
     assert.equal(emptyCommentResponse.status, 400);
-    assert.match(emptyCommentPayload.error, /commentText, media, or interactive scene is required/);
-
-    const invalidResponse = await fetch(`${baseUrl}/api/comments`, {
-      method: "POST",
-      headers: authHeaders,
-      body: JSON.stringify({
-        toiletId,
-        commentText: "Not media",
-        cleanlinessRating: 4,
-        media: {
-          type: "file",
-          mimeType: "application/pdf",
-          name: "rules.pdf",
-          size: 5,
-          dataUrl: "data:application/pdf;base64,cGRm"
-        }
-      })
-    });
-    const invalidPayload = await invalidResponse.json();
-
-    assert.equal(invalidResponse.status, 400);
-    assert.match(invalidPayload.error, /Unsupported comment media type/);
-
-    const disabledVideoResponse = await fetch(`${baseUrl}/api/comments`, {
-      method: "POST",
-      headers: authHeaders,
-      body: JSON.stringify({
-        toiletId,
-        commentText: "Video clip",
-        cleanlinessRating: 4,
-        media: {
-          type: "video",
-          mimeType: "video/mp4",
-          name: "queue.mp4",
-          size: 5,
-          dataUrl: "data:video/mp4;base64,dmlkZW8="
-        }
-      })
-    });
-    const disabledVideoPayload = await disabledVideoResponse.json();
-
-    assert.equal(disabledVideoResponse.status, 400);
-    assert.match(disabledVideoPayload.error, /Unsupported comment media type/);
-
-    const overImageLimitResponse = await fetch(`${baseUrl}/api/comments`, {
-      method: "POST",
-      headers: authHeaders,
-      body: JSON.stringify({
-        toiletId,
-        commentText: "Too many images",
-        cleanlinessRating: 4,
-        media: Array.from({ length: 4 }, (_, index) => ({
-          type: "image",
-          mimeType: "image/png",
-          name: `sink-${index}.png`,
-          size: 5,
-          dataUrl: "data:image/png;base64,aW1hZ2U="
-        }))
-      })
-    });
-    const overImageLimitPayload = await overImageLimitResponse.json();
-
-    assert.equal(overImageLimitResponse.status, 400);
-    assert.match(overImageLimitPayload.error, /at most 3 attachments/);
+    assert.match(emptyCommentPayload.error, /commentText or interactive scene is required/);
   });
 });
 

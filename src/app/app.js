@@ -258,7 +258,6 @@ export function createApp() {
       if (event.key !== "Escape" || elements.visualRatingChoicePopover?.hidden) return;
       mapController.closeCleanlinessRatingChoices({ restoreFocus: true });
     });
-    elements.commentMediaInput?.addEventListener("change", () => mapController.previewCommentMediaSelection());
     elements.commentSceneToggle?.addEventListener("click", () => mapController.toggleFeedbackScene());
     elements.sceneBackButton?.addEventListener("click", () => {
       tabController?.setTab("map");

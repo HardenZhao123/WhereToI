@@ -7,7 +7,6 @@ import {
 import {
   commentFilterKeys,
   filterAndSortComments,
-  getCommentMediaAttachments,
   normaliseCommentSortMode
 } from "../utils/comments.js";
 import { createToiletScenePreview } from "../toilet-playground/toilet-playground.js";
@@ -45,56 +44,6 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
     const placeholder = document.createElement("p");
     placeholder.textContent = message;
     commentsList.append(placeholder);
-  }
-
-  function createCommentMediaElement(comment) {
-    const attachments = getCommentMediaAttachments(comment);
-    if (attachments.length === 0) return null;
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "comment-media";
-
-    attachments.forEach((attachment) => {
-      const item = document.createElement("div");
-      item.className = "comment-media-item";
-
-      if (attachment.type === "image" && attachment.mimeType?.startsWith("image/")) {
-        if (attachment.dataUrl) {
-          const image = document.createElement("img");
-          image.src = attachment.dataUrl;
-          image.alt = attachment.name ? `Attached image: ${attachment.name}` : "Attached image";
-          image.loading = "lazy";
-          item.append(image);
-        } else {
-          const label = document.createElement("span");
-          label.className = "comment-media-metadata";
-          label.textContent = attachment.name ? `Image attached: ${attachment.name}` : "Image attached";
-          item.append(label);
-        }
-      }
-
-      if (attachment.type === "video" && attachment.mimeType?.startsWith("video/")) {
-        if (attachment.dataUrl) {
-          const video = document.createElement("video");
-          video.src = attachment.dataUrl;
-          video.controls = true;
-          video.preload = "metadata";
-          video.playsInline = true;
-          item.append(video);
-        } else {
-          const label = document.createElement("span");
-          label.className = "comment-media-metadata";
-          label.textContent = attachment.name ? `Video attached: ${attachment.name}` : "Video attached";
-          item.append(label);
-        }
-      }
-
-      if (item.childElementCount > 0) {
-        wrapper.append(item);
-      }
-    });
-
-    return wrapper.childElementCount > 0 ? wrapper : null;
   }
 
   function createCommentAuthorElement(comment) {
@@ -291,7 +240,6 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
       header.append(authorLine);
       header.append(createCommentActions(comment));
 
-      const media = createCommentMediaElement(comment);
       const scene = createToiletScenePreview(comment.scene_snapshot);
       const commentText = String(comment.comment_text ?? "").trim();
       const text = commentText ? document.createElement("p") : null;
@@ -306,7 +254,6 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
 
       item.append(header);
       if (text) item.append(text);
-      if (media) item.append(media);
       if (scene) item.append(scene);
       item.append(date);
       commentsList.append(item);

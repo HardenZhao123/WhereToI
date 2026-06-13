@@ -604,6 +604,50 @@ test("map controller reuses visible map markers during unchanged viewport refres
   }
 });
 
+test("map controller renders feature values as check, cross, or unknown symbols", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+
+  const { elementsBySelector, elements } = createMapDetailTestHarness();
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    },
+    setTimeout: globalThis.setTimeout
+  };
+
+  try {
+    const controller = createMapController(elements);
+    const toilet = createTestToilet();
+    toilet.features.accessible = "N";
+    toilet.features.neutral = "?";
+    toilet.features.free = "Y";
+
+    controller.setToilets([toilet]);
+    await controller.setToilet(toilet.id, { fly: false });
+
+    assert.equal(elementsBySelector.get("#feature-free").textContent, "✓");
+    assert.equal(elementsBySelector.get("#feature-accessible").textContent, "✕");
+    assert.equal(elementsBySelector.get("#feature-neutral").textContent, "?");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
 test("map controller keeps visual rating on toilet images for urinal-only toilets", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;

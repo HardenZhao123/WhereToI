@@ -1,38 +1,6 @@
 export const commentLongTextMinLength = 120;
 export const commentSortModes = new Set(["newest", "liked"]);
-export const commentFilterKeys = new Set(["media", "long"]);
-
-export function getCommentMediaAttachments(comment) {
-  if (Array.isArray(comment?.media_attachments)) {
-    return comment.media_attachments;
-  }
-
-  if (typeof comment?.media_attachments === "string" && comment.media_attachments.trim()) {
-    try {
-      const parsed = JSON.parse(comment.media_attachments);
-      if (Array.isArray(parsed)) return parsed;
-    } catch {
-      return [];
-    }
-  }
-
-  if (comment?.media_url && comment?.media_type && comment?.media_mime_type) {
-    return [
-      {
-        type: comment.media_type,
-        mimeType: comment.media_mime_type,
-        name: comment.media_name,
-        dataUrl: comment.media_url
-      }
-    ];
-  }
-
-  return [];
-}
-
-export function hasCommentMedia(comment) {
-  return getCommentMediaAttachments(comment).length > 0;
-}
+export const commentFilterKeys = new Set(["long"]);
 
 export function isLongComment(comment, minimumLength = commentLongTextMinLength) {
   return String(comment?.comment_text ?? "").trim().length >= minimumLength;
@@ -72,7 +40,6 @@ function getFilterList(filters) {
 }
 
 function matchesCommentFilter(comment, filterKey) {
-  if (filterKey === "media") return hasCommentMedia(comment);
   if (filterKey === "long") return isLongComment(comment);
   return true;
 }

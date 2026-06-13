@@ -14,14 +14,6 @@ import {
   getCleanlinessScore,
   getCleanlinessStars
 } from "../utils/cleanliness.js";
-import {
-  addCommentMediaFiles,
-  clearCommentMediaSelections,
-  formatCommentMediaSize,
-  getCommentMediaStatus,
-  readCommentMediaAttachments,
-  removeCommentMediaSelectionById
-} from "../utils/comment-media.js";
 import { distanceInMetres, formatDistance } from "../utils/geo.js";
 
 const featureFilterOptions = [
@@ -76,9 +68,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     commentForm,
     commentInput,
     commentAnonymousInput,
-    commentMediaInput,
-    commentMediaPreview,
-    commentMediaStatus,
     commentSceneToggle,
     commentSceneStatus,
     overviewVisualPreview,
@@ -149,7 +138,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let currentCleanlinessRange = defaultCleanlinessRange;
   let selectedRating = null;
   let feedbackSubmitAttemptedWithoutRating = false;
-  let selectedCommentMedia = [];
   let visualCleanlinessLevel = 0;
   let currentDetailSection = "overview";
   let ratingChoiceTrigger = null;
@@ -564,86 +552,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     setVisualCleanlinessLevel(0);
   }
 
-  function setCommentMediaStatus(message = getCommentMediaStatus(selectedCommentMedia)) {
-    if (!commentMediaStatus) return;
-    commentMediaStatus.textContent = message;
-  }
-
-  function createCommentMediaPreviewCard(media) {
-    const item = document.createElement("div");
-    item.className = "comment-media-preview-item";
-
-    const frame = document.createElement("div");
-    frame.className = "comment-media-preview-frame";
-
-    if (media.type === "image") {
-      const image = document.createElement("img");
-      image.src = media.previewUrl;
-      image.alt = media.file.name ? `Selected image: ${media.file.name}` : "Selected image";
-      frame.append(image);
-    } else {
-      const video = document.createElement("video");
-      video.src = media.previewUrl;
-      video.muted = true;
-      video.preload = "metadata";
-      video.playsInline = true;
-      frame.append(video);
-    }
-
-    const removeButton = document.createElement("button");
-    removeButton.className = "comment-media-remove";
-    removeButton.type = "button";
-    removeButton.textContent = "x";
-    removeButton.setAttribute("aria-label", `Remove ${media.file.name || "attachment"}`);
-    removeButton.addEventListener("click", () => removeCommentMediaSelection(media.id));
-
-    const caption = document.createElement("p");
-    caption.className = "comment-media-caption";
-    caption.textContent = `${media.file.name || "Attachment"} ${formatCommentMediaSize(media.file.size)}`.trim();
-
-    item.append(frame, removeButton, caption);
-    return item;
-  }
-
-  function renderCommentMediaPreview(statusMessage = getCommentMediaStatus(selectedCommentMedia)) {
-    if (commentMediaPreview) {
-      commentMediaPreview.replaceChildren();
-      selectedCommentMedia.forEach((media) => {
-        commentMediaPreview.append(createCommentMediaPreviewCard(media));
-      });
-    }
-
-    setCommentMediaStatus(statusMessage);
-  }
-
-  function previewCommentMediaSelection() {
-    const { selectedMedia, statusMessage } = addCommentMediaFiles({
-      files: commentMediaInput?.files,
-      selectedMedia: selectedCommentMedia
-    });
-    selectedCommentMedia = selectedMedia;
-
-    if (commentMediaInput) {
-      commentMediaInput.value = "";
-    }
-
-    renderCommentMediaPreview(statusMessage);
-  }
-
-  function resetCommentMediaAttachment() {
-    if (commentMediaInput) {
-      commentMediaInput.value = "";
-    }
-
-    selectedCommentMedia = clearCommentMediaSelections(selectedCommentMedia);
-    renderCommentMediaPreview();
-  }
-
-  function removeCommentMediaSelection(mediaId) {
-    selectedCommentMedia = removeCommentMediaSelectionById(selectedCommentMedia, mediaId);
-    renderCommentMediaPreview();
-  }
-
   function getCommentVisibility() {
     return commentAnonymousInput?.checked ? "anonymous" : "real";
   }
@@ -1024,7 +932,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   function setFeatureValue(selector, value) {
     const element = document.querySelector(selector);
     if (element) {
-      element.textContent = value ?? "?";
+      const normalisedValue = String(value ?? "?").trim().toUpperCase();
+      const displayValue = normalisedValue === "Y" ? "✓" : normalisedValue === "N" ? "✕" : "?";
+      element.textContent = displayValue;
+      element.setAttribute?.("aria-label", displayValue === "✓" ? "Yes" : displayValue === "✕" ? "No" : "Unknown");
     }
   }
 
@@ -1837,7 +1748,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     const commentText = commentInput.value.trim();
     const hasCommentText = commentText.length > 0;
-    const hasMedia = selectedCommentMedia.length > 0;
     const sceneSnapshot = getFeedbackSceneSnapshot();
     const hasScene = Boolean(sceneSnapshot);
 
@@ -1850,7 +1760,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     updateFeedbackSubmitButton({ submitting: true });
 
     try {
-      if (!hasCommentText && !hasMedia && !hasScene) {
+      if (!hasCommentText && !hasScene) {
         const saved = await answerCleanlinessSurvey(feedbackRating);
         if (saved) {
           selectedRating = null;
@@ -1861,12 +1771,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
         return;
       }
 
-      const media = await readCommentMediaAttachments(selectedCommentMedia);
       const commentVisibility = getCommentVisibility();
       const result = await submitComment(
         selectedToilet.id,
         commentText,
-        media,
         commentVisibility,
         feedbackRating,
         sceneSnapshot
@@ -1876,7 +1784,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       commentInput.value = "";
       selectedRating = null;
       feedbackSubmitAttemptedWithoutRating = false;
-      resetCommentMediaAttachment();
       resetFeedbackScene();
       refreshFeedbackSceneStatus();
       closeCommentComposer();
@@ -1939,8 +1846,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     closeCommentComposer,
     setVisualCleanlinessLevel,
     applyCommentPreset,
-    previewCommentMediaSelection,
-    removeCommentMediaSelection,
     applyProfilePreferences
   };
 }

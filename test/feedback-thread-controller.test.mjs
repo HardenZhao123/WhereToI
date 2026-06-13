@@ -79,12 +79,12 @@ test("feedback thread controller renders and filters comment threads", () => {
       selectedOptions: [{ textContent: "Newest" }],
       value: "newest"
     };
-    const mediaFilterInput = { checked: false };
+    const longFilterInput = { checked: false, value: "long" };
     const controller = createFeedbackThreadController({
       commentsList,
       commentsSummary,
       commentSortSelect,
-      commentFilterInputs: [mediaFilterInput]
+      commentFilterInputs: [longFilterInput]
     });
 
     controller.renderComments([
@@ -93,26 +93,17 @@ test("feedback thread controller renders and filters comment threads", () => {
         author_name: "Demo",
         comment_text: "Plain feedback",
         created_at: "2026-06-01T10:00:00.000Z",
-        like_count: 0,
-        media_attachments: []
+        like_count: 0
       },
       {
         id: 2,
         author_name: "Demo",
         cleanliness_rating: 4.5,
-        comment_text: "Photo feedback",
+        comment_text: "Detailed feedback ".repeat(10),
         created_at: "2026-06-02T10:00:00.000Z",
         like_count: 0,
         dislike_count: 3,
         viewer_has_disliked: true,
-        media_attachments: [
-          {
-            type: "image",
-            mimeType: "image/png",
-            name: "sink.png",
-            dataUrl: "data:image/png;base64,aW1hZ2U="
-          }
-        ]
       }
     ]);
 
@@ -135,7 +126,7 @@ test("feedback thread controller renders and filters comment threads", () => {
     assert.equal(dislikeButton.children[0].textContent, "\u{1F44E}");
     assert.equal(dislikeButton.children[1].textContent, "3");
 
-    controller.setCommentFilter("media", true);
+    controller.setCommentFilter("long", true);
 
     assert.equal(commentsSummary.textContent, "1 of 2 feedback - Newest");
     assert.equal(commentsList.children.length, 1);
@@ -143,7 +134,7 @@ test("feedback thread controller renders and filters comment threads", () => {
 
     controller.resetCommentControls();
 
-    assert.equal(mediaFilterInput.checked, false);
+    assert.equal(longFilterInput.checked, false);
     assert.equal(commentSortSelect.value, "newest");
   } finally {
     globalThis.document = originalDocument;

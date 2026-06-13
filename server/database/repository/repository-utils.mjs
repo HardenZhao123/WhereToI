@@ -1,12 +1,5 @@
 import { normaliseText } from "../mapper/toilet-mapper.mjs";
 import { calculateCleanlinessScore } from "../scoring/cleanliness-scoring.mjs";
-import {
-  commentMediaMaxAttachments,
-  commentMediaMaxBytes,
-  commentMediaMaxImages,
-  commentMediaMaxVideos,
-  isSupportedCommentMediaType
-} from "../../../src/shared/comment-media-policy.js";
 
 export function normaliseSearchQuery(search) {
   return normaliseText(search).toLowerCase();
@@ -20,7 +13,6 @@ export function normaliseUserId(value) {
   return userId;
 }
 
-const COMMENT_MEDIA_DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/;
 const COMMENT_VISIBILITIES = new Set(["real", "anonymous"]);
 const COMMENT_PROFILE_VISIBILITIES = new Set(["private", "public"]);
 const COMMENT_SCENE_FIXTURES = [
@@ -72,144 +64,22 @@ export function createCleanlinessRatingCooldownError(latestCreatedAt, nowMs = Da
   return error;
 }
 
-function normaliseCommentMediaAttachment(media) {
-  if (typeof media !== "object" || Array.isArray(media) || media === null) {
-    throw new Error("comment media must be an image or video attachment.");
-  }
-
-  const mediaType = normaliseText(media.type).toLowerCase();
-  const mediaMimeType = normaliseText(media.mimeType).toLowerCase();
-  const mediaName = normaliseText(media.name).replace(/[\\/]/g, "").slice(0, 120) || "attachment";
-  const mediaUrl = typeof media.dataUrl === "string" ? media.dataUrl.trim() : "";
-  const dataUrlMatch = mediaUrl.match(COMMENT_MEDIA_DATA_URL_PATTERN);
-
-  if (!isSupportedCommentMediaType(mediaType)) {
-    throw new Error("Unsupported comment media type.");
-  }
-
-  if (!mediaMimeType.startsWith(`${mediaType}/`)) {
-    throw new Error("comment media MIME type must match the selected image or video type.");
-  }
-
-  if (!dataUrlMatch || dataUrlMatch[1].toLowerCase() !== mediaMimeType) {
-    throw new Error("comment media must be a valid base64 data URL.");
-  }
-
-  const calculatedSize = Buffer.from(dataUrlMatch[2], "base64").byteLength;
-  const suppliedSize = Number(media.size);
-  const mediaSize = Number.isFinite(suppliedSize) && suppliedSize > 0
-    ? Math.floor(suppliedSize)
-    : calculatedSize;
-
-  if (mediaSize > commentMediaMaxBytes || calculatedSize > commentMediaMaxBytes) {
-    throw new Error("comment media file is too large.");
-  }
-
+function getEmptyCommentMedia() {
   return {
-    type: mediaType,
-    mimeType: mediaMimeType,
-    name: mediaName,
-    size: mediaSize,
-    dataUrl: mediaUrl
+    mediaAttachments: [],
+    mediaAttachmentsJson: null,
+    mediaType: null,
+    mediaMimeType: null,
+    mediaName: null,
+    mediaSize: null,
+    mediaUrl: null
   };
 }
 
-function normaliseCommentMedia(media = null) {
-  const rawAttachments =
-    media === null || media === undefined
-      ? []
-      : Array.isArray(media) ? media : [media];
-
-  if (rawAttachments.length > commentMediaMaxAttachments) {
-    throw new Error(`comment media can include at most ${commentMediaMaxAttachments} attachments.`);
-  }
-
-  const attachments = rawAttachments.map(normaliseCommentMediaAttachment);
-  const videoCount = attachments.filter((attachment) => attachment.type === "video").length;
-  const imageCount = attachments.filter((attachment) => attachment.type === "image").length;
-
-  if (videoCount > commentMediaMaxVideos) {
-    throw new Error(`comment media can include at most ${commentMediaMaxVideos} videos.`);
-  }
-
-  if (imageCount > commentMediaMaxImages) {
-    throw new Error(`comment media can include at most ${commentMediaMaxImages} images.`);
-  }
-
-  const firstAttachment = attachments[0] ?? null;
-
-  if (!firstAttachment) {
-    return {
-      mediaAttachments: [],
-      mediaAttachmentsJson: null,
-      mediaType: null,
-      mediaMimeType: null,
-      mediaName: null,
-      mediaSize: null,
-      mediaUrl: null
-    };
-  }
-
-  return {
-    mediaAttachments: attachments,
-    mediaAttachmentsJson: JSON.stringify(attachments),
-    mediaType: firstAttachment.type,
-    mediaMimeType: firstAttachment.mimeType,
-    mediaName: firstAttachment.name,
-    mediaSize: firstAttachment.size,
-    mediaUrl: firstAttachment.dataUrl
-  };
-}
-
-function stripCommentMediaData(attachment) {
-  if (!attachment || typeof attachment !== "object") return null;
-
-  const size = Number(attachment.size ?? 0);
-  return {
-    type: normaliseText(attachment.type).toLowerCase(),
-    mimeType: normaliseText(attachment.mimeType).toLowerCase(),
-    name: normaliseText(attachment.name) || "attachment",
-    size: Number.isFinite(size) && size > 0 ? Math.floor(size) : 0,
-    hasData: Boolean(attachment.dataUrl) || Boolean(attachment.hasData)
-  };
-}
-
-function stripCommentMediaDataUrls(attachments) {
-  return attachments
-    .map(stripCommentMediaData)
-    .filter((attachment) => attachment?.type && attachment?.mimeType);
-}
-
-function parseCommentMediaAttachments(row, { includeMediaData = false } = {}) {
-  let attachments = [];
-
-  if (Array.isArray(row.media_attachments)) {
-    attachments = row.media_attachments;
-  } else if (typeof row.media_attachments === "string" && row.media_attachments.trim()) {
-    try {
-      const parsed = JSON.parse(row.media_attachments);
-      attachments = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      attachments = [];
-    }
-  } else if (row.media_type && row.media_mime_type) {
-    attachments = [
-      {
-        type: row.media_type,
-        mimeType: row.media_mime_type,
-        name: row.media_name ?? "attachment",
-        size: Number(row.media_size ?? 0),
-        dataUrl: row.media_url,
-        hasData: Boolean(row.media_url)
-      }
-    ];
-  }
-
-  if (includeMediaData) {
-    return attachments;
-  }
-
-  return stripCommentMediaDataUrls(attachments);
+function hasCommentMediaPayload(media = null) {
+  if (media === null || media === undefined || media === "") return false;
+  if (Array.isArray(media)) return media.length > 0;
+  return true;
 }
 
 function normaliseSceneCoordinate(value, max, fallback = 0) {
@@ -344,7 +214,7 @@ function parseCommentSceneSnapshot(row) {
   return null;
 }
 
-export function mapCommentRow(row, { viewerUserId = null, includeMediaData = false } = {}) {
+export function mapCommentRow(row, { viewerUserId = null } = {}) {
   if (!row) return row;
 
   const commentVisibility = normaliseStoredCommentVisibility(row);
@@ -381,8 +251,8 @@ export function mapCommentRow(row, { viewerUserId = null, includeMediaData = fal
     viewer_has_liked: Boolean(row.viewer_has_liked),
     dislike_count: Number(row.dislike_count ?? 0),
     viewer_has_disliked: Boolean(row.viewer_has_disliked),
-    media_url: includeMediaData ? row.media_url : null,
-    media_attachments: parseCommentMediaAttachments(row, { includeMediaData }),
+    media_url: null,
+    media_attachments: [],
     scene_snapshot: parseCommentSceneSnapshot(row)
   };
 }
@@ -428,15 +298,18 @@ export function normaliseCommentPayload({
 }) {
   const safeToiletId = normaliseText(toiletId);
   const safeCommentText = typeof commentText === "string" ? commentText.trim() : "";
-  const normalisedMedia = normaliseCommentMedia(media);
   const normalisedScene = normaliseCommentSceneSnapshot(sceneSnapshot, safeToiletId);
 
   if (!safeToiletId) {
     throw new Error("toiletId is required.");
   }
 
-  if (!safeCommentText && normalisedMedia.mediaAttachments.length === 0 && !normalisedScene.sceneSnapshot) {
-    throw new Error("commentText, media, or interactive scene is required for comment feedback.");
+  if (hasCommentMediaPayload(media)) {
+    throw new Error("Photo attachments are no longer supported for comment feedback.");
+  }
+
+  if (!safeCommentText && !normalisedScene.sceneSnapshot) {
+    throw new Error("commentText or interactive scene is required for comment feedback.");
   }
 
   return {
@@ -445,7 +318,7 @@ export function normaliseCommentPayload({
     commentVisibility: normaliseCommentVisibility(commentVisibility),
     cleanlinessRating: normaliseRating(cleanlinessRating),
     ...normalisedScene,
-    ...normalisedMedia
+    ...getEmptyCommentMedia()
   };
 }
 

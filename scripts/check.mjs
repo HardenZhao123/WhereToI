@@ -20,11 +20,9 @@ const requiredFiles = [
   "src/app/utils/csv.js",
   "src/app/utils/geo.js",
   "src/app/utils/cleanliness.js",
-  "src/app/utils/comment-media.js",
   "src/app/utils/comments.js",
   "src/app/utils/text.js",
   "src/app/utils/account-formatters.js",
-  "src/shared/comment-media-policy.js",
   "src/styles.css",
   "scripts/build.mjs",
   "scripts/e2e-smoke.mjs",
@@ -113,12 +111,10 @@ const requiredCopy = [
   "Cleanest",
   "Most facilities",
   "Most liked",
-  "Photo",
   "Cleanliness picture",
   "Match the picture to what you saw.",
   "Confirm password",
-  "Create an account to unlock more features",
-  "Attach image"
+  "Create an account to unlock more features"
 ];
 const missingCopy = requiredCopy.filter((text) => !html.includes(text));
 
@@ -217,24 +213,18 @@ if (
 }
 
 if (
-  !html.includes("accept=\"image/*\"") ||
+  html.includes("accept=\"image/*\"") ||
   html.includes("accept=\"image/*,video/*\"") ||
-  !html.includes("multiple") ||
-  !html.includes("comment-media-status") ||
-  !js.includes("readCommentMediaAttachments") ||
-  !js.includes("createCommentMediaElement") ||
-  !js.includes("commentMediaMaxAttachments") ||
-  !js.includes("commentMediaMaxVideos") ||
-  !js.includes("removeCommentMediaSelection") ||
-  !js.includes("isPlaceholderToiletComment") ||
-  !css.includes(".comment-media") ||
-  !css.includes(".comment-media-item") ||
-  !css.includes(".comment-media-metadata") ||
-  !css.includes(".comment-media-preview-item") ||
-  !css.includes(".comment-media-remove") ||
-  !css.includes("object-fit: contain")
+  html.includes("comment-media-status") ||
+  js.includes("readCommentMediaAttachments") ||
+  js.includes("createCommentMediaElement") ||
+  js.includes("commentMediaMaxAttachments") ||
+  js.includes("commentMediaMaxVideos") ||
+  js.includes("removeCommentMediaSelection") ||
+  css.includes(".comment-media") ||
+  !js.includes("isPlaceholderToiletComment")
 ) {
-  throw new Error("Expected comments to support up to 3 image attachments with thumbnail removal, metadata display, and uncropped media.");
+  throw new Error("Expected comment photo attachments to be removed from the UI and client submission flow.");
 }
 
 const feedbackDetailPanelIndex = html.indexOf("id=\"details-comment-panel\"");
@@ -324,7 +314,6 @@ if (
   !html.includes("value=\"newest\"") ||
   !html.includes("value=\"liked\"") ||
   !html.includes("id=\"comment-filters\"") ||
-  !html.includes("value=\"media\"") ||
   !html.includes("value=\"long\"") ||
   !js.includes("filterAndSortComments") ||
   !js.includes("setCommentSortMode") ||
@@ -332,7 +321,7 @@ if (
   !css.includes(".comment-sort-control") ||
   !css.includes(".comment-filter-tag")
 ) {
-  throw new Error("Expected comments to support newest/default sorting, most-liked sorting, and tag filters for media or long comments.");
+  throw new Error("Expected comments to support newest/default sorting, most-liked sorting, and long-comment tag filtering.");
 }
 
 if (html.includes("qr-panel") || html.includes("Access QR") || html.includes("activate-pass") || js.includes("activatePass")) {

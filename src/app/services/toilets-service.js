@@ -107,14 +107,13 @@ export async function fetchAiSummary(toiletId) {
 export async function submitComment(
   toiletId,
   commentText,
-  media = [],
   commentVisibility = "real",
   cleanlinessRating,
   sceneSnapshot = null
 ) {
   const payload = await fetchJson(`${appConfig.apiBasePath}/comments`, {
     method: "POST",
-    body: JSON.stringify({ toiletId, commentText, media, commentVisibility, cleanlinessRating, sceneSnapshot })
+    body: JSON.stringify({ toiletId, commentText, commentVisibility, cleanlinessRating, sceneSnapshot })
   });
   return {
     comments: payload.comments || [],

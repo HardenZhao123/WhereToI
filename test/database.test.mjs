@@ -723,73 +723,10 @@ test("Bias Training Model updates user and toilet biases via SGD", async () => {
 
   }, { modelType: "bias_training" });
 });
-test("database returns comment image attachment metadata without base64 data", async () => {
+
+test("database rejects photo attachments on comment feedback", async () => {
   await withSeededDatabase(async (database) => {
     const user = await database.getUserByUsername("demo");
-    const toiletId = "detail-test";
-
-    const media = [
-      {
-        type: "image",
-        mimeType: "image/png",
-        name: "sink.png",
-        size: 5,
-        dataUrl: "data:image/png;base64,aW1hZ2U="
-      },
-      {
-        type: "image",
-        mimeType: "image/jpeg",
-        name: "door.jpg",
-        size: 6,
-        dataUrl: "data:image/jpeg;base64,aW1hZ2Uy"
-      }
-    ];
-
-    const updatedComments = await database.saveComment({
-      toiletId,
-      userId: user.id,
-      username: user.username,
-      commentText: "Mixed evidence",
-      cleanlinessRating: 5,
-      media
-    });
-
-    assert.equal(updatedComments.length, 1);
-    assert.equal(updatedComments[0].comment_text, "Mixed evidence");
-    assert.equal(updatedComments[0].media_type, "image");
-    assert.equal(updatedComments[0].media_mime_type, "image/png");
-    assert.equal(updatedComments[0].media_name, "sink.png");
-    assert.equal(updatedComments[0].media_url, null);
-    assert.deepEqual(updatedComments[0].media_attachments, [
-      {
-        type: "image",
-        mimeType: "image/png",
-        name: "sink.png",
-        size: 5,
-        hasData: true
-      },
-      {
-        type: "image",
-        mimeType: "image/jpeg",
-        name: "door.jpg",
-        size: 6,
-        hasData: true
-      }
-    ]);
-    assert.equal(JSON.stringify(updatedComments).includes("data:image"), false);
-  });
-});
-
-test("database rejects comment media over attachment limits", async () => {
-  await withSeededDatabase(async (database) => {
-    const user = await database.getUserByUsername("demo");
-    const commonComment = {
-      toiletId: "detail-test",
-      userId: user.id,
-      username: user.username,
-      commentText: "Too much media",
-      cleanlinessRating: 4
-    };
     const imageAttachment = {
       type: "image",
       mimeType: "image/png",
@@ -797,26 +734,17 @@ test("database rejects comment media over attachment limits", async () => {
       size: 5,
       dataUrl: "data:image/png;base64,aW1hZ2U="
     };
-    await assert.rejects(
-      () => database.saveComment({
-        ...commonComment,
-        media: Array.from({ length: 4 }, () => imageAttachment)
-      }),
-      /at most 3 attachments/
-    );
 
     await assert.rejects(
       () => database.saveComment({
-        ...commonComment,
-        media: {
-          type: "video",
-          mimeType: "video/mp4",
-          name: "queue.mp4",
-          size: 5,
-          dataUrl: "data:video/mp4;base64,dmlkZW8="
-        }
+        toiletId: "detail-test",
+        userId: user.id,
+        username: user.username,
+        commentText: "Photo evidence",
+        cleanlinessRating: 4,
+        media: [imageAttachment]
       }),
-      /Unsupported comment media type/
+      /Photo attachments are no longer supported/
     );
   });
 });

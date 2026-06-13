@@ -1,5 +1,4 @@
 import { formatAccessTime, formatCharge, formatCurrency } from "../utils/account-formatters.js";
-import { getCommentMediaAttachments } from "../utils/comments.js";
 import { createStarRatingElement, getHalfStepRating } from "../utils/star-rating.js";
 
 export function renderAccount({ accountUsername, accountWelcome, displayGender, displayNeeds }, account, user) {
@@ -103,64 +102,6 @@ function renderCommentMeta(meta, parts) {
   }
 }
 
-function createCommentMediaPreview(comment) {
-  const attachments = getCommentMediaAttachments(comment);
-  if (attachments.length === 0) return null;
-
-  const preview = document.createElement("div");
-  preview.className = "my-comment-media";
-  preview.setAttribute("aria-label", "Comment attachments");
-
-  attachments.slice(0, 4).forEach((attachment) => {
-    const item = document.createElement("div");
-    item.className = "my-comment-media-item";
-
-    if (attachment.type === "image") {
-      if (attachment.dataUrl) {
-        const image = document.createElement("img");
-        image.src = attachment.dataUrl;
-        image.alt = attachment.name ? `Attached image: ${attachment.name}` : "Attached image";
-        image.loading = "lazy";
-        item.append(image);
-      } else {
-        const label = document.createElement("span");
-        label.className = "my-comment-media-metadata";
-        label.textContent = attachment.name ? `Image: ${attachment.name}` : "Image";
-        item.append(label);
-      }
-    }
-
-    if (attachment.type === "video") {
-      if (attachment.dataUrl) {
-        const video = document.createElement("video");
-        video.src = attachment.dataUrl;
-        video.muted = true;
-        video.playsInline = true;
-        video.preload = "metadata";
-        item.append(video);
-      } else {
-        const label = document.createElement("span");
-        label.className = "my-comment-media-metadata";
-        label.textContent = attachment.name ? `Video: ${attachment.name}` : "Video";
-        item.append(label);
-      }
-    }
-
-    if (item.childElementCount > 0) {
-      preview.append(item);
-    }
-  });
-
-  if (attachments.length > 4) {
-    const more = document.createElement("span");
-    more.className = "my-comment-media-more";
-    more.textContent = `+${attachments.length - 4}`;
-    preview.append(more);
-  }
-
-  return preview.childElementCount > 0 ? preview : null;
-}
-
 export function renderMyComments(commentsContainer, comments, { onOpenComment = () => {}, onSetProfileVisibility = () => {} } = {}) {
   if (!commentsContainer) return;
 
@@ -209,10 +150,7 @@ export function renderMyComments(commentsContainer, comments, { onOpenComment = 
       onSetProfileVisibility(comment, nextVisibility, visibilityButton);
     });
 
-    const mediaPreview = createCommentMediaPreview(comment);
-
     item.append(openButton, visibilityButton);
-    if (mediaPreview) item.append(mediaPreview);
     commentsContainer.append(item);
   });
 }
@@ -271,9 +209,7 @@ export function renderPublicProfile(
 
     openButton.append(heading, text, meta);
 
-    const mediaPreview = createCommentMediaPreview(comment);
     item.append(openButton);
-    if (mediaPreview) item.append(mediaPreview);
     publicProfileCommentsList.append(item);
   });
 }
