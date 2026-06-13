@@ -91,6 +91,12 @@
                       <p class="visual-cleanliness-state" id="visual-cleanliness-state" aria-live="polite">No rating selected - Choose a cleanliness rating</p>
                     </div>
                   </div>
+                  <div class="comment-scene-field">
+                    <button class="comment-scene-toggle" id="comment-scene-toggle" type="button" aria-controls="scene-panel">
+                      Add interactive scene
+                    </button>
+                    <p class="comment-scene-status" id="comment-scene-status" aria-live="polite">Optional scene for this feedback.</p>
+                  </div>
                   <p class="survey-status" id="map-survey-status" aria-live="polite">Tap a star, then choose half or full.</p>
                 </section>
                 <textarea id="comment-input" placeholder="Add details if useful..."></textarea>
@@ -117,12 +123,6 @@
                   <input id="comment-anonymous" type="checkbox" />
                   Anonymous
                 </label>
-                <div class="comment-scene-field">
-                  <button class="comment-scene-toggle" id="comment-scene-toggle" type="button" aria-controls="scene-panel">
-                    Add interactive scene
-                  </button>
-                  <p class="comment-scene-status" id="comment-scene-status" aria-live="polite">Optional scene for this feedback.</p>
-                </div>
                 <button type="submit" id="submit-comment" data-rating-required="true" aria-describedby="map-survey-status">Submit feedback</button>
               </form>
             </section>
