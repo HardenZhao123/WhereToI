@@ -458,6 +458,152 @@ test("map controller renders toilet map markers with cleanliness rating images",
   }
 });
 
+test("map controller reuses visible map markers during unchanged viewport refreshes", () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const eventHandlers = new Map();
+  let markerCreateCount = 0;
+  let markerAddCount = 0;
+  let markerRemoveCount = 0;
+  let clearLayersCount = 0;
+  let setIconCount = 0;
+
+  const markerLayer = {
+    addTo() {
+      return markerLayer;
+    },
+    clearLayers() {
+      clearLayersCount += 1;
+    },
+    removeLayer() {
+      markerRemoveCount += 1;
+    }
+  };
+  const fakeMap = {
+    setView() {
+      return fakeMap;
+    },
+    getCenter() {
+      return { lat: 51.5, lng: -0.17 };
+    },
+    getBounds() {
+      return {
+        contains() {
+          return true;
+        },
+        getSouth() {
+          return 51.49;
+        },
+        getNorth() {
+          return 51.51;
+        },
+        getWest() {
+          return -0.18;
+        },
+        getEast() {
+          return -0.16;
+        }
+      };
+    },
+    getZoom() {
+      return 15;
+    },
+    on(eventNames, handler) {
+      eventNames.split(" ").forEach((eventName) => eventHandlers.set(eventName, handler));
+      return fakeMap;
+    }
+  };
+
+  globalThis.document = {
+    addEventListener() {},
+    querySelector() {
+      return null;
+    }
+  };
+  globalThis.window = {
+    L: {
+      map() {
+        return fakeMap;
+      },
+      tileLayer() {
+        return {
+          addTo() {}
+        };
+      },
+      layerGroup() {
+        return markerLayer;
+      },
+      divIcon(options) {
+        return options;
+      },
+      marker(latLng, options) {
+        markerCreateCount += 1;
+        const marker = {
+          options: { ...options },
+          addTo() {
+            markerAddCount += 1;
+            return marker;
+          },
+          on() {
+            return marker;
+          },
+          remove() {
+            markerRemoveCount += 1;
+          },
+          setIcon(icon) {
+            setIconCount += 1;
+            marker.options.icon = icon;
+            return marker;
+          },
+          setLatLng(nextLatLng) {
+            marker.latLng = { lat: nextLatLng[0], lng: nextLatLng[1] };
+            return marker;
+          },
+          getLatLng() {
+            return marker.latLng;
+          },
+          latLng: { lat: latLng[0], lng: latLng[1] }
+        };
+        return marker;
+      }
+    },
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const controller = createMapController({
+      statusText: { textContent: "" },
+      mapElement: {},
+      detailsCard: { classList: createClassList() },
+      mapPanel: { classList: createClassList() },
+      directionsButton: { disabled: false }
+    });
+    const toilet = createTestToilet();
+
+    assert.equal(controller.createInteractiveMap(), true);
+    controller.setToilets([toilet], { cleanlinessRange: "3days" });
+    eventHandlers.get("moveend")();
+    controller.setToilets([{ ...toilet, comment: "Updated comment" }], {
+      cleanlinessRange: "3days",
+      merge: true
+    });
+
+    assert.equal(markerCreateCount, 1);
+    assert.equal(markerAddCount, 1);
+    assert.equal(markerRemoveCount, 0);
+    assert.equal(clearLayersCount, 0);
+    assert.equal(setIconCount, 0);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+  }
+});
+
 test("map controller keeps visual rating on toilet images for urinal-only toilets", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;

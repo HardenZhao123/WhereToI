@@ -140,6 +140,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let markersLayer = null;
   let userLocationMarker = null;
   let markerById = new Map();
+  let markerIconStateById = new Map();
   let hiddenByMarkerLimit = 0;
   let cleanlinessSurveyAnswers = loadSurveyAnswers();
   let cleanlinessUpdateById = new Map();
@@ -783,6 +784,28 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     });
   }
 
+  function getToiletIconState(toilet, selected = false) {
+    const level = getVisualCleanlinessLevel(getCleanlinessVisualLevel(toilet));
+    return `${selected ? "selected" : "default"}|${level.image}`;
+  }
+
+  function removeMapMarker(marker) {
+    if (typeof marker?.remove === "function") {
+      marker.remove();
+      return;
+    }
+
+    markersLayer?.removeLayer?.(marker);
+  }
+
+  function syncToiletMarkerIcon(marker, toilet, selected = false) {
+    const iconState = getToiletIconState(toilet, selected);
+    if (markerIconStateById.get(toilet.id) === iconState) return;
+
+    marker.setIcon(createToiletIcon(toilet, selected));
+    markerIconStateById.set(toilet.id, iconState);
+  }
+
   function getMapVisibleToilets() {
     if (!map) return [...filteredToilets];
 
@@ -888,7 +911,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     markerById.forEach((marker, id) => {
       const toilet = visibleToilets.find((item) => item.id === id);
       if (!toilet) return;
-      marker.setIcon(createToiletIcon(toilet, selectedToilet?.id === id));
+      syncToiletMarkerIcon(marker, toilet, selectedToilet?.id === id);
     });
   }
 
@@ -1167,30 +1190,56 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (zoom < appConfig.markerHideZoomThreshold) {
       visibleToilets = [];
       hiddenByMarkerLimit = 0;
+      markerById.forEach(removeMapMarker);
       markerById = new Map();
-      markersLayer.clearLayers();
+      markerIconStateById = new Map();
       renderUserMarker();
       return;
     }
 
     const inBoundsToilets = getMapVisibleToilets();
     hiddenByMarkerLimit = Math.max(0, inBoundsToilets.length - appConfig.markerRenderLimit);
-    visibleToilets = inBoundsToilets.slice(0, appConfig.markerRenderLimit);
-    markerById = new Map();
-    markersLayer.clearLayers();
+    const nextVisibleToilets = inBoundsToilets.slice(0, appConfig.markerRenderLimit);
+    const nextVisibleById = new Map(nextVisibleToilets.map((toilet) => [toilet.id, toilet]));
+    const nextMarkerById = new Map();
 
-    visibleToilets.forEach((toilet) => {
+    markerById.forEach((marker, id) => {
+      if (!nextVisibleById.has(id)) {
+        removeMapMarker(marker);
+        markerIconStateById.delete(id);
+      }
+    });
+
+    nextVisibleToilets.forEach((toilet) => {
+      const selected = selectedToilet?.id === toilet.id;
+      const title = `${toilet.name}, ${toilet.area}`;
+      const existingMarker = markerById.get(toilet.id);
+
+      if (existingMarker) {
+        existingMarker.setLatLng?.([toilet.lat, toilet.lng]);
+        if (existingMarker.options) {
+          existingMarker.options.title = title;
+        }
+        syncToiletMarkerIcon(existingMarker, toilet, selected);
+        nextMarkerById.set(toilet.id, existingMarker);
+        return;
+      }
+
       const marker = window.L.marker([toilet.lat, toilet.lng], {
         icon: createToiletIcon(toilet, selectedToilet?.id === toilet.id),
         keyboard: true,
-        title: `${toilet.name}, ${toilet.area}`
+        title
       });
 
       marker.on("click", async () => await setToilet(toilet.id));
       marker.addTo(markersLayer);
       markerById.set(toilet.id, marker);
+      markerIconStateById.set(toilet.id, getToiletIconState(toilet, selected));
+      nextMarkerById.set(toilet.id, marker);
     });
 
+    visibleToilets = nextVisibleToilets;
+    markerById = nextMarkerById;
     renderUserMarker();
   }
 
