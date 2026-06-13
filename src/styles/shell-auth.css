@@ -6,7 +6,8 @@
   z-index: 30;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  height: 74px;
+  height: calc(var(--tabbar-height) + var(--safe-area-bottom));
+  padding-bottom: var(--safe-area-bottom);
   border-top: 1px solid var(--line);
   background: #fbfcf7;
 }

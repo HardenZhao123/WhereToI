@@ -75,6 +75,50 @@
 }
 
 @media (max-width: 760px) {
+  @supports (height: 100dvh) {
+    body,
+    .app-shell {
+      min-height: 100dvh;
+    }
+
+    .phone {
+      height: 100dvh;
+      min-height: 100dvh;
+    }
+
+    .screen {
+      height: calc(100dvh - var(--tabbar-height) - var(--safe-area-bottom));
+    }
+  }
+
+  .toilet-playground-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .toilet-playground-header h2 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .scene-type-selector {
+    width: 100%;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .scene-type-options {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .scene-type-option {
+    flex: 1 0 max-content;
+  }
+
   .toilet-playground-workspace {
     grid-template-columns: 1fr;
     min-height: 0;
@@ -100,7 +144,6 @@
 
   .phone {
     width: 100%;
-    min-height: 100vh;
     border: 0;
     border-radius: 0;
   }
