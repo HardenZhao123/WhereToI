@@ -1,4 +1,5 @@
 .view-account {
+  --account-header-lift: 82px;
   padding-top: 26px;
 }
 
@@ -13,9 +14,16 @@
 
 .account-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-end;
   gap: 14px;
+  width: 100%;
+  margin-top: calc(var(--account-header-lift) * -1);
+  margin-bottom: var(--account-header-lift);
+}
+
+.account-header .header-branding {
+  min-width: 0;
 }
 
 .account-title {
@@ -277,6 +285,13 @@
 
 .history-item[type="button"]:hover strong {
   color: var(--teal);
+}
+
+@media (max-width: 560px) {
+  .view-account {
+    --account-header-lift: 0px;
+    padding-top: 8px;
+  }
 }
 
 .history-item[type="button"]:focus-visible {
