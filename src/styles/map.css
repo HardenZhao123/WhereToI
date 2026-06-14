@@ -89,8 +89,8 @@
 }
 
 .map-marker-cleanliness-excellent {
-  --marker-ring: #167b68;
-  --marker-ring-glow: rgb(22 123 104 / 30%);
+  --marker-ring: #4aaee8;
+  --marker-ring-glow: rgb(74 174 232 / 30%);
 }
 
 .map-marker-image {
@@ -184,7 +184,7 @@
 }
 
 .legend-colour-dot-excellent {
-  color: #167b68;
+  color: #4aaee8;
 }
 
 .legend-rating-thumb {
