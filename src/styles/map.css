@@ -142,6 +142,51 @@
   gap: 8px;
 }
 
+.legend-colour-scale {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 10px;
+  padding-top: 1px;
+}
+
+.legend-colour-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.legend-colour-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 0 2px rgb(31 42 51 / 5%);
+}
+
+.legend-colour-dot-dirty {
+  color: #b94b3d;
+}
+
+.legend-colour-dot-ok {
+  color: #d8aa38;
+}
+
+.legend-colour-dot-clean {
+  color: #2f9d83;
+}
+
+.legend-colour-dot-excellent {
+  color: #167b68;
+}
+
 .legend-rating-thumb {
   width: 22px;
   height: 30px;
