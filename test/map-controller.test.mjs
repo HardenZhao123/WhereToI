@@ -449,7 +449,7 @@ test("map controller renders toilet map markers with cleanliness rating images",
     assert.ok(toiletIcon);
     assert.deepEqual(toiletIcon.iconSize, [44, 58]);
     assert.deepEqual(toiletIcon.iconAnchor, [22, 58]);
-    assert.match(toiletIcon.html, /class="map-marker"/);
+    assert.match(toiletIcon.html, /class="map-marker map-marker-cleanliness-clean"/);
     assert.match(toiletIcon.html, /class="map-marker-image"/);
     assert.match(toiletIcon.html, /src="toilet_levels\/level_45_small\.jpg(?:\?v=[^"]+)?"/);
   } finally {
