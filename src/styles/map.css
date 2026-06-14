@@ -39,14 +39,16 @@
 }
 
 .map-marker {
+  --marker-ring: #d8aa38;
+  --marker-ring-glow: rgb(216 170 56 / 24%);
   display: block;
   position: relative;
   width: 44px;
   height: 54px;
-  border: 2px solid white;
+  border: 3px solid var(--marker-ring);
   border-radius: 9px;
   background: white;
-  box-shadow: 0 6px 18px rgb(31 42 51 / 28%);
+  box-shadow: 0 0 0 4px var(--marker-ring-glow), 0 6px 18px rgb(31 42 51 / 28%);
   overflow: visible;
 }
 
@@ -58,12 +60,37 @@
   width: 14px;
   height: 14px;
   transform: translateX(-50%) rotate(45deg);
-  border-right: 2px solid white;
-  border-bottom: 2px solid white;
+  border-right: 3px solid var(--marker-ring);
+  border-bottom: 3px solid var(--marker-ring);
   border-radius: 0 0 3px 0;
   background: white;
   box-shadow: 4px 4px 10px rgb(31 42 51 / 18%);
   z-index: -1;
+}
+
+.map-marker-cleanliness-very-dirty {
+  --marker-ring: #b94b3d;
+  --marker-ring-glow: rgb(185 75 61 / 28%);
+}
+
+.map-marker-cleanliness-dirty {
+  --marker-ring: #c7772f;
+  --marker-ring-glow: rgb(199 119 47 / 27%);
+}
+
+.map-marker-cleanliness-ok {
+  --marker-ring: #d8aa38;
+  --marker-ring-glow: rgb(216 170 56 / 26%);
+}
+
+.map-marker-cleanliness-clean {
+  --marker-ring: #2f9d83;
+  --marker-ring-glow: rgb(47 157 131 / 27%);
+}
+
+.map-marker-cleanliness-excellent {
+  --marker-ring: #167b68;
+  --marker-ring-glow: rgb(22 123 104 / 30%);
 }
 
 .map-marker-image {
@@ -76,7 +103,12 @@
 
 .map-marker.is-selected {
   border-color: var(--pink);
-  box-shadow: 0 0 0 5px rgb(236 61 114 / 22%), 0 6px 18px rgb(31 42 51 / 28%);
+  box-shadow: 0 0 0 3px var(--marker-ring-glow), 0 0 0 7px rgb(236 61 114 / 22%), 0 6px 18px rgb(31 42 51 / 28%);
+}
+
+.map-marker.is-selected::after {
+  border-right-color: var(--pink);
+  border-bottom-color: var(--pink);
 }
 
 .map-legend {

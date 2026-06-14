@@ -216,6 +216,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     };
   }
 
+  function getCleanlinessMarkerTone(value) {
+    if (value <= 1.5) return "very-dirty";
+    if (value <= 2.5) return "dirty";
+    if (value <= 3.5) return "ok";
+    if (value <= 4.5) return "clean";
+    return "excellent";
+  }
+
   function renderCleanlinessRating(toilet) {
     const cleanlinessStars = document.querySelector("#cleanliness-stars");
     const starIcons = document.querySelector("#cleanliness-star-icons");
@@ -681,8 +689,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function createToiletIcon(toilet, selected = false) {
     const classes = ["map-marker"];
-    if (selected) classes.push("is-selected");
     const level = getVisualCleanlinessLevel(getCleanlinessVisualLevel(toilet));
+    const markerTone = getCleanlinessMarkerTone(level.value);
+    classes.push(`map-marker-cleanliness-${markerTone}`);
+    if (selected) classes.push("is-selected");
 
     return window.L.divIcon({
       className: "map-marker-icon",
@@ -694,7 +704,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function getToiletIconState(toilet, selected = false) {
     const level = getVisualCleanlinessLevel(getCleanlinessVisualLevel(toilet));
-    return `${selected ? "selected" : "default"}|${level.image}`;
+    const markerTone = getCleanlinessMarkerTone(level.value);
+    return `${selected ? "selected" : "default"}|${level.image}|${markerTone}`;
   }
 
   function removeMapMarker(marker) {
