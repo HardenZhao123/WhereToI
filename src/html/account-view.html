@@ -1,74 +1,74 @@
-            <section class="view view-account" id="account-panel" aria-labelledby="account-tab">
-              <section class="public-profile-view is-hidden" id="public-profile-view" aria-labelledby="public-profile-username">
-                <button class="text-button public-profile-back" id="public-profile-back" type="button">Back</button>
-                <p class="section-kicker">Public profile</p>
-                <h2 id="public-profile-username">Profile</h2>
-                <article class="account-card public-profile-card">
-                  <h3>Public feedback</h3>
-                  <p id="public-profile-summary">Only feedback this user chose to show on their profile appears here.</p>
-                  <div id="public-profile-comments-list" aria-live="polite">
-                    <p>Loading profile...</p>
-                  </div>
-                </article>
-              </section>
-              <div class="account-own-view" id="account-own-view">
-              <div class="account-header">
-                <div class="header-branding">
-                  <img src="./src/logo.png" alt="" class="app-logo" aria-hidden="true" />
-                  <div class="account-title">
-                    <p class="section-kicker" id="account-welcome">Welcome</p>
-                    <h2 id="account-username">Your Account</h2>
-                  </div>
-                </div>
-                <button class="settings-button" id="account-settings-button" type="button" aria-label="Open account settings" aria-expanded="false" aria-controls="account-settings-panel">
-                  <svg class="settings-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                    <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
-                    <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.45a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.08.25.2.48.34.7.3.45.8.73 1.36.73H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"></path>
-                  </svg>
-                </button>
-              </div>
-              <section class="account-settings-panel is-hidden" id="account-settings-panel" aria-label="Account settings">
-                <h3>Settings</h3>
-                <article class="privacy-note">
-                  <h4>Privacy note</h4>
-                  <p>Let users hide or delete sensitive visit history.</p>
-                </article>
-                <button id="credits-button" class="settings-action credits-link" type="button">Data Sources &amp; Credits</button>
-                <button id="logout-button" class="settings-action logout-button" type="button">Log out</button>
-              </section>
-              <article class="account-card account-unlock-card" id="account-unlock-card">
-                <h3>Create an account to unlock more features</h3>
-                <p>Use the map without logging in. Sign up when you want saved history and profile-based filters.</p>
-                <div class="account-unlock-actions">
-                  <button class="solid-button" id="account-signup-button" type="button">Sign up</button>
-                  <button class="outline-button" id="account-login-button" type="button">Log in</button>
-                </div>
-              </article>
-              <article class="account-card" id="profile-card">
-                <h3>My Profile</h3>
-                <p>Gender: <strong id="display-gender">Not set</strong></p>
-                <p>Needs: <strong id="display-needs">None set</strong></p>
-                <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; cursor: pointer;">
-                  <input type="checkbox" id="auto-filter-toggle" />
-                  Auto-filter map based on my profile
-                </label>
-                <button type="button" id="edit-profile" style="background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; margin-top: 12px; cursor: pointer; font-size: 12px;">Edit Profile</button>
-              </article>
-              <article class="account-card account-activity-card">
-                <div class="account-activity-tabs" role="tablist" aria-label="Account activity">
-                  <button class="account-activity-tab is-active" id="activity-feedback-tab" type="button" role="tab" aria-selected="true" aria-controls="activity-feedback-panel" data-account-activity-tab="feedback">My feedback</button>
-                  <button class="account-activity-tab" id="activity-history-tab" type="button" role="tab" aria-selected="false" aria-controls="activity-history-panel" data-account-activity-tab="history">Visit history</button>
-                </div>
-                <section class="account-activity-panel" id="activity-feedback-panel" role="tabpanel" aria-labelledby="activity-feedback-tab" data-account-activity-panel="feedback">
-                  <div id="my-comments-list" aria-live="polite">
-                    <p>No feedback yet.</p>
-                  </div>
-                </section>
-                <section class="account-activity-panel is-hidden" id="activity-history-panel" role="tabpanel" aria-labelledby="activity-history-tab" data-account-activity-panel="history" hidden>
-                  <div class="history-list" id="access-history-list" aria-live="polite">
-                    <p>No visit history yet.</p>
-                  </div>
-                </section>
-              </article>
-              </div>
-            </section>
+<section class="view view-account" id="account-panel" aria-labelledby="account-tab">
+  <section class="public-profile-view is-hidden" id="public-profile-view" aria-labelledby="public-profile-username">
+    <button class="text-button public-profile-back" id="public-profile-back" type="button">Back</button>
+    <p class="section-kicker">Public profile</p>
+    <h2 id="public-profile-username">Profile</h2>
+    <article class="account-card public-profile-card">
+      <h3>Public feedback</h3>
+      <p id="public-profile-summary">Only feedback this user chose to show on their profile appears here.</p>
+      <div id="public-profile-comments-list" aria-live="polite">
+        <p>Loading profile...</p>
+      </div>
+    </article>
+  </section>
+  <div class="account-own-view" id="account-own-view">
+  <div class="account-header">
+    <div class="header-branding">
+      <img src="./src/logo.png" alt="" class="app-logo" aria-hidden="true" />
+      <div class="account-title">
+        <p class="section-kicker" id="account-welcome">Welcome</p>
+        <h2 id="account-username">Your Account</h2>
+      </div>
+    </div>
+    <button class="settings-button" id="account-settings-button" type="button" aria-label="Open account settings" aria-expanded="false" aria-controls="account-settings-panel">
+      <svg class="settings-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+        <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.45a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.08.25.2.48.34.7.3.45.8.73 1.36.73H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"></path>
+      </svg>
+    </button>
+  </div>
+  <section class="account-settings-panel is-hidden" id="account-settings-panel" aria-label="Account settings">
+    <h3>Settings</h3>
+    <article class="privacy-note">
+      <h4>Privacy note</h4>
+      <p>Let users hide or delete sensitive visit history.</p>
+    </article>
+    <button id="credits-button" class="settings-action credits-link" type="button">Data Sources &amp; Credits</button>
+    <button id="logout-button" class="settings-action logout-button" type="button">Log out</button>
+  </section>
+  <article class="account-card account-unlock-card" id="account-unlock-card">
+    <h3>Create an account to unlock more features</h3>
+    <p>Use the map without logging in. Sign up when you want saved history and profile-based filters.</p>
+    <div class="account-unlock-actions">
+      <button class="solid-button" id="account-signup-button" type="button">Sign up</button>
+      <button class="outline-button" id="account-login-button" type="button">Log in</button>
+    </div>
+  </article>
+  <article class="account-card" id="profile-card">
+    <h3>My Profile</h3>
+    <p>Gender: <strong id="display-gender">Not set</strong></p>
+    <p>Needs: <strong id="display-needs">None set</strong></p>
+    <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; cursor: pointer;">
+      <input type="checkbox" id="auto-filter-toggle" />
+      Auto-filter map based on my profile
+    </label>
+    <button type="button" id="edit-profile" style="background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; margin-top: 12px; cursor: pointer; font-size: 12px;">Edit Profile</button>
+  </article>
+  <article class="account-card account-activity-card">
+    <div class="account-activity-tabs" role="tablist" aria-label="Account activity">
+      <button class="account-activity-tab is-active" id="activity-feedback-tab" type="button" role="tab" aria-selected="true" aria-controls="activity-feedback-panel" data-account-activity-tab="feedback">My feedback</button>
+      <button class="account-activity-tab" id="activity-history-tab" type="button" role="tab" aria-selected="false" aria-controls="activity-history-panel" data-account-activity-tab="history">Visit history</button>
+    </div>
+    <section class="account-activity-panel" id="activity-feedback-panel" role="tabpanel" aria-labelledby="activity-feedback-tab" data-account-activity-panel="feedback">
+      <div id="my-comments-list" aria-live="polite">
+        <p>No feedback yet.</p>
+      </div>
+    </section>
+    <section class="account-activity-panel is-hidden" id="activity-history-panel" role="tabpanel" aria-labelledby="activity-history-tab" data-account-activity-panel="history" hidden>
+      <div class="history-list" id="access-history-list" aria-live="polite">
+        <p>No visit history yet.</p>
+      </div>
+    </section>
+  </article>
+  </div>
+</section>

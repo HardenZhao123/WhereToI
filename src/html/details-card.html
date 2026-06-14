@@ -1,113 +1,113 @@
-            <article class="details-card is-hidden" id="details-card" aria-live="polite">
-              <button class="close-button sticky-close-button" id="close-details" type="button" aria-label="Close toilet details">X</button>
-              <header class="details-header">
-                <div class="details-title-block">
-                  <h2 id="toilet-name">Select a toilet</h2>
-                  <div class="cleanliness-section" aria-label="Cleanliness">
-                    <span class="cleanliness-label">Cleanliness</span>
-                    <div class="cleanliness-rating-row">
-                      <div class="star-rating-display" id="cleanliness-stars" aria-label="Cleanliness rating 3 out of 5">
-                        <span class="star-rating-icons" id="cleanliness-star-icons" aria-hidden="true"></span>
-                        <span class="cleanliness-score" id="cleanliness-score">3.0/5</span>
-                        <span class="cleanliness-rating-count" id="cleanliness-rating-count">0 ratings</span>
-                      </div>
-                      <label class="rating-period-control" for="cleanliness-range">
-                        Rating period
-                        <select id="cleanliness-range" class="cleanliness-range-select">
-                          <option value="1day">1 Day</option>
-                          <option value="3days" selected>3 Days</option>
-                          <option value="1week">1 Week</option>
-                          <option value="all">All Time</option>
-                        </select>
-                      </label>
-                    </div>
-                  </div>
-                  <p id="toilet-area"></p>
-                </div>
-              </header>
-              <div class="details-actions-row">
-                <button class="primary-pill" id="directions-button" type="button">Directions</button>
+<article class="details-card is-hidden" id="details-card" aria-live="polite">
+  <button class="close-button sticky-close-button" id="close-details" type="button" aria-label="Close toilet details">X</button>
+  <header class="details-header">
+    <div class="details-title-block">
+      <h2 id="toilet-name">Select a toilet</h2>
+      <div class="cleanliness-section" aria-label="Cleanliness">
+        <span class="cleanliness-label">Cleanliness</span>
+        <div class="cleanliness-rating-row">
+          <div class="star-rating-display" id="cleanliness-stars" aria-label="Cleanliness rating 3 out of 5">
+            <span class="star-rating-icons" id="cleanliness-star-icons" aria-hidden="true"></span>
+            <span class="cleanliness-score" id="cleanliness-score">3.0/5</span>
+            <span class="cleanliness-rating-count" id="cleanliness-rating-count">0 ratings</span>
+          </div>
+          <label class="rating-period-control" for="cleanliness-range">
+            Rating period
+            <select id="cleanliness-range" class="cleanliness-range-select">
+              <option value="1day">1 Day</option>
+              <option value="3days" selected>3 Days</option>
+              <option value="1week">1 Week</option>
+              <option value="all">All Time</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <p id="toilet-area"></p>
+    </div>
+  </header>
+  <div class="details-actions-row">
+    <button class="primary-pill" id="directions-button" type="button">Directions</button>
+  </div>
+  <div class="distance-line" id="distance-line">Enable location to see distance.</div>
+  <nav class="details-section-nav" aria-label="Toilet detail sections">
+    <button class="details-section-link is-active" id="details-overview-link" type="button" data-detail-section="overview" aria-controls="details-overview-panel" aria-selected="true">Overview</button>
+    <button class="details-section-link" id="details-hours-link" type="button" data-detail-section="hours" aria-controls="details-hours-panel" aria-selected="false">Opening Hours</button>
+    <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Feedback</button>
+  </nav>
+  <div class="details-section-panels">
+    <section class="details-panel is-active details-overview-panel" id="details-overview-panel" data-detail-panel="overview" aria-labelledby="details-overview-link">
+      <div class="overview-grid">
+        <section class="overview-visual-card" aria-labelledby="overview-visual-title">
+          <div class="overview-visual-header">
+            <div>
+              <h3 id="overview-visual-title">Current visual state</h3>
+              <p>Live cartoon preview for the selected cleanliness level.</p>
+            </div>
+          </div>
+          <div class="overview-visual-gallery">
+            <section class="overview-visual-panel">
+              <p class="visual-preview-fixture">Toilet preview</p>
+              <div class="visual-preview-card overview-visual-preview" id="overview-visual-preview" data-cleanliness="3" role="img" aria-label="Cartoon toilet cleanliness preview: OK">
+                <img id="overview-visual-image" class="visual-cleanliness-image is-hidden" src="" alt="Real toilet cleanliness preview" />
               </div>
-              <div class="distance-line" id="distance-line">Enable location to see distance.</div>
-              <nav class="details-section-nav" aria-label="Toilet detail sections">
-                <button class="details-section-link is-active" id="details-overview-link" type="button" data-detail-section="overview" aria-controls="details-overview-panel" aria-selected="true">Overview</button>
-                <button class="details-section-link" id="details-hours-link" type="button" data-detail-section="hours" aria-controls="details-hours-panel" aria-selected="false">Opening Hours</button>
-                <button class="details-section-link" id="details-comment-link" type="button" data-detail-section="comment" aria-controls="details-comment-panel" aria-selected="false">Feedback</button>
-              </nav>
-              <div class="details-section-panels">
-                <section class="details-panel is-active details-overview-panel" id="details-overview-panel" data-detail-panel="overview" aria-labelledby="details-overview-link">
-                  <div class="overview-grid">
-                    <section class="overview-visual-card" aria-labelledby="overview-visual-title">
-                      <div class="overview-visual-header">
-                        <div>
-                          <h3 id="overview-visual-title">Current visual state</h3>
-                          <p>Live cartoon preview for the selected cleanliness level.</p>
-                        </div>
-                      </div>
-                      <div class="overview-visual-gallery">
-                        <section class="overview-visual-panel">
-                          <p class="visual-preview-fixture">Toilet preview</p>
-                          <div class="visual-preview-card overview-visual-preview" id="overview-visual-preview" data-cleanliness="3" role="img" aria-label="Cartoon toilet cleanliness preview: OK">
-                            <img id="overview-visual-image" class="visual-cleanliness-image is-hidden" src="" alt="Real toilet cleanliness preview" />
-                          </div>
-                          <p class="visual-cleanliness-state overview-visual-state" id="overview-visual-state" aria-live="polite">OK</p>
-                        </section>
-                      </div>
-                    </section>
-                    <details class="overview-features-disclosure" open>
-                      <summary>Features</summary>
-                      <div class="features-list">
-                        <h3>Features</h3>
-                        <p>Women <strong id="feature-women" aria-label="Yes">✓</strong></p>
-                        <p>Men <strong id="feature-men" aria-label="Yes">✓</strong></p>
-                        <p>Accessible <strong id="feature-accessible" aria-label="No">✕</strong></p>
-                        <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
-                        <p>Children <strong id="feature-children">?</strong></p>
-                        <p>Parent &amp; Baby <strong id="feature-baby-changing">?</strong></p>
-                        <p>Bidet / Washing <strong id="feature-bidet">?</strong></p>
-                        <p>Automatic <strong id="feature-automatic">?</strong></p>
-                        <p>Urinal Only <strong id="feature-urinal-only">?</strong></p>
-                        <p>RADAR Key <strong id="feature-radar-key">?</strong></p>
-                        <p>Free <strong id="feature-free">?</strong></p>
-                      </div>
-                    </details>
-                  </div>
-                </section>
-                <section class="details-panel" id="details-hours-panel" data-detail-panel="hours" aria-labelledby="details-hours-link" hidden>
-                  <div class="opening-hours-list">
-                    <h3>Opening Hours</h3>
-                    <p><mark id="hours-today">Tue 09:00 - 17:00</mark></p>
-                    <p id="hours-sat">Sat Closed</p>
-                    <p id="hours-sun">Sun Closed</p>
-                  </div>
-                </section>
-                <section class="details-panel" id="details-comment-panel" data-detail-panel="comment" aria-labelledby="details-comment-link" hidden>
-                  <div class="comment-panel">
-                    <h3>Venue note</h3>
-                    <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
-                  </div>
-                  <section class="comments-section">
-                    <div class="comments-header">
-                      <h3>Feedback</h3>
-                      <button id="summarize-comments" class="ai-summary-button" type="button">✨ AI Summary</button>
-                      <label class="comment-sort-control" for="comment-sort" aria-label="Sort feedback">
-                        <select id="comment-sort" aria-label="Sort feedback">
-                          <option value="newest">Newest</option>
-                          <option value="liked">Most liked</option>
-                        </select>
-                      </label>
-                    </div>
-                    <div id="ai-summary-container" class="ai-summary-box is-hidden" aria-live="polite">
-                      <p id="ai-summary-text"></p>
-                    </div>
-                    <div class="comment-filter-tags" id="comment-filters" aria-label="Feedback tags">
-                      <label class="comment-filter-tag"><input type="checkbox" value="long" /> Long</label>
-                    </div>
-                    <p class="comments-summary" id="comments-summary" aria-live="polite">0 feedback - Newest</p>
-                    <div id="comments-list" class="comments-list">
-                      <p>Loading feedback...</p>
-                    </div>
-                  </section>
-                </section>
-              </div>
-            </article>
+              <p class="visual-cleanliness-state overview-visual-state" id="overview-visual-state" aria-live="polite">OK</p>
+            </section>
+          </div>
+        </section>
+        <details class="overview-features-disclosure" open>
+          <summary>Features</summary>
+          <div class="features-list">
+            <h3>Features</h3>
+            <p>Women <strong id="feature-women" aria-label="Yes">✓</strong></p>
+            <p>Men <strong id="feature-men" aria-label="Yes">✓</strong></p>
+            <p>Accessible <strong id="feature-accessible" aria-label="No">✕</strong></p>
+            <p>Gender Neutral <strong id="feature-neutral">?</strong></p>
+            <p>Children <strong id="feature-children">?</strong></p>
+            <p>Parent &amp; Baby <strong id="feature-baby-changing">?</strong></p>
+            <p>Bidet / Washing <strong id="feature-bidet">?</strong></p>
+            <p>Automatic <strong id="feature-automatic">?</strong></p>
+            <p>Urinal Only <strong id="feature-urinal-only">?</strong></p>
+            <p>RADAR Key <strong id="feature-radar-key">?</strong></p>
+            <p>Free <strong id="feature-free">?</strong></p>
+          </div>
+        </details>
+      </div>
+    </section>
+    <section class="details-panel" id="details-hours-panel" data-detail-panel="hours" aria-labelledby="details-hours-link" hidden>
+      <div class="opening-hours-list">
+        <h3>Opening Hours</h3>
+        <p><mark id="hours-today">Tue 09:00 - 17:00</mark></p>
+        <p id="hours-sat">Sat Closed</p>
+        <p id="hours-sun">Sun Closed</p>
+      </div>
+    </section>
+    <section class="details-panel" id="details-comment-panel" data-detail-panel="comment" aria-labelledby="details-comment-link" hidden>
+      <div class="comment-panel">
+        <h3>Venue note</h3>
+        <p class="comment" id="toilet-comment">Comment: clean today, short queue.</p>
+      </div>
+      <section class="comments-section">
+        <div class="comments-header">
+          <h3>Feedback</h3>
+          <button id="summarize-comments" class="ai-summary-button" type="button">✨ AI Summary</button>
+          <label class="comment-sort-control" for="comment-sort" aria-label="Sort feedback">
+            <select id="comment-sort" aria-label="Sort feedback">
+              <option value="newest">Newest</option>
+              <option value="liked">Most liked</option>
+            </select>
+          </label>
+        </div>
+        <div id="ai-summary-container" class="ai-summary-box is-hidden" aria-live="polite">
+          <p id="ai-summary-text"></p>
+        </div>
+        <div class="comment-filter-tags" id="comment-filters" aria-label="Feedback tags">
+          <label class="comment-filter-tag"><input type="checkbox" value="long" /> Long</label>
+        </div>
+        <p class="comments-summary" id="comments-summary" aria-live="polite">0 feedback - Newest</p>
+        <div id="comments-list" class="comments-list">
+          <p>Loading feedback...</p>
+        </div>
+      </section>
+    </section>
+  </div>
+</article>
