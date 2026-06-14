@@ -118,12 +118,16 @@ test("feedback thread controller renders and filters comment threads", () => {
     assert.equal(rating?.children[4].textContent, "\u2606");
     assert.equal(rating?.attributes["aria-label"], "Cleanliness rating 4.5 out of 5");
     const commentActions = commentsList.children[0].children[0].children[1];
+    const likeButton = commentActions.children[0];
+    assert.equal(likeButton.className, "comment-like-button");
+    assert.equal(likeButton.attributes["aria-label"], "Agree with feedback");
+    assert.equal(likeButton.children[0].textContent, "agree");
     const dislikeButton = commentActions.children[1];
     assert.equal(dislikeButton.className, "comment-dislike-button");
-    assert.equal(dislikeButton.attributes["aria-label"], "Remove dislike from feedback");
+    assert.equal(dislikeButton.attributes["aria-label"], "Remove disagreement from feedback");
     assert.equal(dislikeButton.attributes["aria-pressed"], "true");
     assert.equal(dislikeButton.classList.contains("is-disliked"), true);
-    assert.equal(dislikeButton.children[0].textContent, "\u{1F44E}");
+    assert.equal(dislikeButton.children[0].textContent, "disagree");
     assert.equal(dislikeButton.children[1].textContent, "3");
 
     controller.setCommentFilter("long", true);

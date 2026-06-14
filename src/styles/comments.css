@@ -196,11 +196,11 @@
 .comment-like-button,
 .comment-dislike-button {
   display: inline-flex;
-  min-width: 42px;
+  min-width: 68px;
   height: 24px;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
@@ -211,15 +211,32 @@
   cursor: pointer;
 }
 
+.comment-like-button {
+  border-color: #b7d7c5;
+  background: #edf8f2;
+  color: #1f7a4d;
+}
+
+.comment-dislike-button {
+  border-color: #f3c8c4;
+  background: #fff1f0;
+  color: #b42318;
+}
+
 .comment-like-button:hover,
 .comment-like-button:focus-visible,
-.comment-like-button.is-liked,
+.comment-like-button.is-liked {
+  border-color: #287666;
+  background: #287666;
+  color: #ffffff;
+}
+
 .comment-dislike-button:hover,
 .comment-dislike-button:focus-visible,
 .comment-dislike-button.is-disliked {
-  border-color: #c9ddcf;
-  background: #ffffff;
-  color: var(--ink);
+  border-color: #b42318;
+  background: #b42318;
+  color: #ffffff;
 }
 
 .comment-like-button:disabled,
@@ -230,7 +247,7 @@
 
 .comment-like-icon,
 .comment-dislike-icon {
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1;
 }
 

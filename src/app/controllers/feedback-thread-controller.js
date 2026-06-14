@@ -109,13 +109,13 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
     const likeButton = document.createElement("button");
     likeButton.className = "comment-like-button";
     likeButton.type = "button";
-    likeButton.setAttribute("aria-label", comment.viewer_has_liked ? "Unlike feedback" : "Like feedback");
+    likeButton.setAttribute("aria-label", comment.viewer_has_liked ? "Remove agreement from feedback" : "Agree with feedback");
     likeButton.setAttribute("aria-pressed", comment.viewer_has_liked ? "true" : "false");
     likeButton.classList.toggle("is-liked", Boolean(comment.viewer_has_liked));
 
     const likeIcon = document.createElement("span");
     likeIcon.className = "comment-like-icon";
-    likeIcon.textContent = "\u{1F44D}";
+    likeIcon.textContent = "agree";
 
     const likeCount = document.createElement("span");
     likeCount.className = "comment-like-count";
@@ -132,14 +132,14 @@ export function createFeedbackThreadController(elements = {}, options = {}) {
     dislikeButton.type = "button";
     dislikeButton.setAttribute(
       "aria-label",
-      comment.viewer_has_disliked ? "Remove dislike from feedback" : "Dislike feedback"
+      comment.viewer_has_disliked ? "Remove disagreement from feedback" : "Disagree with feedback"
     );
     dislikeButton.setAttribute("aria-pressed", comment.viewer_has_disliked ? "true" : "false");
     dislikeButton.classList.toggle("is-disliked", Boolean(comment.viewer_has_disliked));
 
     const dislikeIcon = document.createElement("span");
     dislikeIcon.className = "comment-dislike-icon";
-    dislikeIcon.textContent = "\u{1F44E}";
+    dislikeIcon.textContent = "disagree";
 
     const dislikeCount = document.createElement("span");
     dislikeCount.className = "comment-dislike-count";
