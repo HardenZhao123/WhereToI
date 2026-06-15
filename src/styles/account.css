@@ -288,9 +288,18 @@
 }
 
 @media (max-width: 560px) {
-  .view-account {
-    --account-header-lift: 0px;
-    padding-top: 8px;
+  .account-header {
+    gap: 10px;
+  }
+
+  .account-title h2 {
+    max-width: 118px;
+  }
+}
+
+@media (max-width: 380px) {
+  .account-header .app-logo {
+    display: none;
   }
 }
 
