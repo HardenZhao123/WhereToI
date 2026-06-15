@@ -22,10 +22,6 @@
   margin-bottom: var(--account-header-lift);
 }
 
-.account-header .header-branding {
-  min-width: 0;
-}
-
 .account-title {
   min-width: 0;
 }
@@ -152,6 +148,11 @@
 .settings-action.logout-button:hover,
 .settings-action.logout-button:focus-visible {
   color: #7d1f23;
+}
+
+.account-welcome-section {
+  justify-content: flex-start;
+  margin-top: 18px;
 }
 
 .public-profile-back {
@@ -285,22 +286,6 @@
 
 .history-item[type="button"]:hover strong {
   color: var(--teal);
-}
-
-@media (max-width: 560px) {
-  .account-header {
-    gap: 10px;
-  }
-
-  .account-title h2 {
-    max-width: 118px;
-  }
-}
-
-@media (max-width: 380px) {
-  .account-header .app-logo {
-    display: none;
-  }
 }
 
 .history-item[type="button"]:focus-visible {
