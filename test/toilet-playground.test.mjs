@@ -351,6 +351,7 @@ test("toilet playground can undo the previous scene edit", () => {
 
     playground.setContext({ id: "toilet-a", name: "Toilet A" });
     assert.equal(root.querySelectorAll(".playground-undo-button")[0].attributes.disabled, "disabled");
+    assert.equal(root.querySelectorAll(".playground-redo-button")[0].attributes.disabled, "disabled");
 
     root.querySelectorAll(".dirt-tool[data-dirt-id=\"wet\"]")[0].click();
     root.querySelectorAll(".playground-fixture[data-fixture-id=\"floor\"]")[0].click({ offsetX: 620, offsetY: 430 });
@@ -360,13 +361,35 @@ test("toilet playground can undo the previous scene edit", () => {
     assert.equal(playground.getState().fixtures.floor.length, 1);
     assert.equal(playground.getState().fixtures.toilet.length, 1);
     assert.equal(root.querySelectorAll(".playground-undo-button")[0].attributes.disabled, undefined);
+    assert.equal(root.querySelectorAll(".playground-redo-button")[0].attributes.disabled, "disabled");
 
     root.querySelectorAll(".playground-undo-button")[0].click();
     assert.equal(playground.getState().fixtures.floor.length, 1);
     assert.deepEqual(playground.getState().fixtures.toilet, []);
+    assert.equal(root.querySelectorAll(".playground-redo-button")[0].attributes.disabled, undefined);
+
+    root.querySelectorAll(".playground-redo-button")[0].click();
+    assert.equal(playground.getState().fixtures.floor.length, 1);
+    assert.equal(playground.getState().fixtures.toilet.length, 1);
+    assert.equal(root.querySelectorAll(".playground-redo-button")[0].attributes.disabled, "disabled");
+
+    root.querySelectorAll(".playground-undo-button")[0].click();
+    assert.equal(playground.getState().fixtures.floor.length, 1);
+    assert.deepEqual(playground.getState().fixtures.toilet, []);
+    assert.equal(root.querySelectorAll(".playground-redo-button")[0].attributes.disabled, undefined);
+
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"dust\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"sink\"]")[0].click({ offsetX: 650, offsetY: 300 });
+    assert.equal(root.querySelectorAll(".playground-redo-button")[0].attributes.disabled, "disabled");
+
+    root.querySelectorAll(".playground-undo-button")[0].click();
+    assert.equal(playground.getState().fixtures.floor.length, 1);
+    assert.deepEqual(playground.getState().fixtures.sink, []);
 
     root.querySelectorAll(".playground-undo-button")[0].click();
     assert.deepEqual(playground.getState().fixtures.floor, []);
+    assert.deepEqual(playground.getState().fixtures.toilet, []);
+    assert.deepEqual(playground.getState().fixtures.sink, []);
     assert.equal(root.querySelectorAll(".playground-undo-button")[0].attributes.disabled, "disabled");
   });
 });

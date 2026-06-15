@@ -963,11 +963,30 @@ circle.playground-accessible-sign-symbol {
   margin-top: 4px;
 }
 
+.playground-history-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .playground-actions button {
   width: 100%;
   height: 38px;
   font-size: 12px;
   font-weight: 800;
+}
+
+.playground-undo-button,
+.playground-redo-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.playground-history-icon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .playground-actions button:disabled {

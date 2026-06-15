@@ -1153,7 +1153,28 @@ function ToiletScene({ state, selectedDirt, sceneType, onFixtureDrop, onFixtureS
   return scenePanel;
 }
 
-function StatusPanel({ state, lastAction, sceneType, canUndo, onUndo, onReset, onPrepareUpload }) {
+function createHistoryButton({ className, icon, text, disabled, ariaLabel, onClick }) {
+  const button = createElement("button", {
+    className,
+    attrs: {
+      type: "button",
+      disabled: disabled ? "disabled" : null,
+      "aria-label": ariaLabel
+    }
+  });
+  button.append(
+    createElement("span", {
+      className: "playground-history-icon",
+      text: icon,
+      attrs: { "aria-hidden": "true" }
+    }),
+    createElement("span", { text })
+  );
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function StatusPanel({ state, lastAction, sceneType, canUndo, canRedo, onUndo, onRedo, onReset, onPrepareUpload }) {
   const panel = createElement("aside", {
     className: "playground-status-panel",
     attrs: { "aria-label": "Toilet playground state" }
@@ -1179,16 +1200,24 @@ function StatusPanel({ state, lastAction, sceneType, canUndo, onUndo, onReset, o
   });
 
   const actions = createElement("div", { className: "playground-actions" });
-  const undoButton = createElement("button", {
+  const historyActions = createElement("div", { className: "playground-history-actions" });
+  const undoButton = createHistoryButton({
     className: "outline-button playground-undo-button",
+    icon: "↶",
     text: "Undo",
-    attrs: {
-      type: "button",
-      disabled: canUndo ? null : "disabled",
-      "aria-label": "Undo last scene edit"
-    }
+    disabled: !canUndo,
+    ariaLabel: "Undo last scene edit",
+    onClick: onUndo
   });
-  undoButton.addEventListener("click", onUndo);
+  const redoButton = createHistoryButton({
+    className: "outline-button playground-redo-button",
+    icon: "↷",
+    text: "Redo",
+    disabled: !canRedo,
+    ariaLabel: "Redo last undone scene edit",
+    onClick: onRedo
+  });
+  historyActions.append(undoButton, redoButton);
 
   const resetButton = createElement("button", {
     className: "outline-button playground-reset-button",
@@ -1203,7 +1232,7 @@ function StatusPanel({ state, lastAction, sceneType, canUndo, onUndo, onReset, o
     attrs: { type: "button" }
   });
   uploadButton.addEventListener("click", onPrepareUpload);
-  actions.append(undoButton, resetButton, uploadButton);
+  actions.append(historyActions, resetButton, uploadButton);
 
   panel.append(title, list, liveStatus, actions);
   return panel;
@@ -1277,7 +1306,9 @@ function ToiletPlayground({ state, selectedDirt, toilet, sceneType, availableSce
       lastAction,
       sceneType,
       canUndo: callbacks.canUndo,
+      canRedo: callbacks.canRedo,
       onUndo: callbacks.onUndo,
+      onRedo: callbacks.onRedo,
       onReset: callbacks.onReset,
       onPrepareUpload: callbacks.onPrepareUpload
     })
@@ -1293,6 +1324,7 @@ export function createToiletPlayground(rootElement, options = {}) {
   const defaultSceneKey = `${defaultToiletKey}::${sceneTypes.standard.id}`;
   const sceneStatesByKey = new Map([[defaultSceneKey, createInitialDirtState()]]);
   const sceneHistoryByKey = new Map([[defaultSceneKey, []]]);
+  const sceneRedoHistoryByKey = new Map([[defaultSceneKey, []]]);
   const sceneLastActionsByKey = new Map([[defaultSceneKey, "Ready"]]);
   const sceneTypeByToiletKey = new Map();
 
@@ -1334,8 +1366,20 @@ export function createToiletPlayground(rootElement, options = {}) {
     return sceneHistoryByKey.get(sceneKey);
   }
 
+  function getSceneRedoHistory(sceneKey = activeSceneKey) {
+    if (!sceneRedoHistoryByKey.has(sceneKey)) {
+      sceneRedoHistoryByKey.set(sceneKey, []);
+    }
+
+    return sceneRedoHistoryByKey.get(sceneKey);
+  }
+
   function pushSceneHistory() {
     getSceneHistory().push(cloneSceneState(state));
+  }
+
+  function clearSceneRedoHistory() {
+    getSceneRedoHistory().length = 0;
   }
 
   function setSceneState(nextState) {
@@ -1376,7 +1420,9 @@ export function createToiletPlayground(rootElement, options = {}) {
           onFixtureDrop: placeDirtOnFixture,
           onFixtureSelect: handleFixtureSelect,
           canUndo: getSceneHistory().length > 0,
+          canRedo: getSceneRedoHistory().length > 0,
           onUndo: undo,
+          onRedo: redo,
           onReset: reset,
           onPrepareUpload: prepareUpload
         }
@@ -1432,6 +1478,7 @@ export function createToiletPlayground(rootElement, options = {}) {
     }
 
     pushSceneHistory();
+    clearSceneRedoHistory();
     setSceneState(addDirtToFixture(state, fixtureId, dirtId, point));
     selectedDirt = dirtId;
     const placementCount = getFixturePlacements(state, fixtureId).length;
@@ -1454,8 +1501,20 @@ export function createToiletPlayground(rootElement, options = {}) {
     const previousState = history.pop();
     if (!previousState) return;
 
+    getSceneRedoHistory().push(cloneSceneState(state));
     setSceneState(previousState);
     setSceneLastAction(history.length > 0 ? "Undid last edit" : "Ready");
+    render();
+  }
+
+  function redo() {
+    const redoHistory = getSceneRedoHistory();
+    const nextState = redoHistory.pop();
+    if (!nextState) return;
+
+    pushSceneHistory();
+    setSceneState(nextState);
+    setSceneLastAction("Redid last edit");
     render();
   }
 
@@ -1463,6 +1522,7 @@ export function createToiletPlayground(rootElement, options = {}) {
     if (getScenePlacementCount(state, activeSceneType) > 0) {
       pushSceneHistory();
     }
+    clearSceneRedoHistory();
     setSceneState(createInitialDirtState());
     selectedDirt = null;
     setSceneLastAction("Ready");
@@ -1517,6 +1577,7 @@ export function createToiletPlayground(rootElement, options = {}) {
     getSubmissionSnapshot,
     getState,
     undo,
+    redo,
     reset,
     setSceneType: selectSceneType,
     setContext
