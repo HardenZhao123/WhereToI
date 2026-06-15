@@ -1153,7 +1153,7 @@ function ToiletScene({ state, selectedDirt, sceneType, onFixtureDrop, onFixtureS
   return scenePanel;
 }
 
-function StatusPanel({ state, lastAction, sceneType, onReset, onPrepareUpload }) {
+function StatusPanel({ state, lastAction, sceneType, canUndo, onUndo, onReset, onPrepareUpload }) {
   const panel = createElement("aside", {
     className: "playground-status-panel",
     attrs: { "aria-label": "Toilet playground state" }
@@ -1179,6 +1179,17 @@ function StatusPanel({ state, lastAction, sceneType, onReset, onPrepareUpload })
   });
 
   const actions = createElement("div", { className: "playground-actions" });
+  const undoButton = createElement("button", {
+    className: "outline-button playground-undo-button",
+    text: "Undo",
+    attrs: {
+      type: "button",
+      disabled: canUndo ? null : "disabled",
+      "aria-label": "Undo last scene edit"
+    }
+  });
+  undoButton.addEventListener("click", onUndo);
+
   const resetButton = createElement("button", {
     className: "outline-button playground-reset-button",
     text: "Reset",
@@ -1192,7 +1203,7 @@ function StatusPanel({ state, lastAction, sceneType, onReset, onPrepareUpload })
     attrs: { type: "button" }
   });
   uploadButton.addEventListener("click", onPrepareUpload);
-  actions.append(resetButton, uploadButton);
+  actions.append(undoButton, resetButton, uploadButton);
 
   panel.append(title, list, liveStatus, actions);
   return panel;
@@ -1265,6 +1276,8 @@ function ToiletPlayground({ state, selectedDirt, toilet, sceneType, availableSce
       state,
       lastAction,
       sceneType,
+      canUndo: callbacks.canUndo,
+      onUndo: callbacks.onUndo,
       onReset: callbacks.onReset,
       onPrepareUpload: callbacks.onPrepareUpload
     })
@@ -1279,6 +1292,7 @@ export function createToiletPlayground(rootElement, options = {}) {
   const defaultToiletKey = "__unselected_toilet__";
   const defaultSceneKey = `${defaultToiletKey}::${sceneTypes.standard.id}`;
   const sceneStatesByKey = new Map([[defaultSceneKey, createInitialDirtState()]]);
+  const sceneHistoryByKey = new Map([[defaultSceneKey, []]]);
   const sceneLastActionsByKey = new Map([[defaultSceneKey, "Ready"]]);
   const sceneTypeByToiletKey = new Map();
 
@@ -1288,6 +1302,13 @@ export function createToiletPlayground(rootElement, options = {}) {
   let lastAction = "Ready";
   let activeSceneKey = defaultSceneKey;
   let activeSceneType = sceneTypes.standard;
+
+  function cloneSceneState(sceneState) {
+    return fixtures.reduce((clone, fixture) => {
+      clone[fixture.id] = getFixturePlacements(sceneState, fixture.id).map((placement) => ({ ...placement }));
+      return clone;
+    }, {});
+  }
 
   function getToiletKey(nextToilet = toilet) {
     return nextToilet?.id ? String(nextToilet.id) : defaultToiletKey;
@@ -1303,6 +1324,18 @@ export function createToiletPlayground(rootElement, options = {}) {
     }
 
     return sceneStatesByKey.get(sceneKey);
+  }
+
+  function getSceneHistory(sceneKey = activeSceneKey) {
+    if (!sceneHistoryByKey.has(sceneKey)) {
+      sceneHistoryByKey.set(sceneKey, []);
+    }
+
+    return sceneHistoryByKey.get(sceneKey);
+  }
+
+  function pushSceneHistory() {
+    getSceneHistory().push(cloneSceneState(state));
   }
 
   function setSceneState(nextState) {
@@ -1342,6 +1375,8 @@ export function createToiletPlayground(rootElement, options = {}) {
           onDragEnd: handleDragEnd,
           onFixtureDrop: placeDirtOnFixture,
           onFixtureSelect: handleFixtureSelect,
+          canUndo: getSceneHistory().length > 0,
+          onUndo: undo,
           onReset: reset,
           onPrepareUpload: prepareUpload
         }
@@ -1396,6 +1431,7 @@ export function createToiletPlayground(rootElement, options = {}) {
       return;
     }
 
+    pushSceneHistory();
     setSceneState(addDirtToFixture(state, fixtureId, dirtId, point));
     selectedDirt = dirtId;
     const placementCount = getFixturePlacements(state, fixtureId).length;
@@ -1413,7 +1449,20 @@ export function createToiletPlayground(rootElement, options = {}) {
     placeDirtOnFixture(fixtureId, dirtId, point);
   }
 
+  function undo() {
+    const history = getSceneHistory();
+    const previousState = history.pop();
+    if (!previousState) return;
+
+    setSceneState(previousState);
+    setSceneLastAction(history.length > 0 ? "Undid last edit" : "Ready");
+    render();
+  }
+
   function reset() {
+    if (getScenePlacementCount(state, activeSceneType) > 0) {
+      pushSceneHistory();
+    }
     setSceneState(createInitialDirtState());
     selectedDirt = null;
     setSceneLastAction("Ready");
@@ -1467,6 +1516,7 @@ export function createToiletPlayground(rootElement, options = {}) {
   return {
     getSubmissionSnapshot,
     getState,
+    undo,
     reset,
     setSceneType: selectSceneType,
     setContext

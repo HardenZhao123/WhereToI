@@ -344,6 +344,69 @@ test("toilet playground keeps scene state independent per selected scene type", 
   });
 });
 
+test("toilet playground can undo the previous scene edit", () => {
+  withFakeDom(() => {
+    const root = new FakeElement("div");
+    const playground = createToiletPlayground(root);
+
+    playground.setContext({ id: "toilet-a", name: "Toilet A" });
+    assert.equal(root.querySelectorAll(".playground-undo-button")[0].attributes.disabled, "disabled");
+
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"wet\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"floor\"]")[0].click({ offsetX: 620, offsetY: 430 });
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"stain\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"toilet\"]")[0].click({ offsetX: 140, offsetY: 230 });
+
+    assert.equal(playground.getState().fixtures.floor.length, 1);
+    assert.equal(playground.getState().fixtures.toilet.length, 1);
+    assert.equal(root.querySelectorAll(".playground-undo-button")[0].attributes.disabled, undefined);
+
+    root.querySelectorAll(".playground-undo-button")[0].click();
+    assert.equal(playground.getState().fixtures.floor.length, 1);
+    assert.deepEqual(playground.getState().fixtures.toilet, []);
+
+    root.querySelectorAll(".playground-undo-button")[0].click();
+    assert.deepEqual(playground.getState().fixtures.floor, []);
+    assert.equal(root.querySelectorAll(".playground-undo-button")[0].attributes.disabled, "disabled");
+  });
+});
+
+test("toilet playground undo history is scoped to the current scene type", () => {
+  withFakeDom(() => {
+    const root = new FakeElement("div");
+    const playground = createToiletPlayground(root);
+
+    playground.setContext({
+      id: "multi-toilet",
+      name: "Multi toilet",
+      features: {
+        accessible: "Y",
+        men: "Y",
+        women: "Y"
+      }
+    });
+
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"wet\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"floor\"]")[0].click({ offsetX: 620, offsetY: 430 });
+    assert.equal(playground.getState().sceneType, "accessible");
+    assert.equal(playground.getState().fixtures.floor.length, 1);
+
+    playground.setSceneType("standard");
+    root.querySelectorAll(".dirt-tool[data-dirt-id=\"stain\"]")[0].click();
+    root.querySelectorAll(".playground-fixture[data-fixture-id=\"urinal\"]")[0].click({ offsetX: 410, offsetY: 250 });
+    assert.equal(playground.getState().fixtures.urinal.length, 1);
+
+    root.querySelectorAll(".playground-undo-button")[0].click();
+    assert.deepEqual(playground.getState().fixtures.urinal, []);
+
+    playground.setSceneType("accessible");
+    assert.equal(playground.getState().fixtures.floor.length, 1);
+
+    root.querySelectorAll(".playground-undo-button")[0].click();
+    assert.deepEqual(playground.getState().fixtures.floor, []);
+  });
+});
+
 test("toilet playground supports dirt placement on added scene facilities", () => {
   withFakeDom(() => {
     const root = new FakeElement("div");
