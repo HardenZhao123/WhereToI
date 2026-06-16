@@ -900,6 +900,91 @@ test("map controller opens feedback rating at zero instead of the previous local
   }
 });
 
+test("map controller does not autofocus the feedback textarea on phone layouts", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+
+  const { elementsBySelector, elements } = createMapDetailTestHarness();
+  const { element: overviewVisualPreview } = createPreviewElement();
+  const { element: visualCleanlinessPreview } = createPreviewElement();
+  const overviewVisualState = createTextElement();
+  const visualCleanlinessState = createTextElement();
+  const overviewVisualImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+  const visualCleanlinessImage = {
+    src: "",
+    alt: "",
+    classList: createRecordingClassList()
+  };
+  const commentComposer = createTextElement();
+  commentComposer.hidden = true;
+  commentComposer.classList = createRecordingClassList();
+  const commentComposerToggle = createTextElement();
+  let focusCount = 0;
+  const commentInput = {
+    focus() {
+      focusCount += 1;
+    }
+  };
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    },
+    matchMedia() {
+      return { matches: true };
+    },
+    setTimeout: globalThis.setTimeout
+  };
+  globalThis.requestAnimationFrame = (callback) => {
+    callback();
+    return 1;
+  };
+
+  try {
+    const controller = createMapController({
+      ...elements,
+      commentComposer,
+      commentComposerToggle,
+      commentInput,
+      overviewVisualPreview,
+      overviewVisualImage,
+      overviewVisualState,
+      visualCleanlinessPreview,
+      visualCleanlinessImage,
+      visualCleanlinessState
+    });
+
+    controller.setToilets([createTestToilet()]);
+    await controller.setToilet("test-toilet", { fly: false });
+    controller.toggleCommentComposer();
+
+    assert.equal(commentComposer.hidden, false);
+    assert.equal(commentComposerToggle.textContent, "Hide feedback");
+    assert.equal(focusCount, 0);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+  }
+});
+
 test("map controller renders overview visual from the toilet cleanliness average", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;

@@ -34,6 +34,14 @@ const sortModes = new Set(["distance", "cleanliness", "free", "facilities"]);
 const resultRenderLimit = 8;
 const locateActiveCenterToleranceMetres = 20;
 const defaultCleanlinessRange = "3days";
+const touchCommentComposerQuery = "(hover: none), (pointer: coarse), (max-width: 760px)";
+
+function shouldAutofocusCommentInput() {
+  const matchMedia = globalThis.window?.matchMedia;
+  if (typeof matchMedia !== "function") return true;
+
+  return !matchMedia(touchCommentComposerQuery).matches;
+}
 
 function withStaticAssetVersion(path) {
   if (/[?&]v=/.test(path)) return path;
@@ -613,7 +621,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       feedbackSubmitAttemptedWithoutRating = false;
       renderCleanlinessSurvey(selectedToilet);
       refreshFeedbackSceneStatus();
-      requestAnimationFrame(() => commentInput?.focus());
+      if (shouldAutofocusCommentInput()) {
+        requestAnimationFrame(() => commentInput?.focus());
+      }
     }
   }
 
