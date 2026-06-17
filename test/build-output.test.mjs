@@ -26,7 +26,8 @@ const staticExtensions = new Set([
   ".webm",
   ".webp",
   ".woff",
-  ".woff2"
+  ".woff2",
+  ".webmanifest"
 ]);
 
 async function listFiles(directory) {
@@ -113,9 +114,19 @@ test("production build versions the complete local static asset graph", async ()
     assert.match(indexHtml, new RegExp(`src/logo\\.png\\?v=${testVersion}`));
     assert.match(indexHtml, new RegExp(`src/main\\.js\\?v=${testVersion}`));
     assert.match(indexHtml, new RegExp(`src/styles\\.css\\?v=${testVersion}`));
+    assert.match(indexHtml, new RegExp(`app\\.webmanifest\\?v=${testVersion}`));
+    assert.match(indexHtml, new RegExp(`apple-touch-icon\\.png\\?v=${testVersion}`));
 
     const appConfig = await readFile(join(outputDirectory, "src", "app", "config", "app-config.js"), "utf8");
     assert.match(appConfig, new RegExp(`assetVersion: ["']${testVersion}["']`));
+
+    const serviceWorker = await readFile(join(outputDirectory, "service-worker.js"), "utf8");
+    assert.match(serviceWorker, new RegExp(`const CACHE_VERSION = "${testVersion}"`));
+    assert.doesNotMatch(serviceWorker, /__PRECACHE_MANIFEST__/);
+    assert.match(serviceWorker, new RegExp(`"/src/main\\.js\\?v=${testVersion}"`));
+    assert.match(serviceWorker, new RegExp(`"/src/html/map-view\\.html\\?v=${testVersion}"`));
+    assert.match(serviceWorker, new RegExp(`"/src/assets/icons/icon-512\\.png\\?v=${testVersion}"`));
+    assert.doesNotMatch(serviceWorker, /signup-intro\.mp4/);
   } finally {
     await rm(outputDirectory, { recursive: true, force: true });
   }

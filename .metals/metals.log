@@ -1,0 +1,4 @@
+2026.06.18 00:23:09 WARN  Using H2 2.4.240 which is newer than the version Flyway has been verified with. The latest verified version of H2 is 2.3.232.
+2026.06.18 00:23:09 INFO  no build target found for /Users/hardenzhao/Imperial_Computing_Year_2/WhereToI/android/app/src/main/java/com/wheretoi/app/MainActivity.java. Using fallback presentation compiler.
+2026.06.18 00:23:10 INFO  no build target found for /Users/hardenzhao/Imperial_Computing_Year_2/WhereToI/android/app/src/main/java/com/wheretoi/app/MainActivity.java. Using fallback presentation compiler.
+2026.06.18 00:23:14 INFO  no build target found for /Users/hardenzhao/Imperial_Computing_Year_2/WhereToI/android/app/src/main/java/com/wheretoi/app/MainActivity.java. Using fallback presentation compiler.

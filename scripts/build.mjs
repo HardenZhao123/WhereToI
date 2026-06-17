@@ -1,5 +1,5 @@
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -19,6 +19,18 @@ const VERSIONED_STATIC_EXTENSIONS = new Set([
   ".svg",
   ".webm",
   ".webp",
+  ".woff",
+  ".woff2",
+  ".webmanifest"
+]);
+const PRECACHE_STATIC_EXTENSIONS = new Set([
+  ".css",
+  ".html",
+  ".js",
+  ".json",
+  ".png",
+  ".svg",
+  ".webmanifest",
   ".woff",
   ".woff2"
 ]);
@@ -88,7 +100,11 @@ async function versionStaticAppReferences() {
     ]
   ];
 
-  await rewriteFile(resolve(dist, "index.html"), htmlReferenceReplacers);
+  await Promise.all(
+    ["index.html", "offline.html"].map((file) =>
+      rewriteFile(resolve(dist, file), htmlReferenceReplacers)
+    )
+  );
 
   const jsFiles = (await listFiles(resolve(dist, "src"))).filter((file) => file.endsWith(".js"));
   await Promise.all(
@@ -140,9 +156,39 @@ async function versionStaticAppReferences() {
   );
 }
 
+async function generateServiceWorkerPrecache() {
+  const serviceWorkerPath = resolve(dist, "service-worker.js");
+  const files = await listFiles(dist);
+  const precacheAssets = files
+    .filter((file) => file !== serviceWorkerPath)
+    .filter((file) => PRECACHE_STATIC_EXTENSIONS.has(extname(file).toLowerCase()))
+    .map((file) => relative(dist, file).split(sep).join("/"))
+    .filter((file) => file !== "index.html")
+    .map((file) => `/${file}?v=${assetVersion}`)
+    .sort();
+
+  precacheAssets.unshift("/");
+
+  await rewriteFile(serviceWorkerPath, [
+    [
+      /const CACHE_VERSION = "development";/,
+      `const CACHE_VERSION = "${assetVersion}";`
+    ],
+    [
+      /const PRECACHE_ASSETS = \/\* __PRECACHE_MANIFEST__ \*\/ \[[\s\S]*?\];/,
+      `const PRECACHE_ASSETS = ${JSON.stringify(precacheAssets, null, 2)};`
+    ]
+  ]);
+}
+
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
-await cp(resolve(root, "index.html"), resolve(dist, "index.html"));
+await Promise.all([
+  cp(resolve(root, "index.html"), resolve(dist, "index.html")),
+  cp(resolve(root, "app.webmanifest"), resolve(dist, "app.webmanifest")),
+  cp(resolve(root, "offline.html"), resolve(dist, "offline.html")),
+  cp(resolve(root, "service-worker.js"), resolve(dist, "service-worker.js"))
+]);
 await cp(resolve(root, "src"), resolve(dist, "src"), { recursive: true });
 await rm(resolve(dist, "src", "data", "toilets.csv"), { force: true });
 await versionStaticAppReferences();
@@ -158,5 +204,6 @@ await Promise.all(
       cp(resolve(toiletLevelsSource, entry.name), resolve(toiletLevelsDist, entry.name))
     )
 );
+await generateServiceWorkerPrecache();
 
 console.log("Built static app to dist/");

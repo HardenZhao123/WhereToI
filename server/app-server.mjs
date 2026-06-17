@@ -13,6 +13,7 @@ const STATIC_CONTENT_TYPES = {
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".csv": "text/csv; charset=utf-8",
   ".txt": "text/plain; charset=utf-8",
   ".svg": "image/svg+xml",
@@ -34,8 +35,8 @@ const STATIC_APP_CODE_CACHE_CONTROL = "no-cache, max-age=0, must-revalidate";
 const STATIC_IMAGE_CACHE_CONTROL = "public, max-age=604800, immutable";
 const STATIC_DEV_CACHE_CONTROL = "no-store";
 const STATIC_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".svg"]);
-const STATIC_APP_CODE_EXTENSIONS = new Set([".js", ".css", ".json", ".csv", ".txt"]);
-const COMPRESSIBLE_STATIC_EXTENSIONS = new Set([".html", ".css", ".js", ".json", ".csv", ".txt", ".svg"]);
+const STATIC_APP_CODE_EXTENSIONS = new Set([".js", ".css", ".json", ".webmanifest", ".csv", ".txt"]);
+const COMPRESSIBLE_STATIC_EXTENSIONS = new Set([".html", ".css", ".js", ".json", ".webmanifest", ".csv", ".txt", ".svg"]);
 const COMPRESSION_MIN_BYTES = 1024;
 const responseRequests = new WeakMap();
 
@@ -756,8 +757,13 @@ export async function createAppServer({
         });
       });
     },
-    close() {
-      return new Promise((resolveClose, rejectClose) => {
+    async close() {
+      if (!server.listening) {
+        await database.close?.();
+        return;
+      }
+
+      await new Promise((resolveClose, rejectClose) => {
         server.close((error) => {
           if (error) {
             rejectClose(error);
@@ -765,9 +771,9 @@ export async function createAppServer({
           }
           resolveClose();
         });
-      }).then(async () => {
-        await database.close?.();
+        server.closeAllConnections?.();
       });
+      await database.close?.();
     }
   };
 }
