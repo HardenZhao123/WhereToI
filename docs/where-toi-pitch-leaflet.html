@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WhereToI Project Pitch Leaflet</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --ink: #071711;
+      --body: #263b34;
+      --muted: #587067;
+      --blue: #1648b8;
+      --blue-dark: #0f3185;
+      --mint: #ddeee6;
+      --mint-soft: #f2f8f4;
+      --green: #14945c;
+      --orange: #d95b35;
+      --line: #cbdcd4;
+      --paper: #f8fbf7;
+      --white: #ffffff;
+    }
+
+    body {
+      margin: 0;
+      background: #dfe9e3;
+      color: var(--ink);
+      font-family: Inter, Arial, Helvetica, sans-serif;
+    }
+
+    .sheet {
+      width: 210mm;
+      height: 297mm;
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+      background: var(--paper);
+      box-shadow: 0 8mm 24mm rgba(7, 23, 17, 0.16);
+    }
+
+    .hero {
+      height: 122mm;
+      padding: 13mm 13mm 0;
+      position: relative;
+      background:
+        linear-gradient(90deg, rgba(22, 72, 184, 0.06) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(22, 72, 184, 0.05) 1px, transparent 1px),
+        var(--paper);
+      background-size: 17mm 17mm;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      width: 82mm;
+    }
+
+    .brand-logo {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .kicker {
+      margin-top: 1mm;
+      color: var(--blue);
+      font-weight: 800;
+      font-size: 4.1mm;
+      max-width: 102mm;
+    }
+
+    h1 {
+      margin: 4.5mm 0 0;
+      max-width: 106mm;
+      font-size: 11.4mm;
+      line-height: 1.05;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .intro {
+      margin-top: 4mm;
+      max-width: 96mm;
+      color: var(--body);
+      font-size: 4.1mm;
+      line-height: 1.35;
+      font-weight: 500;
+    }
+
+    .hero-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4mm;
+      width: 118mm;
+      margin-top: 2.2mm;
+    }
+
+    .card {
+      background: var(--white);
+      border: 0.45mm solid var(--line);
+      border-radius: 4.5mm;
+      box-shadow: 0 3mm 8mm rgba(7, 23, 17, 0.08);
+    }
+
+    .mini-card {
+      min-height: 22mm;
+      padding: 3.7mm 4.2mm;
+    }
+
+    .label {
+      color: var(--blue);
+      font-size: 3.1mm;
+      line-height: 1;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .mini-card .label {
+      font-size: 3.5mm;
+    }
+
+    .mini-card p,
+    .value-card p,
+    .impact-card p,
+    .journey-card p {
+      margin: 2.5mm 0 0;
+      color: var(--body);
+      font-size: 3.05mm;
+      line-height: 1.3;
+      font-weight: 560;
+    }
+
+    .mini-card p {
+      margin-top: 2mm;
+      font-size: 3.65mm;
+      line-height: 1.16;
+      font-weight: 820;
+    }
+
+    .touchpoint-shots {
+      position: absolute;
+      top: 10mm;
+      right: 17mm;
+    }
+
+    .shot-card {
+      width: 48mm;
+      margin: 0;
+    }
+
+    .shot-label {
+      margin-bottom: 1.7mm;
+      padding: 1.2mm 2.2mm;
+      border: 0.35mm solid #b8d0f6;
+      border-radius: 4mm;
+      background: #f4f8ff;
+      color: var(--blue);
+      font-size: 2.55mm;
+      line-height: 1.05;
+      font-weight: 900;
+      text-align: center;
+      text-transform: uppercase;
+      box-shadow: 0 1.6mm 4mm rgba(7, 23, 17, 0.08);
+    }
+
+    .shot-frame {
+      width: 48mm;
+      height: 82mm;
+      overflow: hidden;
+      border: 1.2mm solid #071016;
+      border-radius: 8mm;
+      background: #fff;
+      box-shadow: 0 6mm 14mm rgba(7, 23, 17, 0.18);
+    }
+
+    .shot-frame img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: top center;
+    }
+
+    .scene-phone-pair {
+      position: absolute;
+      left: 9mm;
+      bottom: 7mm;
+      width: 88mm;
+      height: 83mm;
+      z-index: 2;
+    }
+
+    .pair-phone {
+      position: absolute;
+      width: 42mm;
+      height: 72mm;
+      overflow: hidden;
+      border: 1.15mm solid #071016;
+      border-radius: 8mm;
+      background: #fff;
+      box-shadow: 0 5mm 12mm rgba(7, 23, 17, 0.2);
+    }
+
+    .pair-phone img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: top center;
+    }
+
+    .pair-phone.back {
+      left: 38mm;
+      top: 2mm;
+      transform: rotate(13deg);
+      transform-origin: 50% 100%;
+    }
+
+    .pair-phone.front {
+      left: 5mm;
+      top: 7mm;
+      transform: rotate(0deg);
+      transform-origin: 50% 100%;
+      z-index: 2;
+    }
+
+    .phone {
+      position: absolute;
+      top: 10mm;
+      right: 18mm;
+      width: 50mm;
+      height: 101mm;
+      border-radius: 10mm;
+      background: #071016;
+      padding: 3.5mm;
+      box-shadow: 0 8mm 18mm rgba(7, 23, 17, 0.22);
+    }
+
+    .screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 7.6mm;
+      position: relative;
+      overflow: hidden;
+      background: #f6f8f5;
+    }
+
+    .status {
+      height: 9.5mm;
+      padding: 3.5mm 4mm 0;
+      font-size: 2.5mm;
+      font-weight: 800;
+      color: var(--ink);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .phone-title {
+      padding: 0 4.2mm;
+      font-size: 4mm;
+      font-weight: 900;
+    }
+
+    .search {
+      margin: 2.5mm 4mm 0;
+      height: 8.8mm;
+      border: 0.35mm solid #c7d6ce;
+      border-radius: 4.4mm;
+      background: #fff;
+      color: #6a7a73;
+      font-size: 2.7mm;
+      line-height: 8.1mm;
+      padding-left: 8.5mm;
+      position: relative;
+    }
+
+    .search::before {
+      content: "";
+      position: absolute;
+      left: 3.2mm;
+      top: 2.4mm;
+      width: 3mm;
+      height: 3mm;
+      border: 0.45mm solid var(--blue);
+      border-radius: 50%;
+    }
+
+    .search::after {
+      content: "";
+      position: absolute;
+      left: 5.7mm;
+      top: 5.2mm;
+      width: 3mm;
+      height: 0.45mm;
+      border-radius: 1mm;
+      background: var(--blue);
+      transform: rotate(39deg);
+    }
+
+    .filters {
+      padding: 3mm 4mm 2mm;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.6mm;
+    }
+
+    .chip {
+      border-radius: 4mm;
+      border: 0.3mm solid #c7d6ce;
+      background: #eaf3ef;
+      padding: 1.3mm 2.4mm;
+      font-size: 2.25mm;
+      font-weight: 760;
+      color: #183229;
+    }
+
+    .chip.active {
+      background: #d9eaff;
+      border-color: #aac9f7;
+      color: var(--blue-dark);
+    }
+
+    .map {
+      height: 40mm;
+      position: relative;
+      overflow: hidden;
+      background:
+        linear-gradient(19deg, transparent 43%, #fff 44%, #fff 46%, transparent 47%),
+        linear-gradient(-13deg, transparent 35%, #d6e4d8 36%, #d6e4d8 38%, transparent 39%),
+        linear-gradient(0deg, transparent 48%, #fff 49%, #fff 51%, transparent 52%),
+        #e8eee7;
+    }
+
+    .pin {
+      position: absolute;
+      width: 5.6mm;
+      height: 7mm;
+      background: var(--green);
+      border: 0.6mm solid #fff;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 1mm 2mm rgba(7, 23, 17, 0.18);
+    }
+
+    .pin::after {
+      content: "";
+      position: absolute;
+      width: 2mm;
+      height: 2mm;
+      left: 1.2mm;
+      top: 1.2mm;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .pin.one { left: 31mm; top: 9mm; background: var(--blue); }
+    .pin.two { left: 39mm; top: 22mm; }
+    .pin.three { left: 19mm; top: 16mm; }
+
+    .location {
+      position: absolute;
+      left: 11mm;
+      top: 23mm;
+      width: 5.5mm;
+      height: 5.5mm;
+      background: #1574d9;
+      border: 1.1mm solid #d8ebff;
+      border-radius: 50%;
+      box-shadow: 0 0 0 3mm rgba(21, 116, 217, 0.14);
+    }
+
+    .result-list {
+      position: absolute;
+      left: 4mm;
+      right: 4mm;
+      bottom: 10mm;
+      padding: 3mm;
+      background: #fff;
+      border: 0.35mm solid #d5e3dc;
+      border-radius: 4.3mm;
+      box-shadow: 0 2mm 6mm rgba(7, 23, 17, 0.12);
+    }
+
+    .result-heading {
+      margin-bottom: 1.8mm;
+      color: #40554d;
+      font-size: 2.3mm;
+      font-weight: 900;
+    }
+
+    .result {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1mm;
+      border-top: 0.25mm solid #edf3ef;
+      padding: 1.7mm 0;
+      font-size: 2.2mm;
+    }
+
+    .result strong {
+      display: block;
+      color: var(--ink);
+      font-size: 2.25mm;
+      line-height: 1.1;
+    }
+
+    .result span {
+      color: var(--muted);
+      font-weight: 650;
+    }
+
+    .rating {
+      color: var(--green);
+      font-weight: 900;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .quote-card {
+      display: none;
+    }
+
+    .quote-card blockquote {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-style: italic;
+      font-size: 5.1mm;
+      line-height: 1.24;
+      color: var(--ink);
+    }
+
+    .quote-card cite {
+      display: block;
+      margin-top: 3mm;
+      color: var(--body);
+      font-size: 3.3mm;
+      font-style: normal;
+      font-weight: 850;
+    }
+
+    .journey {
+      height: 82mm;
+      background: var(--mint);
+      padding: 8mm 13mm;
+      position: relative;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 6.9mm;
+      line-height: 1.05;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .section-subtitle {
+      margin: 2mm 0 0;
+      color: var(--body);
+      font-size: 3.45mm;
+      line-height: 1.3;
+      font-weight: 560;
+    }
+
+    .journey-grid {
+      display: grid;
+      grid-template-columns: 1fr 11mm 1fr 11mm 1fr;
+      gap: 2.6mm;
+      align-items: center;
+      margin-top: 4mm;
+    }
+
+    .journey-card {
+      min-height: 46mm;
+      padding: 4.2mm;
+      position: relative;
+    }
+
+    .journey-title {
+      margin: 0;
+      font-size: 4.5mm;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .journey-icon {
+      float: right;
+      width: 11.5mm;
+      height: 11.5mm;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 5.7mm;
+      font-weight: 900;
+      margin-left: 3mm;
+    }
+
+    .before-icon { background: #ffe8e2; color: var(--orange); }
+    .app-icon { background: #e4efff; color: var(--blue); }
+    .after-icon { background: #e5f7ec; color: var(--green); }
+
+    .arrow {
+      height: 0.8mm;
+      background: var(--blue);
+      position: relative;
+      border-radius: 2mm;
+    }
+
+    .arrow::after {
+      content: "";
+      position: absolute;
+      top: -2.1mm;
+      right: -0.3mm;
+      width: 0;
+      height: 0;
+      border-top: 2.5mm solid transparent;
+      border-bottom: 2.5mm solid transparent;
+      border-left: 4mm solid var(--blue);
+    }
+
+    .chip-line {
+      margin-top: 2.8mm;
+      padding: 1.7mm 2.3mm;
+      border-radius: 5mm;
+      border: 0.35mm solid #c7d9cf;
+      color: #183229;
+      background: #f7fbf8;
+      font-size: 2.45mm;
+      font-weight: 850;
+      text-align: center;
+    }
+
+    .solution {
+      height: 93mm;
+      padding: 11mm 13mm 0;
+      background: #fff;
+      position: relative;
+    }
+
+    .solution-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 4.2mm;
+      align-items: start;
+      margin-top: 3mm;
+      margin-left: 94mm;
+      width: 86mm;
+    }
+
+    .solution-copy {
+      color: var(--body);
+      font-size: 3.35mm;
+      line-height: 1.28;
+      font-weight: 560;
+      margin: 2.5mm 0 0;
+      max-width: 86mm;
+    }
+
+    .value-card {
+      padding: 4.5mm 5mm;
+      background: #f4f8ff;
+      border-color: #b8d0f6;
+    }
+
+    .value-card h3 {
+      margin: 2.4mm 0 0;
+      font-size: 5.45mm;
+      line-height: 1.04;
+      font-weight: 900;
+    }
+
+    .value-card p {
+      font-size: 3.2mm;
+      line-height: 1.24;
+    }
+
+    .impact-row {
+      display: none;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2.2mm;
+      margin-top: 2.2mm;
+      margin-left: 88mm;
+      width: 92mm;
+    }
+
+    .impact-card {
+      min-height: 17mm;
+      padding: 2.2mm 3mm;
+      border-radius: 4.5mm;
+    }
+
+    .impact-card h4 {
+      margin: 0 0 1mm;
+      font-size: 3mm;
+      line-height: 1.04;
+      font-weight: 900;
+    }
+
+    .impact-card p {
+      font-size: 2.35mm;
+      line-height: 1.18;
+      margin-top: 0;
+    }
+
+    .impact-card:nth-child(1) { background: #edf6f1; }
+    .impact-card:nth-child(2) { background: #fff4df; }
+    .impact-card:nth-child(3) { background: #edf6f1; }
+    .impact-card:nth-child(4) { background: #f3f7ff; }
+
+    .rubric {
+      display: none;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .sheet {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet" aria-label="WhereToI Project Pitch Leaflet">
+    <section class="hero">
+      <div class="brand">
+        <img class="brand-logo" src="assets/wheretoi-logo-horizontal.png" alt="WhereToI">
+      </div>
+
+      <h1>Know if it's clean before you arrive.</h1>
+      <p class="intro">WhereToI helps hygiene-conscious people in unfamiliar parts of London compare nearby public toilets by cleanliness, distance, filters and recent feedback before walking there.</p>
+
+      <div class="hero-cards">
+        <article class="card mini-card">
+          <div class="label">Problem</div>
+          <p>In unfamiliar areas of London, people may find a public toilet nearby but only discover cleanliness issues after arriving.</p>
+        </article>
+        <article class="card mini-card">
+          <div class="label">Target users</div>
+          <p>Hygiene-conscious people navigating unfamiliar parts of London</p>
+        </article>
+      </div>
+
+      <div class="touchpoint-shots" aria-label="WhereToI touchpoint screenshots">
+        <figure class="shot-card">
+          <figcaption class="shot-label">Find clean toilets nearby</figcaption>
+          <div class="shot-frame">
+            <img src="assets/wheretoi-map-current.jpg" alt="WhereToI map screenshot showing toilet locations and cleanliness rating legend">
+          </div>
+        </figure>
+      </div>
+
+      <aside class="card quote-card">
+        <blockquote>"I can plan my day without worrying about finding a clean toilet."</blockquote>
+        <cite>- Aisha, 22, exchange student in London</cite>
+      </aside>
+    </section>
+
+    <section class="journey">
+      <h2 class="section-title">From dirty surprise to confident choice</h2>
+      <p class="section-subtitle">The key user journey is simple: check cleanliness before committing to the walk.</p>
+
+      <div class="journey-grid">
+        <article class="card journey-card">
+          <div class="journey-icon before-icon">?</div>
+          <h3 class="journey-title">Before</h3>
+          <p>"I can locate a public toilet, but I may only discover it is dirty after I get there."</p>
+          <div class="chip-line">Known location. Unknown hygiene.</div>
+        </article>
+        <div class="arrow" aria-hidden="true"></div>
+        <article class="card journey-card">
+          <div class="journey-icon app-icon">i</div>
+          <h3 class="journey-title">WhereToI</h3>
+          <p>Search nearby public toilets, filter by needs, sort by distance, then compare cleanliness ratings and recent feedback.</p>
+          <div class="chip-line">Cleanliness + distance + suitability</div>
+        </article>
+        <div class="arrow" aria-hidden="true"></div>
+        <article class="card journey-card">
+          <div class="journey-icon after-icon">ok</div>
+          <h3 class="journey-title">After</h3>
+          <p>"I choose a clean, suitable toilet before walking there, so I avoid an unpleasant surprise."</p>
+          <div class="chip-line">Cleanliness evidence before arrival</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="solution">
+      <div class="scene-phone-pair" aria-label="Interactive scene screenshots">
+        <div class="pair-phone back">
+          <img src="assets/wheretoi-feedback-current.jpg" alt="WhereToI feedback screen showing reported toilet cleanliness details">
+        </div>
+        <div class="pair-phone front">
+          <img src="assets/wheretoi-interactive-current.jpg" alt="WhereToI interactive scene screen showing cleanliness categories for a toilet">
+        </div>
+      </div>
+
+      <div class="solution-layout">
+        <div>
+          <h2 class="section-title">Cleanliness before arrival</h2>
+          <p class="solution-copy">WhereToI turns a risky toilet choice into a quick evidence-based decision: check the area, set hygiene and access needs, compare recent reports, then choose before leaving your route.</p>
+        </div>
+        <article class="card value-card">
+          <div class="label">Value proposition</div>
+          <h3>Find a clean public toilet before you walk there.</h3>
+          <p>Built for moments when an unfamiliar place makes hygiene uncertainty stressful.</p>
+        </article>
+      </div>
+
+      <div class="impact-row" aria-label="Direct impact for users">
+        <article class="impact-card">
+          <h4>Saves time</h4>
+          <p>Choose faster without checking toilets one by one.</p>
+        </article>
+        <article class="impact-card">
+          <h4>Reduces stress</h4>
+          <p>Cleanliness information is visible before arrival.</p>
+        </article>
+        <article class="impact-card">
+          <h4>Healthier choices</h4>
+          <p>Avoid unsuitable facilities when hygiene matters.</p>
+        </article>
+        <article class="impact-card">
+          <h4>More freedom</h4>
+          <p>Stay out longer in new areas with confidence.</p>
+        </article>
+      </div>
+    </section>
+
+    <div class="rubric">Project name &bull; target audience &bull; problem statement &bull; solution proposition &bull; before/after touchpoint mock-up</div>
+
+  </main>
+</body>
+</html>
