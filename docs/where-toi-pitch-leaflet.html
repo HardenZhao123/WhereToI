@@ -60,24 +60,17 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 4mm;
+      width: 82mm;
     }
 
-    .logo {
-      width: 15mm;
-      height: 15mm;
-      flex: 0 0 auto;
-    }
-
-    .brand-name {
-      font-size: 12.8mm;
-      line-height: 1;
-      font-weight: 900;
-      letter-spacing: 0;
+    .brand-logo {
+      display: block;
+      width: 100%;
+      height: auto;
     }
 
     .kicker {
-      margin-top: 2mm;
+      margin-top: 1mm;
       color: var(--blue);
       font-weight: 800;
       font-size: 4.1mm;
@@ -85,7 +78,7 @@
     }
 
     h1 {
-      margin: 6mm 0 0;
+      margin: 4.5mm 0 0;
       max-width: 106mm;
       font-size: 11.4mm;
       line-height: 1.05;
@@ -94,7 +87,7 @@
     }
 
     .intro {
-      margin-top: 5mm;
+      margin-top: 4mm;
       max-width: 96mm;
       color: var(--body);
       font-size: 4.1mm;
@@ -105,9 +98,9 @@
     .hero-cards {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 3mm;
-      width: 104mm;
-      margin-top: 2mm;
+      gap: 4mm;
+      width: 118mm;
+      margin-top: 2.2mm;
     }
 
     .card {
@@ -118,8 +111,8 @@
     }
 
     .mini-card {
-      min-height: 13mm;
-      padding: 2.2mm 3mm;
+      min-height: 22mm;
+      padding: 3.7mm 4.2mm;
     }
 
     .label {
@@ -131,14 +124,7 @@
     }
 
     .mini-card .label {
-      font-size: 2.6mm;
-    }
-
-    .mini-card p {
-      margin-top: 1.2mm;
-      font-size: 2.65mm;
-      line-height: 1.16;
-      font-weight: 780;
+      font-size: 3.5mm;
     }
 
     .mini-card p,
@@ -153,10 +139,10 @@
     }
 
     .mini-card p {
-      margin-top: 1.2mm;
-      font-size: 2.65mm;
+      margin-top: 2mm;
+      font-size: 3.65mm;
       line-height: 1.16;
-      font-weight: 780;
+      font-weight: 820;
     }
 
     .touchpoint-shots {
@@ -166,7 +152,7 @@
     }
 
     .shot-card {
-      width: 45mm;
+      width: 48mm;
       margin: 0;
     }
 
@@ -186,8 +172,8 @@
     }
 
     .shot-frame {
-      width: 45mm;
-      height: 90mm;
+      width: 48mm;
+      height: 82mm;
       overflow: hidden;
       border: 1.2mm solid #071016;
       border-radius: 8mm;
@@ -199,26 +185,26 @@
       display: block;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       object-position: top center;
     }
 
     .scene-phone-pair {
       position: absolute;
-      left: 12mm;
-      bottom: 1mm;
-      width: 74mm;
-      height: 70mm;
+      left: 9mm;
+      bottom: 7mm;
+      width: 88mm;
+      height: 83mm;
       z-index: 2;
     }
 
     .pair-phone {
       position: absolute;
-      width: 32mm;
-      height: 68mm;
+      width: 42mm;
+      height: 72mm;
       overflow: hidden;
       border: 1.15mm solid #071016;
-      border-radius: 7.4mm;
+      border-radius: 8mm;
       background: #fff;
       box-shadow: 0 5mm 12mm rgba(7, 23, 17, 0.2);
     }
@@ -227,20 +213,20 @@
       display: block;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       object-position: top center;
     }
 
     .pair-phone.back {
-      left: 28mm;
-      top: -2mm;
+      left: 38mm;
+      top: 2mm;
       transform: rotate(13deg);
       transform-origin: 50% 100%;
     }
 
     .pair-phone.front {
-      left: 6mm;
-      top: 5mm;
+      left: 5mm;
+      top: 7mm;
       transform: rotate(0deg);
       transform-origin: 50% 100%;
       z-index: 2;
@@ -552,8 +538,8 @@
     }
 
     .solution {
-      height: 73mm;
-      padding: 7mm 13mm 0;
+      height: 93mm;
+      padding: 11mm 13mm 0;
       background: #fff;
       position: relative;
     }
@@ -561,33 +547,38 @@
     .solution-layout {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 3.2mm;
+      gap: 4.2mm;
       align-items: start;
-      margin-top: 0;
-      margin-left: 88mm;
-      width: 92mm;
+      margin-top: 3mm;
+      margin-left: 94mm;
+      width: 86mm;
     }
 
     .solution-copy {
       color: var(--body);
-      font-size: 3.05mm;
-      line-height: 1.22;
+      font-size: 3.35mm;
+      line-height: 1.28;
       font-weight: 560;
-      margin: 2mm 0 0;
-      max-width: 92mm;
+      margin: 2.5mm 0 0;
+      max-width: 86mm;
     }
 
     .value-card {
-      padding: 3.2mm 4mm;
+      padding: 4.5mm 5mm;
       background: #f4f8ff;
       border-color: #b8d0f6;
     }
 
     .value-card h3 {
-      margin: 2mm 0 0;
-      font-size: 4.8mm;
+      margin: 2.4mm 0 0;
+      font-size: 5.45mm;
       line-height: 1.04;
       font-weight: 900;
+    }
+
+    .value-card p {
+      font-size: 3.2mm;
+      line-height: 1.24;
     }
 
     .impact-row {
@@ -623,63 +614,6 @@
     .impact-card:nth-child(3) { background: #edf6f1; }
     .impact-card:nth-child(4) { background: #f3f7ff; }
 
-    .footer {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 20mm;
-      background: var(--blue);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 13mm;
-    }
-
-    .footer h2 {
-      margin: 0;
-      font-size: 6.2mm;
-      line-height: 1;
-      font-weight: 900;
-    }
-
-    .footer p {
-      margin: 2mm 0 0;
-      max-width: 123mm;
-      color: #d9e9ff;
-      font-size: 3.4mm;
-      line-height: 1.2;
-      font-weight: 520;
-    }
-
-    .qr-wrap {
-      display: flex;
-      align-items: center;
-      gap: 4mm;
-    }
-
-    .qr {
-      width: 15mm;
-      height: 15mm;
-      padding: 1.7mm;
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      gap: 0.7mm;
-      background: #fff;
-      border-radius: 2mm;
-    }
-
-    .qr i {
-      display: block;
-      background: var(--ink);
-      border-radius: 0.3mm;
-    }
-
-    .qr i.blank {
-      background: transparent;
-    }
-
     .rubric {
       display: none;
     }
@@ -699,26 +633,20 @@
   <main class="sheet" aria-label="WhereToI Project Pitch Leaflet">
     <section class="hero">
       <div class="brand">
-        <svg class="logo" viewBox="0 0 72 72" fill="none" aria-hidden="true">
-          <path d="M36 5C23.6 5 13.5 15.1 13.5 27.5C13.5 44.4 36 67 36 67C36 67 58.5 44.4 58.5 27.5C58.5 15.1 48.4 5 36 5Z" fill="#1648B8"/>
-          <circle cx="36" cy="27" r="13" fill="white"/>
-          <path d="M28 23H45L35 43" stroke="#1648B8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <div class="brand-name">WhereToI</div>
+        <img class="brand-logo" src="assets/wheretoi-logo-horizontal.png" alt="WhereToI">
       </div>
 
-      <div class="kicker">For cleanliness-aware people navigating unfamiliar places</div>
-      <h1>Confidence in cleanliness when you need it most.</h1>
-      <p class="intro">WhereToI helps users find nearby toilets they can trust before they start walking, using cleanliness ratings, filters, distance and recent feedback.</p>
+      <h1>Know if it's clean before you arrive.</h1>
+      <p class="intro">WhereToI helps hygiene-conscious people in unfamiliar parts of London compare nearby public toilets by cleanliness, distance, filters and recent feedback before walking there.</p>
 
       <div class="hero-cards">
         <article class="card mini-card">
           <div class="label">Problem</div>
-          <p>The nearest toilet may not be clean or usable.</p>
+          <p>Toilets are findable, but cleanliness is discovered too late.</p>
         </article>
         <article class="card mini-card">
           <div class="label">Target users</div>
-          <p>Cleanliness-aware users in unfamiliar areas.</p>
+          <p>Hygiene-conscious people in unfamiliar London.</p>
         </article>
       </div>
 
@@ -726,7 +654,7 @@
         <figure class="shot-card">
           <figcaption class="shot-label">Find clean toilets nearby</figcaption>
           <div class="shot-frame">
-            <img src="assets/wheretoi-map-screenshot.jpg" alt="WhereToI map screenshot showing toilet locations and cleanliness rating legend">
+            <img src="assets/wheretoi-map-current.jpg" alt="WhereToI map screenshot showing toilet locations and cleanliness rating legend">
           </div>
         </figure>
       </div>
@@ -738,29 +666,29 @@
     </section>
 
     <section class="journey">
-      <h2 class="section-title">From uncertainty to a confident choice</h2>
-      <p class="section-subtitle">The key user journey is simple: check cleanliness before committing to a route.</p>
+      <h2 class="section-title">From dirty surprise to confident choice</h2>
+      <p class="section-subtitle">The key user journey is simple: check cleanliness before committing to the walk.</p>
 
       <div class="journey-grid">
         <article class="card journey-card">
           <div class="journey-icon before-icon">?</div>
           <h3 class="journey-title">Before</h3>
-          <p>"I am in an unfamiliar area. The closest toilet might be dirty, unsuitable or a wasted walk."</p>
-          <div class="chip-line">Uncertainty causes stress and detours</div>
+          <p>"I can locate a public toilet, but I may only discover it is dirty after I get there."</p>
+          <div class="chip-line">Known location. Unknown hygiene.</div>
         </article>
         <div class="arrow" aria-hidden="true"></div>
         <article class="card journey-card">
           <div class="journey-icon app-icon">i</div>
           <h3 class="journey-title">WhereToI</h3>
-          <p>Search nearby toilets, filter by needs, sort by distance, then compare cleanliness ratings and recent feedback.</p>
+          <p>Search nearby public toilets, filter by needs, sort by distance, then compare cleanliness ratings and recent feedback.</p>
           <div class="chip-line">Cleanliness + distance + suitability</div>
         </article>
         <div class="arrow" aria-hidden="true"></div>
         <article class="card journey-card">
           <div class="journey-icon after-icon">ok</div>
           <h3 class="journey-title">After</h3>
-          <p>"I choose a clean, suitable toilet nearby before I move, so I can keep going with confidence."</p>
-          <div class="chip-line">Less anxiety. Fewer wasted journeys.</div>
+          <p>"I choose a clean, suitable toilet before walking there, so I avoid an unpleasant surprise."</p>
+          <div class="chip-line">Cleanliness evidence before arrival</div>
         </article>
       </div>
     </section>
@@ -768,22 +696,22 @@
     <section class="solution">
       <div class="scene-phone-pair" aria-label="Interactive scene screenshots">
         <div class="pair-phone back">
-          <img src="assets/wheretoi-feedback-scene-screenshot.jpg" alt="WhereToI feedback screen showing reported toilet cleanliness details">
+          <img src="assets/wheretoi-feedback-current.jpg" alt="WhereToI feedback screen showing reported toilet cleanliness details">
         </div>
         <div class="pair-phone front">
-          <img src="assets/wheretoi-interactive-scene-screenshot.jpg" alt="WhereToI interactive scene screen showing cleanliness categories for a toilet">
+          <img src="assets/wheretoi-interactive-current.jpg" alt="WhereToI interactive scene screen showing cleanliness categories for a toilet">
         </div>
       </div>
 
       <div class="solution-layout">
         <div>
-          <h2 class="section-title">Clear, specific solution</h2>
-          <p class="solution-copy">WhereToI turns toilet choice into a quick cleanliness decision: search the area, set personal needs, compare hygiene evidence, and pick a reliable option before leaving your route.</p>
+          <h2 class="section-title">Cleanliness before arrival</h2>
+          <p class="solution-copy">WhereToI turns a risky toilet choice into a quick evidence-based decision: check the area, set hygiene and access needs, compare recent reports, then choose before leaving your route.</p>
         </div>
         <article class="card value-card">
           <div class="label">Value proposition</div>
-          <h3>Find a clean, suitable toilet before you commit to a route.</h3>
-          <p>Built for moments when uncertainty changes whether someone feels comfortable staying out.</p>
+          <h3>Find a clean public toilet before you walk there.</h3>
+          <p>Built for moments when an unfamiliar place makes hygiene uncertainty stressful.</p>
         </article>
       </div>
 
@@ -809,29 +737,6 @@
 
     <div class="rubric">Project name &bull; target audience &bull; problem statement &bull; solution proposition &bull; before/after touchpoint mock-up</div>
 
-    <footer class="footer">
-      <div>
-        <h2>Try WhereToI at the tech fair</h2>
-        <p>A cleaner, calmer way to navigate the city when you need a toilet you can trust.</p>
-      </div>
-      <div class="qr-wrap" aria-label="QR code placeholder">
-        <div class="qr">
-          <i></i><i></i><i></i><i class="blank"></i><i></i><i class="blank"></i><i></i><i></i>
-          <i></i><i class="blank"></i><i></i><i class="blank"></i><i class="blank"></i><i></i><i class="blank"></i><i></i>
-          <i></i><i></i><i></i><i></i><i class="blank"></i><i></i><i></i><i class="blank"></i>
-          <i class="blank"></i><i class="blank"></i><i></i><i class="blank"></i><i></i><i class="blank"></i><i class="blank"></i><i></i>
-          <i></i><i class="blank"></i><i class="blank"></i><i></i><i></i><i></i><i class="blank"></i><i class="blank"></i>
-          <i class="blank"></i><i></i><i></i><i class="blank"></i><i class="blank"></i><i></i><i></i><i></i>
-          <i></i><i class="blank"></i><i></i><i></i><i class="blank"></i><i class="blank"></i><i></i><i class="blank"></i>
-          <i></i><i></i><i class="blank"></i><i class="blank"></i><i></i><i></i><i class="blank"></i><i></i>
-        </div>
-        <svg class="logo" viewBox="0 0 72 72" fill="none" aria-hidden="true">
-          <path d="M36 5C23.6 5 13.5 15.1 13.5 27.5C13.5 44.4 36 67 36 67C36 67 58.5 44.4 58.5 27.5C58.5 15.1 48.4 5 36 5Z" fill="#ffffff"/>
-          <circle cx="36" cy="27" r="13" fill="#1648B8"/>
-          <path d="M28 23H45L35 43" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-    </footer>
   </main>
 </body>
 </html>
