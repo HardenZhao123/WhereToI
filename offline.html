@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fbfcf7" />
+    <title>WhereToI is offline</title>
+    <style>
+      :root {
+        color: #1f2a33;
+        background: #f3f1eb;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        display: grid;
+        min-height: 100dvh;
+        margin: 0;
+        place-items: center;
+      }
+
+      main {
+        width: min(420px, calc(100% - 40px));
+        padding: 28px;
+        border: 1px solid #cfd7cd;
+        border-radius: 18px;
+        background: #fffffb;
+        box-shadow: 0 18px 48px rgb(31 42 51 / 12%);
+        text-align: center;
+      }
+
+      img {
+        width: 82px;
+        height: 82px;
+        object-fit: contain;
+      }
+
+      h1 {
+        margin: 16px 0 8px;
+        font-size: 22px;
+      }
+
+      p {
+        margin: 0 0 20px;
+        color: #64717f;
+        line-height: 1.5;
+      }
+
+      button {
+        min-width: 132px;
+        min-height: 44px;
+        border: 0;
+        border-radius: 999px;
+        color: white;
+        background: #287666;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/src/assets/icons/icon-192.png" alt="" />
+      <h1>You are offline</h1>
+      <p>Reconnect to load live toilet information, map tiles, directions, and account features.</p>
+      <button type="button" onclick="window.location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WhereToI</string>
+    <string name="load_error_title">WhereToI could not load</string>
+    <string name="load_error_detail">The app could not reach WhereToI: %1$s</string>
+    <string name="http_error_detail">The WhereToI server returned HTTP %1$d.</string>
+    <string name="secure_connection_error">A secure connection to WhereToI could not be established.</string>
+    <string name="load_timeout">WhereToI is taking too long to respond. Check your connection or try opening the website in your browser.</string>
+    <string name="retry">Try again</string>
+    <string name="open_in_browser">Open in browser</string>
+</resources>

@@ -1,0 +1,34 @@
+{
+  "id": "/",
+  "name": "WhereToI",
+  "short_name": "WhereToI",
+  "description": "Find nearby toilets and compare access, facilities, cleanliness, and recent feedback.",
+  "lang": "en",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f3f1eb",
+  "theme_color": "#fbfcf7",
+  "categories": ["navigation", "utilities", "lifestyle"],
+  "icons": [
+    {
+      "src": "/src/assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/src/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/src/assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

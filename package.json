@@ -7,6 +7,7 @@
     "dev": "node --disable-warning=ExperimentalWarning scripts/dev-server.mjs",
     "start": "node --disable-warning=ExperimentalWarning scripts/dev-server.mjs",
     "build": "node scripts/build.mjs",
+    "android:apk": "node scripts/build-android-apk.mjs",
     "check": "node scripts/check.mjs",
     "check:browser": "playwright test",
     "repair:postgres": "node --disable-warning=ExperimentalWarning scripts/repair-postgres.mjs",

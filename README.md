@@ -107,12 +107,55 @@ Then open / 然后打开：
 http://localhost:4173
 ```
 
+### Android APK / 安卓 APK
+
+Build an installable development APK / 构建可安装的开发测试 APK：
+
+```bash
+npm run android:apk
+```
+
+The APK is written to `artifacts/WhereToI-<version>-debug.apk`, with
+`artifacts/WhereToI-debug.apk` kept as a latest-build alias. It supports Android 8.0
+and newer, loads the HTTPS production site, preserves login cookies, requests
+location permission when needed, and opens external directions in a suitable
+Android app.
+
+APK 输出位置为 `artifacts/WhereToI-debug.apk`。它支持 Android 8.0 及以上版本，
+会加载 HTTPS 线上网站、保留登录 Cookie、在需要时申请定位权限，并使用安卓应用打开
+外部导航链接。手机侧载时需要允许浏览器或文件管理器“安装未知应用”。
+
+This debug APK is suitable for direct testing, not public distribution. A
+public release must be rebuilt with a private release keystore that is backed
+up securely. The APK requires an internet connection for live toilet data,
+map tiles, account actions, and directions.
+
+这个 debug APK 适合直接测试，不适合公开发布。正式版必须使用妥善备份的私有 release
+keystore 重新签名。实时厕所数据、地图、账户操作和导航仍然需要网络连接。
+
+### Install the PWA on Android
+
+The production site is configured as an installable Progressive Web App. After
+deploying the latest build over HTTPS, open the site in Chrome on Android and
+choose **Install app** from the browser menu. WhereToI then opens in its own
+standalone window and appears in the Android app launcher.
+
+The production build generates a versioned offline app shell automatically.
+Live map tiles, toilet data, directions, and account actions still require a
+network connection.
+
+Publishing the same app through Google Play is a separate signing step: wrap
+the deployed PWA in a Trusted Web Activity, configure Digital Asset Links for
+the production domain, and upload the signed Android App Bundle through Play
+Console.
+
 Useful checks / 常用检查：
 
 ```bash
 npm run check
 npm test
 npm run build
+npm run android:apk
 npm run check:e2e
 ```
 

@@ -3,6 +3,26 @@ import { dirname, resolve } from "node:path";
 
 const requiredFiles = [
   "index.html",
+  "app.webmanifest",
+  "offline.html",
+  "service-worker.js",
+  "android/settings.gradle",
+  "android/build.gradle",
+  "android/gradle.properties",
+  "android/gradlew",
+  "android/gradle/wrapper/gradle-wrapper.jar",
+  "android/gradle/wrapper/gradle-wrapper.properties",
+  "android/app/build.gradle",
+  "android/app/src/main/AndroidManifest.xml",
+  "android/app/src/main/java/com/wheretoi/app/MainActivity.java",
+  "android/app/src/main/res/drawable-nodpi/app_icon.png",
+  "android/app/src/main/res/values/strings.xml",
+  "android/app/src/main/res/values/styles.xml",
+  "scripts/build-android-apk.mjs",
+  "src/assets/icons/apple-touch-icon.png",
+  "src/assets/icons/icon-192.png",
+  "src/assets/icons/icon-512.png",
+  "src/assets/icons/icon-maskable-512.png",
   "src/main.js",
   "src/app/app.js",
   "src/app/html-includes.js",
@@ -97,8 +117,47 @@ const app = await readFile("src/app/app.js", "utf8");
 const toiletsService = await readFile("src/app/services/toilets-service.js", "utf8");
 const buildScript = await readFile("scripts/build.mjs", "utf8");
 const renderConfig = await readFile("render.yaml", "utf8");
+const manifest = JSON.parse(await readFile("app.webmanifest", "utf8"));
+const serviceWorker = await readFile("service-worker.js", "utf8");
+const packageJson = JSON.parse(await readFile("package.json", "utf8"));
+const androidManifest = await readFile("android/app/src/main/AndroidManifest.xml", "utf8");
+const androidActivity = await readFile("android/app/src/main/java/com/wheretoi/app/MainActivity.java", "utf8");
 const jsFiles = requiredFiles.filter((file) => file.startsWith("src/") && file.endsWith(".js"));
 const js = (await Promise.all(jsFiles.map((file) => readFile(file, "utf8")))).join("\n");
+
+if (
+  manifest.display !== "standalone" ||
+  manifest.start_url !== "/?source=pwa" ||
+  !Array.isArray(manifest.icons) ||
+  !manifest.icons.some((icon) => icon.sizes === "192x192") ||
+  !manifest.icons.some((icon) => icon.sizes === "512x512") ||
+  !manifest.icons.some((icon) => String(icon.purpose).includes("maskable"))
+) {
+  throw new Error("Expected an Android-installable web app manifest with standard and maskable icons.");
+}
+
+if (
+  !html.includes('rel="manifest"') ||
+  !html.includes('name="theme-color"') ||
+  !js.includes('navigator.serviceWorker.register("/service-worker.js")') ||
+  !serviceWorker.includes('url.pathname.startsWith("/api/")') ||
+  !serviceWorker.includes('caches.match("/offline.html")')
+) {
+  throw new Error("Expected PWA metadata, service worker registration, private API exclusion, and offline fallback.");
+}
+
+if (
+  packageJson.scripts?.["android:apk"] !== "node scripts/build-android-apk.mjs" ||
+  !androidManifest.includes("android.permission.INTERNET") ||
+  !androidManifest.includes("android.permission.ACCESS_FINE_LOCATION") ||
+  !androidManifest.includes('android:usesCleartextTraffic="false"') ||
+  !androidActivity.includes('APP_ORIGIN = "https://wheretoi-webapp.onrender.com"') ||
+  !androidActivity.includes("setAcceptThirdPartyCookies(webView, false)") ||
+  !androidActivity.includes("onGeolocationPermissionsShowPrompt") ||
+  !androidActivity.includes("Intent.ACTION_VIEW")
+) {
+  throw new Error("Expected a secure Android WebView shell with network, location, cookies, and external navigation support.");
+}
 
 const requiredCopy = [
   "Map",

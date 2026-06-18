@@ -42,5 +42,13 @@ data/*.sqlite-wal
 test-results/
 playwright-report/
 
+# Android
+.android-tools/
+android/.gradle/
+android/build/
+android/local.properties
+android/app/build/
+artifacts/
+
 
 .vscode/
