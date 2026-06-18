@@ -99,7 +99,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 4mm;
-      width: 118mm;
+      width: 106mm;
       margin-top: 2.2mm;
     }
 
@@ -111,8 +111,8 @@
     }
 
     .mini-card {
-      min-height: 22mm;
-      padding: 3.7mm 4.2mm;
+      min-height: 42mm;
+      padding: 5.2mm 5.3mm;
     }
 
     .label {
@@ -124,7 +124,7 @@
     }
 
     .mini-card .label {
-      font-size: 3.5mm;
+      font-size: 4.5mm;
     }
 
     .mini-card p,
@@ -139,20 +139,27 @@
     }
 
     .mini-card p {
-      margin-top: 2mm;
-      font-size: 3.65mm;
-      line-height: 1.16;
+      margin-top: 2.8mm;
+      font-size: 4.45mm;
+      line-height: 1.2;
       font-weight: 820;
     }
 
     .touchpoint-shots {
       position: absolute;
       top: 10mm;
-      right: 17mm;
+      right: 7mm;
+      width: 83mm;
+    }
+
+    .shot-pair {
+      display: grid;
+      grid-template-columns: repeat(2, 40.5mm);
+      gap: 2mm;
     }
 
     .shot-card {
-      width: 48mm;
+      width: 40.5mm;
       margin: 0;
     }
 
@@ -172,8 +179,8 @@
     }
 
     .shot-frame {
-      width: 48mm;
-      height: 82mm;
+      width: 40.5mm;
+      height: 77mm;
       overflow: hidden;
       border: 1.2mm solid #071016;
       border-radius: 8mm;
@@ -637,8 +644,6 @@
       </div>
 
       <h1>Know if it's clean before you arrive.</h1>
-      <p class="intro">WhereToI helps hygiene-conscious people in unfamiliar parts of London compare nearby public toilets by cleanliness, distance and recent feedback.</p>
-
       <div class="hero-cards">
         <article class="card mini-card">
           <div class="label">Problem</div>
@@ -651,12 +656,19 @@
       </div>
 
       <div class="touchpoint-shots" aria-label="WhereToI touchpoint screenshots">
-        <figure class="shot-card">
-          <figcaption class="shot-label">Find clean toilets nearby</figcaption>
-          <div class="shot-frame">
-            <img src="assets/wheretoi-map-current.jpg" alt="WhereToI map screenshot showing toilet locations and cleanliness rating legend">
-          </div>
-        </figure>
+        <div class="shot-label">Find clean toilets nearby</div>
+        <div class="shot-pair">
+          <figure class="shot-card">
+            <div class="shot-frame">
+              <img src="assets/wheretoi-map-current.jpg" alt="WhereToI map screenshot showing toilet locations and cleanliness rating legend">
+            </div>
+          </figure>
+          <figure class="shot-card">
+            <div class="shot-frame">
+              <img src="assets/wheretoi-map-search-current.jpg" alt="WhereToI map screen showing search filters and nearby toilets sorted by cleanliness">
+            </div>
+          </figure>
+        </div>
       </div>
 
       <aside class="card quote-card">
