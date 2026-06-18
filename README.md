@@ -115,7 +115,8 @@ Build an installable development APK / 构建可安装的开发测试 APK：
 npm run android:apk
 ```
 
-The APK is written to `artifacts/WhereToI-debug.apk`. It supports Android 8.0
+The APK is written to `artifacts/WhereToI-<version>-debug.apk`, with
+`artifacts/WhereToI-debug.apk` kept as a latest-build alias. It supports Android 8.0
 and newer, loads the HTTPS production site, preserves login cookies, requests
 location permission when needed, and opens external directions in a suitable
 Android app.

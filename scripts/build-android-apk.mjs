@@ -1,4 +1,4 @@
-import { access, copyFile, mkdir } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,14 @@ const localGradleHome = resolve(root, ".android-tools", "gradle-home");
 const sourceApk = resolve(androidRoot, "app", "build", "outputs", "apk", "debug", "app-debug.apk");
 const artifactDirectory = resolve(root, "artifacts");
 const artifactApk = resolve(artifactDirectory, "WhereToI-debug.apk");
+const androidBuildConfig = await readFile(resolve(androidRoot, "app", "build.gradle"), "utf8");
+const versionName = androidBuildConfig.match(/\bversionName\s+"([^"]+)"/)?.[1];
+
+if (!versionName) {
+  throw new Error("Could not read Android versionName from android/app/build.gradle.");
+}
+
+const versionedArtifactApk = resolve(artifactDirectory, `WhereToI-${versionName}-debug.apk`);
 
 await access(wrapper).catch(() => {
   throw new Error("Android Gradle wrapper is missing. Generate it before running npm run android:apk.");
@@ -38,5 +46,8 @@ await new Promise((resolveBuild, rejectBuild) => {
 });
 
 await mkdir(artifactDirectory, { recursive: true });
-await copyFile(sourceApk, artifactApk);
-console.log(`Android APK built at ${artifactApk}`);
+await Promise.all([
+  copyFile(sourceApk, artifactApk),
+  copyFile(sourceApk, versionedArtifactApk)
+]);
+console.log(`Android APK built at ${versionedArtifactApk}`);
