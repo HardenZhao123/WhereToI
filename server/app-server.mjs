@@ -28,7 +28,9 @@ const STATIC_CONTENT_TYPES = {
 const API_CACHE_CONTROL = "no-cache";
 const PRIVATE_API_CACHE_CONTROL = "no-store";
 const SENSITIVE_CACHE_CONTROL = "no-store";
-const PUBLIC_TOILETS_CACHE_CONTROL = "no-store";
+const PUBLIC_TOILETS_CACHE_CONTROL = "public, max-age=10, stale-while-revalidate=20";
+const PUBLIC_TOILETS_SERVER_CACHE_TTL_MS = 10_000;
+const PUBLIC_TOILETS_SERVER_CACHE_MAX_ENTRIES = 12;
 const STATIC_DOCUMENT_CACHE_CONTROL = "no-cache, max-age=0, must-revalidate";
 const STATIC_ASSET_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
 const STATIC_APP_CODE_CACHE_CONTROL = "no-cache, max-age=0, must-revalidate";
@@ -216,6 +218,62 @@ function parseAccessibleOnly(queryValue) {
   return TRUTHY_QUERY_FLAGS.has((queryValue ?? "").toLowerCase());
 }
 
+function createPublicToiletsCache() {
+  const entries = new Map();
+  const pendingLoads = new Map();
+  let generation = 0;
+
+  function setEntry(key, value) {
+    entries.delete(key);
+    entries.set(key, {
+      value,
+      expiresAt: Date.now() + PUBLIC_TOILETS_SERVER_CACHE_TTL_MS
+    });
+
+    while (entries.size > PUBLIC_TOILETS_SERVER_CACHE_MAX_ENTRIES) {
+      entries.delete(entries.keys().next().value);
+    }
+  }
+
+  return {
+    clear() {
+      generation += 1;
+      entries.clear();
+    },
+    async getOrLoad(key, load, { refresh = false } = {}) {
+      if (!refresh) {
+        const entry = entries.get(key);
+        if (entry?.expiresAt > Date.now()) {
+          entries.delete(key);
+          entries.set(key, entry);
+          return entry.value;
+        }
+        entries.delete(key);
+      }
+
+      const loadGeneration = generation;
+      const pendingKey = `${loadGeneration}:${key}`;
+      const pendingLoad = pendingLoads.get(pendingKey);
+      if (pendingLoad) return pendingLoad;
+
+      const loadPromise = Promise.resolve().then(load);
+      pendingLoads.set(pendingKey, loadPromise);
+
+      try {
+        const value = await loadPromise;
+        if (generation === loadGeneration) {
+          setEntry(key, value);
+        }
+        return value;
+      } finally {
+        if (pendingLoads.get(pendingKey) === loadPromise) {
+          pendingLoads.delete(pendingKey);
+        }
+      }
+    }
+  };
+}
+
 function queueRegistrationEmail({ emailService, logger, user }) {
   if (typeof emailService?.sendRegistrationSuccessEmail !== "function") return;
 
@@ -230,6 +288,8 @@ function queueRegistrationEmail({ emailService, logger, user }) {
 }
 
 function createApiRouteHandlers(database, { emailService, logger }) {
+  const publicToiletsCache = createPublicToiletsCache();
+
   return {
     "GET /api/health": async ({ response }) => {
       sendJson(response, 200, {
@@ -308,12 +368,18 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       };
 
       const hasBounds = Object.values(bounds).every((val) => val !== null);
-      const toilets = await database.getToilets({
-        search,
-        accessibleOnly,
-        cleanlinessRange,
-        bounds: hasBounds ? bounds : null
-      });
+      const safeBounds = hasBounds ? bounds : null;
+      const cacheKey = JSON.stringify(["list", search, accessibleOnly, cleanlinessRange, safeBounds]);
+      const toilets = await publicToiletsCache.getOrLoad(
+        cacheKey,
+        () => database.getToilets({
+          search,
+          accessibleOnly,
+          cleanlinessRange,
+          bounds: safeBounds
+        }),
+        { refresh: parseAccessibleOnly(url.searchParams.get("refresh")) }
+      );
 
       sendJson(response, 200, { toilets }, {
         "Cache-Control": PUBLIC_TOILETS_CACHE_CONTROL
@@ -327,7 +393,11 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       }
 
       const cleanlinessRange = url.searchParams.get("cleanlinessRange") ?? "all";
-      const toilet = await database.getToiletById(toiletId, { cleanlinessRange });
+      const toilet = await publicToiletsCache.getOrLoad(
+        JSON.stringify(["detail", toiletId, cleanlinessRange]),
+        () => database.getToiletById(toiletId, { cleanlinessRange }),
+        { refresh: parseAccessibleOnly(url.searchParams.get("refresh")) }
+      );
       if (!toilet) {
         sendJson(response, 404, { error: "Toilet not found." });
         return;
@@ -369,9 +439,11 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         sendSensitiveJson(response, 401, { error: "Not authenticated" });
         return;
       }
-      const account = await database.getAccount(userId);
-      const history = await database.getAccessHistory(userId, 10);
-      const comments = await database.getUserComments(userId, 30);
+      const [account, history, comments] = await Promise.all([
+        database.getAccount(userId),
+        database.getAccessHistory(userId, 10),
+        database.getUserComments(userId, 30)
+      ]);
 
       sendSensitiveJson(response, 200, { account, history, comments });
     },
@@ -455,6 +527,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         rating: body.rating,
         answer: body.answer
       });
+      publicToiletsCache.clear();
 
       sendSensitiveJson(response, 201, result);
     },
@@ -501,6 +574,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         media,
         sceneSnapshot: comment.sceneSnapshot
       });
+      publicToiletsCache.clear();
 
       sendSensitiveJson(response, 201, { comments, toilet: cleanlinessResult.toilet });
     },

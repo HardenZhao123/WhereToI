@@ -85,6 +85,8 @@ export function createApp() {
 
   let toiletLoadRequestId = 0;
   let toiletRetryTimerId = null;
+  let toiletLoadAbortController = null;
+  let toiletRetryAttempt = 0;
   let hasLoadedApiToilets = false;
   let lastLoadedRange = null;
 
@@ -97,10 +99,13 @@ export function createApp() {
 
   function scheduleToiletRetry(range) {
     clearToiletRetry();
+    const baseDelay = Math.min(5_000 * (2 ** toiletRetryAttempt), 30_000);
+    const retryDelay = Math.round(baseDelay * (0.75 + Math.random() * 0.5));
+    toiletRetryAttempt += 1;
     toiletRetryTimerId = window.setTimeout(() => {
       toiletRetryTimerId = null;
       initializeToilets(range);
-    }, 5000);
+    }, retryDelay);
   }
 
   function getCurrentDetailSection() {
@@ -155,6 +160,9 @@ export function createApp() {
     const requestId = toiletLoadRequestId + 1;
     toiletLoadRequestId = requestId;
     clearToiletRetry();
+    toiletLoadAbortController?.abort();
+    const loadAbortController = new AbortController();
+    toiletLoadAbortController = loadAbortController;
 
     if (!hasLoadedApiToilets && !merge) {
       mapController.setStatus("Connecting to database...");
@@ -181,7 +189,8 @@ export function createApp() {
 
     try {
       const loadedFromApi = await loadToiletsFromApi(range, 2, 30000, activeBounds, {
-        force: force || renderedCachedToilets
+        force: force || renderedCachedToilets,
+        signal: loadAbortController.signal
       });
 
       if (requestId !== toiletLoadRequestId) {
@@ -199,6 +208,7 @@ export function createApp() {
         });
         hasLoadedApiToilets = true;
         lastLoadedRange = range;
+        toiletRetryAttempt = 0;
         return;
       }
 
@@ -210,6 +220,10 @@ export function createApp() {
         return;
       }
       console.warn("Toilets API loading failed:", error);
+    } finally {
+      if (toiletLoadAbortController === loadAbortController) {
+        toiletLoadAbortController = null;
+      }
     }
 
     if (requestId === toiletLoadRequestId && !hasLoadedApiToilets) {
@@ -295,7 +309,7 @@ export function createApp() {
     // Fetch live data using current map bounds.
     await Promise.all([
       initializeToilets(mapCleanlinessRange, {
-        force: true,
+        force: false,
         merge: false
       }),
       accountController.loadPanelData()

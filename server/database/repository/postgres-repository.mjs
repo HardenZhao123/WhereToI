@@ -1,7 +1,8 @@
 import { mapRowToToilet } from "../mapper/toilet-mapper.mjs";
 import { applyPostgresToiletMigrations, ensurePostgresCommentMediaColumns } from "../migration/toilet-schema-migration.mjs";
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import {
   ANONYMOUS_COMMENT_AUTHOR,
   CLEANLINESS_RATING_COOLDOWN_MS,
@@ -24,16 +25,18 @@ import {
   toCleanlinessUpdate
 } from "./repository-utils.mjs";
 
-function hashPassword(password) {
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
-  const derivedKey = scryptSync(password, salt, 64);
+  const derivedKey = await scryptAsync(password, salt, 64);
   return `${salt}:${derivedKey.toString("hex")}`;
 }
 
-function verifyPassword(password, hash) {
+async function verifyPassword(password, hash) {
   const [salt, key] = hash.split(":");
   const keyBuffer = Buffer.from(key, "hex");
-  const derivedKey = scryptSync(password, salt, 64);
+  const derivedKey = await scryptAsync(password, salt, 64);
   return timingSafeEqual(keyBuffer, derivedKey);
 }
 
@@ -117,19 +120,19 @@ async function ensureDemoUser(pool) {
     ON CONFLICT (username) DO UPDATE SET username = EXCLUDED.username
     RETURNING id
     `,
-    ["demo", hashPassword("demo123"), "demo@example.com", JSON.stringify([])]
+    ["demo", await hashPassword("demo123"), "demo@example.com", JSON.stringify([])]
   );
 
   return insertedDemo.rows[0].id;
 }
 
-function isBuiltInDemoUser(user) {
+async function isBuiltInDemoUser(user) {
   if (user?.username !== "demo" || user?.email !== "demo@example.com") {
     return false;
   }
 
   try {
-    return verifyPassword("demo123", user.password_hash);
+    return await verifyPassword("demo123", user.password_hash);
   } catch {
     return false;
   }
@@ -145,7 +148,7 @@ async function removeBuiltInDemoUser(pool) {
     );
     const demoUser = result.rows[0];
 
-    if (!isBuiltInDemoUser(demoUser)) {
+    if (!(await isBuiltInDemoUser(demoUser))) {
       await client.query("COMMIT");
       return;
     }
@@ -594,6 +597,7 @@ export async function createPostgresDatabase({
       await pool.end();
     },
     async createUser({ username, password, email }) {
+      const passwordHash = await hashPassword(password);
       const client = await pool.connect();
 
       try {
@@ -604,7 +608,7 @@ export async function createPostgresDatabase({
           VALUES ($1, $2, $3, $4::jsonb)
           RETURNING id, username, email, gender, preferences
           `,
-          [username, hashPassword(password), email, JSON.stringify([])]
+          [username, passwordHash, email, JSON.stringify([])]
         );
         const user = mapUserRow(userResult.rows[0]);
 
@@ -745,7 +749,7 @@ export async function createPostgresDatabase({
       const user = await this.getUserByUsername(username);
       if (!user) return null;
 
-      if (verifyPassword(password, user.password_hash)) {
+      if (await verifyPassword(password, user.password_hash)) {
         const { password_hash, ...safeUser } = user;
         return safeUser;
       }

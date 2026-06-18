@@ -169,15 +169,15 @@ test("server can serve dist static files while keeping source data private", asy
   }
 });
 
-test("API cache headers keep mutable toilet and account data private", async () => {
+test("API cache headers briefly cache public toilets and keep account data private", async () => {
   await withAppServer(async (baseUrl) => {
     const toiletsResponse = await fetch(`${baseUrl}/api/toilets`);
     assert.equal(toiletsResponse.status, 200);
-    assert.equal(toiletsResponse.headers.get("cache-control"), "no-store");
+    assert.equal(toiletsResponse.headers.get("cache-control"), "public, max-age=10, stale-while-revalidate=20");
 
     const detailResponse = await fetch(`${baseUrl}/api/toilets/detail?toiletId=detail-test`);
     assert.equal(detailResponse.status, 200);
-    assert.equal(detailResponse.headers.get("cache-control"), "no-store");
+    assert.equal(detailResponse.headers.get("cache-control"), "public, max-age=10, stale-while-revalidate=20");
 
     const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
       method: "POST",

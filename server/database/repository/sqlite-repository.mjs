@@ -1,7 +1,8 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
+import { scrypt, randomBytes, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import { mapRowToToilet } from "../mapper/toilet-mapper.mjs";
 import { applySqliteToiletMigrations } from "../migration/toilet-schema-migration.mjs";
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
@@ -27,6 +28,8 @@ import {
   toCleanlinessUpdate
 } from "./repository-utils.mjs";
 
+const scryptAsync = promisify(scrypt);
+
 const LEGACY_DEMO_ACCESS_HISTORY_NAMES = [
   "city & guilds building",
   "imperial library",
@@ -36,37 +39,37 @@ const LEGACY_DEMO_ACCESS_HISTORY_NAMES = [
   "southkensington station"
 ];
 
-function hashPassword(password) {
+async function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
-  const derivedKey = scryptSync(password, salt, 64);
+  const derivedKey = await scryptAsync(password, salt, 64);
   return `${salt}:${derivedKey.toString("hex")}`;
 }
 
-function verifyPassword(password, hash) {
+async function verifyPassword(password, hash) {
   const [salt, key] = hash.split(":");
   const keyBuffer = Buffer.from(key, "hex");
-  const derivedKey = scryptSync(password, salt, 64);
+  const derivedKey = await scryptAsync(password, salt, 64);
   return timingSafeEqual(keyBuffer, derivedKey);
 }
 
-function isBuiltInDemoUser(user) {
+async function isBuiltInDemoUser(user) {
   if (user?.username !== "demo" || user?.email !== "demo@example.com") {
     return false;
   }
 
   try {
-    return verifyPassword("demo123", user.password_hash);
+    return await verifyPassword("demo123", user.password_hash);
   } catch {
     return false;
   }
 }
 
-function removeBuiltInDemoUser(db) {
+async function removeBuiltInDemoUser(db) {
   const demoUser = db.prepare(
     "SELECT id, username, email, password_hash FROM users WHERE username = ?"
   ).get("demo");
 
-  if (!isBuiltInDemoUser(demoUser)) {
+  if (!(await isBuiltInDemoUser(demoUser))) {
     return;
   }
 
@@ -339,7 +342,7 @@ export async function createSqliteDatabase({
     if (!demoUserId) {
       db.prepare(
         "INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)"
-      ).run("demo", hashPassword("demo123"), "demo@example.com");
+      ).run("demo", await hashPassword("demo123"), "demo@example.com");
       demoUserId = Number(db.prepare("SELECT last_insert_rowid() AS id").get().id);
 
       db.prepare(
@@ -365,7 +368,7 @@ export async function createSqliteDatabase({
       `
     ).run(demoUserId, ...LEGACY_DEMO_ACCESS_HISTORY_NAMES);
   } else {
-    removeBuiltInDemoUser(db);
+    await removeBuiltInDemoUser(db);
   }
 
   function toggleCommentReaction({ toiletId, commentId, userId, reactionTable, oppositeTable }) {
@@ -409,7 +412,7 @@ export async function createSqliteDatabase({
       db.close();
     },
     async createUser({ username, password, email }) {
-      const passwordHash = hashPassword(password);
+      const passwordHash = await hashPassword(password);
       db.exec("BEGIN;");
       try {
         db.prepare(
@@ -505,7 +508,7 @@ export async function createSqliteDatabase({
     async verifyUserPassword(username, password) {
       const user = await this.getUserByUsername(username);
       if (!user) return null;
-      if (verifyPassword(password, user.password_hash)) {
+      if (await verifyPassword(password, user.password_hash)) {
         const { password_hash, ...rest } = user;
         return rest;
       }

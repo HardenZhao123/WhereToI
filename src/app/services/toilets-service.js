@@ -1,19 +1,74 @@
 import { appConfig } from "../config/app-config.js";
 import { fetchJson } from "./http-client.js";
 
+const TOILET_LIST_CACHE_TTL_MS = 30_000;
+const TOILET_DETAIL_CACHE_TTL_MS = 5 * 60_000;
+const MAX_CACHE_ENTRIES = 40;
+const toiletsCache = new Map();
+const toiletDetailCache = new Map();
+const pendingToiletLoads = new Map();
+const pendingToiletDetailLoads = new Map();
+
+function getBoundsCacheKey(bounds) {
+  if (!bounds) return "all";
+  return [bounds.minLat, bounds.maxLat, bounds.minLng, bounds.maxLng]
+    .map((value) => Number(value).toFixed(5))
+    .join(":");
+}
+
+function getToiletsCacheKey(cleanlinessRange, bounds) {
+  return `${cleanlinessRange}:${getBoundsCacheKey(bounds)}`;
+}
+
+function getToiletDetailCacheKey(toiletId, cleanlinessRange) {
+  return `${toiletId}:${cleanlinessRange}`;
+}
+
+function getFreshCacheValue(cache, key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+
+  cache.delete(key);
+  cache.set(key, entry);
+  return entry.value;
+}
+
+function setCacheValue(cache, key, value, ttlMs) {
+  cache.delete(key);
+  cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    cache.delete(cache.keys().next().value);
+  }
+}
+
 export function getCachedToiletsFromApi(cleanlinessRange = "all", bounds = null) {
-  void cleanlinessRange;
-  void bounds;
-  return null;
+  const cached = getFreshCacheValue(
+    toiletsCache,
+    getToiletsCacheKey(String(cleanlinessRange || "all"), bounds)
+  );
+  return cached ? cached.map(cloneToilet) : null;
 }
 
 export function clearToiletsApiCache() {
-  // Client-side toilet list caching is disabled while feedback/rating behavior is iterating.
+  toiletsCache.clear();
 }
 
 export function clearToiletDetailCache(toiletId = null) {
-  void toiletId;
-  // Client-side toilet detail caching is disabled while feedback/rating behavior is iterating.
+  if (toiletId === null) {
+    toiletDetailCache.clear();
+    return;
+  }
+
+  const prefix = `${toiletId}:`;
+  for (const key of toiletDetailCache.keys()) {
+    if (key.startsWith(prefix)) {
+      toiletDetailCache.delete(key);
+    }
+  }
 }
 
 function cloneToilet(toilet) {
@@ -31,9 +86,26 @@ function cloneToilet(toilet) {
 }
 
 export function getCachedToiletDetail(toiletId, cleanlinessRange = "all") {
-  void toiletId;
-  void cleanlinessRange;
-  return null;
+  const cached = getFreshCacheValue(
+    toiletDetailCache,
+    getToiletDetailCacheKey(toiletId, String(cleanlinessRange || "all"))
+  );
+  return cached ? cloneToilet(cached) : null;
+}
+
+function isRetryableRequestError(error) {
+  if (error?.name === "AbortError") return true;
+  if (!Number.isInteger(error?.status)) return true;
+  return [408, 425, 429, 500, 502, 503, 504].includes(error.status);
+}
+
+function getRetryDelayMs(error, attempt) {
+  if (Number.isFinite(error?.retryAfterMs) && error.retryAfterMs > 0) {
+    return Math.min(error.retryAfterMs, 10_000);
+  }
+
+  const baseDelay = Math.min(1_000 * (2 ** attempt), 8_000);
+  return Math.round(baseDelay * (0.75 + Math.random() * 0.5));
 }
 
 export async function loadToiletsFromApi(
@@ -41,50 +113,112 @@ export async function loadToiletsFromApi(
   retryCount = 2,
   timeoutMs = 30000,
   bounds = null,
-  { force = false } = {}
+  { force = false, signal = null } = {}
 ) {
-  void force;
+  const safeRange = String(cleanlinessRange || "all");
+  const cacheKey = getToiletsCacheKey(safeRange, bounds);
+  if (!force) {
+    const cached = getCachedToiletsFromApi(safeRange, bounds);
+    if (cached) return cached;
+  }
 
-  let url = `${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(cleanlinessRange)}`;
+  const pendingLoad = signal ? null : pendingToiletLoads.get(cacheKey);
+  if (pendingLoad) {
+    return (await pendingLoad).map(cloneToilet);
+  }
+
+  let url = `${appConfig.apiBasePath}/toilets?cleanlinessRange=${encodeURIComponent(safeRange)}`;
 
   if (bounds) {
     url += `&minLat=${bounds.minLat}&maxLat=${bounds.maxLat}&minLng=${bounds.minLng}&maxLng=${bounds.maxLng}`;
   }
-
-  for (let attempt = 0; attempt <= retryCount; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-      const payload = await fetchJson(url, { signal: controller.signal });
-      if (Array.isArray(payload.toilets)) {
-        return payload.toilets;
-      }
-    } catch (error) {
-      if (attempt >= retryCount) {
-        throw error;
-      }
-      // Wait 2 seconds before retrying (Render cold start can be slow)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } finally {
-      globalThis.clearTimeout(timeoutId);
-    }
+  if (force) {
+    url += "&refresh=1";
   }
 
-  throw new Error("Invalid toilets API response.");
+  const loadPromise = (async () => {
+    for (let attempt = 0; attempt <= retryCount; attempt++) {
+      if (signal?.aborted) {
+        throw new DOMException("The request was aborted.", "AbortError");
+      }
+
+      const controller = new AbortController();
+      const abortFromCaller = () => controller.abort();
+      signal?.addEventListener?.("abort", abortFromCaller, { once: true });
+      const timeoutId = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const payload = await fetchJson(url, {
+          signal: controller.signal,
+          cache: force ? "reload" : "default"
+        });
+        if (Array.isArray(payload.toilets)) {
+          const toilets = payload.toilets.map(cloneToilet);
+          setCacheValue(toiletsCache, cacheKey, toilets, TOILET_LIST_CACHE_TTL_MS);
+          return toilets;
+        }
+      } catch (error) {
+        if (signal?.aborted || attempt >= retryCount || !isRetryableRequestError(error)) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, getRetryDelayMs(error, attempt)));
+      } finally {
+        globalThis.clearTimeout(timeoutId);
+        signal?.removeEventListener?.("abort", abortFromCaller);
+      }
+    }
+
+    throw new Error("Invalid toilets API response.");
+  })();
+
+  if (!signal) {
+    pendingToiletLoads.set(cacheKey, loadPromise);
+  }
+  try {
+    return (await loadPromise).map(cloneToilet);
+  } finally {
+    if (pendingToiletLoads.get(cacheKey) === loadPromise) {
+      pendingToiletLoads.delete(cacheKey);
+    }
+  }
 }
 
 export async function fetchToiletDetail(toiletId, { force = false, cleanlinessRange = "all" } = {}) {
-  void force;
-
   const safeRange = String(cleanlinessRange || "all");
+  const cacheKey = getToiletDetailCacheKey(toiletId, safeRange);
+  if (!force) {
+    const cached = getCachedToiletDetail(toiletId, safeRange);
+    if (cached) return cached;
+  }
+
+  const pendingLoad = pendingToiletDetailLoads.get(cacheKey);
+  if (pendingLoad) {
+    return cloneToilet(await pendingLoad);
+  }
+
   let url = `${appConfig.apiBasePath}/toilets/detail?toiletId=${encodeURIComponent(toiletId)}`;
   if (safeRange !== "all") {
     url += `&cleanlinessRange=${encodeURIComponent(safeRange)}`;
   }
+  if (force) {
+    url += "&refresh=1";
+  }
 
-  const payload = await fetchJson(url);
-  return cloneToilet(payload.toilet);
+  const loadPromise = fetchJson(url, { cache: force ? "reload" : "default" })
+    .then((payload) => {
+      const toilet = cloneToilet(payload.toilet);
+      setCacheValue(toiletDetailCache, cacheKey, toilet, TOILET_DETAIL_CACHE_TTL_MS);
+      return toilet;
+    });
+
+  pendingToiletDetailLoads.set(cacheKey, loadPromise);
+  try {
+    return cloneToilet(await loadPromise);
+  } finally {
+    if (pendingToiletDetailLoads.get(cacheKey) === loadPromise) {
+      pendingToiletDetailLoads.delete(cacheKey);
+    }
+  }
 }
 
 export function submitCleanlinessSurvey(payload) {

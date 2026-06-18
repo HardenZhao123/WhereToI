@@ -37,14 +37,14 @@ test("toilets service defaults list requests to all-time cleanliness", async () 
 
     assert.equal(requestedUrl, "/api/toilets?cleanlinessRange=all");
     assert.equal(toilets[0].id, "all-time-toilet");
-    assert.equal(getCachedToiletsFromApi(), null);
+    assert.equal(getCachedToiletsFromApi()[0].id, "all-time-toilet");
   } finally {
     clearToiletsApiCache();
     globalThis.fetch = originalFetch;
   }
 });
 
-test("toilets service does not reuse list responses from client cache", async () => {
+test("toilets service reuses recent list responses from client cache", async () => {
   const originalFetch = globalThis.fetch;
   clearToiletsApiCache();
 
@@ -68,10 +68,10 @@ test("toilets service does not reuse list responses from client cache", async ()
     const firstLoad = await loadToiletsFromApi("3days", 0, 1000, bounds);
     const secondLoad = await loadToiletsFromApi("3days", 0, 1000, bounds);
 
-    assert.equal(fetchCount, 2);
+    assert.equal(fetchCount, 1);
     assert.equal(firstLoad[0].id, "toilet-1");
-    assert.equal(secondLoad[0].id, "toilet-2");
-    assert.equal(getCachedToiletsFromApi("3days", bounds), null);
+    assert.equal(secondLoad[0].id, "toilet-1");
+    assert.equal(getCachedToiletsFromApi("3days", bounds)[0].id, "toilet-1");
   } finally {
     clearToiletsApiCache();
     globalThis.fetch = originalFetch;
@@ -115,21 +115,26 @@ test("toilets service sends period and bounds on each list request", async () =>
     assert.equal(southOneDay[0].id, "toilet-2");
     assert.equal(northThreeDays[0].id, "toilet-3");
     assert.equal(forcedSouthThreeDays[0].id, "toilet-4");
-    assert.equal(getCachedToiletsFromApi("3days", southBounds), null);
+    assert.equal(getCachedToiletsFromApi("3days", southBounds)[0].id, "toilet-4");
   } finally {
     clearToiletsApiCache();
     globalThis.fetch = originalFetch;
   }
 });
 
-test("toilets service does not reuse detail responses from client cache", async () => {
+test("toilets service caches detail responses and force refreshes them", async () => {
   const originalFetch = globalThis.fetch;
   clearToiletDetailCache();
   let fetchCount = 0;
 
   globalThis.fetch = async (url) => {
     fetchCount += 1;
-    assert.equal(String(url), "/api/toilets/detail?toiletId=detail-test");
+    const requestUrl = String(url);
+    if (fetchCount === 1) {
+      assert.equal(requestUrl, "/api/toilets/detail?toiletId=detail-test");
+    } else {
+      assert.equal(requestUrl, "/api/toilets/detail?toiletId=detail-test&refresh=1");
+    }
     return {
       ok: true,
       json: async () => ({
@@ -150,18 +155,18 @@ test("toilets service does not reuse detail responses from client cache", async 
     const secondDetail = await fetchToiletDetail("detail-test");
     const forcedDetail = await fetchToiletDetail("detail-test", { force: true });
 
-    assert.equal(fetchCount, 3);
+    assert.equal(fetchCount, 2);
     assert.equal(firstDetail.name, "Detail load 1");
-    assert.equal(secondDetail.name, "Detail load 2");
-    assert.equal(forcedDetail.name, "Detail load 3");
-    assert.equal(getCachedToiletDetail("detail-test"), null);
+    assert.equal(secondDetail.name, "Detail load 1");
+    assert.equal(forcedDetail.name, "Detail load 2");
+    assert.equal(getCachedToiletDetail("detail-test").name, "Detail load 2");
   } finally {
     clearToiletDetailCache();
     globalThis.fetch = originalFetch;
   }
 });
 
-test("toilets service detail cache invalidation is a no-op while client caching is disabled", async () => {
+test("toilets service detail cache invalidation clears every range for one toilet", async () => {
   const originalFetch = globalThis.fetch;
   clearToiletDetailCache();
   let fetchCount = 0;
@@ -193,9 +198,68 @@ test("toilets service detail cache invalidation is a no-op while client caching 
 
     assert.equal(getCachedToiletDetail("detail-test", "1day"), null);
     assert.equal(getCachedToiletDetail("detail-test", "3days"), null);
-    assert.equal(getCachedToiletDetail("other-test", "3days"), null);
+    assert.equal(getCachedToiletDetail("other-test", "3days").id, "other-test");
   } finally {
     clearToiletDetailCache();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("toilets service coalesces simultaneous requests for the same bounds", async () => {
+  const originalFetch = globalThis.fetch;
+  clearToiletsApiCache();
+  const bounds = { minLat: 51.4, maxLat: 51.6, minLng: -0.2, maxLng: 0 };
+  let fetchCount = 0;
+
+  globalThis.fetch = async () => {
+    fetchCount += 1;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    return {
+      ok: true,
+      json: async () => ({ toilets: [createApiToilet("shared-toilet")] })
+    };
+  };
+
+  try {
+    const [first, second] = await Promise.all([
+      loadToiletsFromApi("3days", 0, 1000, bounds),
+      loadToiletsFromApi("3days", 0, 1000, bounds)
+    ]);
+
+    assert.equal(fetchCount, 1);
+    assert.equal(first[0].id, "shared-toilet");
+    assert.equal(second[0].id, "shared-toilet");
+  } finally {
+    clearToiletsApiCache();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("toilets service aborts a stale bounds request without retrying it", async () => {
+  const originalFetch = globalThis.fetch;
+  clearToiletsApiCache();
+  const controller = new AbortController();
+  let fetchCount = 0;
+
+  globalThis.fetch = async (_url, options) => {
+    fetchCount += 1;
+    return new Promise((_resolve, reject) => {
+      options.signal.addEventListener("abort", () => {
+        reject(new DOMException("The request was aborted.", "AbortError"));
+      }, { once: true });
+    });
+  };
+
+  try {
+    const loadPromise = loadToiletsFromApi("3days", 2, 1000, null, {
+      signal: controller.signal
+    });
+    controller.abort();
+
+    await assert.rejects(loadPromise, { name: "AbortError" });
+    assert.equal(fetchCount, 1);
+  } finally {
+    clearToiletsApiCache();
     globalThis.fetch = originalFetch;
   }
 });

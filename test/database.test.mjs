@@ -52,6 +52,23 @@ test("SQLite database seeds and returns expanded toilet feature data", async () 
   });
 });
 
+test("database hashes and verifies passwords asynchronously", async () => {
+  await withSeededDatabase(async (database) => {
+    const created = await database.createUser({
+      username: "async-auth-user",
+      password: "secret-password",
+      email: "async-auth@example.com"
+    });
+
+    const verified = await database.verifyUserPassword("async-auth-user", "secret-password");
+    const rejected = await database.verifyUserPassword("async-auth-user", "wrong-password");
+
+    assert.equal(verified.id, created.id);
+    assert.equal(verified.username, "async-auth-user");
+    assert.equal(rejected, null);
+  });
+});
+
 test("comment scene payload preserves accessible scene metadata and omits inactive urinal placements", () => {
   const comment = normaliseCommentPayload({
     toiletId: "accessible-toilet",
