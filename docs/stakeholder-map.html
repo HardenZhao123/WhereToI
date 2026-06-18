@@ -77,8 +77,63 @@
         position: absolute;
         left: 50%;
         top: 50%;
+        z-index: 0;
         border-radius: 50%;
         transform: translate(-50%, -50%);
+      }
+
+      .connections {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        pointer-events: none;
+      }
+
+      .connection {
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.78;
+      }
+
+      .context-flow {
+        stroke: var(--amber);
+      }
+
+      .trust-flow {
+        stroke: var(--green);
+      }
+
+      .decision-flow {
+        stroke: var(--blue);
+      }
+
+      .connection-label {
+        fill: var(--ink);
+        stroke: var(--grid);
+        stroke-width: 7px;
+        paint-order: stroke;
+        dominant-baseline: middle;
+        font-size: 10.5px;
+        font-weight: 650;
+        letter-spacing: 0.01em;
+        text-anchor: middle;
+      }
+
+      .context-label {
+        fill: var(--amber);
+      }
+
+      .trust-label {
+        fill: var(--green);
+      }
+
+      .decision-label {
+        fill: var(--blue);
       }
 
       .outer-ring {
@@ -206,19 +261,9 @@
         top: 500px;
       }
 
-      .node-visitors {
-        left: 750px;
-        top: 500px;
-      }
-
       .node-data {
         left: 960px;
         top: 240px;
-      }
-
-      .node-moderation {
-        left: 390px;
-        top: 580px;
       }
 
       .node-cleaning {
@@ -233,11 +278,6 @@
 
       .node-venues {
         left: 260px;
-        top: 462px;
-      }
-
-      .node-advocacy {
-        left: 1030px;
         top: 462px;
       }
 
@@ -259,6 +299,50 @@
         <div class="ring trust-ring"></div>
         <div class="ring direct-ring"></div>
 
+        <svg class="connections" viewBox="0 0 1460 780" role="img" aria-label="Labeled stakeholder relationships">
+          <defs>
+            <marker id="arrow-context" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706"></path>
+            </marker>
+            <marker id="arrow-trust" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#2f9e44"></path>
+            </marker>
+            <marker id="arrow-decision" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"></path>
+            </marker>
+          </defs>
+
+          <path id="connection-policy" class="connection context-flow" d="M 805 30 C 915 35, 1010 115, 1045 238" marker-end="url(#arrow-context)"></path>
+          <text class="connection-label context-label" x="925" y="88">policy + verified records</text>
+
+          <path id="connection-council" class="connection context-flow" d="M 700 300 C 470 260, 360 90, 633 70" marker-end="url(#arrow-context)"></path>
+          <text class="connection-label context-label" x="470" y="190">intelligent public space hygiene management</text>
+
+          <path id="connection-operations" class="connection context-flow" d="M 430 520 C 575 665, 775 675, 898 620" marker-end="url(#arrow-context)"></path>
+          <text class="connection-label context-label" x="625" y="650">operations + staffing</text>
+
+          <path id="connection-data" class="connection trust-flow" d="M 818 360 C 855 325, 900 280, 960 280" marker-start="url(#arrow-trust)"></path>
+          <text class="connection-label trust-label" x="910" y="258">locations/facilities</text>
+
+          <path id="connection-tech" class="connection context-flow" d="M 730 480 C 730 560, 730 640, 735 720" marker-start="url(#arrow-context)"></path>
+          <text class="connection-label context-label" x="795" y="600">maps + infrastructure</text>
+
+          <path id="connection-urgent" class="connection decision-flow" d="M 730 228 L 730 300" marker-start="url(#arrow-decision)"></path>
+          <text class="connection-label decision-label" x="780" y="265">fast decision</text>
+
+          <path id="connection-access" class="connection decision-flow" d="M 580 340 C 600 290, 635 285, 670 310" marker-start="url(#arrow-decision)"></path>
+          <text class="connection-label decision-label" x="620" y="278">accessibility filters</text>
+
+          <path id="connection-parents" class="connection decision-flow" d="M 630 498 C 610 470, 625 440, 665 430" marker-start="url(#arrow-decision)"></path>
+          <text class="connection-label decision-label" x="570" y="455">family-fit results</text>
+
+          <path id="connection-ratings" class="connection trust-flow" d="M 805 325 C 825 300, 855 305, 875 338" marker-start="url(#arrow-trust)"></path>
+          <text class="connection-label trust-label" x="820" y="288">ratings/reports/interactive scenes</text>
+
+          <path id="connection-cleaners" class="connection decision-flow" d="M 795 445 C 880 440, 985 475, 985 578" marker-end="url(#arrow-decision)"></path>
+          <text class="connection-label decision-label" x="925" y="448">current dirtiness;</text>
+        </svg>
+
         <article class="stakeholder direct node-urgent">
           <strong>Urgent toilet seekers</strong>
           <span>Need fast, confident choice before walking</span>
@@ -275,18 +359,9 @@
           <strong>Parents and carers</strong>
           <span>Baby changing, child-friendly, free access</span>
         </article>
-        <article class="stakeholder direct node-visitors">
-          <strong>Visitors and travellers</strong>
-          <span>Unfamiliar campuses, stations, streets, venues</span>
-        </article>
-
         <article class="stakeholder trust node-data">
           <strong>Data sources</strong>
           <span>Public toilet locations, opening hours, facilities</span>
-        </article>
-        <article class="stakeholder trust node-moderation">
-          <strong>Moderation and privacy</strong>
-          <span>Safe comments, sensitive histories, anonymous feedback</span>
         </article>
         <article class="stakeholder trust node-cleaning">
           <strong>Cleaners and venue staff</strong>
@@ -300,10 +375,6 @@
         <article class="stakeholder context node-venues">
           <strong>Venue operators</strong>
           <span>Shops, campuses, stations, shopping centres</span>
-        </article>
-        <article class="stakeholder context node-advocacy">
-          <strong>Accessibility and health groups</strong>
-          <span>Co-design, inclusion checks, unmet needs</span>
         </article>
         <article class="stakeholder context node-tech">
           <strong>Technical services</strong>
