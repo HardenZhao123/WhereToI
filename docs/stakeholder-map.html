@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WhereToI Stakeholder Map</title>
+    <style>
+      :root {
+        --ink: #17252b;
+        --muted: #5b6770;
+        --line: #d8ddd8;
+        --paper: #f7f5ef;
+        --grid: #f2f4f1;
+        --teal: #0f766e;
+        --blue: #2563eb;
+        --green: #2f9e44;
+        --amber: #d97706;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #e8ebe8;
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      .slide {
+        position: relative;
+        width: 1600px;
+        height: 900px;
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, rgb(255 255 255 / 44%) 0 1px, transparent 1px 100%) 0 0 / 64px 64px,
+          linear-gradient(0deg, rgb(255 255 255 / 44%) 0 1px, transparent 1px 100%) 0 0 / 64px 64px,
+          var(--grid);
+        box-shadow: 0 24px 80px rgb(20 31 35 / 18%);
+      }
+
+      .title {
+        position: absolute;
+        left: 72px;
+        top: 46px;
+        z-index: 5;
+      }
+
+      .title h1 {
+        margin: 0;
+        max-width: 650px;
+        font-size: 42px;
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      .title p {
+        margin: 14px 0 0;
+        max-width: 420px;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.35;
+      }
+
+      .ecosystem {
+        position: absolute;
+        inset: 100px 70px 20px 70px;
+      }
+
+      .ring {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+      }
+
+      .outer-ring {
+        width: 820px;
+        height: 820px;
+        background: rgb(217 119 6 / 13%);
+        border: 2px solid rgb(217 119 6 / 35%);
+      }
+
+      .trust-ring {
+        width: 720px;
+        height: 720px;
+        background: rgb(47 158 68 / 16%);
+        border: 2px solid rgb(47 158 68 / 42%);
+      }
+
+      .direct-ring {
+        width: 560px;
+        height: 560px;
+        background: rgb(37 99 235 / 15%);
+        border: 2px solid rgb(37 99 235 / 43%);
+      }
+
+      .core {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 4;
+        width: 178px;
+        height: 178px;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        background: #102f35;
+        color: #fff;
+        text-align: center;
+        box-shadow: 0 16px 42px rgb(14 43 48 / 25%);
+      }
+
+      .core strong {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 32px;
+        line-height: 1;
+      }
+
+      .core span {
+        color: rgb(255 255 255 / 80%);
+        font-size: 17px;
+        line-height: 1.25;
+      }
+
+      .stakeholder {
+        position: absolute;
+        z-index: 4;
+        width: 170px;
+        min-height: 78px;
+        padding: 11px 12px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 10px 22px rgb(23 37 43 / 9%);
+      }
+
+      .stakeholder::before {
+        content: "";
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        width: 5px;
+        height: calc(100% - 20px);
+        border-radius: 3px;
+      }
+
+      .stakeholder strong,
+      .stakeholder span {
+        display: block;
+        padding-left: 13px;
+      }
+
+      .stakeholder strong {
+        margin-bottom: 4px;
+        color: var(--ink);
+        font-size: 14px;
+        line-height: 1.08;
+      }
+
+      .stakeholder span {
+        color: var(--muted);
+        font-size: 10.5px;
+        line-height: 1.23;
+      }
+
+      .direct::before {
+        background: var(--blue);
+      }
+
+      .trust::before {
+        background: var(--green);
+      }
+
+      .context::before {
+        background: var(--amber);
+      }
+
+      .node-urgent {
+        left: 635px;
+        top: 148px;
+      }
+
+      .node-access {
+        left: 410px;
+        top: 340px;
+      }
+
+      .node-feedback {
+        left: 850px;
+        top: 340px;
+      }
+
+      .node-parents {
+        left: 510px;
+        top: 500px;
+      }
+
+      .node-visitors {
+        left: 750px;
+        top: 500px;
+      }
+
+      .node-data {
+        left: 960px;
+        top: 240px;
+      }
+
+      .node-moderation {
+        left: 390px;
+        top: 580px;
+      }
+
+      .node-cleaning {
+        left: 900px;
+        top: 580px;
+      }
+
+      .node-council {
+        left: 635px;
+        top: -10px;
+      }
+
+      .node-venues {
+        left: 260px;
+        top: 462px;
+      }
+
+      .node-advocacy {
+        left: 1030px;
+        top: 462px;
+      }
+
+      .node-tech {
+        left: 650px;
+        top: 720px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="slide" aria-label="WhereToI stakeholder map">
+      <section class="title">
+        <h1>WhereToI stakeholder map</h1>
+        <p>Stakeholders are grouped by proximity to the core toilet-access decision.</p>
+      </section>
+
+      <section class="ecosystem" aria-label="Stakeholder ecosystem diagram">
+        <div class="ring outer-ring"></div>
+        <div class="ring trust-ring"></div>
+        <div class="ring direct-ring"></div>
+
+        <article class="stakeholder direct node-urgent">
+          <strong>Urgent toilet seekers</strong>
+          <span>Need fast, confident choice before walking</span>
+        </article>
+        <article class="stakeholder direct node-access">
+          <strong>People with access needs</strong>
+          <span>Accessible, RADAR, gender-neutral, privacy needs</span>
+        </article>
+        <article class="stakeholder direct node-feedback">
+          <strong>Feedback contributors</strong>
+          <span>Ratings, comments, tags, photos/scenes</span>
+        </article>
+        <article class="stakeholder direct node-parents">
+          <strong>Parents and carers</strong>
+          <span>Baby changing, child-friendly, free access</span>
+        </article>
+        <article class="stakeholder direct node-visitors">
+          <strong>Visitors and travellers</strong>
+          <span>Unfamiliar campuses, stations, streets, venues</span>
+        </article>
+
+        <article class="stakeholder trust node-data">
+          <strong>Data sources</strong>
+          <span>Public toilet locations, opening hours, facilities</span>
+        </article>
+        <article class="stakeholder trust node-moderation">
+          <strong>Moderation and privacy</strong>
+          <span>Safe comments, sensitive histories, anonymous feedback</span>
+        </article>
+        <article class="stakeholder trust node-cleaning">
+          <strong>Cleaners and venue staff</strong>
+          <span>Maintain condition; future report response loop</span>
+        </article>
+
+        <article class="stakeholder context node-council">
+          <strong>Councils and public services</strong>
+          <span>Public toilet policy, schemes, verified information</span>
+        </article>
+        <article class="stakeholder context node-venues">
+          <strong>Venue operators</strong>
+          <span>Shops, campuses, stations, shopping centres</span>
+        </article>
+        <article class="stakeholder context node-advocacy">
+          <strong>Accessibility and health groups</strong>
+          <span>Co-design, inclusion checks, unmet needs</span>
+        </article>
+        <article class="stakeholder context node-tech">
+          <strong>Technical services</strong>
+          <span>Maps, hosting, database, AI summaries, browsers</span>
+        </article>
+
+        <div class="core">
+          <div>
+            <strong>WhereToI</strong>
+            <span>Clean, usable toilet access decision</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
