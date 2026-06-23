@@ -131,9 +131,9 @@ test("toilets service caches detail responses and force refreshes them", async (
     fetchCount += 1;
     const requestUrl = String(url);
     if (fetchCount === 1) {
-      assert.equal(requestUrl, "/api/toilets/detail?toiletId=detail-test");
+      assert.equal(requestUrl, "/api/toilets/detail?toiletId=detail-test&cleanlinessRange=all");
     } else {
-      assert.equal(requestUrl, "/api/toilets/detail?toiletId=detail-test&refresh=1");
+      assert.equal(requestUrl, "/api/toilets/detail?toiletId=detail-test&cleanlinessRange=all&refresh=1");
     }
     return {
       ok: true,

@@ -1564,11 +1564,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const requestId = cleanlinessDisplayRequestId + 1;
     cleanlinessDisplayRequestId = requestId;
 
-    if (range === "all") {
-      setSelectedCleanlinessDisplay(selectedToilet);
-      return selectedToilet;
-    }
-
     if (!shouldFetchCleanlinessDisplay()) {
       setSelectedCleanlinessDisplay(selectedToilet);
       return selectedToilet;

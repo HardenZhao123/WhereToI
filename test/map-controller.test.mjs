@@ -1600,6 +1600,118 @@ test("map controller rating period changes only the selected detail rating", asy
   }
 });
 
+test("map controller fetches all-time detail when rating period changes to all time", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+  clearToiletDetailCache();
+
+  const elementsBySelector = new Map(
+    [
+      "#cleanliness-stars",
+      "#cleanliness-star-icons",
+      "#cleanliness-score",
+      "#cleanliness-rating-count",
+      "#toilet-name",
+      "#toilet-area",
+      "#toilet-comment",
+      "#feature-women",
+      "#feature-men",
+      "#feature-accessible",
+      "#feature-neutral",
+      "#feature-children",
+      "#feature-baby-changing",
+      "#feature-bidet",
+      "#feature-automatic",
+      "#feature-urinal-only",
+      "#feature-radar-key",
+      "#feature-free",
+      "#hours-today",
+      "#hours-sat",
+      "#hours-sun",
+      "#distance-line"
+    ].map((selector) => [selector, createTextElement()])
+  );
+  const cleanlinessRangeSelect = { value: "3days" };
+  const requestedUrls = [];
+
+  globalThis.document = {
+    addEventListener() {},
+    createElement() {
+      return createTextElement();
+    },
+    querySelector(selector) {
+      return elementsBySelector.get(selector) ?? null;
+    }
+  };
+  globalThis.window = {
+    location: { href: "http://localhost/" },
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+  globalThis.fetch = async (url) => {
+    const requestUrl = String(url);
+    requestedUrls.push(requestUrl);
+
+    const range = new URL(`http://localhost${requestUrl}`).searchParams.get("cleanlinessRange");
+    const cleanliness = range === "all" ? 5 : 2;
+    return {
+      ok: true,
+      async json() {
+        return {
+          toilet: {
+            ...createTestToilet(),
+            cleanliness,
+            cleanlinessSurvey: {
+              ratingTotal: cleanliness,
+              ratingCount: 1
+            }
+          }
+        };
+      }
+    };
+  };
+
+  try {
+    const controller = createMapController({
+      statusText: { textContent: "" },
+      detailsCard: { classList: createClassList() },
+      mapPanel: { classList: createClassList() },
+      directionsButton: { disabled: false },
+      cleanlinessRangeSelect
+    });
+
+    const threeDayToilet = {
+      ...createTestToilet(),
+      cleanliness: 2,
+      cleanlinessSurvey: {
+        ratingTotal: 2,
+        ratingCount: 1
+      }
+    };
+
+    controller.setToilets([threeDayToilet], { cleanlinessRange: "3days" });
+    await controller.setToilet(threeDayToilet.id, { fly: false });
+    await controller.setCleanlinessRange("all");
+
+    assert.equal(cleanlinessRangeSelect.value, "all");
+    assert.equal(elementsBySelector.get("#cleanliness-score").textContent, "5.0/5");
+    assert.equal(elementsBySelector.get("#cleanliness-rating-count").textContent, "1 rating");
+    assert.deepEqual(requestedUrls, [
+      "/api/toilets/detail?toiletId=test-toilet&cleanlinessRange=3days",
+      "/api/toilets/detail?toiletId=test-toilet&cleanlinessRange=all"
+    ]);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("map controller keeps rating period independent per toilet", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;

@@ -196,10 +196,7 @@ export async function fetchToiletDetail(toiletId, { force = false, cleanlinessRa
     return cloneToilet(await pendingLoad);
   }
 
-  let url = `${appConfig.apiBasePath}/toilets/detail?toiletId=${encodeURIComponent(toiletId)}`;
-  if (safeRange !== "all") {
-    url += `&cleanlinessRange=${encodeURIComponent(safeRange)}`;
-  }
+  let url = `${appConfig.apiBasePath}/toilets/detail?toiletId=${encodeURIComponent(toiletId)}&cleanlinessRange=${encodeURIComponent(safeRange)}`;
   if (force) {
     url += "&refresh=1";
   }
