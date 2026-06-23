@@ -65,6 +65,54 @@ test("API exposes health and expanded toilet feature details", async () => {
   });
 });
 
+test("API supports Capacitor iOS origins with credentialed CORS", async () => {
+  await withAppServer(async (baseUrl) => {
+    const origin = "capacitor://localhost";
+    const preflightResponse = await fetch(`${baseUrl}/api/toilets`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: origin,
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "Content-Type"
+      }
+    });
+
+    assert.equal(preflightResponse.status, 204);
+    assert.equal(preflightResponse.headers.get("access-control-allow-origin"), origin);
+    assert.equal(preflightResponse.headers.get("access-control-allow-credentials"), "true");
+    assert.match(preflightResponse.headers.get("access-control-allow-methods"), /GET/);
+
+    const toiletsResponse = await fetch(`${baseUrl}/api/toilets`, {
+      headers: { Origin: origin }
+    });
+
+    assert.equal(toiletsResponse.status, 200);
+    assert.equal(toiletsResponse.headers.get("access-control-allow-origin"), origin);
+    assert.equal(toiletsResponse.headers.get("access-control-allow-credentials"), "true");
+    assert.match(toiletsResponse.headers.get("vary"), /Origin/);
+  });
+});
+
+test("native-origin login cookies are compatible with cross-origin Capacitor requests", async () => {
+  await withAppServer(async (baseUrl) => {
+    const origin = "capacitor://localhost";
+    const loginResponse = await fetch(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: origin
+      },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const setCookie = loginResponse.headers.get("set-cookie");
+
+    assert.equal(loginResponse.status, 200);
+    assert.equal(loginResponse.headers.get("access-control-allow-origin"), origin);
+    assert.match(setCookie, /SameSite=None/);
+    assert.match(setCookie, /Secure/);
+  });
+});
+
 test("static app code revalidates and supports Last-Modified validation", async () => {
   await withAppServer(async (baseUrl) => {
     const firstResponse = await fetch(`${baseUrl}/src/styles.css`);

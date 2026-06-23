@@ -140,6 +140,7 @@ test("app initialization requests current location and centers the map when allo
 
   let geolocationRequested = false;
   let csvFetchCount = 0;
+  let toiletRequestUrl = "";
   let mapCenter = { lat: 51.4974, lng: -0.1751 };
   const markerLayer = {
     addTo() {
@@ -252,6 +253,7 @@ test("app initialization requests current location and centers the map when allo
     }
 
     if (requestUrl.startsWith("/api/toilets")) {
+      toiletRequestUrl = requestUrl;
       return {
         ok: true,
         json: async () => ({ toilets: [createTestToilet()] })
@@ -275,6 +277,7 @@ test("app initialization requests current location and centers the map when allo
     await app.initialize();
 
     assert.equal(csvFetchCount, 0);
+    assert.equal(toiletRequestUrl, "/api/toilets?cleanlinessRange=3days");
     assert.equal(geolocationRequested, true);
     assert.deepEqual(mapCenter, { lat: 51.51, lng: -0.12 });
   } finally {

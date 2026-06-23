@@ -1,0 +1,17 @@
+{
+  "appId": "com.wheretoi.app",
+  "appName": "WhereToI",
+  "webDir": "dist",
+  "ios": {
+    "scheme": "WhereToI"
+  },
+  "server": {
+    "hostname": "localhost",
+    "iosScheme": "capacitor"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

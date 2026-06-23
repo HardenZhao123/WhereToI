@@ -35,12 +35,50 @@ const resultRenderLimit = 8;
 const locateActiveCenterToleranceMetres = 20;
 const defaultCleanlinessRange = "3days";
 const touchCommentComposerQuery = "(hover: none), (pointer: coarse), (max-width: 760px)";
+const locationRequestOptions = Object.freeze({
+  enableHighAccuracy: true,
+  timeout: 10000,
+  maximumAge: 60000
+});
 
 function shouldAutofocusCommentInput() {
   const matchMedia = globalThis.window?.matchMedia;
   if (typeof matchMedia !== "function") return true;
 
   return !matchMedia(touchCommentComposerQuery).matches;
+}
+
+function getNativeGeolocationPlugin() {
+  const capacitor = globalThis.Capacitor;
+  const isNativeApp = typeof capacitor?.isNativePlatform === "function" && capacitor.isNativePlatform();
+
+  if (!isNativeApp) return null;
+  return capacitor?.Plugins?.Geolocation ?? null;
+}
+
+function getNativeLocationPermissionState(permissionResult) {
+  return permissionResult?.location ?? permissionResult?.coarseLocation ?? null;
+}
+
+async function ensureNativeLocationPermission(geolocationPlugin) {
+  if (typeof geolocationPlugin.requestPermissions !== "function") return;
+
+  let currentPermission = null;
+  if (typeof geolocationPlugin.checkPermissions === "function") {
+    currentPermission = await geolocationPlugin.checkPermissions();
+  }
+
+  if (getNativeLocationPermissionState(currentPermission) === "granted") return;
+
+  const nextPermission = await geolocationPlugin.requestPermissions();
+  if (getNativeLocationPermissionState(nextPermission) === "denied") {
+    throw new Error("Location permission was denied.");
+  }
+}
+
+async function requestNativeLocationPosition(geolocationPlugin) {
+  await ensureNativeLocationPermission(geolocationPlugin);
+  return geolocationPlugin.getCurrentPosition(locationRequestOptions);
 }
 
 function withStaticAssetVersion(path) {
@@ -1214,47 +1252,76 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     refreshFilteredDisplay();
   }
 
+  function handleLocationFound(position) {
+    userLocation = {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude
+    };
+
+    refreshFilteredDisplay();
+
+    if (selectedToilet) {
+      document.querySelector("#distance-line").textContent = formatToiletDistance(selectedToilet);
+    }
+
+    if (map) {
+      map.flyTo([userLocation.lat, userLocation.lng], Math.max(map.getZoom(), 15), { duration: 0.5 });
+      setLocateButtonState(true);
+    } else {
+      updateLocateButtonStateFromMap();
+    }
+
+    setStatus("Location found. Distances are now updated.");
+  }
+
+  function handleLocationUnavailable(error) {
+    if (error) {
+      console.warn("Location request failed:", error);
+    }
+    updateLocateButtonStateFromMap();
+    setStatus("Location permission was denied or unavailable.");
+  }
+
   function requestLocation() {
+    const nativeGeolocation = getNativeGeolocationPlugin();
+
+    setStatus("Requesting location permission...");
+
+    if (nativeGeolocation && typeof nativeGeolocation.getCurrentPosition === "function") {
+      requestNativeLocationPosition(nativeGeolocation)
+        .then(handleLocationFound)
+        .catch(handleLocationUnavailable);
+      return;
+    }
+
     if (!navigator.geolocation) {
       setLocateButtonState(false);
       setStatus("Your browser does not support location.");
       return;
     }
 
-    setStatus("Requesting location permission...");
-
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        userLocation = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-
-        refreshFilteredDisplay();
-
-        if (selectedToilet) {
-          document.querySelector("#distance-line").textContent = formatToiletDistance(selectedToilet);
-        }
-
-        if (map) {
-          map.flyTo([userLocation.lat, userLocation.lng], Math.max(map.getZoom(), 15), { duration: 0.5 });
-          setLocateButtonState(true);
-        } else {
-          updateLocateButtonStateFromMap();
-        }
-
-        setStatus("Location found. Distances are now updated.");
-      },
-      () => {
-        updateLocateButtonStateFromMap();
-        setStatus("Location permission was denied or unavailable.");
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
-      }
+      handleLocationFound,
+      handleLocationUnavailable,
+      locationRequestOptions
     );
+  }
+
+  async function openExternalUrl(url) {
+    const capacitor = globalThis.Capacitor;
+    const browserPlugin = capacitor?.Plugins?.Browser;
+    const isNativeApp = typeof capacitor?.isNativePlatform === "function" && capacitor.isNativePlatform();
+
+    if (isNativeApp && typeof browserPlugin?.open === "function") {
+      try {
+        await browserPlugin.open({ url });
+        return;
+      } catch (error) {
+        console.error("Failed to open native browser:", error);
+      }
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function openDirections() {
@@ -1278,7 +1345,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const destination = `${selectedToilet.lat},${selectedToilet.lng}`;
     const origin = userLocation ? `&origin=${userLocation.lat},${userLocation.lng}` : "";
     const url = `https://www.google.com/maps/dir/?api=1${origin}&destination=${destination}&travelmode=walking`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    void openExternalUrl(url);
   }
 
   function createInteractiveMap() {

@@ -11,6 +11,7 @@
   --blue: #366fab;
   --gold: #d8aa38;
   --tabbar-height: 74px;
+  --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--ink);
@@ -72,7 +73,7 @@ button {
 .screen {
   position: relative;
   height: calc(100vh - var(--tabbar-height) - var(--safe-area-bottom));
-  padding: 16px 18px 0;
+  padding: calc(16px + var(--safe-area-top)) 18px 0;
   border-radius: 0;
   background: linear-gradient(180deg, #fbfcf7, #eef4ed);
   overflow-x: hidden;
@@ -80,6 +81,8 @@ button {
 }
 
 .topbar {
+  position: relative;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -132,6 +135,8 @@ h3 {
 }
 
 .locate-button {
+  position: relative;
+  z-index: 21;
   display: grid;
   place-items: center;
   width: 42px;
@@ -143,6 +148,8 @@ h3 {
   color: #4f5d68;
   background: #fff;
   box-shadow: 0 5px 14px rgb(31 42 51 / 10%);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition:
     border-color 0.16s ease,
     box-shadow 0.16s ease,

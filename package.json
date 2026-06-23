@@ -8,6 +8,10 @@
     "start": "node --disable-warning=ExperimentalWarning scripts/dev-server.mjs",
     "build": "node scripts/build.mjs",
     "android:apk": "node scripts/build-android-apk.mjs",
+    "ios:add": "npm run build && npx cap add ios",
+    "ios:sync": "npm run build && npx cap sync ios",
+    "ios:open": "npm run ios:sync && npx cap open ios",
+    "ios:run": "npm run ios:sync && npx cap run ios",
     "check": "node scripts/check.mjs",
     "check:browser": "playwright test",
     "repair:postgres": "node --disable-warning=ExperimentalWarning scripts/repair-postgres.mjs",
@@ -22,6 +26,11 @@
     "node": ">=22.5.0 <27"
   },
   "devDependencies": {
+    "@capacitor/browser": "^8.0.3",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/geolocation": "^8.2.0",
+    "@capacitor/ios": "^8.4.1",
     "@playwright/test": "^1.60.0"
   }
 }

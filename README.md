@@ -164,6 +164,36 @@ or test data only, opt in with `WHERETOI_ENABLE_DEMO_ACCOUNT=true`. Production
 must set `WHERETOI_REQUIRE_DATABASE_URL=true`, keep
 `WHERETOI_ALLOW_DB_FALLBACK=false`, and keep the demo account disabled.
 
+### iOS WKWebView / Capacitor Shell
+
+The iOS app is a Capacitor wrapper that packages the static web app into
+`ios/App/App/public` and runs it in `WKWebView`. In the native shell, API calls
+target the production origin `https://wheretoi-webapp.onrender.com`, so the app
+can use the live toilet data, account actions, comments, and feedback endpoints.
+
+Requirements / 环境要求：
+
+- macOS with Xcode installed
+- Apple Developer account for device builds, TestFlight, or App Store upload
+- Node.js and npm as above
+
+Useful commands / 常用命令：
+
+```bash
+npm run ios:sync
+npm run ios:open
+npm run ios:run
+```
+
+`npm run ios:sync` rebuilds the static web app and copies it into the iOS
+project. `npm run ios:open` opens the generated Xcode workspace/project so you
+can configure signing, devices, TestFlight, and App Store archive settings.
+
+The server allows credentialed requests from the default Capacitor origins
+`capacitor://localhost` and `ionic://localhost`. To override or extend this in a
+deployment, set `WHERETOI_CORS_ORIGINS` to a comma-separated list of allowed
+origins.
+
 This repository is maintained by the project team. We are not accepting external PRs right now; please use GitHub Issues for suggestions only.
 
 这个仓库由项目团队维护。目前不接受外部 PR；请只通过 GitHub Issues 提建议。

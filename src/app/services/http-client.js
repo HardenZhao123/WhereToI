@@ -1,10 +1,19 @@
 export async function fetchJson(url, options = {}) {
+  const { headers: optionHeaders, ...fetchOptions } = options;
+  const headers = {
+    Accept: "application/json",
+    ...(optionHeaders ?? {})
+  };
+
+  const hasContentType = Object.keys(headers).some((key) => key.toLowerCase() === "content-type");
+  if (options.body !== undefined && !hasContentType) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {})
-    },
-    ...options
+    ...fetchOptions,
+    credentials: fetchOptions.credentials ?? "include",
+    headers
   });
 
   const payload = await response.json().catch(() => ({}));

@@ -1,6 +1,6 @@
 .map-canvas {
   position: absolute;
-  inset: 82px 0 78px;
+  inset: calc(82px + var(--safe-area-top)) 0 78px;
   background: #e6eaf2;
   overflow: hidden;
   z-index: 1;

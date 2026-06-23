@@ -44,6 +44,11 @@ const responseRequests = new WeakMap();
 
 const TRUTHY_QUERY_FLAGS = new Set(["1", "true", "yes"]);
 const BODY_SIZE_LIMIT_BYTES = 8 * 1024 * 1024;
+const DEFAULT_API_CORS_ORIGINS = new Set([
+  "capacitor://localhost",
+  "ionic://localhost",
+  "http://localhost:8100"
+]);
 const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "required",
   "non-negative",
@@ -105,7 +110,7 @@ function createCompressionStream(encoding) {
 function sendResponseBody(response, statusCode, body, headers) {
   const request = responseRequests.get(response);
   const encoding = selectCompressionEncoding(request, body.byteLength);
-  const responseHeaders = { ...headers };
+  const responseHeaders = withCorsHeaders(request, { ...headers });
 
   if (encoding) {
     responseHeaders["Content-Encoding"] = encoding;
@@ -141,8 +146,63 @@ function sendSensitiveJson(response, statusCode, payload, headers = {}) {
 }
 
 function sendPlainText(response, statusCode, message) {
-  response.writeHead(statusCode);
+  response.writeHead(statusCode, withCorsHeaders(responseRequests.get(response)));
   response.end(message);
+}
+
+function getAllowedApiCorsOrigins() {
+  const configuredOrigins = String(process.env.WHERETOI_CORS_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (configuredOrigins.length > 0) {
+    return new Set(configuredOrigins);
+  }
+
+  return DEFAULT_API_CORS_ORIGINS;
+}
+
+function getAllowedCorsOrigin(request) {
+  const origin = String(request?.headers?.origin ?? "");
+  if (!origin) return null;
+
+  const allowedOrigins = getAllowedApiCorsOrigins();
+  if (allowedOrigins.has(origin)) {
+    return origin;
+  }
+
+  return null;
+}
+
+function withCorsHeaders(request, headers = {}) {
+  const origin = getAllowedCorsOrigin(request);
+  if (!origin) return headers;
+
+  const nextHeaders = {
+    ...headers,
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Credentials": "true"
+  };
+  appendVaryHeader(nextHeaders, "Origin");
+  return nextHeaders;
+}
+
+function getCorsPreflightHeaders(request) {
+  const requestedHeaders = String(request?.headers?.["access-control-request-headers"] ?? "Content-Type");
+
+  return withCorsHeaders(request, {
+    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers": requestedHeaders,
+    "Access-Control-Max-Age": "600",
+    "Content-Length": "0"
+  });
+}
+
+function buildSessionCookie(request, value, maxAgeSeconds) {
+  const crossOriginNativeRequest = Boolean(getAllowedCorsOrigin(request));
+  const sameSitePolicy = crossOriginNativeRequest ? "SameSite=None; Secure" : "SameSite=Strict";
+  return `session=${value}; HttpOnly; Path=/; ${sameSitePolicy}; Max-Age=${maxAgeSeconds}`;
 }
 
 function parseCookies(cookieHeader) {
@@ -322,15 +382,15 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 
       if (user) {
         sendSensitiveJson(response, 200, { user }, {
-          "Set-Cookie": `session=${user.id}; HttpOnly; Path=/; SameSite=Strict; Max-Age=86400`
+          "Set-Cookie": buildSessionCookie(request, user.id, 86400)
         });
       } else {
         sendSensitiveJson(response, 401, { error: "Invalid username or password." });
       }
     },
-    "POST /api/logout": async ({ response }) => {
+    "POST /api/logout": async ({ request, response }) => {
       sendSensitiveJson(response, 200, { status: "logged out" }, {
-        "Set-Cookie": "session=; HttpOnly; Path=/; Max-Age=0"
+        "Set-Cookie": buildSessionCookie(request, "", 0)
       });
     },
     "GET /api/me": async ({ request, response }) => {
@@ -770,6 +830,13 @@ function createRequestHandler({ root, port, database, emailService, aiService, l
     const url = new URL(request.url ?? "/", `http://localhost:${port}`);
 
     try {
+      if (request.method?.toUpperCase() === "OPTIONS" && url.pathname.startsWith("/api/")) {
+        const headers = getCorsPreflightHeaders(request);
+        response.writeHead(headers["Access-Control-Allow-Origin"] ? 204 : 403, headers);
+        response.end();
+        return;
+      }
+
       const apiHandled = await handleApiRoute({ routeHandlers, request, response, url, aiService });
       if (apiHandled) return;
 
