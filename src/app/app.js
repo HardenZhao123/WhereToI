@@ -97,14 +97,14 @@ export function createApp() {
     }
   }
 
-  function scheduleToiletRetry(range) {
+  function scheduleToiletRetry(range, options = {}) {
     clearToiletRetry();
     const baseDelay = Math.min(5_000 * (2 ** toiletRetryAttempt), 30_000);
     const retryDelay = Math.round(baseDelay * (0.75 + Math.random() * 0.5));
     toiletRetryAttempt += 1;
     toiletRetryTimerId = window.setTimeout(() => {
       toiletRetryTimerId = null;
-      initializeToilets(range);
+      initializeToilets(range, options);
     }, retryDelay);
   }
 
@@ -151,7 +151,7 @@ export function createApp() {
 
   async function initializeToilets(
     range = "all",
-    { force = false, bounds = null, merge = false } = {}
+    { force = false, bounds = undefined, merge = false, useCurrentBounds = true } = {}
   ) {
     if (!force && !bounds && range === lastLoadedRange && hasLoadedApiToilets) {
       return;
@@ -170,7 +170,9 @@ export function createApp() {
 
     const currentSelectedId = mapController.getSelectedToilet()?.id;
     const currentSection = getCurrentDetailSection();
-    const activeBounds = bounds ?? mapController.getBounds();
+    const activeBounds = bounds === undefined && useCurrentBounds
+      ? mapController.getBounds()
+      : bounds ?? null;
     const cachedToilets = !force ? getCachedToiletsFromApi(range, activeBounds) : null;
     const renderedCachedToilets = Array.isArray(cachedToilets) && cachedToilets.length > 0;
 
@@ -227,7 +229,7 @@ export function createApp() {
     }
 
     if (requestId === toiletLoadRequestId && !hasLoadedApiToilets) {
-      scheduleToiletRetry(range);
+      scheduleToiletRetry(range, { force, bounds: activeBounds, merge, useCurrentBounds: false });
     }
   }
 
@@ -310,7 +312,8 @@ export function createApp() {
     await Promise.all([
       initializeToilets(mapCleanlinessRange, {
         force: false,
-        merge: false
+        merge: false,
+        useCurrentBounds: false
       }),
       accountController.loadPanelData()
     ]);

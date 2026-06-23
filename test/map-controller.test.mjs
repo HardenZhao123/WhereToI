@@ -2081,6 +2081,178 @@ test("locate button returns to hollow state when the map is moved away from the 
   }
 });
 
+test("map controller uses Capacitor Geolocation in native shells", async () => {
+  const originalCapacitor = globalThis.Capacitor;
+  const originalDocument = globalThis.document;
+  const originalNavigator = globalThis.navigator;
+  const originalWindow = globalThis.window;
+
+  let browserGeolocationRequested = false;
+  let nativePermissionRequested = false;
+  let nativePositionRequested = false;
+  let mapCenter = { lat: 51.4974, lng: -0.1751 };
+  const markerLayer = {
+    addTo() {
+      return markerLayer;
+    },
+    clearLayers() {}
+  };
+  const fakeMap = {
+    setView(center) {
+      mapCenter = { lat: center[0], lng: center[1] };
+      return fakeMap;
+    },
+    getCenter() {
+      return mapCenter;
+    },
+    getBounds() {
+      return {
+        contains() {
+          return true;
+        },
+        getSouth() {
+          return mapCenter.lat - 0.01;
+        },
+        getNorth() {
+          return mapCenter.lat + 0.01;
+        },
+        getWest() {
+          return mapCenter.lng - 0.01;
+        },
+        getEast() {
+          return mapCenter.lng + 0.01;
+        }
+      };
+    },
+    getZoom() {
+      return 15;
+    },
+    flyTo(center) {
+      mapCenter = { lat: center[0], lng: center[1] };
+      return fakeMap;
+    },
+    on() {
+      return fakeMap;
+    }
+  };
+
+  globalThis.Capacitor = {
+    isNativePlatform() {
+      return true;
+    },
+    Plugins: {
+      Geolocation: {
+        async checkPermissions() {
+          return { location: "prompt" };
+        },
+        async requestPermissions() {
+          nativePermissionRequested = true;
+          return { location: "granted" };
+        },
+        async getCurrentPosition(options) {
+          nativePositionRequested = true;
+          assert.equal(options.enableHighAccuracy, true);
+          return {
+            coords: {
+              latitude: 51.51,
+              longitude: -0.12
+            }
+          };
+        }
+      }
+    }
+  };
+  globalThis.document = {
+    addEventListener() {},
+    querySelector() {
+      return null;
+    }
+  };
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    value: {
+      geolocation: {
+        getCurrentPosition() {
+          browserGeolocationRequested = true;
+        }
+      }
+    }
+  });
+  globalThis.window = {
+    L: {
+      map() {
+        return fakeMap;
+      },
+      tileLayer() {
+        return {
+          addTo() {}
+        };
+      },
+      layerGroup() {
+        return markerLayer;
+      },
+      divIcon(options) {
+        return options;
+      },
+      marker() {
+        return {
+          addTo() {
+            return this;
+          },
+          remove() {},
+          setLatLng() {}
+        };
+      }
+    },
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+
+  try {
+    const locateButton = {
+      id: "locate-button",
+      classList: createRecordingClassList(),
+      attributes: {},
+      setAttribute(name, value) {
+        this.attributes[name] = value;
+      }
+    };
+    const statusText = { textContent: "" };
+    const controller = createMapController({
+      statusText,
+      mapElement: {},
+      locateButtons: [locateButton]
+    });
+
+    assert.equal(controller.createInteractiveMap(), true);
+    controller.requestLocation();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.equal(nativePermissionRequested, true);
+    assert.equal(nativePositionRequested, true);
+    assert.equal(browserGeolocationRequested, false);
+    assert.deepEqual(mapCenter, { lat: 51.51, lng: -0.12 });
+    assert.equal(locateButton.classList.contains("is-located"), true);
+    assert.equal(statusText.textContent, "Location found. Distances are now updated.");
+  } finally {
+    if (typeof originalCapacitor === "undefined") {
+      delete globalThis.Capacitor;
+    } else {
+      globalThis.Capacitor = originalCapacitor;
+    }
+    globalThis.document = originalDocument;
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: originalNavigator
+    });
+    globalThis.window = originalWindow;
+  }
+});
+
 test("map controller records access history when opening directions if authenticated", async () => {
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;
