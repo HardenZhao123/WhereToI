@@ -237,6 +237,11 @@ export function createApp() {
     elements.toggleSearchButton?.addEventListener("click", () => mapController.toggleSearchPanel());
 
     elements.resetMapButton?.addEventListener("click", () => mapController.resetFilters());
+    elements.addToiletOpenButton?.addEventListener("click", () => mapController.openAddToiletPanel());
+    elements.addToiletCloseButton?.addEventListener("click", () => mapController.closeAddToiletPanel());
+    elements.addToiletPickLocationButton?.addEventListener("click", () => mapController.openAddToiletPanel());
+    elements.addToiletUseCentreButton?.addEventListener("click", () => mapController.useMapCentreForAddToilet());
+    elements.addToiletForm?.addEventListener("submit", (event) => mapController.submitAddToilet(event));
     elements.searchInput?.addEventListener("input", (event) => {
       if (event.target.value.trim().length > 0 && elements.searchCard?.classList.contains("is-collapsed")) {
         mapController.expandSearchPanel();

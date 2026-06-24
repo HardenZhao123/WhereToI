@@ -6,7 +6,8 @@ import {
   fetchToiletDetail,
   getCachedToiletDetail,
   getCachedToiletsFromApi,
-  loadToiletsFromApi
+  loadToiletsFromApi,
+  submitToiletContribution
 } from "../src/app/services/toilets-service.js";
 
 function createApiToilet(id = "cached-toilet") {
@@ -258,6 +259,58 @@ test("toilets service aborts a stale bounds request without retrying it", async 
 
     await assert.rejects(loadPromise, { name: "AbortError" });
     assert.equal(fetchCount, 1);
+  } finally {
+    clearToiletsApiCache();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("toilets service posts contributed toilets and clears list cache", async () => {
+  const originalFetch = globalThis.fetch;
+  clearToiletsApiCache();
+  const submittedPayload = {
+    name: "New station toilet",
+    area: "Test area",
+    lat: 51.51,
+    lng: -0.19,
+    features: { accessible: "Y", free: "Y" },
+    openingTimes: [[], [], [], [], [], [], []]
+  };
+  let postBody = null;
+
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).startsWith("/api/toilets?")) {
+      return {
+        ok: true,
+        json: async () => ({ toilets: [createApiToilet("cached-before-submit")] })
+      };
+    }
+
+    assert.equal(url, "/api/toilets");
+    assert.equal(options.method, "POST");
+    postBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      json: async () => ({
+        toilet: {
+          id: "user-created-toilet",
+          ...postBody,
+          hours: { today: "Mon Closed", sat: "Sat Closed", sun: "Sun Closed" },
+          cleanlinessSurvey: { ratingTotal: 0, ratingCount: 0 }
+        }
+      })
+    };
+  };
+
+  try {
+    await loadToiletsFromApi("all", 0, 1000);
+    assert.equal(getCachedToiletsFromApi("all")[0].id, "cached-before-submit");
+
+    const toilet = await submitToiletContribution(submittedPayload);
+
+    assert.deepEqual(postBody, submittedPayload);
+    assert.equal(toilet.id, "user-created-toilet");
+    assert.equal(getCachedToiletsFromApi("all"), null);
   } finally {
     clearToiletsApiCache();
     globalThis.fetch = originalFetch;

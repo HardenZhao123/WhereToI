@@ -32,6 +32,78 @@
 
   <template data-html-include="./search-card.html"></template>
 
+  <aside class="add-toilet-panel is-hidden" id="add-toilet-panel" hidden aria-labelledby="add-toilet-title">
+    <button class="close-button add-toilet-close" id="add-toilet-close" type="button" aria-label="Close add toilet form">X</button>
+    <form id="add-toilet-form" class="add-toilet-form">
+      <header class="add-toilet-header">
+        <h2 id="add-toilet-title">Add missing toilet</h2>
+        <p id="add-toilet-status" class="add-toilet-status" aria-live="polite">Pick an empty map location.</p>
+      </header>
+      <input id="add-toilet-lat" name="lat" type="hidden" />
+      <input id="add-toilet-lng" name="lng" type="hidden" />
+      <div class="add-toilet-location-actions">
+        <button id="add-toilet-pick-location" type="button">Pick on map</button>
+        <button id="add-toilet-use-centre" type="button">Use map centre</button>
+      </div>
+      <div class="add-toilet-grid">
+        <label>
+          Name
+          <input id="add-toilet-name" name="name" type="text" autocomplete="off" required maxlength="160" />
+        </label>
+        <label>
+          Area
+          <input id="add-toilet-area" name="area" type="text" autocomplete="off" maxlength="160" />
+        </label>
+      </div>
+      <label>
+        Venue note
+        <textarea id="add-toilet-note" name="note" rows="2" maxlength="600"></textarea>
+      </label>
+      <section class="add-toilet-section" aria-labelledby="add-toilet-features-title">
+        <h3 id="add-toilet-features-title">Features</h3>
+        <div class="add-toilet-feature-grid">
+          <label>Women <select data-add-toilet-feature="women"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Men <select data-add-toilet-feature="men"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Accessible <select data-add-toilet-feature="accessible"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Gender Neutral <select data-add-toilet-feature="neutral"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Children <select data-add-toilet-feature="children"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Parent &amp; Baby <select data-add-toilet-feature="babyChanging"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Bidet / Washing <select data-add-toilet-feature="bidet"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Automatic <select data-add-toilet-feature="automatic"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Urinal Only <select data-add-toilet-feature="urinalOnly"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>RADAR Key <select data-add-toilet-feature="radarKey"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Free <select data-add-toilet-feature="free"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+        </div>
+      </section>
+      <section class="add-toilet-section" aria-labelledby="add-toilet-hours-title">
+        <h3 id="add-toilet-hours-title">Opening Hours</h3>
+        <div class="add-toilet-hours-grid">
+          <fieldset data-add-hours="weekday">
+            <legend>Mon-Fri</legend>
+            <label>Open <input type="time" data-add-hours-open /></label>
+            <label>Close <input type="time" data-add-hours-close /></label>
+            <label class="add-toilet-closed"><input type="checkbox" data-add-hours-closed /> Closed</label>
+          </fieldset>
+          <fieldset data-add-hours="sat">
+            <legend>Saturday</legend>
+            <label>Open <input type="time" data-add-hours-open /></label>
+            <label>Close <input type="time" data-add-hours-close /></label>
+            <label class="add-toilet-closed"><input type="checkbox" data-add-hours-closed /> Closed</label>
+          </fieldset>
+          <fieldset data-add-hours="sun">
+            <legend>Sunday</legend>
+            <label>Open <input type="time" data-add-hours-open /></label>
+            <label>Close <input type="time" data-add-hours-close /></label>
+            <label class="add-toilet-closed"><input type="checkbox" data-add-hours-closed /> Closed</label>
+          </fieldset>
+        </div>
+      </section>
+      <div class="add-toilet-actions">
+        <button id="add-toilet-submit" class="primary-pill" type="submit">Add toilet</button>
+      </div>
+    </form>
+  </aside>
+
   <template data-html-include="./details-card.html"></template>
   <template data-html-include="./comment-composer.html"></template>
 </section>
