@@ -283,31 +283,32 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   }
 
   function syncReviewTabVisibility() {
-    const reviewTab = Array.from(accountActivityTabs ?? []).find(
-      (button) => button.dataset.accountActivityTab === "review"
+    const adminReviewTabs = Array.from(accountActivityTabs ?? []).filter(
+      (button) => button.dataset.accountActivityTab?.startsWith("review-")
     );
-    const reviewPanel = Array.from(accountActivityPanels ?? []).find(
-      (panel) => panel.dataset.accountActivityPanel === "review"
+    const adminReviewPanels = Array.from(accountActivityPanels ?? []).filter(
+      (panel) => panel.dataset.accountActivityPanel?.startsWith("review-")
     );
     const showReview = isCurrentUserAdmin();
 
-    if (reviewTab) {
+    adminReviewTabs.forEach((reviewTab) => {
       reviewTab.hidden = !showReview;
       reviewTab.classList.toggle("is-hidden", !showReview);
-    }
+    });
 
-    if (!showReview && activeAccountActivityTab === "review") {
+    if (!showReview && activeAccountActivityTab.startsWith("review-")) {
       setAccountActivityTab("feedback");
-    } else if (reviewPanel && !showReview) {
-      reviewPanel.hidden = true;
-      reviewPanel.classList.add("is-hidden");
+    } else if (!showReview) {
+      adminReviewPanels.forEach((reviewPanel) => {
+        reviewPanel.hidden = true;
+        reviewPanel.classList.add("is-hidden");
+      });
     }
   }
 
-  async function loadToiletSubmissionsForReview() {
+  async function loadAddedToiletsForReview() {
     if (!isCurrentUserAdmin()) {
       renderToiletSubmissions(submissionReviewList, []);
-      renderToiletReports(toiletReportReviewList, []);
       return;
     }
 
@@ -317,6 +318,28 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
       loading.textContent = "Loading pending submissions...";
       submissionReviewList.append(loading);
     }
+    try {
+      const payload = await fetchToiletSubmissions("pending");
+      renderToiletSubmissions(submissionReviewList, payload.submissions, {
+        onReviewSubmission: handleReviewSubmission
+      });
+    } catch (error) {
+      console.error("Toilet submissions loading failed:", error);
+      if (submissionReviewList) {
+        submissionReviewList.textContent = "";
+        const message = document.createElement("p");
+        message.textContent = error?.message || "Could not load pending submissions.";
+        submissionReviewList.append(message);
+      }
+    }
+  }
+
+  async function loadToiletReportsForReview() {
+    if (!isCurrentUserAdmin()) {
+      renderToiletReports(toiletReportReviewList, []);
+      return;
+    }
+
     if (toiletReportReviewList) {
       toiletReportReviewList.textContent = "";
       const loading = document.createElement("p");
@@ -325,24 +348,12 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     }
 
     try {
-      const [payload, reportPayload] = await Promise.all([
-        fetchToiletSubmissions("pending"),
-        fetchToiletReports("pending")
-      ]);
-      renderToiletSubmissions(submissionReviewList, payload.submissions, {
-        onReviewSubmission: handleReviewSubmission
-      });
-      renderToiletReports(toiletReportReviewList, reportPayload.reports, {
+      const payload = await fetchToiletReports("pending");
+      renderToiletReports(toiletReportReviewList, payload.reports, {
         onReviewReport: handleReviewReport
       });
     } catch (error) {
-      console.error("Admin review loading failed:", error);
-      if (submissionReviewList) {
-        submissionReviewList.textContent = "";
-        const message = document.createElement("p");
-        message.textContent = error?.message || "Could not load pending submissions.";
-        submissionReviewList.append(message);
-      }
+      console.error("Toilet reports loading failed:", error);
       if (toiletReportReviewList) {
         toiletReportReviewList.textContent = "";
         const message = document.createElement("p");
@@ -357,8 +368,10 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     const nextTab = button?.dataset?.accountActivityTab;
     if (!nextTab) return;
     setAccountActivityTab(nextTab);
-    if (nextTab === "review") {
-      void loadToiletSubmissionsForReview();
+    if (nextTab === "review-additions") {
+      void loadAddedToiletsForReview();
+    } else if (nextTab === "review-reports") {
+      void loadToiletReportsForReview();
     }
   }
 
@@ -554,7 +567,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
         toiletId: submission.id,
         status
       });
-      await loadToiletSubmissionsForReview();
+      await loadAddedToiletsForReview();
       await onToiletSubmissionReviewed(status);
     } catch (error) {
       console.error("Toilet submission review failed:", error);
@@ -581,7 +594,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
         reportId: report.id,
         action
       });
-      await loadToiletSubmissionsForReview();
+      await loadToiletReportsForReview();
       await onToiletReportReviewed(action);
     } catch (error) {
       console.error("Toilet report review failed:", error);
@@ -661,8 +674,10 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
         onOpenComment: handleOpenComment,
         onSetProfileVisibility: handleSetCommentProfileVisibility
       });
-      if (isCurrentUserAdmin() && activeAccountActivityTab === "review") {
-        await loadToiletSubmissionsForReview();
+      if (isCurrentUserAdmin() && activeAccountActivityTab === "review-additions") {
+        await loadAddedToiletsForReview();
+      } else if (isCurrentUserAdmin() && activeAccountActivityTab === "review-reports") {
+        await loadToiletReportsForReview();
       }
     } catch (error) {
       console.error("Account API failed:", error);

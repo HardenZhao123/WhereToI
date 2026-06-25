@@ -58,7 +58,8 @@
     <div class="account-activity-tabs" role="tablist" aria-label="Account activity">
       <button class="account-activity-tab is-active" id="activity-feedback-tab" type="button" role="tab" aria-selected="true" aria-controls="activity-feedback-panel" data-account-activity-tab="feedback">My feedback</button>
       <button class="account-activity-tab" id="activity-history-tab" type="button" role="tab" aria-selected="false" aria-controls="activity-history-panel" data-account-activity-tab="history">Visit history</button>
-      <button class="account-activity-tab is-hidden" id="activity-review-tab" type="button" role="tab" aria-selected="false" aria-controls="activity-review-panel" data-account-activity-tab="review" hidden>Review submissions</button>
+      <button class="account-activity-tab is-hidden" id="activity-additions-review-tab" type="button" role="tab" aria-selected="false" aria-controls="activity-additions-review-panel" data-account-activity-tab="review-additions" hidden>Added toilets</button>
+      <button class="account-activity-tab is-hidden" id="activity-reports-review-tab" type="button" role="tab" aria-selected="false" aria-controls="activity-reports-review-panel" data-account-activity-tab="review-reports" hidden>Toilet reports</button>
     </div>
     <section class="account-activity-panel" id="activity-feedback-panel" role="tabpanel" aria-labelledby="activity-feedback-tab" data-account-activity-panel="feedback">
       <div id="my-comments-list" aria-live="polite">
@@ -70,11 +71,13 @@
         <p>No visit history yet.</p>
       </div>
     </section>
-    <section class="account-activity-panel is-hidden" id="activity-review-panel" role="tabpanel" aria-labelledby="activity-review-tab" data-account-activity-panel="review" hidden>
-      <h3 class="admin-review-heading">New toilet submissions</h3>
+    <section class="account-activity-panel is-hidden" id="activity-additions-review-panel" role="tabpanel" aria-labelledby="activity-additions-review-tab" data-account-activity-panel="review-additions" hidden>
+      <h3 class="admin-review-heading">Added toilet submissions</h3>
       <div class="submission-review-list" id="submission-review-list" aria-live="polite">
         <p>No pending submissions.</p>
       </div>
+    </section>
+    <section class="account-activity-panel is-hidden" id="activity-reports-review-panel" role="tabpanel" aria-labelledby="activity-reports-review-tab" data-account-activity-panel="review-reports" hidden>
       <h3 class="admin-review-heading">Reported toilet information</h3>
       <div class="submission-review-list" id="toilet-report-review-list" aria-live="polite">
         <p>No pending reports.</p>
