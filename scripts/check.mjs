@@ -272,8 +272,8 @@ if (
 }
 
 if (
-  html.includes("accept=\"image/*\"") ||
-  html.includes("accept=\"image/*,video/*\"") ||
+  html.includes("id=\"comment-media\"") ||
+  html.includes("id=\"comment-photo\"") ||
   html.includes("comment-media-status") ||
   js.includes("readCommentMediaAttachments") ||
   js.includes("createCommentMediaElement") ||

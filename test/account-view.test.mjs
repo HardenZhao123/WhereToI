@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderAccessHistory, renderMyComments, renderPublicProfile } from "../src/app/views/account-view.js";
+import {
+  renderAccessHistory,
+  renderMyComments,
+  renderPublicProfile,
+  renderToiletSubmissions
+} from "../src/app/views/account-view.js";
 
 class TestElement {
   constructor(tagName) {
@@ -78,6 +83,14 @@ function findByClass(node, className) {
     if (match) return match;
   }
   return null;
+}
+
+function findAllByClass(node, className, matches = []) {
+  if (node?.className?.split(/\s+/).includes(className)) matches.push(node);
+  for (const child of node?.children || []) {
+    findAllByClass(child, className, matches);
+  }
+  return matches;
 }
 
 function collectText(node) {
@@ -197,5 +210,71 @@ test("public profiles render feedback ratings as stars", () => {
     assert.doesNotMatch(collectText(publicProfileCommentsList), /Rating:|5\/5/);
     assert.match(collectText(publicProfileCommentsList), /2 likes/);
     assert.match(collectText(publicProfileCommentsList), /1 dislikes/);
+  });
+});
+
+test("toilet submission review renders nearby comparisons and external map links", () => {
+  withTestDocument(() => {
+    const container = new TestElement("div");
+
+    renderToiletSubmissions(container, [{
+      id: "user-review-test",
+      name: "New station toilet",
+      area: "South Kensington",
+      lat: 51.4945,
+      lng: -0.1745,
+      features: { accessible: "Y", free: "Y" },
+      hours: { today: "Today 08:00-20:00" },
+      hasEntrancePhoto: true,
+      entrancePhotoSize: 32145,
+      locationAccuracyMetres: 18,
+      locationDistanceMetres: 24,
+      locationCapturedAt: "2026-06-26T10:15:00.000Z",
+      nearbyApprovedToilets: [{
+        id: "detail-test",
+        name: "Prayer room washroom",
+        area: "South Kensington",
+        lat: 51.49412,
+        lng: -0.17392,
+        distanceMetres: 58
+      }]
+    }]);
+
+    const nearby = findByClass(container, "submission-nearby");
+    const closeDistance = findByClass(container, "submission-nearby-distance");
+    const mapLinks = findAllByClass(container, "submission-map-link");
+    const evidence = findByClass(container, "submission-evidence");
+    const evidencePhoto = findByClass(container, "submission-evidence-photo");
+
+    assert.match(collectText(nearby), /Prayer room washroom/);
+    assert.match(closeDistance.className, /is-close/);
+    assert.match(closeDistance.textContent, /check for duplicate/);
+    assert.equal(mapLinks.length, 3);
+    assert.match(mapLinks[0].href, /openstreetmap\.org/);
+    assert.match(mapLinks[1].href, /google\.com\/maps/);
+    assert.equal(mapLinks.every((link) => link.target === "_blank"), true);
+    assert.match(collectText(evidence), /GPS accuracy: \+\/- 18 m/);
+    assert.match(collectText(evidence), /marker 24 m from device location/);
+    assert.match(evidencePhoto.children[0].src, /admin\/toilet-submissions\/photo/);
+    assert.equal(evidencePhoto.children[0].loading, "lazy");
+  });
+});
+
+test("toilet submission review does not treat missing GPS evidence as zero metres", () => {
+  withTestDocument(() => {
+    const container = new TestElement("div");
+
+    renderToiletSubmissions(container, [{
+      id: "legacy-submission",
+      name: "Legacy submission",
+      area: "Unknown area",
+      lat: 51.5,
+      lng: -0.18
+    }]);
+
+    const evidence = findByClass(container, "submission-evidence");
+    assert.match(collectText(evidence), /GPS accuracy unavailable/);
+    assert.doesNotMatch(collectText(evidence), /GPS accuracy: \+\/- 0 m/);
+    assert.match(collectText(evidence), /No entrance photo provided/);
   });
 });

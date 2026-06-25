@@ -49,6 +49,7 @@ const COMMENT_SCENE_MAX_PLACEMENTS = 80;
 export const CLEANLINESS_RATING_COOLDOWN_MS = 30 * 60 * 1000;
 export const ANONYMOUS_COMMENT_AUTHOR = "Anonymous";
 export const TOILET_DUPLICATE_RADIUS_METRES = 35;
+export const MAX_TOILET_SUBMISSION_PHOTO_BYTES = 700 * 1024;
 
 const TOILET_FEATURE_KEYS = [
   "women",
@@ -69,6 +70,7 @@ const TOILET_REPORT_ISSUE_TYPES = new Set(["missing", "location", "features", "h
 const TOILET_REPORT_EXISTENCE_VALUES = new Set(["yes", "no", "unsure"]);
 const TOILET_REPORT_STATUSES = new Set(["pending", "applied", "removed", "rejected"]);
 const TOILET_REPORT_ACTIONS = new Set(["apply", "remove", "reject"]);
+const TOILET_SUBMISSION_PHOTO_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([a-z0-9+/=\r\n]+)$/i;
 
 export function getConfiguredAdminIdentifiers() {
   return new Set(
@@ -234,6 +236,78 @@ function normaliseOpeningTimes(openingTimes) {
   return rawOpeningTimes.map(normaliseOpeningSlot);
 }
 
+function hasExpectedImageSignature(bytes, mimeType) {
+  if (mimeType === "image/jpeg") {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (mimeType === "image/png") {
+    return (
+      bytes.length >= 8 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a
+    );
+  }
+  if (mimeType === "image/webp") {
+    return (
+      bytes.length >= 12 &&
+      bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+      bytes.subarray(8, 12).toString("ascii") === "WEBP"
+    );
+  }
+  return false;
+}
+
+function normaliseSubmissionPhoto(photo) {
+  if (photo === undefined || photo === null || photo === "") return null;
+
+  const dataUrl = typeof photo === "string"
+    ? photo.trim()
+    : String(photo?.dataUrl ?? "").trim();
+  const match = dataUrl.match(TOILET_SUBMISSION_PHOTO_PATTERN);
+  if (!match) {
+    throw new Error("entrance photo must be a JPEG, PNG, or WebP image.");
+  }
+
+  const mimeType = match[1].toLowerCase();
+  const bytes = Buffer.from(match[2].replace(/\s+/g, ""), "base64");
+  if (bytes.length === 0 || !hasExpectedImageSignature(bytes, mimeType)) {
+    throw new Error("entrance photo data is invalid.");
+  }
+  if (bytes.length > MAX_TOILET_SUBMISSION_PHOTO_BYTES) {
+    throw new Error(`entrance photo is too large. Maximum size is ${MAX_TOILET_SUBMISSION_PHOTO_BYTES} bytes.`);
+  }
+
+  return {
+    dataUrl: `data:${mimeType};base64,${bytes.toString("base64")}`,
+    mimeType,
+    size: bytes.length
+  };
+}
+
+function normaliseOptionalNonNegativeNumber(value, label, max = 10_000_000) {
+  if (value === undefined || value === null || value === "") return null;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0 || number > max) {
+    throw new Error(`${label} must be a valid non-negative number.`);
+  }
+  return Math.round(number * 10) / 10;
+}
+
+function normaliseOptionalTimestamp(value, label) {
+  if (value === undefined || value === null || value === "") return null;
+  const timestamp = new Date(value);
+  if (!Number.isFinite(timestamp.getTime())) {
+    throw new Error(`${label} must be a valid timestamp.`);
+  }
+  return timestamp.toISOString();
+}
+
 export function normaliseToiletContributionPayload(payload = {}) {
   const name = normaliseText(payload.name).slice(0, 160);
   const area = (normaliseText(payload.area) || "User submitted").slice(0, 160);
@@ -256,6 +330,7 @@ export function normaliseToiletContributionPayload(payload = {}) {
   } else if (accessCost === "paid") {
     features.free = "N";
   }
+  const entrancePhoto = normaliseSubmissionPhoto(payload.entrancePhoto);
 
   return {
     name,
@@ -266,6 +341,17 @@ export function normaliseToiletContributionPayload(payload = {}) {
     comment: note ? `Comment: ${note}` : "Comment: User submitted toilet.",
     features,
     openingTimes: normaliseOpeningTimes(payload.openingTimes),
+    entrancePhoto,
+    locationAccuracyMetres: normaliseOptionalNonNegativeNumber(
+      payload.locationAccuracyMetres,
+      "GPS accuracy",
+      100_000
+    ),
+    locationDistanceMetres: normaliseOptionalNonNegativeNumber(
+      payload.locationDistanceMetres,
+      "GPS marker distance"
+    ),
+    locationCapturedAt: normaliseOptionalTimestamp(payload.locationCapturedAt, "GPS capture time"),
     cleanliness: 3
   };
 }

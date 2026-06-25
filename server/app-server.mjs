@@ -68,6 +68,10 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "report action",
   "report issue",
   "toiletExists",
+  "entrance photo",
+  "GPS accuracy",
+  "GPS marker distance",
+  "GPS capture time",
   "not found"
 ];
 
@@ -150,6 +154,17 @@ function sendSensitiveJson(response, statusCode, payload, headers = {}) {
     "Cache-Control": SENSITIVE_CACHE_CONTROL,
     ...headers
   });
+}
+
+function sendSensitiveBinary(response, statusCode, body, contentType) {
+  const responseHeaders = withCorsHeaders(responseRequests.get(response), {
+    "Content-Type": contentType,
+    "Cache-Control": SENSITIVE_CACHE_CONTROL,
+    "Content-Length": body.byteLength,
+    "Content-Disposition": "inline"
+  });
+  response.writeHead(statusCode, responseHeaders);
+  response.end(body);
 }
 
 function sendPlainText(response, statusCode, message) {
@@ -288,6 +303,9 @@ function parseAccessibleOnly(queryValue) {
 function isAdminUser(user) {
   return Boolean(user?.isAdmin || user?.is_admin);
 }
+
+const TOILET_REVIEW_NEARBY_RADIUS_METRES = 750;
+const TOILET_REVIEW_NEARBY_LIMIT = 3;
 
 async function getAuthenticatedUser(request, database) {
   const userId = getSessionUserId(request);
@@ -539,7 +557,43 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 
       const status = url.searchParams.get("status") ?? "pending";
       const submissions = await database.getToiletSubmissions({ status });
-      sendSensitiveJson(response, 200, { submissions });
+      const submissionsWithNearbyToilets = await Promise.all(
+        submissions.map(async (submission) => ({
+          ...submission,
+          nearbyRadiusMetres: TOILET_REVIEW_NEARBY_RADIUS_METRES,
+          nearbyApprovedToilets: await database.getNearbyApprovedToilets({
+            lat: submission.lat,
+            lng: submission.lng,
+            radiusMetres: TOILET_REVIEW_NEARBY_RADIUS_METRES,
+            limit: TOILET_REVIEW_NEARBY_LIMIT,
+            excludeToiletId: submission.id
+          })
+        }))
+      );
+      sendSensitiveJson(response, 200, {
+        submissions: submissionsWithNearbyToilets,
+        nearbyRadiusMetres: TOILET_REVIEW_NEARBY_RADIUS_METRES
+      });
+    },
+    "GET /api/admin/toilet-submissions/photo": async ({ request, response, url }) => {
+      const admin = await requireAdminUser(request, response, database);
+      if (!admin) return;
+
+      const toiletId = normaliseOptionalToiletId(url.searchParams.get("toiletId"));
+      if (!toiletId) {
+        sendSensitiveJson(response, 400, { error: "toiletId is required." });
+        return;
+      }
+
+      const photo = await database.getToiletSubmissionPhoto(toiletId);
+      if (!photo?.dataUrl) {
+        sendSensitiveJson(response, 404, { error: "Entrance photo not found." });
+        return;
+      }
+
+      const separatorIndex = photo.dataUrl.indexOf(",");
+      const bytes = Buffer.from(photo.dataUrl.slice(separatorIndex + 1), "base64");
+      sendSensitiveBinary(response, 200, bytes, photo.mimeType || "image/jpeg");
     },
     "POST /api/admin/toilet-submissions/review": async ({ request, response }) => {
       const admin = await requireAdminUser(request, response, database);

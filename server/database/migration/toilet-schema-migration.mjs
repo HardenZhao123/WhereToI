@@ -58,6 +58,12 @@ const TOILET_SUBMISSION_COLUMNS = [
   { name: "submission_status", sqliteDefinition: "TEXT NOT NULL DEFAULT 'approved'", postgresDefinition: "TEXT NOT NULL DEFAULT 'approved'" },
   { name: "submitted_by_user_id", sqliteDefinition: "INTEGER", postgresDefinition: "INTEGER" },
   { name: "submitted_at", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
+  { name: "submission_photo_data_url", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
+  { name: "submission_photo_mime_type", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
+  { name: "submission_photo_size", sqliteDefinition: "INTEGER", postgresDefinition: "INTEGER" },
+  { name: "submission_location_accuracy_metres", sqliteDefinition: "REAL", postgresDefinition: "DOUBLE PRECISION" },
+  { name: "submission_location_distance_metres", sqliteDefinition: "REAL", postgresDefinition: "DOUBLE PRECISION" },
+  { name: "submission_location_captured_at", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
   { name: "reviewed_by_user_id", sqliteDefinition: "INTEGER", postgresDefinition: "INTEGER" },
   { name: "reviewed_at", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
   { name: "review_note", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" }
@@ -223,6 +229,12 @@ function rebuildSqliteRatingTablesForDecimals(db) {
           submission_status TEXT NOT NULL DEFAULT 'approved',
           submitted_by_user_id INTEGER,
           submitted_at TEXT,
+          submission_photo_data_url TEXT,
+          submission_photo_mime_type TEXT,
+          submission_photo_size INTEGER,
+          submission_location_accuracy_metres REAL,
+          submission_location_distance_metres REAL,
+          submission_location_captured_at TEXT,
           reviewed_by_user_id INTEGER,
           reviewed_at TEXT,
           review_note TEXT,
@@ -238,6 +250,9 @@ function rebuildSqliteRatingTablesForDecimals(db) {
           id, name, area, lat, lng, paid, comment, women, men, accessible, neutral,
           children, baby_changing, bidet, automatic, urinal_only, radar_key, free_access,
           opening_times, submission_status, submitted_by_user_id, submitted_at,
+          submission_photo_data_url, submission_photo_mime_type, submission_photo_size,
+          submission_location_accuracy_metres, submission_location_distance_metres,
+          submission_location_captured_at,
           reviewed_by_user_id, reviewed_at, review_note, cleanliness, cleanliness_yes_count, cleanliness_no_count,
           cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias
         )
@@ -246,6 +261,9 @@ function rebuildSqliteRatingTablesForDecimals(db) {
           children, baby_changing, bidet, automatic, urinal_only, radar_key, free_access,
           opening_times,
           COALESCE(submission_status, 'approved'), submitted_by_user_id, submitted_at,
+          submission_photo_data_url, submission_photo_mime_type, submission_photo_size,
+          submission_location_accuracy_metres, submission_location_distance_metres,
+          submission_location_captured_at,
           reviewed_by_user_id, reviewed_at, review_note, cleanliness, cleanliness_yes_count, cleanliness_no_count,
           cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias
         FROM toilets_integer_rating_backup;
