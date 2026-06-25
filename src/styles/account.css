@@ -464,6 +464,106 @@
   overflow-wrap: anywhere;
 }
 
+.submission-location-checks,
+.submission-nearby {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.submission-location-checks h5,
+.submission-nearby h5 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.submission-map-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.submission-map-link {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: #142c72;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.submission-map-link:hover,
+.submission-map-link:focus-visible {
+  border-color: rgb(54 111 171 / 42%);
+  background: #f5f8fc;
+}
+
+.submission-map-link:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.submission-nearby-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.submission-nearby-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.submission-nearby-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 0;
+  border-top: 1px solid #e3e8e1;
+}
+
+.submission-nearby-item:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.submission-nearby-details {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.submission-nearby-details strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.submission-nearby-distance,
+.submission-nearby-location {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.submission-nearby-distance.is-close {
+  color: #9c2b2e;
+  font-weight: 800;
+}
+
 .submission-review-actions {
   display: flex;
   flex-wrap: wrap;
@@ -478,6 +578,16 @@
   padding: 0 14px;
   font-size: 12px;
   font-weight: 800;
+}
+
+@media (max-width: 520px) {
+  .submission-nearby-item {
+    grid-template-columns: 1fr;
+  }
+
+  .submission-nearby-item .submission-map-link {
+    width: fit-content;
+  }
 }
 
 .public-profile-comment-item {

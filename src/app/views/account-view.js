@@ -112,6 +112,101 @@ function getSubmissionMeta(submission) {
   return `Submitted by ${submittedBy} - ${submittedAt}`;
 }
 
+function getOpenStreetMapUrl(lat, lng) {
+  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=19/${lat}/${lng}`;
+}
+
+function getGoogleMapsUrl(lat, lng) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`;
+}
+
+function createExternalMapLink(label, href) {
+  const link = document.createElement("a");
+  link.className = "submission-map-link";
+  link.href = href;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = label;
+  return link;
+}
+
+function renderSubmissionLocationChecks(submission) {
+  const container = document.createElement("section");
+  container.className = "submission-location-checks";
+  container.setAttribute("aria-label", "Location verification");
+
+  const heading = document.createElement("h5");
+  heading.textContent = "Verify location";
+
+  const links = document.createElement("div");
+  links.className = "submission-map-links";
+  links.append(
+    createExternalMapLink("OpenStreetMap", getOpenStreetMapUrl(submission.lat, submission.lng)),
+    createExternalMapLink("Google Maps", getGoogleMapsUrl(submission.lat, submission.lng))
+  );
+
+  container.append(heading, links);
+  return container;
+}
+
+function renderNearbyApprovedToilets(submission) {
+  const container = document.createElement("section");
+  container.className = "submission-nearby";
+  container.setAttribute("aria-label", "Nearby approved toilets");
+
+  const heading = document.createElement("h5");
+  heading.textContent = "Nearby approved toilets";
+  container.append(heading);
+
+  const nearbyToilets = Array.isArray(submission?.nearbyApprovedToilets)
+    ? submission.nearbyApprovedToilets
+    : [];
+  if (nearbyToilets.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "submission-nearby-empty";
+    const radiusMetres = Math.max(1, Math.round(Number(submission?.nearbyRadiusMetres) || 750));
+    empty.textContent = `None found within ${radiusMetres} m.`;
+    container.append(empty);
+    return container;
+  }
+
+  const list = document.createElement("ul");
+  list.className = "submission-nearby-list";
+  nearbyToilets.forEach((toilet) => {
+    const item = document.createElement("li");
+    item.className = "submission-nearby-item";
+
+    const details = document.createElement("div");
+    details.className = "submission-nearby-details";
+
+    const name = document.createElement("strong");
+    name.textContent = toilet.name || "Unnamed toilet";
+
+    const distance = document.createElement("span");
+    const distanceMetres = Math.max(0, Math.round(Number(toilet.distanceMetres) || 0));
+    distance.className = distanceMetres <= 100
+      ? "submission-nearby-distance is-close"
+      : "submission-nearby-distance";
+    distance.textContent = distanceMetres <= 100
+      ? `${distanceMetres} m away - check for duplicate`
+      : `${distanceMetres} m away`;
+
+    const location = document.createElement("span");
+    location.className = "submission-nearby-location";
+    location.textContent = `${toilet.area || "Unknown area"} - ${Number(toilet.lat).toFixed(5)}, ${Number(toilet.lng).toFixed(5)}`;
+
+    details.append(name, distance, location);
+    item.append(
+      details,
+      createExternalMapLink("View on map", getOpenStreetMapUrl(toilet.lat, toilet.lng))
+    );
+    list.append(item);
+  });
+
+  container.append(list);
+  return container;
+}
+
 function renderCommentMeta(meta, parts) {
   const metaText = parts.filter(Boolean).join(" - ");
 
@@ -274,6 +369,9 @@ export function renderToiletSubmissions(
     details.className = "submission-review-details";
     details.textContent = `${getSubmissionFeatureSummary(submission)} - ${getSubmissionHoursSummary(submission)}`;
 
+    const locationChecks = renderSubmissionLocationChecks(submission);
+    const nearbyToilets = renderNearbyApprovedToilets(submission);
+
     const actions = document.createElement("div");
     actions.className = "submission-review-actions";
 
@@ -290,7 +388,7 @@ export function renderToiletSubmissions(
     rejectButton.addEventListener("click", () => onReviewSubmission(submission, "rejected", rejectButton));
 
     actions.append(approveButton, rejectButton);
-    item.append(heading, area, meta, note, details, actions);
+    item.append(heading, area, meta, note, details, locationChecks, nearbyToilets, actions);
     submissionsContainer.append(item);
   });
 }

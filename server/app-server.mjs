@@ -289,6 +289,9 @@ function isAdminUser(user) {
   return Boolean(user?.isAdmin || user?.is_admin);
 }
 
+const TOILET_REVIEW_NEARBY_RADIUS_METRES = 750;
+const TOILET_REVIEW_NEARBY_LIMIT = 3;
+
 async function getAuthenticatedUser(request, database) {
   const userId = getSessionUserId(request);
   return userId ? database.getUserById(userId) : null;
@@ -539,7 +542,23 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 
       const status = url.searchParams.get("status") ?? "pending";
       const submissions = await database.getToiletSubmissions({ status });
-      sendSensitiveJson(response, 200, { submissions });
+      const submissionsWithNearbyToilets = await Promise.all(
+        submissions.map(async (submission) => ({
+          ...submission,
+          nearbyRadiusMetres: TOILET_REVIEW_NEARBY_RADIUS_METRES,
+          nearbyApprovedToilets: await database.getNearbyApprovedToilets({
+            lat: submission.lat,
+            lng: submission.lng,
+            radiusMetres: TOILET_REVIEW_NEARBY_RADIUS_METRES,
+            limit: TOILET_REVIEW_NEARBY_LIMIT,
+            excludeToiletId: submission.id
+          })
+        }))
+      );
+      sendSensitiveJson(response, 200, {
+        submissions: submissionsWithNearbyToilets,
+        nearbyRadiusMetres: TOILET_REVIEW_NEARBY_RADIUS_METRES
+      });
     },
     "POST /api/admin/toilet-submissions/review": async ({ request, response }) => {
       const admin = await requireAdminUser(request, response, database);

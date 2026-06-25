@@ -190,6 +190,26 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
     assert.equal(pendingSubmissionIds.has(created.id), true);
     assert.equal(pendingSubmissionIds.has(unknownHoursToilet.id), true);
 
+    const nearbyApprovedToilets = await database.getNearbyApprovedToilets({
+      lat: 51.4945,
+      lng: -0.1745,
+      radiusMetres: 750,
+      limit: 3
+    });
+    assert.equal(nearbyApprovedToilets.length, 3);
+    assert.equal(
+      nearbyApprovedToilets.every((toilet) => toilet.distanceMetres <= 750),
+      true
+    );
+    assert.equal(
+      nearbyApprovedToilets.every((toilet, index, toilets) =>
+        index === 0 || toilets[index - 1].distanceMetres <= toilet.distanceMetres
+      ),
+      true
+    );
+    assert.equal(nearbyApprovedToilets.some((toilet) => toilet.id === created.id), false);
+    assert.equal(nearbyApprovedToilets.some((toilet) => toilet.id === "inactive-test"), false);
+
     const reviewed = await database.reviewToiletSubmission({
       toiletId: created.id,
       reviewerUserId: demoUser.id,

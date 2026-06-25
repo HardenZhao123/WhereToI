@@ -909,6 +909,51 @@ export async function createPostgresDatabase({
 
       return result.rows.map(mapToiletSubmissionRow);
     },
+    async getNearbyApprovedToilets({
+      lat,
+      lng,
+      radiusMetres = 750,
+      limit = 3,
+      excludeToiletId = null
+    } = {}) {
+      const targetLat = Number(lat);
+      const targetLng = Number(lng);
+      const safeRadius = Math.min(Math.max(Number(radiusMetres) || 750, 1), 5000);
+      const safeLimit = Math.min(Math.max(Math.trunc(Number(limit) || 3), 1), 10);
+      if (!Number.isFinite(targetLat) || !Number.isFinite(targetLng)) return [];
+
+      const bounds = getCoordinateBounds(targetLat, targetLng, safeRadius);
+      const result = await pool.query(
+        `
+        SELECT id, name, area, lat, lng
+        FROM toilets
+        WHERE submission_status = 'approved'
+          AND id != $1
+          AND lat BETWEEN $2 AND $3
+          AND lng BETWEEN $4 AND $5
+        `,
+        [
+          String(excludeToiletId ?? ""),
+          bounds.minLat,
+          bounds.maxLat,
+          bounds.minLng,
+          bounds.maxLng
+        ]
+      );
+
+      return result.rows
+        .map((row) => ({
+          id: row.id,
+          name: row.name || "Unnamed toilet",
+          area: row.area || "Unknown area",
+          lat: Number(row.lat),
+          lng: Number(row.lng),
+          distanceMetres: Math.round(distanceInMetres(targetLat, targetLng, Number(row.lat), Number(row.lng)))
+        }))
+        .filter((toilet) => toilet.distanceMetres <= safeRadius)
+        .sort((left, right) => left.distanceMetres - right.distanceMetres)
+        .slice(0, safeLimit);
+    },
     async reviewToiletSubmission({ toiletId, reviewerUserId, status, reviewNote = "" }) {
       const safeToiletId = String(toiletId ?? "").trim();
       if (!safeToiletId) {

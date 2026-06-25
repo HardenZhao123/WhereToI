@@ -267,8 +267,8 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
     const contribution = {
       name: "New station toilet",
       area: "Gloucester Road",
-      lat: 51.512,
-      lng: -0.188,
+      lat: 51.4995,
+      lng: -0.1815,
       comment: "Beside the ticket hall",
       features: {
         women: "Y",
@@ -336,9 +336,19 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
     const { payload: pendingSubmissionsPayload } = await fetchJson(`${baseUrl}/api/admin/toilet-submissions`, {
       headers: { "Cookie": cookie }
     });
+    const pendingSubmission = pendingSubmissionsPayload.submissions.find(
+      (submission) => submission.id === createdPayload.toilet.id
+    );
+    assert.ok(pendingSubmission);
+    assert.equal(pendingSubmissionsPayload.nearbyRadiusMetres, 750);
+    assert.equal(pendingSubmission.nearbyApprovedToilets.length > 0, true);
     assert.equal(
-      pendingSubmissionsPayload.submissions.some((submission) => submission.id === createdPayload.toilet.id),
+      pendingSubmission.nearbyApprovedToilets.every((toilet) => toilet.distanceMetres <= 750),
       true
+    );
+    assert.equal(
+      pendingSubmission.nearbyApprovedToilets.some((toilet) => toilet.id === createdPayload.toilet.id),
+      false
     );
 
     const { payload: approvedPayload } = await fetchJson(`${baseUrl}/api/admin/toilet-submissions/review`, {
