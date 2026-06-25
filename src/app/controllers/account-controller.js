@@ -1,12 +1,14 @@
 import {
   fetchAccountSnapshot,
   fetchPublicProfile,
+  fetchToiletReports,
   fetchToiletSubmissions,
   loginUser,
   registerUser,
   logoutUser,
   getCurrentUser,
   reviewToiletSubmission,
+  reviewToiletReport,
   updateUserProfile,
   updateCommentProfileVisibility
 } from "../services/account-service.js";
@@ -15,6 +17,7 @@ import {
   renderAccount,
   renderMyComments,
   renderPublicProfile,
+  renderToiletReports,
   renderToiletSubmissions
 } from "../views/account-view.js";
 
@@ -31,6 +34,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     publicProfileSummary,
     publicProfileCommentsList,
     submissionReviewList,
+    toiletReportReviewList,
     accountWelcome,
     accountUsername,
     authModal,
@@ -73,7 +77,8 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   const {
     onCommentSelected = () => {},
     onAccessHistorySelected = () => {},
-    onToiletSubmissionReviewed = () => {}
+    onToiletSubmissionReviewed = () => {},
+    onToiletReportReviewed = () => {}
   } = callbacks;
 
   const autoFilterStorageKey = "wheretoi-auto-filter-enabled";
@@ -302,6 +307,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   async function loadToiletSubmissionsForReview() {
     if (!isCurrentUserAdmin()) {
       renderToiletSubmissions(submissionReviewList, []);
+      renderToiletReports(toiletReportReviewList, []);
       return;
     }
 
@@ -311,19 +317,37 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
       loading.textContent = "Loading pending submissions...";
       submissionReviewList.append(loading);
     }
+    if (toiletReportReviewList) {
+      toiletReportReviewList.textContent = "";
+      const loading = document.createElement("p");
+      loading.textContent = "Loading pending reports...";
+      toiletReportReviewList.append(loading);
+    }
 
     try {
-      const payload = await fetchToiletSubmissions("pending");
+      const [payload, reportPayload] = await Promise.all([
+        fetchToiletSubmissions("pending"),
+        fetchToiletReports("pending")
+      ]);
       renderToiletSubmissions(submissionReviewList, payload.submissions, {
         onReviewSubmission: handleReviewSubmission
       });
+      renderToiletReports(toiletReportReviewList, reportPayload.reports, {
+        onReviewReport: handleReviewReport
+      });
     } catch (error) {
-      console.error("Toilet submissions loading failed:", error);
+      console.error("Admin review loading failed:", error);
       if (submissionReviewList) {
         submissionReviewList.textContent = "";
         const message = document.createElement("p");
         message.textContent = error?.message || "Could not load pending submissions.";
         submissionReviewList.append(message);
+      }
+      if (toiletReportReviewList) {
+        toiletReportReviewList.textContent = "";
+        const message = document.createElement("p");
+        message.textContent = error?.message || "Could not load pending reports.";
+        toiletReportReviewList.append(message);
       }
     }
   }
@@ -539,6 +563,31 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
       if (button) {
         button.disabled = false;
       }
+    }
+  }
+
+  async function handleReviewReport(report, action, button) {
+    if (!report?.id || !isCurrentUserAdmin()) return;
+    if (action === "remove") {
+      const confirmed = globalThis.confirm?.(
+        `Remove ${report.toiletName || "this toilet"} and its feedback from the public map?`
+      );
+      if (!confirmed) return;
+    }
+
+    if (button) button.disabled = true;
+    try {
+      await reviewToiletReport({
+        reportId: report.id,
+        action
+      });
+      await loadToiletSubmissionsForReview();
+      await onToiletReportReviewed(action);
+    } catch (error) {
+      console.error("Toilet report review failed:", error);
+      alert(error?.message || "Could not review this toilet report.");
+    } finally {
+      if (button) button.disabled = false;
     }
   }
 

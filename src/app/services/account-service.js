@@ -64,3 +64,14 @@ export function reviewToiletSubmission(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export function fetchToiletReports(status = "pending") {
+  return fetchJson(`${appConfig.apiBasePath}/admin/toilet-reports?status=${encodeURIComponent(status)}`);
+}
+
+export function reviewToiletReport(payload) {
+  return fetchJson(`${appConfig.apiBasePath}/admin/toilet-reports/review`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}

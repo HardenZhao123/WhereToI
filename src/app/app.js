@@ -72,6 +72,13 @@ export function createApp() {
             force: true
           });
         }
+      },
+      onToiletReportReviewed: async (action) => {
+        if (action === "apply" || action === "remove") {
+          await initializeToilets(mapCleanlinessRange, {
+            force: true
+          });
+        }
       }
     }
   );
@@ -272,6 +279,12 @@ export function createApp() {
     elements.summarizeCommentsButton?.addEventListener("click", () => mapController.getAiSummary());
     elements.closeDetailsButton?.addEventListener("click", () => mapController.hideToiletDetails());
     elements.directionsButton?.addEventListener("click", () => mapController.openDirections());
+    elements.reportToiletOpenButton?.addEventListener("click", () => mapController.openReportToiletPanel());
+    elements.reportToiletCloseButton?.addEventListener("click", () => mapController.closeReportToiletPanel());
+    elements.reportToiletForm?.addEventListener("submit", (event) => mapController.submitReportToilet(event));
+    elements.reportToiletIssueInputs.forEach((input) => {
+      input?.addEventListener("change", () => mapController.syncReportToiletSections());
+    });
     elements.commentComposerToggle?.addEventListener("click", () => mapController.toggleCommentComposer());
     elements.closeCommentComposerButton?.addEventListener("click", () => mapController.closeCommentComposer());
     elements.visualCleanlinessStars?.addEventListener("click", (event) => {

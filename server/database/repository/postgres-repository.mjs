@@ -26,6 +26,9 @@ import {
   normaliseToiletContributionPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
+  normaliseToiletReportAction,
+  normaliseToiletReportPayload,
+  normaliseToiletReportStatus,
   normaliseToiletSubmissionStatus,
   normaliseUserId,
   TOILET_DUPLICATE_RADIUS_METRES,
@@ -86,6 +89,38 @@ function mapToiletSubmissionRow(row) {
     reviewedByUserId: row.reviewed_by_user_id ?? null,
     reviewedByUsername: row.reviewed_by_username ?? null,
     reviewedAt: row.reviewed_at ?? null,
+    reviewNote: row.review_note ?? ""
+  };
+}
+
+function mapToiletReportRow(row) {
+  if (!row) return null;
+  return {
+    id: Number(row.id),
+    toiletId: row.toilet_id ?? null,
+    toiletName: row.toilet_name,
+    toiletArea: row.toilet_area,
+    currentLocation:
+      row.current_lat !== null &&
+      row.current_lat !== undefined &&
+      row.current_lng !== null &&
+      row.current_lng !== undefined &&
+      Number.isFinite(Number(row.current_lat)) && Number.isFinite(Number(row.current_lng))
+        ? { lat: Number(row.current_lat), lng: Number(row.current_lng) }
+        : null,
+    issueTypes: Array.isArray(row.issue_types) ? row.issue_types : [],
+    toiletExists: row.toilet_exists ?? "unsure",
+    details: row.details ?? "",
+    proposedChanges:
+      row.proposed_changes && typeof row.proposed_changes === "object" ? row.proposed_changes : {},
+    status: row.status ?? "pending",
+    reportedByUserId: row.reported_by_user_id ?? null,
+    reportedByUsername: row.reported_by_username ?? null,
+    createdAt: row.created_at ?? null,
+    reviewedByUserId: row.reviewed_by_user_id ?? null,
+    reviewedByUsername: row.reviewed_by_username ?? null,
+    reviewedAt: row.reviewed_at ?? null,
+    reviewAction: row.review_action ?? null,
     reviewNote: row.review_note ?? ""
   };
 }
@@ -954,6 +989,201 @@ export async function createPostgresDatabase({
       );
 
       return this.getToiletSubmissionById(toiletId);
+    },
+    async createToiletReport(payload) {
+      const report = normaliseToiletReportPayload(payload);
+      const toiletResult = await pool.query(
+        "SELECT id, name, area FROM toilets WHERE id = $1 AND submission_status = 'approved' LIMIT 1",
+        [report.toiletId]
+      );
+      const toilet = toiletResult.rows[0];
+      if (!toilet) {
+        const error = new Error("Toilet not found.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const existing = await pool.query(
+        `
+        SELECT id
+        FROM toilet_reports
+        WHERE toilet_id = $1 AND reported_by_user_id = $2 AND status = 'pending'
+        LIMIT 1
+        `,
+        [report.toiletId, payload.userId ?? null]
+      );
+      if (existing.rowCount > 0) {
+        const error = new Error("You already have a pending report for this toilet.");
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const inserted = await pool.query(
+        `
+        INSERT INTO toilet_reports (
+          toilet_id, toilet_name, toilet_area, reported_by_user_id,
+          issue_types, toilet_exists, details, proposed_changes, status, created_at
+        ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8::jsonb, 'pending', $9)
+        RETURNING id
+        `,
+        [
+          toilet.id,
+          toilet.name,
+          toilet.area,
+          payload.userId ?? null,
+          JSON.stringify(report.issueTypes),
+          report.toiletExists,
+          report.details,
+          JSON.stringify(report.proposedChanges),
+          new Date().toISOString()
+        ]
+      );
+      return this.getToiletReportById(inserted.rows[0].id);
+    },
+    async getToiletReportById(reportId) {
+      const safeReportId = Number(reportId);
+      if (!Number.isInteger(safeReportId) || safeReportId <= 0) return null;
+      const result = await pool.query(
+        `
+        SELECT
+          r.*,
+          t.lat AS current_lat,
+          t.lng AS current_lng,
+          reporter.username AS reported_by_username,
+          reviewer.username AS reviewed_by_username
+        FROM toilet_reports r
+        LEFT JOIN toilets t ON t.id = r.toilet_id
+        LEFT JOIN users reporter ON reporter.id = r.reported_by_user_id
+        LEFT JOIN users reviewer ON reviewer.id = r.reviewed_by_user_id
+        WHERE r.id = $1
+        LIMIT 1
+        `,
+        [safeReportId]
+      );
+      return mapToiletReportRow(result.rows[0]);
+    },
+    async getToiletReports({ status = "pending" } = {}) {
+      const safeStatus = status === "all" ? "all" : normaliseToiletReportStatus(status, "pending");
+      const params = safeStatus === "all" ? [] : [safeStatus];
+      const result = await pool.query(
+        `
+        SELECT
+          r.*,
+          t.lat AS current_lat,
+          t.lng AS current_lng,
+          reporter.username AS reported_by_username,
+          reviewer.username AS reviewed_by_username
+        FROM toilet_reports r
+        LEFT JOIN toilets t ON t.id = r.toilet_id
+        LEFT JOIN users reporter ON reporter.id = r.reported_by_user_id
+        LEFT JOIN users reviewer ON reviewer.id = r.reviewed_by_user_id
+        ${safeStatus === "all" ? "" : "WHERE r.status = $1"}
+        ORDER BY r.created_at DESC, r.id DESC
+        LIMIT 200
+        `,
+        params
+      );
+      return result.rows.map(mapToiletReportRow);
+    },
+    async reviewToiletReport({ reportId, reviewerUserId, action, reviewNote = "" }) {
+      const safeReportId = Number(reportId);
+      if (!Number.isInteger(safeReportId) || safeReportId <= 0) {
+        throw new Error("reportId is required.");
+      }
+      const safeAction = normaliseToiletReportAction(action);
+      const nextStatus = safeAction === "apply" ? "applied" : safeAction === "remove" ? "removed" : "rejected";
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+        const reportResult = await client.query(
+          "SELECT * FROM toilet_reports WHERE id = $1 AND status = 'pending' FOR UPDATE",
+          [safeReportId]
+        );
+        const report = reportResult.rows[0];
+        if (!report) {
+          await client.query("ROLLBACK");
+          return null;
+        }
+
+        const proposedChanges =
+          report.proposed_changes && typeof report.proposed_changes === "object"
+            ? report.proposed_changes
+            : {};
+
+        if (safeAction === "apply") {
+          const toiletResult = await client.query(
+            "SELECT * FROM toilets WHERE id = $1 FOR UPDATE",
+            [report.toilet_id]
+          );
+          const toilet = toiletResult.rows[0];
+          if (!toilet) {
+            const error = new Error("Toilet not found.");
+            error.statusCode = 404;
+            throw error;
+          }
+          const features = proposedChanges.features ?? {};
+          const openingTimes = Array.isArray(proposedChanges.openingTimes)
+            ? proposedChanges.openingTimes
+            : toilet.opening_times;
+          const freeAccess = features.free ?? toilet.free_access;
+          await client.query(
+            `
+            UPDATE toilets
+            SET lat = $1, lng = $2, paid = $3,
+                women = $4, men = $5, accessible = $6, neutral = $7, children = $8,
+                baby_changing = $9, bidet = $10, automatic = $11, urinal_only = $12,
+                radar_key = $13, free_access = $14, opening_times = $15::jsonb
+            WHERE id = $16
+            `,
+            [
+              proposedChanges.lat ?? toilet.lat,
+              proposedChanges.lng ?? toilet.lng,
+              freeAccess === "N",
+              features.women ?? toilet.women,
+              features.men ?? toilet.men,
+              features.accessible ?? toilet.accessible,
+              features.neutral ?? toilet.neutral,
+              features.children ?? toilet.children,
+              features.babyChanging ?? toilet.baby_changing,
+              features.bidet ?? toilet.bidet,
+              features.automatic ?? toilet.automatic,
+              features.urinalOnly ?? toilet.urinal_only,
+              features.radarKey ?? toilet.radar_key,
+              freeAccess,
+              JSON.stringify(openingTimes),
+              toilet.id
+            ]
+          );
+        } else if (safeAction === "remove") {
+          await client.query("DELETE FROM toilets WHERE id = $1", [report.toilet_id]);
+        }
+
+        await client.query(
+          `
+          UPDATE toilet_reports
+          SET status = $1, reviewed_by_user_id = $2, reviewed_at = $3,
+              review_action = $4, review_note = $5
+          WHERE id = $6
+          `,
+          [
+            nextStatus,
+            reviewerUserId ?? null,
+            new Date().toISOString(),
+            safeAction,
+            String(reviewNote ?? "").slice(0, 600),
+            safeReportId
+          ]
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      return this.getToiletReportById(safeReportId);
     },
     async updateUserProfile(userId, { gender, preferences }) {
       const result = await pool.query(

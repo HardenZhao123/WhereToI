@@ -29,6 +29,9 @@ import {
   normaliseToiletContributionPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
+  normaliseToiletReportAction,
+  normaliseToiletReportPayload,
+  normaliseToiletReportStatus,
   normaliseToiletSubmissionStatus,
   normaliseUserId,
   TOILET_DUPLICATE_RADIUS_METRES,
@@ -166,6 +169,47 @@ function mapToiletSubmissionRow(row) {
     reviewedByUserId: row.reviewed_by_user_id ?? null,
     reviewedByUsername: row.reviewed_by_username ?? null,
     reviewedAt: row.reviewed_at ?? null,
+    reviewNote: row.review_note ?? ""
+  };
+}
+
+function parseStoredJson(value, fallback) {
+  if (value && typeof value === "object") return value;
+  if (typeof value !== "string" || !value.trim()) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function mapToiletReportRow(row) {
+  if (!row) return null;
+  return {
+    id: Number(row.id),
+    toiletId: row.toilet_id ?? null,
+    toiletName: row.toilet_name,
+    toiletArea: row.toilet_area,
+    currentLocation:
+      row.current_lat !== null &&
+      row.current_lat !== undefined &&
+      row.current_lng !== null &&
+      row.current_lng !== undefined &&
+      Number.isFinite(Number(row.current_lat)) && Number.isFinite(Number(row.current_lng))
+        ? { lat: Number(row.current_lat), lng: Number(row.current_lng) }
+        : null,
+    issueTypes: parseStoredJson(row.issue_types, []),
+    toiletExists: row.toilet_exists ?? "unsure",
+    details: row.details ?? "",
+    proposedChanges: parseStoredJson(row.proposed_changes, {}),
+    status: row.status ?? "pending",
+    reportedByUserId: row.reported_by_user_id ?? null,
+    reportedByUsername: row.reported_by_username ?? null,
+    createdAt: row.created_at ?? null,
+    reviewedByUserId: row.reviewed_by_user_id ?? null,
+    reviewedByUsername: row.reviewed_by_username ?? null,
+    reviewedAt: row.reviewed_at ?? null,
+    reviewAction: row.review_action ?? null,
     reviewNote: row.review_note ?? ""
   };
 }
@@ -746,6 +790,179 @@ export async function createSqliteDatabase({
       );
 
       return this.getToiletSubmissionById(toiletId);
+    },
+    async createToiletReport(payload) {
+      const report = normaliseToiletReportPayload(payload);
+      const toilet = db.prepare(
+        "SELECT id, name, area FROM toilets WHERE id = ? AND submission_status = 'approved'"
+      ).get(report.toiletId);
+      if (!toilet) {
+        const error = new Error("Toilet not found.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const existing = db.prepare(
+        `
+        SELECT id
+        FROM toilet_reports
+        WHERE toilet_id = ? AND reported_by_user_id = ? AND status = 'pending'
+        LIMIT 1
+        `
+      ).get(report.toiletId, payload.userId ?? null);
+      if (existing) {
+        const error = new Error("You already have a pending report for this toilet.");
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const createdAt = new Date().toISOString();
+      const result = db.prepare(
+        `
+        INSERT INTO toilet_reports (
+          toilet_id, toilet_name, toilet_area, reported_by_user_id,
+          issue_types, toilet_exists, details, proposed_changes, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+        `
+      ).run(
+        toilet.id,
+        toilet.name,
+        toilet.area,
+        payload.userId ?? null,
+        JSON.stringify(report.issueTypes),
+        report.toiletExists,
+        report.details,
+        JSON.stringify(report.proposedChanges),
+        createdAt
+      );
+
+      return this.getToiletReportById(Number(result.lastInsertRowid));
+    },
+    async getToiletReportById(reportId) {
+      const safeReportId = Number(reportId);
+      if (!Number.isInteger(safeReportId) || safeReportId <= 0) return null;
+
+      const row = db.prepare(
+        `
+        SELECT
+          r.*,
+          t.lat AS current_lat,
+          t.lng AS current_lng,
+          reporter.username AS reported_by_username,
+          reviewer.username AS reviewed_by_username
+        FROM toilet_reports r
+        LEFT JOIN toilets t ON t.id = r.toilet_id
+        LEFT JOIN users reporter ON reporter.id = r.reported_by_user_id
+        LEFT JOIN users reviewer ON reviewer.id = r.reviewed_by_user_id
+        WHERE r.id = ?
+        LIMIT 1
+        `
+      ).get(safeReportId);
+      return mapToiletReportRow(row);
+    },
+    async getToiletReports({ status = "pending" } = {}) {
+      const safeStatus = status === "all" ? "all" : normaliseToiletReportStatus(status, "pending");
+      const rows = db.prepare(
+        `
+        SELECT
+          r.*,
+          t.lat AS current_lat,
+          t.lng AS current_lng,
+          reporter.username AS reported_by_username,
+          reviewer.username AS reviewed_by_username
+        FROM toilet_reports r
+        LEFT JOIN toilets t ON t.id = r.toilet_id
+        LEFT JOIN users reporter ON reporter.id = r.reported_by_user_id
+        LEFT JOIN users reviewer ON reviewer.id = r.reviewed_by_user_id
+        ${safeStatus === "all" ? "" : "WHERE r.status = ?"}
+        ORDER BY r.created_at DESC, r.id DESC
+        LIMIT 200
+        `
+      ).all(...(safeStatus === "all" ? [] : [safeStatus]));
+      return rows.map(mapToiletReportRow);
+    },
+    async reviewToiletReport({ reportId, reviewerUserId, action, reviewNote = "" }) {
+      const safeReportId = Number(reportId);
+      if (!Number.isInteger(safeReportId) || safeReportId <= 0) {
+        throw new Error("reportId is required.");
+      }
+      const safeAction = normaliseToiletReportAction(action);
+      const report = db.prepare(
+        "SELECT * FROM toilet_reports WHERE id = ? AND status = 'pending'"
+      ).get(safeReportId);
+      if (!report) return null;
+
+      const proposedChanges = parseStoredJson(report.proposed_changes, {});
+      const reviewedAt = new Date().toISOString();
+      const nextStatus = safeAction === "apply" ? "applied" : safeAction === "remove" ? "removed" : "rejected";
+
+      db.exec("BEGIN;");
+      try {
+        if (safeAction === "apply") {
+          const toilet = db.prepare("SELECT * FROM toilets WHERE id = ?").get(report.toilet_id);
+          if (!toilet) {
+            const error = new Error("Toilet not found.");
+            error.statusCode = 404;
+            throw error;
+          }
+          const features = proposedChanges.features ?? {};
+          const openingTimes = Array.isArray(proposedChanges.openingTimes)
+            ? proposedChanges.openingTimes
+            : parseStoredJson(toilet.opening_times, []);
+          const freeAccess = features.free ?? toilet.free_access;
+          db.prepare(
+            `
+            UPDATE toilets
+            SET lat = ?, lng = ?, paid = ?,
+                women = ?, men = ?, accessible = ?, neutral = ?, children = ?,
+                baby_changing = ?, bidet = ?, automatic = ?, urinal_only = ?,
+                radar_key = ?, free_access = ?, opening_times = ?
+            WHERE id = ?
+            `
+          ).run(
+            proposedChanges.lat ?? toilet.lat,
+            proposedChanges.lng ?? toilet.lng,
+            freeAccess === "N" ? 1 : 0,
+            features.women ?? toilet.women,
+            features.men ?? toilet.men,
+            features.accessible ?? toilet.accessible,
+            features.neutral ?? toilet.neutral,
+            features.children ?? toilet.children,
+            features.babyChanging ?? toilet.baby_changing,
+            features.bidet ?? toilet.bidet,
+            features.automatic ?? toilet.automatic,
+            features.urinalOnly ?? toilet.urinal_only,
+            features.radarKey ?? toilet.radar_key,
+            freeAccess,
+            JSON.stringify(openingTimes),
+            toilet.id
+          );
+        } else if (safeAction === "remove") {
+          db.prepare("DELETE FROM toilets WHERE id = ?").run(report.toilet_id);
+        }
+
+        db.prepare(
+          `
+          UPDATE toilet_reports
+          SET status = ?, reviewed_by_user_id = ?, reviewed_at = ?,
+              review_action = ?, review_note = ?
+          WHERE id = ?
+          `
+        ).run(
+          nextStatus,
+          reviewerUserId ?? null,
+          reviewedAt,
+          safeAction,
+          String(reviewNote ?? "").slice(0, 600),
+          safeReportId
+        );
+        db.exec("COMMIT;");
+      } catch (error) {
+        db.exec("ROLLBACK;");
+        throw error;
+      }
+
+      return this.getToiletReportById(safeReportId);
     },
     async updateUserProfile(userId, { gender, preferences }) {
       db.prepare(

@@ -71,6 +71,13 @@ export function clearToiletDetailCache(toiletId = null) {
   }
 }
 
+export function submitToiletReport(payload) {
+  return fetchJson(`${appConfig.apiBasePath}/toilets/report`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 function cloneToilet(toilet) {
   if (!toilet || typeof toilet !== "object") return toilet;
 

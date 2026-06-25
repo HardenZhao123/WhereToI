@@ -382,6 +382,92 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
   });
 });
 
+test("API accepts toilet reports and lets admins apply corrections", async () => {
+  await withAppServer(async (baseUrl) => {
+    const reportPayload = {
+      toiletId: "detail-test",
+      issueTypes: ["features", "hours"],
+      toiletExists: "yes",
+      details: "Accessible access is unavailable and Sunday hours are unknown.",
+      proposedChanges: {
+        features: {
+          women: "Y",
+          men: "Y",
+          accessible: "N",
+          neutral: "Y",
+          children: "Y",
+          babyChanging: "Y",
+          bidet: "Y",
+          automatic: "N",
+          urinalOnly: "N",
+          radarKey: "N",
+          free: "Y"
+        },
+        openingTimes: [
+          ["09:00", "17:00"],
+          [],
+          [],
+          [],
+          [],
+          [],
+          null
+        ]
+      }
+    };
+
+    const anonymousResponse = await fetch(`${baseUrl}/api/toilets/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reportPayload)
+    });
+    assert.equal(anonymousResponse.status, 401);
+
+    const { response: loginResponse } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginResponse.headers.get("set-cookie");
+    const authHeaders = {
+      "Content-Type": "application/json",
+      "Cookie": cookie
+    };
+
+    const { payload: created, response: createResponse } = await fetchJson(
+      `${baseUrl}/api/toilets/report`,
+      {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify(reportPayload)
+      }
+    );
+    assert.equal(createResponse.status, 201);
+    assert.equal(created.report.status, "pending");
+
+    const { payload: pending } = await fetchJson(`${baseUrl}/api/admin/toilet-reports`, {
+      headers: { "Cookie": cookie }
+    });
+    assert.equal(pending.reports.some((report) => report.id === created.report.id), true);
+
+    const { payload: reviewed } = await fetchJson(`${baseUrl}/api/admin/toilet-reports/review`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        reportId: created.report.id,
+        action: "apply"
+      })
+    });
+    assert.equal(reviewed.report.status, "applied");
+
+    const { payload: detail } = await fetchJson(
+      `${baseUrl}/api/toilets/detail?toiletId=detail-test&refresh=1`
+    );
+    assert.equal(detail.toilet.features.accessible, "N");
+    assert.equal(detail.toilet.features.radarKey, "N");
+    assert.equal(detail.toilet.hours.sun, "Sun Unknown");
+  });
+});
+
 test("API restricts toilet submission review to admins", async () => {
   await withAppServer(async (baseUrl) => {
     const anonymousResponse = await fetch(`${baseUrl}/api/admin/toilet-submissions`);

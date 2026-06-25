@@ -65,6 +65,10 @@ const TOILET_FEATURE_KEYS = [
 ];
 const TIME_VALUE_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const TOILET_SUBMISSION_STATUSES = new Set(["pending", "approved", "rejected"]);
+const TOILET_REPORT_ISSUE_TYPES = new Set(["missing", "location", "features", "hours", "other"]);
+const TOILET_REPORT_EXISTENCE_VALUES = new Set(["yes", "no", "unsure"]);
+const TOILET_REPORT_STATUSES = new Set(["pending", "applied", "removed", "rejected"]);
+const TOILET_REPORT_ACTIONS = new Set(["apply", "remove", "reject"]);
 
 export function getConfiguredAdminIdentifiers() {
   return new Set(
@@ -91,6 +95,22 @@ export function normaliseToiletSubmissionStatus(status, fallback = "pending") {
   const normalised = normaliseText(status || fallback).toLowerCase();
   if (!TOILET_SUBMISSION_STATUSES.has(normalised)) {
     throw new Error("submission status must be pending, approved, or rejected.");
+  }
+  return normalised;
+}
+
+export function normaliseToiletReportStatus(status, fallback = "pending") {
+  const normalised = normaliseText(status || fallback).toLowerCase();
+  if (!TOILET_REPORT_STATUSES.has(normalised)) {
+    throw new Error("report status must be pending, applied, removed, or rejected.");
+  }
+  return normalised;
+}
+
+export function normaliseToiletReportAction(action) {
+  const normalised = normaliseText(action).toLowerCase();
+  if (!TOILET_REPORT_ACTIONS.has(normalised)) {
+    throw new Error("report action must be apply, remove, or reject.");
   }
   return normalised;
 }
@@ -247,6 +267,63 @@ export function normaliseToiletContributionPayload(payload = {}) {
     features,
     openingTimes: normaliseOpeningTimes(payload.openingTimes),
     cleanliness: 3
+  };
+}
+
+export function normaliseToiletReportPayload(payload = {}) {
+  const toiletId = normaliseText(payload.toiletId).slice(0, 240);
+  if (!toiletId) {
+    throw new Error("toiletId is required.");
+  }
+
+  const issueTypes = Array.isArray(payload.issueTypes)
+    ? [...new Set(
+        payload.issueTypes
+          .map((value) => normaliseText(value).toLowerCase())
+          .filter((value) => TOILET_REPORT_ISSUE_TYPES.has(value))
+      )]
+    : [];
+  if (issueTypes.length === 0) {
+    throw new Error("At least one report issue is required.");
+  }
+
+  const toiletExists = normaliseText(payload.toiletExists || "unsure").toLowerCase();
+  if (!TOILET_REPORT_EXISTENCE_VALUES.has(toiletExists)) {
+    throw new Error("toiletExists must be yes, no, or unsure.");
+  }
+
+  const rawChanges =
+    payload.proposedChanges && typeof payload.proposedChanges === "object" && !Array.isArray(payload.proposedChanges)
+      ? payload.proposedChanges
+      : {};
+  const proposedChanges = {};
+
+  if (issueTypes.includes("location")) {
+    proposedChanges.lat = normaliseCoordinate(rawChanges.lat, "lat", -90, 90);
+    proposedChanges.lng = normaliseCoordinate(rawChanges.lng, "lng", -180, 180);
+  }
+
+  if (issueTypes.includes("features")) {
+    const rawFeatures =
+      rawChanges.features && typeof rawChanges.features === "object" && !Array.isArray(rawChanges.features)
+        ? rawChanges.features
+        : {};
+    proposedChanges.features = TOILET_FEATURE_KEYS.reduce((result, key) => {
+      result[key] = normaliseFeatureFlag(rawFeatures[key]);
+      return result;
+    }, {});
+  }
+
+  if (issueTypes.includes("hours")) {
+    proposedChanges.openingTimes = normaliseOpeningTimes(rawChanges.openingTimes);
+  }
+
+  return {
+    toiletId,
+    issueTypes,
+    toiletExists,
+    details: normaliseText(payload.details).slice(0, 1200),
+    proposedChanges
   };
 }
 

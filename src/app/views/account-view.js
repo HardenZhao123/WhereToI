@@ -294,3 +294,130 @@ export function renderToiletSubmissions(
     submissionsContainer.append(item);
   });
 }
+
+const reportIssueLabels = {
+  missing: "Toilet is not here",
+  location: "Wrong location",
+  features: "Wrong features",
+  hours: "Wrong opening hours",
+  other: "Other problem"
+};
+
+function formatReportOpeningTimes(openingTimes) {
+  if (!Array.isArray(openingTimes)) return null;
+  const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  return openingTimes.map((slot, index) => {
+    if (slot === null) return `${labels[index]} Unknown`;
+    if (!Array.isArray(slot) || slot.length < 2) return `${labels[index]} Closed`;
+    return `${labels[index]} ${slot[0]}-${slot[1]}`;
+  }).join("; ");
+}
+
+function getReportChangeLines(report) {
+  const changes = report?.proposedChanges ?? {};
+  const lines = [];
+  if (Number.isFinite(Number(changes.lat)) && Number.isFinite(Number(changes.lng))) {
+    lines.push(`Move marker to ${Number(changes.lat).toFixed(5)}, ${Number(changes.lng).toFixed(5)}`);
+  }
+  if (changes.features && typeof changes.features === "object") {
+    const featureText = Object.entries(changes.features)
+      .map(([key, value]) => `${key.replace(/([A-Z])/g, " $1")}: ${value}`)
+      .join(", ");
+    lines.push(`Features: ${featureText}`);
+  }
+  const hoursText = formatReportOpeningTimes(changes.openingTimes);
+  if (hoursText) lines.push(`Hours: ${hoursText}`);
+  return lines;
+}
+
+export function renderToiletReports(
+  reportsContainer,
+  reports,
+  { onReviewReport = () => {} } = {}
+) {
+  if (!reportsContainer) return;
+  reportsContainer.textContent = "";
+
+  if (!Array.isArray(reports) || reports.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent = "No pending reports.";
+    reportsContainer.append(empty);
+    return;
+  }
+
+  reports.forEach((report) => {
+    const item = document.createElement("article");
+    item.className = "submission-review-item";
+
+    const heading = document.createElement("h4");
+    heading.textContent = report.toiletName || "Unknown toilet";
+
+    const area = document.createElement("p");
+    area.className = "submission-review-area";
+    const location = report.currentLocation
+      ? ` - ${Number(report.currentLocation.lat).toFixed(5)}, ${Number(report.currentLocation.lng).toFixed(5)}`
+      : "";
+    area.textContent = `${report.toiletArea || "Unknown area"}${location}`;
+
+    const meta = document.createElement("p");
+    meta.className = "submission-review-meta";
+    const reporter = report.reportedByUsername || "Unknown user";
+    const createdAt = report.createdAt ? formatAccessTime(report.createdAt) : "Unknown time";
+    meta.textContent = `Reported by ${reporter} - ${createdAt}`;
+
+    const issues = document.createElement("p");
+    issues.className = "submission-review-details";
+    issues.textContent = (report.issueTypes ?? [])
+      .map((issue) => reportIssueLabels[issue] ?? issue)
+      .join(", ");
+
+    const existence = document.createElement("p");
+    existence.className = "submission-review-details";
+    existence.textContent = `Toilet exists here: ${report.toiletExists || "unsure"}`;
+
+    const note = document.createElement("p");
+    note.className = "submission-review-note";
+    note.textContent = report.details || "No additional details.";
+
+    const changeLines = getReportChangeLines(report);
+    const changeList = document.createElement("ul");
+    changeList.className = "toilet-report-change-list";
+    if (changeLines.length === 0) {
+      const line = document.createElement("li");
+      line.textContent = "No structured correction supplied.";
+      changeList.append(line);
+    } else {
+      changeLines.forEach((change) => {
+        const line = document.createElement("li");
+        line.textContent = change;
+        changeList.append(line);
+      });
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "submission-review-actions";
+
+    const applyButton = document.createElement("button");
+    applyButton.className = "solid-button";
+    applyButton.type = "button";
+    applyButton.textContent = "Apply correction";
+    applyButton.disabled = changeLines.length === 0;
+    applyButton.addEventListener("click", () => onReviewReport(report, "apply", applyButton));
+
+    const removeButton = document.createElement("button");
+    removeButton.className = "danger-button";
+    removeButton.type = "button";
+    removeButton.textContent = "Remove toilet";
+    removeButton.addEventListener("click", () => onReviewReport(report, "remove", removeButton));
+
+    const rejectButton = document.createElement("button");
+    rejectButton.className = "outline-button";
+    rejectButton.type = "button";
+    rejectButton.textContent = "Dismiss";
+    rejectButton.addEventListener("click", () => onReviewReport(report, "reject", rejectButton));
+
+    actions.append(applyButton, removeButton, rejectButton);
+    item.append(heading, area, meta, issues, existence, note, changeList, actions);
+    reportsContainer.append(item);
+  });
+}
