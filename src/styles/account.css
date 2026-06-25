@@ -16,6 +16,7 @@
   position: absolute;
   top: calc(var(--account-header-lift) * -1);
   right: 0;
+  z-index: 22;
   display: flex;
   align-items: center;
   justify-content: flex-end;
