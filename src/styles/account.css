@@ -211,10 +211,15 @@
 
 .account-activity-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 0;
   margin: 0 -20px 8px;
   border-bottom: 1px solid var(--line);
+}
+
+.account-activity-tab.is-hidden,
+.account-activity-tab[hidden] {
+  display: none;
 }
 
 .account-activity-tab {
@@ -394,6 +399,48 @@
 .my-comment-visibility:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+.submission-review-item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 0;
+  border-top: 1px solid #b8c6b9;
+}
+
+.submission-review-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.submission-review-item h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.submission-review-area,
+.submission-review-meta,
+.submission-review-note,
+.submission-review-details {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.submission-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.submission-review-actions .solid-button,
+.submission-review-actions .outline-button {
+  min-width: 96px;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .public-profile-comment-item {

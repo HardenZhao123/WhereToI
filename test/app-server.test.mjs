@@ -316,17 +316,54 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
 
     assert.equal(createdResponse.status, 201);
     assert.match(createdPayload.toilet.id, /^user-/);
+    assert.equal(createdPayload.toilet.submissionStatus, "pending");
+    assert.equal(createdPayload.status, "pending");
     assert.equal(createdPayload.toilet.name, "New station toilet");
     assert.equal(createdPayload.toilet.features.accessible, "Y");
     assert.equal(createdPayload.toilet.features.free, "Y");
 
+    const pendingDetailResponse = await fetch(`${baseUrl}/api/toilets/detail?toiletId=${createdPayload.toilet.id}`);
+    const pendingDetailPayload = await pendingDetailResponse.json();
+    assert.equal(pendingDetailResponse.status, 404);
+    assert.equal(pendingDetailPayload.error, "Toilet not found.");
+
+    const { payload: publicListBeforeApproval } = await fetchJson(`${baseUrl}/api/toilets?refresh=1`);
+    assert.equal(
+      publicListBeforeApproval.toilets.some((toilet) => toilet.id === createdPayload.toilet.id),
+      false
+    );
+
+    const { payload: pendingSubmissionsPayload } = await fetchJson(`${baseUrl}/api/admin/toilet-submissions`, {
+      headers: { "Cookie": cookie }
+    });
+    assert.equal(
+      pendingSubmissionsPayload.submissions.some((submission) => submission.id === createdPayload.toilet.id),
+      true
+    );
+
+    const { payload: approvedPayload } = await fetchJson(`${baseUrl}/api/admin/toilet-submissions/review`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        toiletId: createdPayload.toilet.id,
+        status: "approved"
+      })
+    });
+    assert.equal(approvedPayload.submission.submissionStatus, "approved");
+
     const { payload: detailPayload } = await fetchJson(
-      `${baseUrl}/api/toilets/detail?toiletId=${createdPayload.toilet.id}`
+      `${baseUrl}/api/toilets/detail?toiletId=${createdPayload.toilet.id}&refresh=1`
     );
     assert.equal(detailPayload.toilet.comment, "Comment: Beside the ticket hall");
     assert.deepEqual(detailPayload.toilet.openingTimes[5], ["10:00", "18:00"]);
     assert.equal(detailPayload.toilet.openingTimes[6], null);
     assert.equal(detailPayload.toilet.hours.sun, "Sun Unknown");
+
+    const { payload: publicListAfterApproval } = await fetchJson(`${baseUrl}/api/toilets?refresh=1`);
+    assert.equal(
+      publicListAfterApproval.toilets.some((toilet) => toilet.id === createdPayload.toilet.id),
+      true
+    );
 
     const duplicateResponse = await fetch(`${baseUrl}/api/toilets`, {
       method: "POST",
@@ -342,6 +379,43 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
 
     assert.equal(duplicateResponse.status, 409);
     assert.match(duplicatePayload.error, /already on the map/);
+  });
+});
+
+test("API restricts toilet submission review to admins", async () => {
+  await withAppServer(async (baseUrl) => {
+    const anonymousResponse = await fetch(`${baseUrl}/api/admin/toilet-submissions`);
+    const anonymousPayload = await anonymousResponse.json();
+
+    assert.equal(anonymousResponse.status, 401);
+    assert.equal(anonymousPayload.error, "Not authenticated");
+
+    const username = `review-non-admin-${Date.now()}`;
+    const password = "demo123";
+    await fetchJson(`${baseUrl}/api/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: `${username}@example.com`,
+        username,
+        password
+      })
+    });
+
+    const { response: loginResponse } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const cookie = loginResponse.headers.get("set-cookie");
+
+    const forbiddenResponse = await fetch(`${baseUrl}/api/admin/toilet-submissions`, {
+      headers: { "Cookie": cookie }
+    });
+    const forbiddenPayload = await forbiddenResponse.json();
+
+    assert.equal(forbiddenResponse.status, 403);
+    assert.equal(forbiddenPayload.error, "Admin access required.");
   });
 });
 

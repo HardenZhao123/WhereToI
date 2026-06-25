@@ -1,14 +1,22 @@
 import {
   fetchAccountSnapshot,
   fetchPublicProfile,
+  fetchToiletSubmissions,
   loginUser,
   registerUser,
   logoutUser,
   getCurrentUser,
+  reviewToiletSubmission,
   updateUserProfile,
   updateCommentProfileVisibility
 } from "../services/account-service.js";
-import { renderAccessHistory, renderAccount, renderMyComments, renderPublicProfile } from "../views/account-view.js";
+import {
+  renderAccessHistory,
+  renderAccount,
+  renderMyComments,
+  renderPublicProfile,
+  renderToiletSubmissions
+} from "../views/account-view.js";
 
 export function createAccountController(elements, onProfilePreferenceToggled = () => {}, callbacks = {}) {
   const {
@@ -22,6 +30,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     publicProfileUsername,
     publicProfileSummary,
     publicProfileCommentsList,
+    submissionReviewList,
     accountWelcome,
     accountUsername,
     authModal,
@@ -61,7 +70,11 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     closeCreditsButton,
     dismissCreditsButton
   } = elements;
-  const { onCommentSelected = () => {}, onAccessHistorySelected = () => {} } = callbacks;
+  const {
+    onCommentSelected = () => {},
+    onAccessHistorySelected = () => {},
+    onToiletSubmissionReviewed = () => {}
+  } = callbacks;
 
   const autoFilterStorageKey = "wheretoi-auto-filter-enabled";
   let currentUser = null;
@@ -260,11 +273,69 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     });
   }
 
+  function isCurrentUserAdmin() {
+    return Boolean(currentUser?.isAdmin || currentUser?.is_admin);
+  }
+
+  function syncReviewTabVisibility() {
+    const reviewTab = Array.from(accountActivityTabs ?? []).find(
+      (button) => button.dataset.accountActivityTab === "review"
+    );
+    const reviewPanel = Array.from(accountActivityPanels ?? []).find(
+      (panel) => panel.dataset.accountActivityPanel === "review"
+    );
+    const showReview = isCurrentUserAdmin();
+
+    if (reviewTab) {
+      reviewTab.hidden = !showReview;
+      reviewTab.classList.toggle("is-hidden", !showReview);
+    }
+
+    if (!showReview && activeAccountActivityTab === "review") {
+      setAccountActivityTab("feedback");
+    } else if (reviewPanel && !showReview) {
+      reviewPanel.hidden = true;
+      reviewPanel.classList.add("is-hidden");
+    }
+  }
+
+  async function loadToiletSubmissionsForReview() {
+    if (!isCurrentUserAdmin()) {
+      renderToiletSubmissions(submissionReviewList, []);
+      return;
+    }
+
+    if (submissionReviewList) {
+      submissionReviewList.textContent = "";
+      const loading = document.createElement("p");
+      loading.textContent = "Loading pending submissions...";
+      submissionReviewList.append(loading);
+    }
+
+    try {
+      const payload = await fetchToiletSubmissions("pending");
+      renderToiletSubmissions(submissionReviewList, payload.submissions, {
+        onReviewSubmission: handleReviewSubmission
+      });
+    } catch (error) {
+      console.error("Toilet submissions loading failed:", error);
+      if (submissionReviewList) {
+        submissionReviewList.textContent = "";
+        const message = document.createElement("p");
+        message.textContent = error?.message || "Could not load pending submissions.";
+        submissionReviewList.append(message);
+      }
+    }
+  }
+
   function handleAccountActivityTabClick(event) {
     const button = event.currentTarget;
     const nextTab = button?.dataset?.accountActivityTab;
     if (!nextTab) return;
     setAccountActivityTab(nextTab);
+    if (nextTab === "review") {
+      void loadToiletSubmissionsForReview();
+    }
   }
 
   function handleDocumentClick(event) {
@@ -283,6 +354,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
   function renderGuestAccount() {
     currentUser = null;
+    syncReviewTabVisibility();
 
     accountUnlockCard?.classList.remove("is-hidden");
     logoutButton?.classList.add("is-hidden");
@@ -446,6 +518,30 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     }
   }
 
+  async function handleReviewSubmission(submission, status, button) {
+    if (!submission?.id || !isCurrentUserAdmin()) return;
+
+    if (button) {
+      button.disabled = true;
+    }
+
+    try {
+      await reviewToiletSubmission({
+        toiletId: submission.id,
+        status
+      });
+      await loadToiletSubmissionsForReview();
+      await onToiletSubmissionReviewed(status);
+    } catch (error) {
+      console.error("Toilet submission review failed:", error);
+      alert(error?.message || "Could not review this toilet submission.");
+    } finally {
+      if (button) {
+        button.disabled = false;
+      }
+    }
+  }
+
   async function loadPublicProfile(userId) {
     if (!userId) return;
 
@@ -488,6 +584,7 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
       if (publicProfileActive && !forceOwn) return;
       accountUnlockCard?.classList.add("is-hidden");
       logoutButton?.classList.remove("is-hidden");
+      syncReviewTabVisibility();
 
       if (autoFilterToggle) {
         autoFilterToggle.disabled = false;
@@ -515,6 +612,9 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
         onOpenComment: handleOpenComment,
         onSetProfileVisibility: handleSetCommentProfileVisibility
       });
+      if (isCurrentUserAdmin() && activeAccountActivityTab === "review") {
+        await loadToiletSubmissionsForReview();
+      }
     } catch (error) {
       console.error("Account API failed:", error);
       if (publicProfileActive && !forceOwn) return;

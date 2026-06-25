@@ -10,7 +10,8 @@ const appServer = await createAppServer({
   port,
   staticCacheMode: process.env.NODE_ENV === "production" ? "production" : "development",
   databaseOptions: {
-    rootDirectory: appRoot
+    rootDirectory: appRoot,
+    enableDemoAccount: process.env.WHERETOI_ENABLE_DEMO_ACCOUNT !== "false"
   }
 });
 await appServer.listen();

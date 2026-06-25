@@ -53,3 +53,14 @@ export function recordAccessHistory(payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export function fetchToiletSubmissions(status = "pending") {
+  return fetchJson(`${appConfig.apiBasePath}/admin/toilet-submissions?status=${encodeURIComponent(status)}`);
+}
+
+export function reviewToiletSubmission(payload) {
+  return fetchJson(`${appConfig.apiBasePath}/admin/toilet-submissions/review`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}

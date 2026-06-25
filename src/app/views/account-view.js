@@ -91,6 +91,27 @@ function createCommentHeading(comment) {
   return heading;
 }
 
+function getSubmissionFeatureSummary(submission) {
+  const features = submission?.features ?? {};
+  const enabled = Object.entries(features)
+    .filter(([, value]) => value === "Y")
+    .map(([key]) => key.replace(/([A-Z])/g, " $1").toLowerCase());
+
+  return enabled.length > 0 ? enabled.join(", ") : "No confirmed features";
+}
+
+function getSubmissionHoursSummary(submission) {
+  const hours = submission?.hours ?? {};
+  const parts = [hours.today, hours.sat, hours.sun].filter(Boolean);
+  return parts.length > 0 ? parts.join(" / ") : "Opening hours unknown";
+}
+
+function getSubmissionMeta(submission) {
+  const submittedBy = submission?.submittedByUsername || "Unknown user";
+  const submittedAt = submission?.submittedAt ? formatAccessTime(submission.submittedAt) : "Unknown time";
+  return `Submitted by ${submittedBy} - ${submittedAt}`;
+}
+
 function renderCommentMeta(meta, parts) {
   const metaText = parts.filter(Boolean).join(" - ");
 
@@ -211,5 +232,65 @@ export function renderPublicProfile(
 
     item.append(openButton);
     publicProfileCommentsList.append(item);
+  });
+}
+
+export function renderToiletSubmissions(
+  submissionsContainer,
+  submissions,
+  { onReviewSubmission = () => {} } = {}
+) {
+  if (!submissionsContainer) return;
+
+  submissionsContainer.textContent = "";
+
+  if (!Array.isArray(submissions) || submissions.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent = "No pending submissions.";
+    submissionsContainer.append(empty);
+    return;
+  }
+
+  submissions.forEach((submission) => {
+    const item = document.createElement("article");
+    item.className = "submission-review-item";
+
+    const heading = document.createElement("h4");
+    heading.textContent = submission.name || "Unnamed toilet";
+
+    const area = document.createElement("p");
+    area.className = "submission-review-area";
+    area.textContent = `${submission.area || "Unknown area"} - ${Number(submission.lat).toFixed(5)}, ${Number(submission.lng).toFixed(5)}`;
+
+    const meta = document.createElement("p");
+    meta.className = "submission-review-meta";
+    meta.textContent = getSubmissionMeta(submission);
+
+    const note = document.createElement("p");
+    note.className = "submission-review-note";
+    note.textContent = submission.comment || "No note provided.";
+
+    const details = document.createElement("p");
+    details.className = "submission-review-details";
+    details.textContent = `${getSubmissionFeatureSummary(submission)} - ${getSubmissionHoursSummary(submission)}`;
+
+    const actions = document.createElement("div");
+    actions.className = "submission-review-actions";
+
+    const approveButton = document.createElement("button");
+    approveButton.className = "solid-button";
+    approveButton.type = "button";
+    approveButton.textContent = "Approve";
+    approveButton.addEventListener("click", () => onReviewSubmission(submission, "approved", approveButton));
+
+    const rejectButton = document.createElement("button");
+    rejectButton.className = "outline-button";
+    rejectButton.type = "button";
+    rejectButton.textContent = "Reject";
+    rejectButton.addEventListener("click", () => onReviewSubmission(submission, "rejected", rejectButton));
+
+    actions.append(approveButton, rejectButton);
+    item.append(heading, area, meta, note, details, actions);
+    submissionsContainer.append(item);
   });
 }

@@ -63,6 +63,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "comment profile visibility",
   "too large",
   "openingTimes",
+  "submission status",
   "not found"
 ];
 
@@ -280,6 +281,30 @@ function parseAccessibleOnly(queryValue) {
   return TRUTHY_QUERY_FLAGS.has((queryValue ?? "").toLowerCase());
 }
 
+function isAdminUser(user) {
+  return Boolean(user?.isAdmin || user?.is_admin);
+}
+
+async function getAuthenticatedUser(request, database) {
+  const userId = getSessionUserId(request);
+  return userId ? database.getUserById(userId) : null;
+}
+
+async function requireAdminUser(request, response, database) {
+  const user = await getAuthenticatedUser(request, database);
+  if (!user) {
+    sendSensitiveJson(response, 401, { error: "Not authenticated" });
+    return null;
+  }
+
+  if (!isAdminUser(user)) {
+    sendSensitiveJson(response, 403, { error: "Admin access required." });
+    return null;
+  }
+
+  return user;
+}
+
 function createPublicToiletsCache() {
   const entries = new Map();
   const pendingLoads = new Map();
@@ -482,9 +507,40 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         userId,
         ...body
       });
-      publicToiletsCache.clear();
 
-      sendSensitiveJson(response, 201, { toilet });
+      sendSensitiveJson(response, 201, {
+        toilet,
+        submission: toilet,
+        status: toilet?.submissionStatus ?? "pending"
+      });
+    },
+    "GET /api/admin/toilet-submissions": async ({ request, response, url }) => {
+      const admin = await requireAdminUser(request, response, database);
+      if (!admin) return;
+
+      const status = url.searchParams.get("status") ?? "pending";
+      const submissions = await database.getToiletSubmissions({ status });
+      sendSensitiveJson(response, 200, { submissions });
+    },
+    "POST /api/admin/toilet-submissions/review": async ({ request, response }) => {
+      const admin = await requireAdminUser(request, response, database);
+      if (!admin) return;
+
+      const body = await readJsonBody(request);
+      const submission = await database.reviewToiletSubmission({
+        toiletId: body.toiletId,
+        reviewerUserId: admin.id,
+        status: body.status,
+        reviewNote: body.reviewNote
+      });
+
+      if (!submission) {
+        sendSensitiveJson(response, 404, { error: "Toilet submission not found." });
+        return;
+      }
+
+      publicToiletsCache.clear();
+      sendSensitiveJson(response, 200, { submission });
     },
     "GET /api/toilets/summary": async ({ request, response, url, aiService }) => {
       const toiletId = url.searchParams.get("toiletId");
