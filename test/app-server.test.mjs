@@ -283,7 +283,7 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
         ["08:00", "20:00"],
         ["08:00", "20:00"],
         ["10:00", "18:00"],
-        []
+        null
       ]
     };
 
@@ -325,6 +325,8 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
     );
     assert.equal(detailPayload.toilet.comment, "Comment: Beside the ticket hall");
     assert.deepEqual(detailPayload.toilet.openingTimes[5], ["10:00", "18:00"]);
+    assert.equal(detailPayload.toilet.openingTimes[6], null);
+    assert.equal(detailPayload.toilet.hours.sun, "Sun Unknown");
 
     const duplicateResponse = await fetch(`${baseUrl}/api/toilets`, {
       method: "POST",

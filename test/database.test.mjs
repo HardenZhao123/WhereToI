@@ -149,8 +149,36 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
     assert.deepEqual(created.openingTimes[0], ["08:00", "20:00"]);
     assert.deepEqual(created.openingTimes[6], []);
 
+    const unknownHoursToilet = await database.createToiletContribution({
+      name: "Library toilet with partial hours",
+      area: "Paddington",
+      lat: 51.521,
+      lng: -0.176,
+      openingTimes: [
+        null,
+        ["09:00", "17:00"],
+        { status: "unknown" },
+        { closed: true },
+        "unknown",
+        "closed",
+        null
+      ]
+    });
+
+    assert.equal(unknownHoursToilet.hours.sun, "Sun Unknown");
+    assert.deepEqual(unknownHoursToilet.openingTimes, [
+      null,
+      ["09:00", "17:00"],
+      null,
+      [],
+      null,
+      [],
+      null
+    ]);
+
     const allToilets = await database.getToilets({ cleanlinessRange: "all" });
     assert.equal(allToilets.some((toilet) => toilet.id === created.id), true);
+    assert.equal(allToilets.some((toilet) => toilet.id === unknownHoursToilet.id), true);
 
     await assert.rejects(
       () => database.createToiletContribution({

@@ -80,6 +80,9 @@ export function createApp() {
       if (elements.headerLocateButton) {
         elements.headerLocateButton.hidden = nextTab !== "map";
       }
+      if (elements.addToiletOpenButton) {
+        elements.addToiletOpenButton.hidden = nextTab !== "map";
+      }
     }
   });
 
@@ -239,9 +242,13 @@ export function createApp() {
     elements.resetMapButton?.addEventListener("click", () => mapController.resetFilters());
     elements.addToiletOpenButton?.addEventListener("click", () => mapController.openAddToiletPanel());
     elements.addToiletCloseButton?.addEventListener("click", () => mapController.closeAddToiletPanel());
-    elements.addToiletPickLocationButton?.addEventListener("click", () => mapController.openAddToiletPanel());
-    elements.addToiletUseCentreButton?.addEventListener("click", () => mapController.useMapCentreForAddToilet());
     elements.addToiletForm?.addEventListener("submit", (event) => mapController.submitAddToilet(event));
+    elements.addToiletHoursKnownSelect?.addEventListener("change", () => mapController.syncAddToiletHoursVisibility());
+    elements.addToiletHourGroups.forEach((group) => {
+      group?.querySelector?.("[data-add-hours-state]")
+        ?.addEventListener("change", () => mapController.syncAddToiletHoursVisibility());
+    });
+    mapController.syncAddToiletHoursVisibility();
     elements.searchInput?.addEventListener("input", (event) => {
       if (event.target.value.trim().length > 0 && elements.searchCard?.classList.contains("is-collapsed")) {
         mapController.expandSearchPanel();

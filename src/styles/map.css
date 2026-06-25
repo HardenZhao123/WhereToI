@@ -535,10 +535,6 @@
   float: right;
 }
 
-#add-toilet-open {
-  grid-column: 1 / -1;
-}
-
 .add-toilet-panel {
   position: absolute;
   left: 11px;
@@ -555,6 +551,35 @@
 }
 
 .add-toilet-panel.is-hidden {
+  display: none;
+}
+
+.add-toilet-panel.is-picking-location {
+  left: 50%;
+  right: auto;
+  width: min(420px, calc(100% - 22px));
+  max-height: none;
+  padding: 12px 46px 12px 14px;
+  overflow: visible;
+  transform: translateX(-50%);
+}
+
+.add-toilet-panel.is-picking-location .add-toilet-form {
+  gap: 0;
+}
+
+.add-toilet-panel.is-picking-location .add-toilet-header {
+  padding-right: 0;
+}
+
+.add-toilet-panel.is-picking-location .add-toilet-header h2 {
+  font-size: 14px;
+}
+
+.add-toilet-panel.is-picking-location .add-toilet-grid,
+.add-toilet-panel.is-picking-location .add-toilet-form > label,
+.add-toilet-panel.is-picking-location .add-toilet-section,
+.add-toilet-panel.is-picking-location .add-toilet-actions {
   display: none;
 }
 
@@ -597,32 +622,15 @@
   font-weight: 800;
 }
 
-.add-toilet-location-actions,
 .add-toilet-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.add-toilet-location-actions button {
-  min-height: 34px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: #142c72;
-  font-size: 12px;
-  font-weight: 800;
-  background: white;
-}
-
-.add-toilet-location-actions button.is-active {
-  border-color: #142c72;
-  background: #eef4ff;
-}
-
 .add-toilet-grid,
 .add-toilet-feature-grid,
-.add-toilet-hours-grid {
+.add-toilet-hours-days {
   display: grid;
   gap: 8px;
 }
@@ -635,12 +643,12 @@
   grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
 }
 
-.add-toilet-hours-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.add-toilet-hours-days {
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
 }
 
 .add-toilet-form label,
-.add-toilet-hours-grid legend {
+.add-toilet-hours-days legend {
   color: #142c72;
   font-size: 11px;
   font-weight: 800;
@@ -664,7 +672,12 @@
   resize: vertical;
 }
 
-.add-toilet-hours-grid fieldset {
+.add-toilet-hours-days[hidden],
+.add-toilet-hours-times[hidden] {
+  display: none;
+}
+
+.add-toilet-hours-days fieldset {
   display: grid;
   gap: 6px;
   min-width: 0;
@@ -674,15 +687,15 @@
   border-radius: 8px;
 }
 
-.add-toilet-closed {
-  display: inline-flex;
-  align-items: center;
+.add-toilet-hours-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
-.add-toilet-closed input {
-  width: auto;
-  margin: 0;
+.add-toilet-hours-days fieldset.is-open {
+  border-color: #a8bfec;
+  background: #f8fbff;
 }
 
 .add-toilet-actions {
@@ -702,7 +715,8 @@
 
 @media (max-width: 640px) {
   .add-toilet-grid,
-  .add-toilet-hours-grid {
+  .add-toilet-hours-days,
+  .add-toilet-hours-times {
     grid-template-columns: 1fr;
   }
 }

@@ -134,7 +134,14 @@ function normaliseCoordinate(value, label, min, max) {
 }
 
 function normaliseOpeningSlot(slot) {
-  if (!slot || slot === "closed") return [];
+  if (slot === undefined || slot === null) return null;
+
+  if (typeof slot === "string") {
+    const status = normaliseText(slot).toLowerCase();
+    if (!status || status === "unknown") return null;
+    if (status === "closed") return [];
+  }
+
   if (Array.isArray(slot)) {
     if (slot.length === 0) return [];
     const [openTime, closeTime] = slot.map(normaliseText);
@@ -146,16 +153,19 @@ function normaliseOpeningSlot(slot) {
   }
 
   if (typeof slot === "object") {
+    const status = normaliseText(slot.status ?? slot.state).toLowerCase();
+    if (slot.unknown === true || status === "unknown") return null;
     if (slot.closed === true) return [];
+    if (status === "closed") return [];
     return normaliseOpeningSlot([slot.open, slot.close]);
   }
 
-  throw new Error("openingTimes must be an array of daily time pairs.");
+  throw new Error("openingTimes must be an array of daily time pairs, closed days, or unknown days.");
 }
 
 function normaliseOpeningTimes(openingTimes) {
   if (openingTimes === undefined || openingTimes === null || openingTimes === "") {
-    return [[], [], [], [], [], [], []];
+    return [null, null, null, null, null, null, null];
   }
 
   let rawOpeningTimes = openingTimes;

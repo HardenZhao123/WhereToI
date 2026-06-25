@@ -41,10 +41,6 @@
       </header>
       <input id="add-toilet-lat" name="lat" type="hidden" />
       <input id="add-toilet-lng" name="lng" type="hidden" />
-      <div class="add-toilet-location-actions">
-        <button id="add-toilet-pick-location" type="button">Pick on map</button>
-        <button id="add-toilet-use-centre" type="button">Use map centre</button>
-      </div>
       <div class="add-toilet-grid">
         <label>
           Name
@@ -77,24 +73,118 @@
       </section>
       <section class="add-toilet-section" aria-labelledby="add-toilet-hours-title">
         <h3 id="add-toilet-hours-title">Opening Hours</h3>
-        <div class="add-toilet-hours-grid">
-          <fieldset data-add-hours="weekday">
-            <legend>Mon-Fri</legend>
-            <label>Open <input type="time" data-add-hours-open /></label>
-            <label>Close <input type="time" data-add-hours-close /></label>
-            <label class="add-toilet-closed"><input type="checkbox" data-add-hours-closed /> Closed</label>
+        <label class="add-toilet-hours-knowledge">
+          Do you know the opening hours?
+          <select id="add-toilet-hours-known" name="openingHoursKnown">
+            <option value="unknown">I don't know</option>
+            <option value="known">I know some or all hours</option>
+          </select>
+        </label>
+        <div class="add-toilet-hours-days" id="add-toilet-hours-days" hidden>
+          <fieldset data-add-hours="mon">
+            <legend>Monday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+          <fieldset data-add-hours="tue">
+            <legend>Tuesday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+          <fieldset data-add-hours="wed">
+            <legend>Wednesday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+          <fieldset data-add-hours="thu">
+            <legend>Thursday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+          <fieldset data-add-hours="fri">
+            <legend>Friday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
           </fieldset>
           <fieldset data-add-hours="sat">
             <legend>Saturday</legend>
-            <label>Open <input type="time" data-add-hours-open /></label>
-            <label>Close <input type="time" data-add-hours-close /></label>
-            <label class="add-toilet-closed"><input type="checkbox" data-add-hours-closed /> Closed</label>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
           </fieldset>
           <fieldset data-add-hours="sun">
             <legend>Sunday</legend>
-            <label>Open <input type="time" data-add-hours-open /></label>
-            <label>Close <input type="time" data-add-hours-close /></label>
-            <label class="add-toilet-closed"><input type="checkbox" data-add-hours-closed /> Closed</label>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
           </fieldset>
         </div>
       </section>

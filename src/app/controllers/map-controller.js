@@ -36,6 +36,7 @@ const resultRenderLimit = 8;
 const locateActiveCenterToleranceMetres = 20;
 const duplicateToiletRadiusMetres = 35;
 const defaultCleanlinessRange = "3days";
+const addToiletHourDayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const touchCommentComposerQuery = "(hover: none), (pointer: coarse), (max-width: 760px)";
 const locationRequestOptions = Object.freeze({
   enableHighAccuracy: true,
@@ -138,8 +139,6 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     resultsList,
     addToiletPanel,
     addToiletForm,
-    addToiletPickLocationButton,
-    addToiletUseCentreButton,
     addToiletSubmitButton,
     addToiletStatus,
     addToiletLatInput,
@@ -148,6 +147,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     addToiletAreaInput,
     addToiletNoteInput,
     addToiletFeatureInputs = [],
+    addToiletHoursKnownSelect,
+    addToiletHoursDays,
     addToiletHourGroups = [],
     locateButtons = []
   } = elements;
@@ -1378,11 +1379,44 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     addToiletSubmitButton.textContent = submitting ? "Adding..." : "Add toilet";
   }
 
+  function syncAddToiletHoursVisibility() {
+    const hasKnownHours = addToiletHoursKnownSelect?.value === "known";
+    if (addToiletHoursDays) {
+      addToiletHoursDays.hidden = !hasKnownHours;
+    }
+
+    Array.from(addToiletHourGroups).forEach((group) => {
+      const stateSelect = group?.querySelector?.("[data-add-hours-state]");
+      const timesContainer = group?.querySelector?.("[data-add-hours-times]");
+      const openInput = group?.querySelector?.("[data-add-hours-open]");
+      const closeInput = group?.querySelector?.("[data-add-hours-close]");
+      const isOpen = hasKnownHours && stateSelect?.value === "open";
+
+      if (timesContainer) {
+        timesContainer.hidden = !isOpen;
+      }
+
+      group?.classList?.toggle?.("is-open", isOpen);
+
+      [openInput, closeInput].forEach((input) => {
+        if (!input) return;
+        input.disabled = !isOpen;
+        input.required = isOpen;
+        if (!isOpen) {
+          input.value = "";
+        }
+      });
+    });
+  }
+
   function setAddToiletPickMode(enabled) {
     addToiletPickMode = Boolean(enabled);
     mapPanel?.classList?.toggle?.("is-picking-add-toilet", addToiletPickMode);
-    addToiletPickLocationButton?.classList?.toggle?.("is-active", addToiletPickMode);
-    addToiletPickLocationButton?.setAttribute?.("aria-pressed", String(addToiletPickMode));
+    addToiletPanel?.classList?.toggle?.("is-picking-location", addToiletPickMode);
+
+    if (addToiletPickMode) {
+      setAddToiletStatus("Tap an empty place on the map. This form will reopen after you choose a spot.");
+    }
   }
 
   function removeAddToiletDraftMarker() {
@@ -1419,6 +1453,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     addToiletLocation = null;
     if (addToiletLatInput) addToiletLatInput.value = "";
     if (addToiletLngInput) addToiletLngInput.value = "";
+    syncAddToiletHoursVisibility();
     setAddToiletPickMode(false);
     removeAddToiletDraftMarker();
     setAddToiletStatus("Pick an empty map location.");
@@ -1438,9 +1473,14 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       resetAddToiletForm();
     } else {
       setAddToiletStatus("Pick an empty map location.");
+      syncAddToiletHoursVisibility();
       syncAddToiletSubmitState();
       const scheduleFrame = globalThis.requestAnimationFrame ?? ((callback) => callback());
-      scheduleFrame(() => addToiletNameInput?.focus?.({ preventScroll: true }));
+      scheduleFrame(() => {
+        if (!addToiletPickMode) {
+          addToiletNameInput?.focus?.({ preventScroll: true });
+        }
+      });
     }
   }
 
@@ -1503,42 +1543,32 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     selectAddToiletLocation(latLng?.lat, latLng?.lng);
   }
 
-  function useMapCentreForAddToilet() {
-    if (!map) return false;
-    const center = map.getCenter();
-    return selectAddToiletLocation(center.lat, center.lng);
-  }
-
   function readAddToiletHourSlot(group) {
-    const closed = group?.querySelector?.("[data-add-hours-closed]")?.checked;
+    const state = group?.querySelector?.("[data-add-hours-state]")?.value ?? "unknown";
     const open = group?.querySelector?.("[data-add-hours-open]")?.value ?? "";
     const close = group?.querySelector?.("[data-add-hours-close]")?.value ?? "";
 
-    if (closed || (!open && !close)) return [];
+    if (state === "unknown") return null;
+    if (state === "closed") return [];
+    if (state !== "open") return null;
+
     if (!open || !close) {
-      throw new Error("Enter both open and close times, or mark the day closed.");
+      throw new Error("Enter both open and close times, or choose Unknown or Closed for that day.");
     }
 
     return [open, close];
   }
 
   function getAddToiletOpeningTimes() {
+    if (addToiletHoursKnownSelect?.value !== "known") {
+      return addToiletHourDayKeys.map(() => null);
+    }
+
     const groups = new Map(
       Array.from(addToiletHourGroups).map((group) => [group.dataset.addHours, group])
     );
-    const weekday = readAddToiletHourSlot(groups.get("weekday"));
-    const sat = readAddToiletHourSlot(groups.get("sat"));
-    const sun = readAddToiletHourSlot(groups.get("sun"));
 
-    return [
-      [...weekday],
-      [...weekday],
-      [...weekday],
-      [...weekday],
-      [...weekday],
-      [...sat],
-      [...sun]
-    ];
+    return addToiletHourDayKeys.map((dayKey) => readAddToiletHourSlot(groups.get(dayKey)));
   }
 
   function getAddToiletFeatures() {
@@ -2215,7 +2245,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     applyProfilePreferences,
     openAddToiletPanel,
     closeAddToiletPanel,
-    useMapCentreForAddToilet,
+    syncAddToiletHoursVisibility,
     submitAddToilet
   };
 }
