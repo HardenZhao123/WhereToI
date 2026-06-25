@@ -71,6 +71,10 @@ function formatDayHours(openingTimes, dayIndex) {
   const dayLabel = DAY_LABELS[dayIndex] ?? "Day";
   const slot = openingTimes[dayIndex];
 
+  if (slot === null || (typeof slot === "string" && normaliseText(slot).toLowerCase() === "unknown")) {
+    return `${dayLabel} Unknown`;
+  }
+
   if (!Array.isArray(slot) || slot.length < 2) {
     return `${dayLabel} Closed`;
   }

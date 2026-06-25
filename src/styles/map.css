@@ -33,7 +33,9 @@
 }
 
 .map-marker-icon,
-.map-user-marker-icon {
+.map-user-marker-icon,
+.map-add-marker-icon {
+  position: relative;
   border: 0;
   background: transparent;
 }
@@ -203,6 +205,54 @@
   border-radius: 50%;
   background: #2b80c7;
   box-shadow: 0 0 0 8px rgb(43 128 199 / 18%);
+}
+
+.map-add-marker {
+  display: block;
+  position: relative;
+  width: 32px;
+  height: 36px;
+  border: 3px solid #142c72;
+  border-radius: 8px;
+  background: #fff7d6;
+  box-shadow: 0 0 0 5px rgb(20 44 114 / 16%), 0 8px 18px rgb(31 42 51 / 22%);
+}
+
+.map-add-marker::before,
+.map-add-marker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #142c72;
+}
+
+.map-add-marker::before {
+  top: 9px;
+  width: 14px;
+  height: 3px;
+  border-radius: 3px;
+}
+
+.map-add-marker::after {
+  top: 4px;
+  width: 3px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.map-add-marker-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 12px;
+  height: 12px;
+  transform: translateX(-50%) rotate(45deg);
+  border-right: 3px solid #142c72;
+  border-bottom: 3px solid #142c72;
+  border-radius: 0 0 3px 0;
+  background: #fff7d6;
 }
 
 .search-card {
@@ -483,4 +533,190 @@
 .quick-actions button::after {
   content: ">";
   float: right;
+}
+
+.add-toilet-panel {
+  position: absolute;
+  left: 11px;
+  right: 11px;
+  bottom: 86px;
+  z-index: 5;
+  max-height: min(62vh, 590px);
+  padding: 14px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 18px 48px rgb(31 42 51 / 18%);
+}
+
+.add-toilet-panel.is-hidden {
+  display: none;
+}
+
+.add-toilet-panel.is-picking-location {
+  left: 50%;
+  right: auto;
+  width: min(420px, calc(100% - 22px));
+  max-height: none;
+  padding: 12px 46px 12px 14px;
+  overflow: visible;
+  transform: translateX(-50%);
+}
+
+.add-toilet-panel.is-picking-location .add-toilet-form {
+  gap: 0;
+}
+
+.add-toilet-panel.is-picking-location .add-toilet-header {
+  padding-right: 0;
+}
+
+.add-toilet-panel.is-picking-location .add-toilet-header h2 {
+  font-size: 14px;
+}
+
+.add-toilet-panel.is-picking-location .add-toilet-grid,
+.add-toilet-panel.is-picking-location .add-toilet-form > label,
+.add-toilet-panel.is-picking-location .add-toilet-section,
+.add-toilet-panel.is-picking-location .add-toilet-actions {
+  display: none;
+}
+
+.add-toilet-form {
+  display: grid;
+  gap: 12px;
+}
+
+.add-toilet-close {
+  top: 10px;
+  right: 10px;
+}
+
+.add-toilet-header {
+  padding-right: 34px;
+}
+
+.add-toilet-header h2,
+.add-toilet-section h3 {
+  margin: 0;
+  color: #142c72;
+}
+
+.add-toilet-header h2 {
+  font-size: 18px;
+}
+
+.add-toilet-section h3 {
+  font-size: 13px;
+}
+
+.add-toilet-status {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.add-toilet-status.warning {
+  color: #b94b3d;
+  font-weight: 800;
+}
+
+.add-toilet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.add-toilet-grid,
+.add-toilet-feature-grid,
+.add-toilet-hours-days {
+  display: grid;
+  gap: 8px;
+}
+
+.add-toilet-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.add-toilet-feature-grid {
+  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+}
+
+.add-toilet-hours-days {
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+}
+
+.add-toilet-form label,
+.add-toilet-hours-days legend {
+  color: #142c72;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.add-toilet-form input[type="text"],
+.add-toilet-form input[type="time"],
+.add-toilet-form textarea,
+.add-toilet-form select {
+  width: 100%;
+  min-height: 34px;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: white;
+}
+
+.add-toilet-form textarea {
+  resize: vertical;
+}
+
+.add-toilet-hours-days[hidden],
+.add-toilet-hours-times[hidden] {
+  display: none;
+}
+
+.add-toilet-hours-days fieldset {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.add-toilet-hours-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.add-toilet-hours-days fieldset.is-open {
+  border-color: #a8bfec;
+  background: #f8fbff;
+}
+
+.add-toilet-actions {
+  justify-content: flex-end;
+}
+
+.view-map.has-add-toilet-panel .map-legend,
+.view-map.has-add-toilet-panel .details-card,
+.view-map.has-add-toilet-panel .comment-composer {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.view-map.is-picking-add-toilet .map-canvas {
+  cursor: crosshair;
+}
+
+@media (max-width: 640px) {
+  .add-toilet-grid,
+  .add-toilet-hours-days,
+  .add-toilet-hours-times {
+    grid-template-columns: 1fr;
+  }
 }

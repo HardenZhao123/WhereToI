@@ -94,6 +94,14 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+}
+
+.header-map-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
 .app-logo {
@@ -157,23 +165,86 @@ h3 {
     transform 0.16s ease;
 }
 
-.locate-button[hidden] {
+.add-toilet-topbar-button {
+  position: relative;
+  z-index: 21;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 42px;
+  flex: 0 1 auto;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #142c72;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  background: #fff;
+  box-shadow: 0 5px 14px rgb(31 42 51 / 10%);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.locate-button[hidden],
+.add-toilet-topbar-button[hidden] {
   display: none;
 }
 
 .locate-button:hover,
-.locate-button:focus-visible {
+.locate-button:focus-visible,
+.add-toilet-topbar-button:hover,
+.add-toilet-topbar-button:focus-visible {
   border-color: rgb(54 111 171 / 38%);
   box-shadow: 0 6px 16px rgb(31 42 51 / 16%);
 }
 
-.locate-button:focus-visible {
+.locate-button:focus-visible,
+.add-toilet-topbar-button:focus-visible {
   outline: 3px solid rgb(54 111 171 / 24%);
   outline-offset: 2px;
 }
 
-.locate-button:active {
+.locate-button:active,
+.add-toilet-topbar-button:active {
   transform: scale(0.96);
+}
+
+.add-toilet-topbar-icon {
+  position: relative;
+  display: block;
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+.add-toilet-topbar-icon::before,
+.add-toilet-topbar-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 3px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.add-toilet-topbar-icon::before {
+  width: 13px;
+  height: 3px;
+}
+
+.add-toilet-topbar-icon::after {
+  width: 3px;
+  height: 13px;
 }
 
 .locate-icon {
@@ -206,6 +277,27 @@ h3 {
 .locate-button.is-located .locate-icon-dot {
   fill: #fff;
   stroke: #fff;
+}
+
+@media (max-width: 390px) {
+  .topbar {
+    gap: 10px;
+  }
+
+  .header-map-actions {
+    gap: 6px;
+  }
+
+  .add-toilet-topbar-button {
+    min-height: 38px;
+    padding: 0 9px;
+    font-size: 11px;
+  }
+
+  .locate-button {
+    width: 38px;
+    height: 38px;
+  }
 }
 
 .view {

@@ -225,6 +225,20 @@ export function submitCleanlinessSurvey(payload) {
   });
 }
 
+export async function submitToiletContribution(payload) {
+  const result = await fetchJson(`${appConfig.apiBasePath}/toilets`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+  clearToiletsApiCache();
+  if (result.toilet?.id) {
+    clearToiletDetailCache(result.toilet.id);
+  }
+
+  return result.toilet ?? null;
+}
+
 export async function fetchComments(toiletId) {
   const payload = await fetchJson(`${appConfig.apiBasePath}/comments?toiletId=${encodeURIComponent(toiletId)}`);
   return payload.comments || [];

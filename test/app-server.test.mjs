@@ -262,6 +262,89 @@ test("API exposes toilet details on demand", async () => {
   });
 });
 
+test("API accepts logged-in missing toilet submissions and rejects nearby duplicates", async () => {
+  await withAppServer(async (baseUrl) => {
+    const contribution = {
+      name: "New station toilet",
+      area: "Gloucester Road",
+      lat: 51.512,
+      lng: -0.188,
+      comment: "Beside the ticket hall",
+      features: {
+        women: "Y",
+        men: "Y",
+        accessible: "Y",
+        free: "Y"
+      },
+      openingTimes: [
+        ["08:00", "20:00"],
+        ["08:00", "20:00"],
+        ["08:00", "20:00"],
+        ["08:00", "20:00"],
+        ["08:00", "20:00"],
+        ["10:00", "18:00"],
+        null
+      ]
+    };
+
+    const anonymousResponse = await fetch(`${baseUrl}/api/toilets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contribution)
+    });
+    const anonymousPayload = await anonymousResponse.json();
+
+    assert.equal(anonymousResponse.status, 401);
+    assert.equal(anonymousPayload.error, "Log in to add a missing toilet.");
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+    const authHeaders = {
+      "Content-Type": "application/json",
+      "Cookie": cookie
+    };
+
+    const { payload: createdPayload, response: createdResponse } = await fetchJson(`${baseUrl}/api/toilets`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify(contribution)
+    });
+
+    assert.equal(createdResponse.status, 201);
+    assert.match(createdPayload.toilet.id, /^user-/);
+    assert.equal(createdPayload.toilet.name, "New station toilet");
+    assert.equal(createdPayload.toilet.features.accessible, "Y");
+    assert.equal(createdPayload.toilet.features.free, "Y");
+
+    const { payload: detailPayload } = await fetchJson(
+      `${baseUrl}/api/toilets/detail?toiletId=${createdPayload.toilet.id}`
+    );
+    assert.equal(detailPayload.toilet.comment, "Comment: Beside the ticket hall");
+    assert.deepEqual(detailPayload.toilet.openingTimes[5], ["10:00", "18:00"]);
+    assert.equal(detailPayload.toilet.openingTimes[6], null);
+    assert.equal(detailPayload.toilet.hours.sun, "Sun Unknown");
+
+    const duplicateResponse = await fetch(`${baseUrl}/api/toilets`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        ...contribution,
+        name: "Duplicate station toilet",
+        lat: contribution.lat + 0.00001,
+        lng: contribution.lng + 0.00001
+      })
+    });
+    const duplicatePayload = await duplicateResponse.json();
+
+    assert.equal(duplicateResponse.status, 409);
+    assert.match(duplicatePayload.error, /already on the map/);
+  });
+});
+
 test("API preserves accessible filtering and access-history write behavior", async () => {
   await withAppServer(async (baseUrl) => {
     const { payload: accessiblePayload } = await fetchJson(`${baseUrl}/api/toilets?accessibleOnly=true`);

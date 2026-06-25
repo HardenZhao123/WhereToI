@@ -32,6 +32,168 @@
 
   <template data-html-include="./search-card.html"></template>
 
+  <aside class="add-toilet-panel is-hidden" id="add-toilet-panel" hidden aria-labelledby="add-toilet-title">
+    <button class="close-button add-toilet-close" id="add-toilet-close" type="button" aria-label="Close add toilet form">X</button>
+    <form id="add-toilet-form" class="add-toilet-form">
+      <header class="add-toilet-header">
+        <h2 id="add-toilet-title">Add missing toilet</h2>
+        <p id="add-toilet-status" class="add-toilet-status" aria-live="polite">Pick an empty map location.</p>
+      </header>
+      <input id="add-toilet-lat" name="lat" type="hidden" />
+      <input id="add-toilet-lng" name="lng" type="hidden" />
+      <div class="add-toilet-grid">
+        <label>
+          Name
+          <input id="add-toilet-name" name="name" type="text" autocomplete="off" required maxlength="160" />
+        </label>
+        <label>
+          Area
+          <input id="add-toilet-area" name="area" type="text" autocomplete="off" maxlength="160" />
+        </label>
+      </div>
+      <label>
+        Venue note
+        <textarea id="add-toilet-note" name="note" rows="2" maxlength="600"></textarea>
+      </label>
+      <section class="add-toilet-section" aria-labelledby="add-toilet-features-title">
+        <h3 id="add-toilet-features-title">Features</h3>
+        <div class="add-toilet-feature-grid">
+          <label>Women <select data-add-toilet-feature="women"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Men <select data-add-toilet-feature="men"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Accessible <select data-add-toilet-feature="accessible"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Gender Neutral <select data-add-toilet-feature="neutral"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Children <select data-add-toilet-feature="children"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Parent &amp; Baby <select data-add-toilet-feature="babyChanging"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Bidet / Washing <select data-add-toilet-feature="bidet"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Automatic <select data-add-toilet-feature="automatic"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Urinal Only <select data-add-toilet-feature="urinalOnly"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>RADAR Key <select data-add-toilet-feature="radarKey"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Free <select data-add-toilet-feature="free"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+        </div>
+      </section>
+      <section class="add-toilet-section" aria-labelledby="add-toilet-hours-title">
+        <h3 id="add-toilet-hours-title">Opening Hours</h3>
+        <label class="add-toilet-hours-knowledge">
+          Do you know the opening hours?
+          <select id="add-toilet-hours-known" name="openingHoursKnown">
+            <option value="unknown">I don't know</option>
+            <option value="known">I know some or all hours</option>
+          </select>
+        </label>
+        <div class="add-toilet-hours-days" id="add-toilet-hours-days" hidden>
+          <fieldset data-add-hours="mon">
+            <legend>Monday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+          <fieldset data-add-hours="tue">
+            <legend>Tuesday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+          <fieldset data-add-hours="wed">
+            <legend>Wednesday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+          <fieldset data-add-hours="thu">
+            <legend>Thursday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+          <fieldset data-add-hours="fri">
+            <legend>Friday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+          <fieldset data-add-hours="sat">
+            <legend>Saturday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+          <fieldset data-add-hours="sun">
+            <legend>Sunday</legend>
+            <label>
+              Status
+              <select data-add-hours-state>
+                <option value="unknown">Don't know</option>
+                <option value="open">Open at these times</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <div class="add-toilet-hours-times" data-add-hours-times hidden>
+              <label>Open <input type="time" data-add-hours-open disabled /></label>
+              <label>Close <input type="time" data-add-hours-close disabled /></label>
+            </div>
+          </fieldset>
+        </div>
+      </section>
+      <div class="add-toilet-actions">
+        <button id="add-toilet-submit" class="primary-pill" type="submit">Add toilet</button>
+      </div>
+    </form>
+  </aside>
+
   <template data-html-include="./details-card.html"></template>
   <template data-html-include="./comment-composer.html"></template>
 </section>

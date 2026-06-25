@@ -31,6 +31,10 @@ function formatDayHours(openingTimes, dayIndex) {
   const dayLabel = appConfig.dayLabels[dayIndex] ?? "Day";
   const slot = openingTimes[dayIndex];
 
+  if (slot === null || (typeof slot === "string" && normaliseText(slot).toLowerCase() === "unknown")) {
+    return `${dayLabel} Unknown`;
+  }
+
   if (!Array.isArray(slot) || slot.length < 2) {
     return `${dayLabel} Closed`;
   }

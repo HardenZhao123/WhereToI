@@ -112,6 +112,90 @@ test("SQLite database keeps accessible-only filtering behavior", async () => {
   });
 });
 
+test("SQLite database stores user contributed toilets and rejects nearby duplicates", async () => {
+  await withSeededDatabase(async (database) => {
+    const created = await database.createToiletContribution({
+      name: "New station toilet",
+      area: "Gloucester Road",
+      lat: 51.512,
+      lng: -0.188,
+      comment: "Beside the ticket hall",
+      features: {
+        women: "Y",
+        men: "Y",
+        accessible: "Y",
+        babyChanging: "N",
+        free: "Y"
+      },
+      openingTimes: [
+        ["08:00", "20:00"],
+        ["08:00", "20:00"],
+        ["08:00", "20:00"],
+        ["08:00", "20:00"],
+        ["08:00", "20:00"],
+        ["10:00", "18:00"],
+        []
+      ]
+    });
+
+    assert.match(created.id, /^user-/);
+    assert.equal(created.name, "New station toilet");
+    assert.equal(created.area, "Gloucester Road");
+    assert.equal(created.comment, "Comment: Beside the ticket hall");
+    assert.equal(created.features.accessible, "Y");
+    assert.equal(created.features.babyChanging, "N");
+    assert.equal(created.features.free, "Y");
+    assert.equal(created.paid, false);
+    assert.deepEqual(created.openingTimes[0], ["08:00", "20:00"]);
+    assert.deepEqual(created.openingTimes[6], []);
+
+    const unknownHoursToilet = await database.createToiletContribution({
+      name: "Library toilet with partial hours",
+      area: "Paddington",
+      lat: 51.521,
+      lng: -0.176,
+      openingTimes: [
+        null,
+        ["09:00", "17:00"],
+        { status: "unknown" },
+        { closed: true },
+        "unknown",
+        "closed",
+        null
+      ]
+    });
+
+    assert.equal(unknownHoursToilet.hours.sun, "Sun Unknown");
+    assert.deepEqual(unknownHoursToilet.openingTimes, [
+      null,
+      ["09:00", "17:00"],
+      null,
+      [],
+      null,
+      [],
+      null
+    ]);
+
+    const allToilets = await database.getToilets({ cleanlinessRange: "all" });
+    assert.equal(allToilets.some((toilet) => toilet.id === created.id), true);
+    assert.equal(allToilets.some((toilet) => toilet.id === unknownHoursToilet.id), true);
+
+    await assert.rejects(
+      () => database.createToiletContribution({
+        name: "Duplicate station toilet",
+        lat: created.lat + 0.00001,
+        lng: created.lng + 0.00001,
+        openingTimes: [[], [], [], [], [], [], []]
+      }),
+      (error) => {
+        assert.equal(error.statusCode, 409);
+        assert.match(error.message, /already on the map/);
+        return true;
+      }
+    );
+  });
+});
+
 test("cleanliness time ranges exclude older ratings except all time", async () => {
   await withSeededDatabase(async (database, { dbFilePath }) => {
     const user = await database.getUserByUsername("demo");

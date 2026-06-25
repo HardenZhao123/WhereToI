@@ -48,6 +48,22 @@ const COMMENT_SCENE_DIRT_TYPES = new Set([
 const COMMENT_SCENE_MAX_PLACEMENTS = 80;
 export const CLEANLINESS_RATING_COOLDOWN_MS = 30 * 60 * 1000;
 export const ANONYMOUS_COMMENT_AUTHOR = "Anonymous";
+export const TOILET_DUPLICATE_RADIUS_METRES = 35;
+
+const TOILET_FEATURE_KEYS = [
+  "women",
+  "men",
+  "accessible",
+  "neutral",
+  "children",
+  "babyChanging",
+  "bidet",
+  "automatic",
+  "urinalOnly",
+  "radarKey",
+  "free"
+];
+const TIME_VALUE_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export function createCleanlinessRatingCooldownError(latestCreatedAt, nowMs = Date.now()) {
   const latestTime = Date.parse(latestCreatedAt);
@@ -62,6 +78,146 @@ export function createCleanlinessRatingCooldownError(latestCreatedAt, nowMs = Da
   error.statusCode = 429;
   error.retryAfterSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
   return error;
+}
+
+export function createDuplicateToiletError(toilet, distanceMetres = null) {
+  const roundedDistance = Number.isFinite(distanceMetres) ? Math.round(distanceMetres) : null;
+  const distanceText = roundedDistance === null ? "" : ` (${roundedDistance}m away)`;
+  const error = new Error(`${toilet?.name ?? "This toilet"} is already on the map${distanceText}.`);
+  error.statusCode = 409;
+  error.duplicateToilet = toilet ?? null;
+  error.distanceMetres = roundedDistance;
+  return error;
+}
+
+export function distanceInMetres(lat1, lng1, lat2, lng2) {
+  const earthRadius = 6371000;
+  const toRadians = (degrees) => (degrees * Math.PI) / 180;
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+  return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function getCoordinateBounds(lat, lng, radiusMetres = TOILET_DUPLICATE_RADIUS_METRES) {
+  const latitudeDelta = radiusMetres / 111320;
+  const longitudeScale = Math.max(Math.cos((lat * Math.PI) / 180), 0.01);
+  const longitudeDelta = radiusMetres / (111320 * longitudeScale);
+
+  return {
+    minLat: lat - latitudeDelta,
+    maxLat: lat + latitudeDelta,
+    minLng: lng - longitudeDelta,
+    maxLng: lng + longitudeDelta
+  };
+}
+
+function normaliseFeatureFlag(value, fallback = "?") {
+  if (value === true || value === 1) return "Y";
+  if (value === false || value === 0) return "N";
+
+  const normalised = normaliseText(value).toLowerCase();
+  if (["y", "yes", "true", "1", "available"].includes(normalised)) return "Y";
+  if (["n", "no", "false", "0", "unavailable"].includes(normalised)) return "N";
+  return fallback;
+}
+
+function normaliseCoordinate(value, label, min, max) {
+  const coordinate = Number(value);
+  if (!Number.isFinite(coordinate) || coordinate < min || coordinate > max) {
+    throw new Error(`${label} must be a valid coordinate.`);
+  }
+  return coordinate;
+}
+
+function normaliseOpeningSlot(slot) {
+  if (slot === undefined || slot === null) return null;
+
+  if (typeof slot === "string") {
+    const status = normaliseText(slot).toLowerCase();
+    if (!status || status === "unknown") return null;
+    if (status === "closed") return [];
+  }
+
+  if (Array.isArray(slot)) {
+    if (slot.length === 0) return [];
+    const [openTime, closeTime] = slot.map(normaliseText);
+    if (!openTime && !closeTime) return [];
+    if (!TIME_VALUE_PATTERN.test(openTime) || !TIME_VALUE_PATTERN.test(closeTime)) {
+      throw new Error("openingTimes must use HH:MM times.");
+    }
+    return [openTime, closeTime];
+  }
+
+  if (typeof slot === "object") {
+    const status = normaliseText(slot.status ?? slot.state).toLowerCase();
+    if (slot.unknown === true || status === "unknown") return null;
+    if (slot.closed === true) return [];
+    if (status === "closed") return [];
+    return normaliseOpeningSlot([slot.open, slot.close]);
+  }
+
+  throw new Error("openingTimes must be an array of daily time pairs, closed days, or unknown days.");
+}
+
+function normaliseOpeningTimes(openingTimes) {
+  if (openingTimes === undefined || openingTimes === null || openingTimes === "") {
+    return [null, null, null, null, null, null, null];
+  }
+
+  let rawOpeningTimes = openingTimes;
+  if (typeof openingTimes === "string") {
+    try {
+      rawOpeningTimes = JSON.parse(openingTimes);
+    } catch {
+      throw new Error("openingTimes must be valid JSON.");
+    }
+  }
+
+  if (!Array.isArray(rawOpeningTimes) || rawOpeningTimes.length !== 7) {
+    throw new Error("openingTimes must include seven days.");
+  }
+
+  return rawOpeningTimes.map(normaliseOpeningSlot);
+}
+
+export function normaliseToiletContributionPayload(payload = {}) {
+  const name = normaliseText(payload.name).slice(0, 160);
+  const area = (normaliseText(payload.area) || "User submitted").slice(0, 160);
+  const note = normaliseText(payload.comment ?? payload.notes).slice(0, 600);
+  const lat = normaliseCoordinate(payload.lat ?? payload.latitude, "lat", -90, 90);
+  const lng = normaliseCoordinate(payload.lng ?? payload.longitude, "lng", -180, 180);
+
+  if (!name) {
+    throw new Error("name is required.");
+  }
+
+  const rawFeatures = payload.features && typeof payload.features === "object" ? payload.features : {};
+  const features = TOILET_FEATURE_KEYS.reduce((result, key) => {
+    result[key] = normaliseFeatureFlag(rawFeatures[key]);
+    return result;
+  }, {});
+  const accessCost = normaliseText(payload.accessCost).toLowerCase();
+  if (accessCost === "free") {
+    features.free = "Y";
+  } else if (accessCost === "paid") {
+    features.free = "N";
+  }
+
+  return {
+    name,
+    area,
+    lat,
+    lng,
+    paid: features.free === "N",
+    comment: note ? `Comment: ${note}` : "Comment: User submitted toilet.",
+    features,
+    openingTimes: normaliseOpeningTimes(payload.openingTimes),
+    cleanliness: 3
+  };
 }
 
 function getEmptyCommentMedia() {

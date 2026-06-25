@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { scrypt, randomBytes, timingSafeEqual } from "node:crypto";
+import { scrypt, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { mapRowToToilet } from "../mapper/toilet-mapper.mjs";
 import { applySqliteToiletMigrations } from "../migration/toilet-schema-migration.mjs";
@@ -10,6 +10,9 @@ import {
   ANONYMOUS_COMMENT_AUTHOR,
   CLEANLINESS_RATING_COOLDOWN_MS,
   createCleanlinessRatingCooldownError,
+  createDuplicateToiletError,
+  distanceInMetres,
+  getCoordinateBounds,
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
@@ -22,9 +25,11 @@ import {
   normaliseCommentLikePayload,
   normaliseCommentPayload,
   normaliseCommentProfileVisibility,
+  normaliseToiletContributionPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
   normaliseUserId,
+  TOILET_DUPLICATE_RADIUS_METRES,
   toCleanlinessUpdate
 } from "./repository-utils.mjs";
 
@@ -406,6 +411,36 @@ export async function createSqliteDatabase({
     return { found: true, active: true, toiletId: comment.toiletId };
   }
 
+  function findDuplicateToilet(toilet) {
+    const bounds = getCoordinateBounds(toilet.lat, toilet.lng);
+    const candidates = db
+      .prepare(
+        `
+        SELECT id, name, area, lat, lng
+        FROM toilets
+        WHERE lat >= ? AND lat <= ?
+          AND lng >= ? AND lng <= ?
+        `
+      )
+      .all(bounds.minLat, bounds.maxLat, bounds.minLng, bounds.maxLng);
+
+    return candidates.reduce((closest, candidate) => {
+      const distanceMetres = distanceInMetres(toilet.lat, toilet.lng, candidate.lat, candidate.lng);
+      if (distanceMetres > TOILET_DUPLICATE_RADIUS_METRES) return closest;
+      if (closest && closest.distanceMetres <= distanceMetres) return closest;
+      return {
+        toilet: {
+          id: candidate.id,
+          name: candidate.name,
+          area: candidate.area,
+          lat: Number(candidate.lat),
+          lng: Number(candidate.lng)
+        },
+        distanceMetres
+      };
+    }, null);
+  }
+
   return {
     backend: "sqlite",
     async close() {
@@ -498,6 +533,47 @@ export async function createSqliteDatabase({
       ).get(...params);
 
       return row ? mapRowToToilet(row) : null;
+    },
+    async createToiletContribution(payload) {
+      const toilet = normaliseToiletContributionPayload(payload);
+      const duplicate = findDuplicateToilet(toilet);
+      if (duplicate) {
+        throw createDuplicateToiletError(duplicate.toilet, duplicate.distanceMetres);
+      }
+
+      const toiletId = `user-${randomUUID()}`;
+      db.prepare(
+        `
+        INSERT INTO toilets (
+          id, name, area, lat, lng, paid, comment,
+          women, men, accessible, neutral, children, baby_changing, bidet,
+          automatic, urinal_only, radar_key, free_access, opening_times, cleanliness
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
+      ).run(
+        toiletId,
+        toilet.name,
+        toilet.area,
+        toilet.lat,
+        toilet.lng,
+        toilet.paid ? 1 : 0,
+        toilet.comment,
+        toilet.features.women,
+        toilet.features.men,
+        toilet.features.accessible,
+        toilet.features.neutral,
+        toilet.features.children,
+        toilet.features.babyChanging,
+        toilet.features.bidet,
+        toilet.features.automatic,
+        toilet.features.urinalOnly,
+        toilet.features.radarKey,
+        toilet.features.free,
+        JSON.stringify(toilet.openingTimes),
+        toilet.cleanliness
+      );
+
+      return this.getToiletById(toiletId, { cleanlinessRange: "all" });
     },
     async updateUserProfile(userId, { gender, preferences }) {
       db.prepare(

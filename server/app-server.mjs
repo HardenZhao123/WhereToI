@@ -53,6 +53,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "required",
   "non-negative",
   "integer from 1 to 5",
+  "coordinate",
   "scoringModel",
   "Unsupported",
   "comment media",
@@ -61,6 +62,7 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "comment visibility",
   "comment profile visibility",
   "too large",
+  "openingTimes",
   "not found"
 ];
 
@@ -466,6 +468,23 @@ function createApiRouteHandlers(database, { emailService, logger }) {
       sendJson(response, 200, { toilet }, {
         "Cache-Control": PUBLIC_TOILETS_CACHE_CONTROL
       });
+    },
+    "POST /api/toilets": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendSensitiveJson(response, 401, { error: "Log in to add a missing toilet." });
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const toilet = await database.createToiletContribution({
+        userId,
+        ...body
+      });
+      publicToiletsCache.clear();
+
+      sendSensitiveJson(response, 201, { toilet });
     },
     "GET /api/toilets/summary": async ({ request, response, url, aiService }) => {
       const toiletId = url.searchParams.get("toiletId");

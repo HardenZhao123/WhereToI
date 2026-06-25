@@ -1,12 +1,15 @@
 import { mapRowToToilet } from "../mapper/toilet-mapper.mjs";
 import { applyPostgresToiletMigrations, ensurePostgresCommentMediaColumns } from "../migration/toilet-schema-migration.mjs";
 import { loadSeedToilets } from "../seed/toilet-seed-loader.mjs";
-import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import {
   ANONYMOUS_COMMENT_AUTHOR,
   CLEANLINESS_RATING_COOLDOWN_MS,
   createCleanlinessRatingCooldownError,
+  createDuplicateToiletError,
+  distanceInMetres,
+  getCoordinateBounds,
   mapAccessHistoryRow,
   mapAccountRow,
   mapCleanlinessSurveyResponse,
@@ -19,9 +22,11 @@ import {
   normaliseCommentLikePayload,
   normaliseCommentPayload,
   normaliseCommentProfileVisibility,
+  normaliseToiletContributionPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
   normaliseUserId,
+  TOILET_DUPLICATE_RADIUS_METRES,
   toCleanlinessUpdate
 } from "./repository-utils.mjs";
 
@@ -591,6 +596,35 @@ export async function createPostgresDatabase({
     }
   }
 
+  async function findDuplicateToilet(toilet) {
+    const bounds = getCoordinateBounds(toilet.lat, toilet.lng);
+    const result = await pool.query(
+      `
+      SELECT id, name, area, lat, lng
+      FROM toilets
+      WHERE lat >= $1 AND lat <= $2
+        AND lng >= $3 AND lng <= $4
+      `,
+      [bounds.minLat, bounds.maxLat, bounds.minLng, bounds.maxLng]
+    );
+
+    return result.rows.reduce((closest, candidate) => {
+      const distanceMetres = distanceInMetres(toilet.lat, toilet.lng, candidate.lat, candidate.lng);
+      if (distanceMetres > TOILET_DUPLICATE_RADIUS_METRES) return closest;
+      if (closest && closest.distanceMetres <= distanceMetres) return closest;
+      return {
+        toilet: {
+          id: candidate.id,
+          name: candidate.name,
+          area: candidate.area,
+          lat: Number(candidate.lat),
+          lng: Number(candidate.lng)
+        },
+        distanceMetres
+      };
+    }, null);
+  }
+
   return {
     backend: "postgres",
     async close() {
@@ -731,6 +765,48 @@ export async function createPostgresDatabase({
       }
 
       return result.rows[0] ? mapRowToToilet(result.rows[0]) : null;
+    },
+    async createToiletContribution(payload) {
+      const toilet = normaliseToiletContributionPayload(payload);
+      const duplicate = await findDuplicateToilet(toilet);
+      if (duplicate) {
+        throw createDuplicateToiletError(duplicate.toilet, duplicate.distanceMetres);
+      }
+
+      const toiletId = `user-${randomUUID()}`;
+      await pool.query(
+        `
+        INSERT INTO toilets (
+          id, name, area, lat, lng, paid, comment,
+          women, men, accessible, neutral, children, baby_changing, bidet,
+          automatic, urinal_only, radar_key, free_access, opening_times, cleanliness
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20)
+        `,
+        [
+          toiletId,
+          toilet.name,
+          toilet.area,
+          toilet.lat,
+          toilet.lng,
+          toilet.paid,
+          toilet.comment,
+          toilet.features.women,
+          toilet.features.men,
+          toilet.features.accessible,
+          toilet.features.neutral,
+          toilet.features.children,
+          toilet.features.babyChanging,
+          toilet.features.bidet,
+          toilet.features.automatic,
+          toilet.features.urinalOnly,
+          toilet.features.radarKey,
+          toilet.features.free,
+          JSON.stringify(toilet.openingTimes),
+          toilet.cleanliness
+        ]
+      );
+
+      return this.getToiletById(toiletId, { cleanlinessRange: "all" });
     },
     async updateUserProfile(userId, { gender, preferences }) {
       const result = await pool.query(
