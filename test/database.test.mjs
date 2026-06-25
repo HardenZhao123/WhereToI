@@ -218,6 +218,86 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
   });
 });
 
+test("SQLite database stores toilet reports and lets admins apply corrections or remove toilets", async () => {
+  await withSeededDatabase(async (database) => {
+    const admin = await database.getUserByUsername("demo");
+    const report = await database.createToiletReport({
+      userId: admin.id,
+      toiletId: "detail-test",
+      issueTypes: ["location", "features", "hours"],
+      toiletExists: "yes",
+      details: "The marker and facilities are out of date.",
+      proposedChanges: {
+        lat: 51.495,
+        lng: -0.1745,
+        features: {
+          women: "Y",
+          men: "Y",
+          accessible: "N",
+          neutral: "Y",
+          children: "Y",
+          babyChanging: "N",
+          bidet: "Y",
+          automatic: "N",
+          urinalOnly: "N",
+          radarKey: "N",
+          free: "N"
+        },
+        openingTimes: [
+          ["08:00", "18:00"],
+          ["08:00", "18:00"],
+          ["08:00", "18:00"],
+          ["08:00", "18:00"],
+          ["08:00", "18:00"],
+          [],
+          null
+        ]
+      }
+    });
+
+    assert.equal(report.status, "pending");
+    assert.equal(report.toiletName, "Prayer room washroom");
+    assert.deepEqual(report.issueTypes, ["location", "features", "hours"]);
+
+    const pendingReports = await database.getToiletReports({ status: "pending" });
+    assert.equal(pendingReports.some((item) => item.id === report.id), true);
+
+    const applied = await database.reviewToiletReport({
+      reportId: report.id,
+      reviewerUserId: admin.id,
+      action: "apply"
+    });
+    assert.equal(applied.status, "applied");
+
+    const corrected = await database.getToiletById("detail-test", { cleanlinessRange: "all" });
+    assert.equal(corrected.lat, 51.495);
+    assert.equal(corrected.lng, -0.1745);
+    assert.equal(corrected.features.accessible, "N");
+    assert.equal(corrected.features.free, "N");
+    assert.equal(corrected.paid, true);
+    assert.deepEqual(corrected.openingTimes[0], ["08:00", "18:00"]);
+    assert.deepEqual(corrected.openingTimes[5], []);
+    assert.equal(corrected.openingTimes[6], null);
+
+    const removalReport = await database.createToiletReport({
+      userId: admin.id,
+      toiletId: "limited-test",
+      issueTypes: ["missing"],
+      toiletExists: "no",
+      details: "The venue confirmed this toilet no longer exists."
+    });
+    const removed = await database.reviewToiletReport({
+      reportId: removalReport.id,
+      reviewerUserId: admin.id,
+      action: "remove"
+    });
+    assert.equal(removed.status, "removed");
+    assert.equal(removed.toiletId, null);
+    assert.equal(removed.currentLocation, null);
+    assert.equal(await database.getToiletById("limited-test"), null);
+  });
+});
+
 test("cleanliness time ranges exclude older ratings except all time", async () => {
   await withSeededDatabase(async (database, { dbFilePath }) => {
     const user = await database.getUserByUsername("demo");

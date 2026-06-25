@@ -138,6 +138,37 @@ function ensureSqliteToiletSubmissionColumns(db) {
   `);
 }
 
+function ensureSqliteToiletReports(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS toilet_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      toilet_id TEXT,
+      toilet_name TEXT NOT NULL,
+      toilet_area TEXT NOT NULL,
+      reported_by_user_id INTEGER,
+      issue_types TEXT NOT NULL,
+      toilet_exists TEXT NOT NULL DEFAULT 'unsure',
+      details TEXT NOT NULL DEFAULT '',
+      proposed_changes TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL,
+      reviewed_by_user_id INTEGER,
+      reviewed_at TEXT,
+      review_action TEXT,
+      review_note TEXT NOT NULL DEFAULT '',
+      FOREIGN KEY (toilet_id) REFERENCES toilets(id) ON DELETE SET NULL,
+      FOREIGN KEY (reported_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+    ) STRICT;
+
+    CREATE INDEX IF NOT EXISTS idx_toilet_reports_status
+    ON toilet_reports(status, created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_toilet_reports_toilet_user
+    ON toilet_reports(toilet_id, reported_by_user_id, status);
+  `);
+}
+
 function getSqliteColumnType(db, tableName, columnName) {
   const column = db.prepare(`PRAGMA table_info(${tableName})`).all().find((item) => item.name === columnName);
   return String(column?.type ?? "").toUpperCase();
@@ -417,6 +448,36 @@ async function ensurePostgresToiletSubmissionColumns(pool) {
   `);
 }
 
+async function ensurePostgresToiletReports(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS toilet_reports (
+      id BIGSERIAL PRIMARY KEY,
+      toilet_id TEXT REFERENCES toilets(id) ON DELETE SET NULL,
+      toilet_name TEXT NOT NULL,
+      toilet_area TEXT NOT NULL,
+      reported_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      issue_types JSONB NOT NULL DEFAULT '[]'::jsonb,
+      toilet_exists TEXT NOT NULL DEFAULT 'unsure',
+      details TEXT NOT NULL DEFAULT '',
+      proposed_changes JSONB NOT NULL DEFAULT '{}'::jsonb,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL,
+      reviewed_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      reviewed_at TEXT,
+      review_action TEXT,
+      review_note TEXT NOT NULL DEFAULT ''
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_toilet_reports_status
+    ON toilet_reports(status, created_at DESC)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_toilet_reports_toilet_user
+    ON toilet_reports(toilet_id, reported_by_user_id, status)
+  `);
+}
+
 async function backfillPostgresFeatureColumns(pool, seedCsvPath) {
   const toiletsToSeed = await loadSeedToilets(seedCsvPath);
   const client = await pool.connect();
@@ -455,6 +516,7 @@ export async function applySqliteToiletMigrations({ db, seedCsvPath }) {
   ensureSqliteToiletSubmissionColumns(db);
   ensureSqliteUserSupport(db);
   ensureSqliteUserColumns(db);
+  ensureSqliteToiletReports(db);
   rebuildSqliteRatingTablesForDecimals(db);
   ensureSqliteToiletSubmissionColumns(db);
   ensureSqliteUserColumns(db);
@@ -563,6 +625,7 @@ export async function applyPostgresToiletMigrations({ pool, seedCsvPath }) {
   const missingFeatureColumns = await ensurePostgresFeatureColumns(pool);
   await ensurePostgresCleanlinessColumns(pool);
   await ensurePostgresToiletSubmissionColumns(pool);
+  await ensurePostgresToiletReports(pool);
 
   if (missingFeatureColumns.length > 0) {
     await backfillPostgresFeatureColumns(pool, seedCsvPath);

@@ -27,7 +27,81 @@
   </header>
   <div class="details-actions-row">
     <button class="primary-pill" id="directions-button" type="button">Directions</button>
+    <button class="outline-pill report-toilet-button" id="report-toilet-open" type="button">Report toilet</button>
   </div>
+  <section class="report-toilet-panel" id="report-toilet-panel" hidden aria-labelledby="report-toilet-title">
+    <form class="report-toilet-form" id="report-toilet-form">
+      <div class="report-toilet-header">
+        <div>
+          <h3 id="report-toilet-title">Report incorrect information</h3>
+          <p>Your report will be reviewed by an administrator before the public toilet record changes.</p>
+        </div>
+        <button class="text-button" id="report-toilet-close" type="button">Cancel</button>
+      </div>
+      <fieldset class="report-issue-fieldset">
+        <legend>What is wrong?</legend>
+        <div class="report-issue-grid">
+          <label><input type="checkbox" value="missing" data-report-issue /> This toilet is not here</label>
+          <label><input type="checkbox" value="location" data-report-issue /> Location is wrong</label>
+          <label><input type="checkbox" value="features" data-report-issue /> Features are wrong</label>
+          <label><input type="checkbox" value="hours" data-report-issue /> Opening hours are wrong</label>
+          <label><input type="checkbox" value="other" data-report-issue /> Other problem</label>
+        </div>
+      </fieldset>
+      <label>
+        Is there a toilet at this location?
+        <select id="report-toilet-exists">
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+          <option value="unsure">Not sure</option>
+        </select>
+      </label>
+      <section class="report-change-section" id="report-location-section" hidden>
+        <h4>Correct location</h4>
+        <div class="report-location-grid">
+          <label>Latitude <input id="report-toilet-lat" type="number" step="any" min="-90" max="90" /></label>
+          <label>Longitude <input id="report-toilet-lng" type="number" step="any" min="-180" max="180" /></label>
+        </div>
+      </section>
+      <section class="report-change-section" id="report-features-section" hidden>
+        <h4>Correct features</h4>
+        <div class="report-feature-grid">
+          <label>Women <select data-report-feature="women"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Men <select data-report-feature="men"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Accessible <select data-report-feature="accessible"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Gender Neutral <select data-report-feature="neutral"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Children <select data-report-feature="children"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Parent &amp; Baby <select data-report-feature="babyChanging"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Bidet / Washing <select data-report-feature="bidet"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Automatic <select data-report-feature="automatic"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Urinal Only <select data-report-feature="urinalOnly"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>RADAR Key <select data-report-feature="radarKey"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+          <label>Free <select data-report-feature="free"><option value="?">Unknown</option><option value="Y">Yes</option><option value="N">No</option></select></label>
+        </div>
+      </section>
+      <section class="report-change-section" id="report-hours-section" hidden>
+        <h4>Correct opening hours</h4>
+        <p>Use <strong>Unknown</strong>, <strong>Closed</strong>, or a range such as <strong>09:00-17:00</strong>.</p>
+        <div class="report-hours-grid">
+          <label>Monday <input type="text" data-report-hours="0" /></label>
+          <label>Tuesday <input type="text" data-report-hours="1" /></label>
+          <label>Wednesday <input type="text" data-report-hours="2" /></label>
+          <label>Thursday <input type="text" data-report-hours="3" /></label>
+          <label>Friday <input type="text" data-report-hours="4" /></label>
+          <label>Saturday <input type="text" data-report-hours="5" /></label>
+          <label>Sunday <input type="text" data-report-hours="6" /></label>
+        </div>
+      </section>
+      <label>
+        Details for the administrator
+        <textarea id="report-toilet-details" rows="3" maxlength="1200" placeholder="Explain what you observed and how the record should change."></textarea>
+      </label>
+      <p class="report-toilet-status" id="report-toilet-status" aria-live="polite"></p>
+      <div class="report-toilet-actions">
+        <button class="primary-pill" id="report-toilet-submit" type="submit">Send report</button>
+      </div>
+    </form>
+  </section>
   <div class="distance-line" id="distance-line">Enable location to see distance.</div>
   <nav class="details-section-nav" aria-label="Toilet detail sections">
     <button class="details-section-link is-active" id="details-overview-link" type="button" data-detail-section="overview" aria-controls="details-overview-panel" aria-selected="true">Overview</button>

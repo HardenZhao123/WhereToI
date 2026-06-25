@@ -64,6 +64,10 @@ const CLIENT_ERROR_MESSAGE_MATCHERS = [
   "too large",
   "openingTimes",
   "submission status",
+  "report status",
+  "report action",
+  "report issue",
+  "toiletExists",
   "not found"
 ];
 
@@ -514,6 +518,21 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         status: toilet?.submissionStatus ?? "pending"
       });
     },
+    "POST /api/toilets/report": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendSensitiveJson(response, 401, { error: "Log in to report incorrect toilet information." });
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const report = await database.createToiletReport({
+        userId,
+        ...body
+      });
+      sendSensitiveJson(response, 201, { report, status: report?.status ?? "pending" });
+    },
     "GET /api/admin/toilet-submissions": async ({ request, response, url }) => {
       const admin = await requireAdminUser(request, response, database);
       if (!admin) return;
@@ -541,6 +560,33 @@ function createApiRouteHandlers(database, { emailService, logger }) {
 
       publicToiletsCache.clear();
       sendSensitiveJson(response, 200, { submission });
+    },
+    "GET /api/admin/toilet-reports": async ({ request, response, url }) => {
+      const admin = await requireAdminUser(request, response, database);
+      if (!admin) return;
+
+      const status = url.searchParams.get("status") ?? "pending";
+      const reports = await database.getToiletReports({ status });
+      sendSensitiveJson(response, 200, { reports });
+    },
+    "POST /api/admin/toilet-reports/review": async ({ request, response }) => {
+      const admin = await requireAdminUser(request, response, database);
+      if (!admin) return;
+
+      const body = await readJsonBody(request);
+      const report = await database.reviewToiletReport({
+        reportId: body.reportId,
+        reviewerUserId: admin.id,
+        action: body.action,
+        reviewNote: body.reviewNote
+      });
+      if (!report) {
+        sendSensitiveJson(response, 404, { error: "Toilet report not found." });
+        return;
+      }
+
+      publicToiletsCache.clear();
+      sendSensitiveJson(response, 200, { report });
     },
     "GET /api/toilets/summary": async ({ request, response, url, aiService }) => {
       const toiletId = url.searchParams.get("toiletId");

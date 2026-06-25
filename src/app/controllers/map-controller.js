@@ -5,7 +5,8 @@ import {
   fetchToiletDetail,
   submitCleanlinessSurvey,
   submitComment,
-  submitToiletContribution
+  submitToiletContribution,
+  submitToiletReport
 } from "../services/toilets-service.js";
 import { createFeedbackThreadController } from "./feedback-thread-controller.js";
 import {
@@ -101,6 +102,20 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     searchCard,
     toggleSearchButton,
     directionsButton,
+    reportToiletPanel,
+    reportToiletForm,
+    reportToiletSubmitButton,
+    reportToiletStatus,
+    reportToiletExistsSelect,
+    reportToiletDetailsInput,
+    reportToiletLatInput,
+    reportToiletLngInput,
+    reportToiletIssueInputs = [],
+    reportToiletFeatureInputs = [],
+    reportToiletHourInputs = [],
+    reportLocationSection,
+    reportFeaturesSection,
+    reportHoursSection,
     detailsCard,
     mapPanel,
     mapElement,
@@ -983,6 +998,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function hideToiletDetails() {
+    closeReportToiletPanel();
     selectedToilet = null;
     selectedCleanlinessDisplayToilet = null;
     cleanlinessDisplayRequestId += 1;
@@ -1063,6 +1079,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       }
     }
 
+    closeReportToiletPanel();
     selectedToilet = toilet;
     selectedCleanlinessDisplayToilet = toilet;
     selectedRating = null;
@@ -1365,6 +1382,170 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     const origin = userLocation ? `&origin=${userLocation.lat},${userLocation.lng}` : "";
     const url = `https://www.google.com/maps/dir/?api=1${origin}&destination=${destination}&travelmode=walking`;
     void openExternalUrl(url);
+  }
+
+  function setReportToiletStatus(message, tone = "") {
+    if (!reportToiletStatus) return;
+    reportToiletStatus.textContent = message;
+    reportToiletStatus.classList.toggle("warning", tone === "warning");
+    reportToiletStatus.classList.toggle("success", tone === "success");
+  }
+
+  function formatReportOpeningSlot(slot) {
+    if (slot === null || slot === undefined) return "Unknown";
+    if (!Array.isArray(slot) || slot.length < 2) return "Closed";
+    return `${slot[0]}-${slot[1]}`;
+  }
+
+  function parseReportOpeningSlot(value) {
+    const normalised = String(value ?? "").trim();
+    if (!normalised || /^unknown$/i.test(normalised)) return null;
+    if (/^closed$/i.test(normalised)) return [];
+    const match = normalised.match(/^([01]\d|2[0-3]):([0-5]\d)\s*-\s*([01]\d|2[0-3]):([0-5]\d)$/);
+    if (!match) {
+      throw new Error("Opening hours must use Unknown, Closed, or HH:MM-HH:MM.");
+    }
+    return [`${match[1]}:${match[2]}`, `${match[3]}:${match[4]}`];
+  }
+
+  function getSelectedReportIssueTypes() {
+    return Array.from(reportToiletIssueInputs)
+      .filter((input) => input.checked)
+      .map((input) => input.value);
+  }
+
+  function syncReportToiletSections() {
+    const issues = new Set(getSelectedReportIssueTypes());
+    if (reportLocationSection) reportLocationSection.hidden = !issues.has("location");
+    if (reportFeaturesSection) reportFeaturesSection.hidden = !issues.has("features");
+    if (reportHoursSection) reportHoursSection.hidden = !issues.has("hours");
+    if (issues.has("missing") && reportToiletExistsSelect) {
+      reportToiletExistsSelect.value = "no";
+    }
+  }
+
+  function resetReportToiletForm() {
+    reportToiletForm?.reset?.();
+    setReportToiletStatus("");
+    if (!selectedToilet) {
+      syncReportToiletSections();
+      return;
+    }
+
+    if (reportToiletExistsSelect) reportToiletExistsSelect.value = "yes";
+    if (reportToiletLatInput) reportToiletLatInput.value = Number(selectedToilet.lat).toFixed(6);
+    if (reportToiletLngInput) reportToiletLngInput.value = Number(selectedToilet.lng).toFixed(6);
+    if (reportToiletDetailsInput) reportToiletDetailsInput.value = "";
+
+    Array.from(reportToiletFeatureInputs).forEach((input) => {
+      const key = input.dataset.reportFeature;
+      input.value = selectedToilet.features?.[key] ?? "?";
+    });
+
+    const openingTimes = Array.isArray(selectedToilet.openingTimes)
+      ? selectedToilet.openingTimes
+      : [null, null, null, null, null, null, null];
+    Array.from(reportToiletHourInputs).forEach((input) => {
+      const dayIndex = Number(input.dataset.reportHours);
+      input.value = formatReportOpeningSlot(openingTimes[dayIndex]);
+    });
+    syncReportToiletSections();
+  }
+
+  function openReportToiletPanel() {
+    if (!selectedToilet) return;
+    if (!isAuthenticated()) {
+      showLoginPrompt("Log in to report incorrect toilet information.");
+      return;
+    }
+    resetReportToiletForm();
+    if (reportToiletPanel) reportToiletPanel.hidden = false;
+    reportToiletPanel?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }
+
+  function closeReportToiletPanel() {
+    if (reportToiletPanel) reportToiletPanel.hidden = true;
+    setReportToiletStatus("");
+  }
+
+  function getReportToiletPayload() {
+    if (!selectedToilet) {
+      throw new Error("Select a toilet before reporting it.");
+    }
+    const issueTypes = getSelectedReportIssueTypes();
+    if (issueTypes.length === 0) {
+      throw new Error("Select at least one problem to report.");
+    }
+
+    const proposedChanges = {};
+    if (issueTypes.includes("location")) {
+      const lat = Number(reportToiletLatInput?.value);
+      const lng = Number(reportToiletLngInput?.value);
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
+        throw new Error("Enter a valid corrected latitude and longitude.");
+      }
+      proposedChanges.lat = lat;
+      proposedChanges.lng = lng;
+    }
+    if (issueTypes.includes("features")) {
+      proposedChanges.features = Array.from(reportToiletFeatureInputs).reduce((features, input) => {
+        features[input.dataset.reportFeature] = input.value;
+        return features;
+      }, {});
+    }
+    if (issueTypes.includes("hours")) {
+      proposedChanges.openingTimes = Array.from(reportToiletHourInputs)
+        .sort((left, right) => Number(left.dataset.reportHours) - Number(right.dataset.reportHours))
+        .map((input) => parseReportOpeningSlot(input.value));
+    }
+
+    return {
+      toiletId: selectedToilet.id,
+      issueTypes,
+      toiletExists: reportToiletExistsSelect?.value ?? "unsure",
+      details: reportToiletDetailsInput?.value?.trim() ?? "",
+      proposedChanges
+    };
+  }
+
+  async function submitReportToilet(event) {
+    event.preventDefault();
+    if (!isAuthenticated()) {
+      showLoginPrompt("Log in to report incorrect toilet information.");
+      return;
+    }
+
+    let payload;
+    try {
+      payload = getReportToiletPayload();
+    } catch (error) {
+      setReportToiletStatus(error.message, "warning");
+      return;
+    }
+
+    if (reportToiletSubmitButton) {
+      reportToiletSubmitButton.disabled = true;
+      reportToiletSubmitButton.textContent = "Sending...";
+    }
+    setReportToiletStatus("Sending report...");
+
+    try {
+      await submitToiletReport(payload);
+      resetReportToiletForm();
+      setReportToiletStatus("Report sent to the administrator for review.", "success");
+    } catch (error) {
+      if (error.status === 401) {
+        closeReportToiletPanel();
+        showLoginPrompt("Log in to report incorrect toilet information.");
+        return;
+      }
+      setReportToiletStatus(error?.message || "Could not send this report.", "warning");
+    } finally {
+      if (reportToiletSubmitButton) {
+        reportToiletSubmitButton.disabled = false;
+        reportToiletSubmitButton.textContent = "Send report";
+      }
+    }
   }
 
   function setAddToiletStatus(message, { warning = false } = {}) {
@@ -2213,6 +2394,10 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     resetFilters,
     requestLocation,
     openDirections,
+    openReportToiletPanel,
+    closeReportToiletPanel,
+    syncReportToiletSections,
+    submitReportToilet,
     refreshFilteredDisplay,
     setDetailSection,
     hideToiletDetails,

@@ -409,6 +409,42 @@
   border-top: 1px solid #b8c6b9;
 }
 
+.admin-review-heading {
+  margin: 14px 0 8px;
+  color: #142c72;
+  font-size: 13px;
+}
+
+.admin-review-heading:first-child {
+  margin-top: 0;
+}
+
+.toilet-report-change-list {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.danger-button {
+  min-width: 96px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #b94b3d;
+  border-radius: 999px;
+  color: #8c2d23;
+  background: #fff7f5;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.danger-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .submission-review-item:first-child {
   border-top: 0;
   padding-top: 0;
