@@ -119,6 +119,27 @@ test.beforeEach(async ({ context, page }) => {
   );
 });
 
+test("account settings button opens the settings panel", async ({ page }) => {
+  const browserIssues = captureBrowserIssues(page);
+
+  const loginResponse = await page.request.post("/api/login", {
+    data: { username: "demo", password: "demo123" }
+  });
+  expect(loginResponse.ok()).toBeTruthy();
+
+  await page.goto("/");
+  await page.locator("#account-tab").click();
+  await expect(page.locator("#view-title")).toHaveText("Account");
+
+  const settingsButton = page.locator("#account-settings-button");
+  await expect(settingsButton).toBeVisible();
+  await settingsButton.click();
+
+  await expect(settingsButton).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("#account-settings-panel")).toBeVisible();
+  expectNoBrowserIssues(browserIssues);
+});
+
 test("clicking a visit history row opens the matching toilet detail card", async ({ page }, testInfo) => {
   const browserIssues = captureBrowserIssues(page);
 
