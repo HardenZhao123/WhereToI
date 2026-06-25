@@ -55,6 +55,23 @@
         Venue note
         <textarea id="add-toilet-note" name="note" rows="2" maxlength="600"></textarea>
       </label>
+      <section class="add-toilet-section add-toilet-photo-section" aria-labelledby="add-toilet-photo-title">
+        <h3 id="add-toilet-photo-title">Entrance photo <span class="optional-label">Optional</span></h3>
+        <p class="add-toilet-photo-guidance">Photograph the entrance or toilet sign. Do not include people, faces, or private information.</p>
+        <label class="add-toilet-photo-picker">
+          Take or choose photo
+          <input id="add-toilet-photo" name="entrancePhoto" type="file" accept="image/*" capture="environment" />
+        </label>
+        <div class="add-toilet-photo-preview" id="add-toilet-photo-preview" hidden>
+          <img id="add-toilet-photo-image" alt="Selected toilet entrance preview" />
+          <button id="add-toilet-photo-remove" class="outline-button" type="button">Remove photo</button>
+        </div>
+        <p id="add-toilet-photo-status" class="add-toilet-photo-status" aria-live="polite">No photo selected.</p>
+      </section>
+      <section class="add-toilet-section add-toilet-location-evidence" aria-labelledby="add-toilet-location-evidence-title">
+        <h3 id="add-toilet-location-evidence-title">Location evidence</h3>
+        <p id="add-toilet-location-evidence-status">GPS accuracy unavailable.</p>
+      </section>
       <section class="add-toilet-section" aria-labelledby="add-toilet-features-title">
         <h3 id="add-toilet-features-title">Features</h3>
         <div class="add-toilet-feature-grid">

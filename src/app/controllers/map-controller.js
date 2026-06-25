@@ -17,6 +17,7 @@ import {
   getCleanlinessStars
 } from "../utils/cleanliness.js";
 import { distanceInMetres, formatDistance } from "../utils/geo.js";
+import { compressEntrancePhoto } from "../utils/image.js";
 
 const featureFilterOptions = [
   { key: "women", label: "Women" },
@@ -161,6 +162,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     addToiletNameInput,
     addToiletAreaInput,
     addToiletNoteInput,
+    addToiletPhotoInput,
+    addToiletPhotoPreview,
+    addToiletPhotoImage,
+    addToiletPhotoRemoveButton,
+    addToiletPhotoStatus,
+    addToiletLocationEvidenceStatus,
     addToiletFeatureInputs = [],
     addToiletHoursKnownSelect,
     addToiletHoursDays,
@@ -221,6 +228,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let addToiletPickMode = false;
   let addToiletLocation = null;
   let addToiletDraftMarker = null;
+  let addToiletPhoto = null;
+  let addToiletPhotoProcessing = false;
 
   const feedbackThreadController = createFeedbackThreadController(
     {
@@ -1289,12 +1298,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   }
 
   function handleLocationFound(position) {
+    const accuracyMetres = Number(position.coords.accuracy);
+    const capturedAt = new Date(position.timestamp ?? Date.now());
     userLocation = {
       lat: position.coords.latitude,
-      lng: position.coords.longitude
+      lng: position.coords.longitude,
+      accuracyMetres: Number.isFinite(accuracyMetres) && accuracyMetres >= 0 ? accuracyMetres : null,
+      capturedAt: Number.isFinite(capturedAt.getTime()) ? capturedAt.toISOString() : new Date().toISOString()
     };
 
     refreshFilteredDisplay();
+    renderAddToiletLocationEvidence();
 
     if (selectedToilet) {
       document.querySelector("#distance-line").textContent = formatToiletDistance(selectedToilet);
@@ -1556,8 +1570,116 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
   function syncAddToiletSubmitState({ submitting = false } = {}) {
     if (!addToiletSubmitButton) return;
-    addToiletSubmitButton.disabled = Boolean(submitting || !addToiletLocation);
-    addToiletSubmitButton.textContent = submitting ? "Adding..." : "Add toilet";
+    addToiletSubmitButton.disabled = Boolean(submitting || addToiletPhotoProcessing || !addToiletLocation);
+    addToiletSubmitButton.textContent = submitting
+      ? "Adding..."
+      : addToiletPhotoProcessing
+        ? "Preparing photo..."
+        : "Add toilet";
+  }
+
+  function setAddToiletPhotoStatus(message, { warning = false } = {}) {
+    if (!addToiletPhotoStatus) return;
+    addToiletPhotoStatus.textContent = message;
+    addToiletPhotoStatus.classList?.toggle?.("warning", warning);
+  }
+
+  function removeAddToiletPhoto({ syncSubmitState = true } = {}) {
+    addToiletPhoto = null;
+    addToiletPhotoProcessing = false;
+    if (addToiletPhotoInput) addToiletPhotoInput.value = "";
+    if (addToiletPhotoImage) addToiletPhotoImage.removeAttribute?.("src");
+    if (addToiletPhotoPreview) addToiletPhotoPreview.hidden = true;
+    if (addToiletPhotoRemoveButton) addToiletPhotoRemoveButton.hidden = true;
+    setAddToiletPhotoStatus("No photo selected.");
+    if (syncSubmitState) syncAddToiletSubmitState();
+  }
+
+  async function handleAddToiletPhotoChange() {
+    const file = addToiletPhotoInput?.files?.[0] ?? null;
+    if (!file) {
+      removeAddToiletPhoto();
+      return false;
+    }
+
+    addToiletPhotoProcessing = true;
+    addToiletPhoto = null;
+    if (addToiletPhotoPreview) addToiletPhotoPreview.hidden = true;
+    setAddToiletPhotoStatus("Preparing photo...");
+    syncAddToiletSubmitState();
+
+    try {
+      addToiletPhoto = await compressEntrancePhoto(file);
+      if (addToiletPhotoImage) addToiletPhotoImage.src = addToiletPhoto.dataUrl;
+      if (addToiletPhotoPreview) addToiletPhotoPreview.hidden = false;
+      if (addToiletPhotoRemoveButton) addToiletPhotoRemoveButton.hidden = false;
+      const sizeKilobytes = Math.max(1, Math.round(addToiletPhoto.size / 1024));
+      setAddToiletPhotoStatus(`Photo ready (${sizeKilobytes} KB).`);
+      return true;
+    } catch (error) {
+      removeAddToiletPhoto({ syncSubmitState: false });
+      setAddToiletPhotoStatus(error?.message || "Could not prepare this photo.", { warning: true });
+      return false;
+    } finally {
+      addToiletPhotoProcessing = false;
+      syncAddToiletSubmitState();
+    }
+  }
+
+  function getAddToiletLocationEvidence() {
+    if (!userLocation) {
+      return {
+        locationAccuracyMetres: null,
+        locationDistanceMetres: null,
+        locationCapturedAt: null
+      };
+    }
+
+    return {
+      locationAccuracyMetres: userLocation.accuracyMetres,
+      locationDistanceMetres: addToiletLocation
+        ? distanceInMetres(
+            userLocation.lat,
+            userLocation.lng,
+            addToiletLocation.lat,
+            addToiletLocation.lng
+          )
+        : null,
+      locationCapturedAt: userLocation.capturedAt
+    };
+  }
+
+  function renderAddToiletLocationEvidence() {
+    if (!addToiletLocationEvidenceStatus) return;
+    const evidence = getAddToiletLocationEvidence();
+    const accuracyValue = evidence.locationAccuracyMetres;
+    const markerDistanceValue = evidence.locationDistanceMetres;
+    const accuracy = Number(accuracyValue);
+    const markerDistance = Number(markerDistanceValue);
+    const hasAccuracy =
+      accuracyValue !== null && accuracyValue !== undefined && accuracyValue !== "" && Number.isFinite(accuracy);
+    const hasDistance =
+      markerDistanceValue !== null &&
+      markerDistanceValue !== undefined &&
+      markerDistanceValue !== "" &&
+      Number.isFinite(markerDistance);
+
+    if (!userLocation) {
+      addToiletLocationEvidenceStatus.textContent =
+        "GPS accuracy unavailable. The administrator will rely on the selected map point.";
+      addToiletLocationEvidenceStatus.classList?.add?.("warning");
+      return;
+    }
+
+    const parts = [
+      hasAccuracy ? `Device GPS accuracy: +/- ${Math.round(accuracy)} m.` : "Device GPS accuracy unavailable.",
+      hasDistance ? `Marker is ${Math.round(markerDistance)} m from the device location.` : ""
+    ].filter(Boolean);
+    addToiletLocationEvidenceStatus.textContent = parts.join(" ");
+    addToiletLocationEvidenceStatus.classList?.toggle?.(
+      "warning",
+      !hasAccuracy || accuracy > 50 || (hasDistance && markerDistance > 200)
+    );
   }
 
   function syncAddToiletHoursVisibility() {
@@ -1635,6 +1757,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (addToiletLatInput) addToiletLatInput.value = "";
     if (addToiletLngInput) addToiletLngInput.value = "";
     syncAddToiletHoursVisibility();
+    removeAddToiletPhoto({ syncSubmitState: false });
+    renderAddToiletLocationEvidence();
     setAddToiletPickMode(false);
     removeAddToiletDraftMarker();
     setAddToiletStatus("Pick an empty map location.");
@@ -1654,6 +1778,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       resetAddToiletForm();
     } else {
       setAddToiletStatus("Pick an empty map location.");
+      renderAddToiletLocationEvidence();
       syncAddToiletHoursVisibility();
       syncAddToiletSubmitState();
       const scheduleFrame = globalThis.requestAnimationFrame ?? ((callback) => callback());
@@ -1712,6 +1837,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     if (addToiletLatInput) addToiletLatInput.value = safeLat.toFixed(6);
     if (addToiletLngInput) addToiletLngInput.value = safeLng.toFixed(6);
     setAddToiletStatus(`Location selected: ${safeLat.toFixed(5)}, ${safeLng.toFixed(5)}.`);
+    renderAddToiletLocationEvidence();
     setAddToiletPickMode(false);
     renderAddToiletDraftMarker();
     syncAddToiletSubmitState();
@@ -1787,7 +1913,11 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       lat,
       lng,
       features: getAddToiletFeatures(),
-      openingTimes: getAddToiletOpeningTimes()
+      openingTimes: getAddToiletOpeningTimes(),
+      entrancePhoto: addToiletPhoto
+        ? { dataUrl: addToiletPhoto.dataUrl }
+        : null,
+      ...getAddToiletLocationEvidence()
     };
   }
 
@@ -2426,6 +2556,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     openAddToiletPanel,
     closeAddToiletPanel,
     syncAddToiletHoursVisibility,
+    handleAddToiletPhotoChange,
+    removeAddToiletPhoto,
     submitAddToilet
   };
 }

@@ -257,6 +257,8 @@ export function createApp() {
     elements.addToiletOpenButton?.addEventListener("click", () => mapController.openAddToiletPanel());
     elements.addToiletCloseButton?.addEventListener("click", () => mapController.closeAddToiletPanel());
     elements.addToiletForm?.addEventListener("submit", (event) => mapController.submitAddToilet(event));
+    elements.addToiletPhotoInput?.addEventListener("change", () => mapController.handleAddToiletPhotoChange());
+    elements.addToiletPhotoRemoveButton?.addEventListener("click", () => mapController.removeAddToiletPhoto());
     elements.addToiletHoursKnownSelect?.addEventListener("change", () => mapController.syncAddToiletHoursVisibility());
     elements.addToiletHourGroups.forEach((group) => {
       group?.querySelector?.("[data-add-hours-state]")

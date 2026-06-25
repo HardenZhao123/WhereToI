@@ -8,6 +8,9 @@ import { createDatabase } from "../server/database.mjs";
 import { normaliseCommentPayload } from "../server/database/repository/repository-utils.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
+const tinyPngDataUrl =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+
 async function withSeededDatabase(callback, options = {}) {
   const directory = await mkdtemp(join(tmpdir(), "wheretoi-db-test-"));
   const seedCsvPath = join(directory, "toilets.csv");
@@ -122,6 +125,10 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
       lat: 51.512,
       lng: -0.188,
       comment: "Beside the ticket hall",
+      entrancePhoto: { dataUrl: tinyPngDataUrl },
+      locationAccuracyMetres: 14.4,
+      locationDistanceMetres: 18.2,
+      locationCapturedAt: "2026-06-26T10:15:00.000Z",
       features: {
         women: "Y",
         men: "Y",
@@ -150,8 +157,18 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
     assert.equal(created.features.babyChanging, "N");
     assert.equal(created.features.free, "Y");
     assert.equal(created.paid, false);
+    assert.equal(created.hasEntrancePhoto, true);
+    assert.equal(created.entrancePhotoMimeType, "image/png");
+    assert.equal(created.locationAccuracyMetres, 14.4);
+    assert.equal(created.locationDistanceMetres, 18.2);
+    assert.equal(created.locationCapturedAt, "2026-06-26T10:15:00.000Z");
     assert.deepEqual(created.openingTimes[0], ["08:00", "20:00"]);
     assert.deepEqual(created.openingTimes[6], []);
+
+    const storedPhoto = await database.getToiletSubmissionPhoto(created.id);
+    assert.equal(storedPhoto.mimeType, "image/png");
+    assert.equal(storedPhoto.dataUrl, tinyPngDataUrl);
+    assert.equal(storedPhoto.size > 0, true);
 
     const unknownHoursToilet = await database.createToiletContribution({
       userId: demoUser.id,

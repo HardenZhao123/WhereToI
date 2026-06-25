@@ -1,3 +1,4 @@
+import { appConfig } from "../config/app-config.js";
 import { formatAccessTime, formatCharge, formatCurrency } from "../utils/account-formatters.js";
 import { createStarRatingElement, getHalfStepRating } from "../utils/star-rating.js";
 
@@ -146,6 +147,67 @@ function renderSubmissionLocationChecks(submission) {
   );
 
   container.append(heading, links);
+  return container;
+}
+
+function renderSubmissionEvidence(submission) {
+  const container = document.createElement("section");
+  container.className = "submission-evidence";
+  container.setAttribute("aria-label", "Submission evidence");
+
+  const heading = document.createElement("h5");
+  heading.textContent = "Submission evidence";
+  container.append(heading);
+
+  const accuracyValue = submission?.locationAccuracyMetres;
+  const markerDistanceValue = submission?.locationDistanceMetres;
+  const accuracy = Number(accuracyValue);
+  const markerDistance = Number(markerDistanceValue);
+  const hasAccuracy =
+    accuracyValue !== null && accuracyValue !== undefined && accuracyValue !== "" && Number.isFinite(accuracy);
+  const hasMarkerDistance =
+    markerDistanceValue !== null &&
+    markerDistanceValue !== undefined &&
+    markerDistanceValue !== "" &&
+    Number.isFinite(markerDistance);
+
+  const location = document.createElement("p");
+  const locationWarning =
+    !hasAccuracy || accuracy > 50 || (hasMarkerDistance && markerDistance > 200);
+  location.className = locationWarning
+    ? "submission-evidence-location warning"
+    : "submission-evidence-location";
+  const locationParts = [
+    hasAccuracy ? `GPS accuracy: +/- ${Math.round(accuracy)} m` : "GPS accuracy unavailable",
+    hasMarkerDistance ? `marker ${Math.round(markerDistance)} m from device location` : "",
+    submission?.locationCapturedAt ? `recorded ${formatAccessTime(submission.locationCapturedAt)}` : ""
+  ].filter(Boolean);
+  location.textContent = locationParts.join(" - ");
+  container.append(location);
+
+  if (submission?.hasEntrancePhoto) {
+    const figure = document.createElement("figure");
+    figure.className = "submission-evidence-photo";
+
+    const image = document.createElement("img");
+    image.src = `${appConfig.apiBasePath}/admin/toilet-submissions/photo?toiletId=${encodeURIComponent(submission.id)}`;
+    image.alt = `Entrance photo for ${submission.name || "submitted toilet"}`;
+    image.loading = "lazy";
+
+    const caption = document.createElement("figcaption");
+    const sizeKilobytes = Number(submission.entrancePhotoSize) > 0
+      ? ` - ${Math.max(1, Math.round(Number(submission.entrancePhotoSize) / 1024))} KB`
+      : "";
+    caption.textContent = `Entrance photo${sizeKilobytes}`;
+    figure.append(image, caption);
+    container.append(figure);
+  } else {
+    const noPhoto = document.createElement("p");
+    noPhoto.className = "submission-evidence-no-photo";
+    noPhoto.textContent = "No entrance photo provided.";
+    container.append(noPhoto);
+  }
+
   return container;
 }
 
@@ -369,6 +431,7 @@ export function renderToiletSubmissions(
     details.className = "submission-review-details";
     details.textContent = `${getSubmissionFeatureSummary(submission)} - ${getSubmissionHoursSummary(submission)}`;
 
+    const evidence = renderSubmissionEvidence(submission);
     const locationChecks = renderSubmissionLocationChecks(submission);
     const nearbyToilets = renderNearbyApprovedToilets(submission);
 
@@ -388,7 +451,7 @@ export function renderToiletSubmissions(
     rejectButton.addEventListener("click", () => onReviewSubmission(submission, "rejected", rejectButton));
 
     actions.append(approveButton, rejectButton);
-    item.append(heading, area, meta, note, details, locationChecks, nearbyToilets, actions);
+    item.append(heading, area, meta, note, details, evidence, locationChecks, nearbyToilets, actions);
     submissionsContainer.append(item);
   });
 }

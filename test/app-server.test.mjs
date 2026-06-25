@@ -7,6 +7,8 @@ import { createAppServer } from "../server/app-server.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
 const largeStaticScript = `export const payload = "${"x".repeat(4096)}";`;
+const tinyPngDataUrl =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
 async function withAppServer(callback, serverOptions = {}) {
   const rootDirectory = await mkdtemp(join(tmpdir(), "wheretoi-server-test-"));
@@ -270,6 +272,10 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
       lat: 51.4995,
       lng: -0.1815,
       comment: "Beside the ticket hall",
+      entrancePhoto: { dataUrl: tinyPngDataUrl },
+      locationAccuracyMetres: 14.4,
+      locationDistanceMetres: 18.2,
+      locationCapturedAt: "2026-06-26T10:15:00.000Z",
       features: {
         women: "Y",
         men: "Y",
@@ -321,6 +327,9 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
     assert.equal(createdPayload.toilet.name, "New station toilet");
     assert.equal(createdPayload.toilet.features.accessible, "Y");
     assert.equal(createdPayload.toilet.features.free, "Y");
+    assert.equal(createdPayload.toilet.hasEntrancePhoto, true);
+    assert.equal(createdPayload.toilet.locationAccuracyMetres, 14.4);
+    assert.equal(createdPayload.toilet.locationDistanceMetres, 18.2);
 
     const pendingDetailResponse = await fetch(`${baseUrl}/api/toilets/detail?toiletId=${createdPayload.toilet.id}`);
     const pendingDetailPayload = await pendingDetailResponse.json();
@@ -350,6 +359,24 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
       pendingSubmission.nearbyApprovedToilets.some((toilet) => toilet.id === createdPayload.toilet.id),
       false
     );
+    assert.equal(pendingSubmission.hasEntrancePhoto, true);
+    assert.equal(pendingSubmission.entrancePhotoMimeType, "image/png");
+    assert.equal(pendingSubmission.locationAccuracyMetres, 14.4);
+    assert.equal(pendingSubmission.locationDistanceMetres, 18.2);
+    assert.equal(pendingSubmission.locationCapturedAt, "2026-06-26T10:15:00.000Z");
+
+    const anonymousPhotoResponse = await fetch(
+      `${baseUrl}/api/admin/toilet-submissions/photo?toiletId=${createdPayload.toilet.id}`
+    );
+    assert.equal(anonymousPhotoResponse.status, 401);
+
+    const photoResponse = await fetch(
+      `${baseUrl}/api/admin/toilet-submissions/photo?toiletId=${createdPayload.toilet.id}`,
+      { headers: { "Cookie": cookie } }
+    );
+    assert.equal(photoResponse.status, 200);
+    assert.equal(photoResponse.headers.get("content-type"), "image/png");
+    assert.equal((await photoResponse.arrayBuffer()).byteLength > 0, true);
 
     const { payload: approvedPayload } = await fetchJson(`${baseUrl}/api/admin/toilet-submissions/review`, {
       method: "POST",
@@ -368,6 +395,7 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
     assert.deepEqual(detailPayload.toilet.openingTimes[5], ["10:00", "18:00"]);
     assert.equal(detailPayload.toilet.openingTimes[6], null);
     assert.equal(detailPayload.toilet.hours.sun, "Sun Unknown");
+    assert.equal("hasEntrancePhoto" in detailPayload.toilet, false);
 
     const { payload: publicListAfterApproval } = await fetchJson(`${baseUrl}/api/toilets?refresh=1`);
     assert.equal(

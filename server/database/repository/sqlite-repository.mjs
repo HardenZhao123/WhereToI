@@ -166,6 +166,12 @@ function mapToiletSubmissionRow(row) {
     submittedByUserId: row.submitted_by_user_id ?? null,
     submittedByUsername: row.submitted_by_username ?? null,
     submittedAt: row.submitted_at ?? null,
+    hasEntrancePhoto: Boolean(row.submission_photo_data_url || Number(row.submission_photo_size) > 0),
+    entrancePhotoMimeType: row.submission_photo_mime_type ?? null,
+    entrancePhotoSize: row.submission_photo_size ?? null,
+    locationAccuracyMetres: row.submission_location_accuracy_metres ?? null,
+    locationDistanceMetres: row.submission_location_distance_metres ?? null,
+    locationCapturedAt: row.submission_location_captured_at ?? null,
     reviewedByUserId: row.reviewed_by_user_id ?? null,
     reviewedByUsername: row.reviewed_by_username ?? null,
     reviewedAt: row.reviewed_at ?? null,
@@ -250,6 +256,12 @@ export async function createSqliteDatabase({
       submission_status TEXT NOT NULL DEFAULT 'approved',
       submitted_by_user_id INTEGER,
       submitted_at TEXT,
+      submission_photo_data_url TEXT,
+      submission_photo_mime_type TEXT,
+      submission_photo_size INTEGER,
+      submission_location_accuracy_metres REAL,
+      submission_location_distance_metres REAL,
+      submission_location_captured_at TEXT,
       reviewed_by_user_id INTEGER,
       reviewed_at TEXT,
       review_note TEXT,
@@ -663,6 +675,9 @@ export async function createSqliteDatabase({
           t.women, t.men, t.accessible, t.neutral, t.children, t.baby_changing, t.bidet,
           t.automatic, t.urinal_only, t.radar_key, t.free_access, t.opening_times,
           t.submission_status, t.submitted_by_user_id, t.submitted_at,
+          t.submission_photo_mime_type, t.submission_photo_size,
+          t.submission_location_accuracy_metres, t.submission_location_distance_metres,
+          t.submission_location_captured_at,
           t.reviewed_by_user_id, t.reviewed_at, t.review_note,
           t.cleanliness AS cleanliness, t.cleanliness_yes_count, t.cleanliness_no_count,
           t.cleanliness_rating_total AS cleanliness_rating_total,
@@ -694,6 +709,9 @@ export async function createSqliteDatabase({
           t.women, t.men, t.accessible, t.neutral, t.children, t.baby_changing, t.bidet,
           t.automatic, t.urinal_only, t.radar_key, t.free_access, t.opening_times,
           t.submission_status, t.submitted_by_user_id, t.submitted_at,
+          t.submission_photo_mime_type, t.submission_photo_size,
+          t.submission_location_accuracy_metres, t.submission_location_distance_metres,
+          t.submission_location_captured_at,
           t.reviewed_by_user_id, t.reviewed_at, t.review_note,
           t.cleanliness AS cleanliness, t.cleanliness_yes_count, t.cleanliness_no_count,
           t.cleanliness_rating_total AS cleanliness_rating_total,
@@ -711,6 +729,27 @@ export async function createSqliteDatabase({
       ).all(...params);
 
       return rows.map(mapToiletSubmissionRow);
+    },
+    async getToiletSubmissionPhoto(toiletId) {
+      const safeToiletId = String(toiletId ?? "").trim();
+      if (!safeToiletId) return null;
+
+      const row = db.prepare(
+        `
+        SELECT submission_photo_data_url, submission_photo_mime_type, submission_photo_size
+        FROM toilets
+        WHERE id = ?
+          AND (submitted_by_user_id IS NOT NULL OR id LIKE 'user-%')
+        LIMIT 1
+        `
+      ).get(safeToiletId);
+      if (!row?.submission_photo_data_url) return null;
+
+      return {
+        dataUrl: row.submission_photo_data_url,
+        mimeType: row.submission_photo_mime_type,
+        size: row.submission_photo_size
+      };
     },
     async getNearbyApprovedToilets({
       lat,
@@ -804,8 +843,11 @@ export async function createSqliteDatabase({
           id, name, area, lat, lng, paid, comment,
           women, men, accessible, neutral, children, baby_changing, bidet,
           automatic, urinal_only, radar_key, free_access, opening_times,
-          submission_status, submitted_by_user_id, submitted_at, cleanliness
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          submission_status, submitted_by_user_id, submitted_at,
+          submission_photo_data_url, submission_photo_mime_type, submission_photo_size,
+          submission_location_accuracy_metres, submission_location_distance_metres,
+          submission_location_captured_at, cleanliness
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       ).run(
         toiletId,
@@ -830,6 +872,12 @@ export async function createSqliteDatabase({
         "pending",
         payload.userId ?? null,
         submittedAt,
+        toilet.entrancePhoto?.dataUrl ?? null,
+        toilet.entrancePhoto?.mimeType ?? null,
+        toilet.entrancePhoto?.size ?? null,
+        toilet.locationAccuracyMetres,
+        toilet.locationDistanceMetres,
+        toilet.locationCapturedAt,
         toilet.cleanliness
       );
 
