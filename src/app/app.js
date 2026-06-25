@@ -65,6 +65,13 @@ export function createApp() {
         if (!opened) {
           mapController.setStatus("Could not find that toilet in the current map data.");
         }
+      },
+      onToiletSubmissionReviewed: async (status) => {
+        if (status === "approved") {
+          await initializeToilets(mapCleanlinessRange, {
+            force: true
+          });
+        }
       }
     }
   );

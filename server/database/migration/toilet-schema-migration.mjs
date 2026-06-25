@@ -54,6 +54,15 @@ const COMMENT_SCENE_SNAPSHOT_COLUMN = {
   postgresDefinition: "JSONB"
 };
 
+const TOILET_SUBMISSION_COLUMNS = [
+  { name: "submission_status", sqliteDefinition: "TEXT NOT NULL DEFAULT 'approved'", postgresDefinition: "TEXT NOT NULL DEFAULT 'approved'" },
+  { name: "submitted_by_user_id", sqliteDefinition: "INTEGER", postgresDefinition: "INTEGER" },
+  { name: "submitted_at", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
+  { name: "reviewed_by_user_id", sqliteDefinition: "INTEGER", postgresDefinition: "INTEGER" },
+  { name: "reviewed_at", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" },
+  { name: "review_note", sqliteDefinition: "TEXT", postgresDefinition: "TEXT" }
+];
+
 function getFeatureColumnValues(toilet) {
   return [
     toilet.features.children,
@@ -98,6 +107,34 @@ function ensureSqliteCleanlinessColumns(db) {
       cleanliness_rating_sum_squares = cleanliness_yes_count * 25 + cleanliness_no_count
     WHERE cleanliness_rating_count = 0
       AND (cleanliness_yes_count > 0 OR cleanliness_no_count > 0);
+  `);
+}
+
+function ensureSqliteToiletSubmissionColumns(db) {
+  const existingColumns = new Set(
+    db.prepare("PRAGMA table_info(toilets)").all().map((column) => column.name)
+  );
+
+  for (const column of TOILET_SUBMISSION_COLUMNS) {
+    if (!existingColumns.has(column.name)) {
+      db.exec(`ALTER TABLE toilets ADD COLUMN ${column.name} ${column.sqliteDefinition};`);
+    }
+  }
+
+  db.exec("UPDATE toilets SET submission_status = 'approved' WHERE submission_status IS NULL OR submission_status = '';");
+  db.exec(`
+    UPDATE toilets
+    SET
+      submission_status = 'pending',
+      submitted_at = COALESCE(submitted_at, datetime('now'))
+    WHERE id LIKE 'user-%'
+      AND submitted_by_user_id IS NULL
+      AND reviewed_at IS NULL
+      AND submission_status = 'approved';
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_toilets_submission_status
+    ON toilets(submission_status, submitted_at DESC);
   `);
 }
 
@@ -152,6 +189,12 @@ function rebuildSqliteRatingTablesForDecimals(db) {
           radar_key TEXT NOT NULL DEFAULT '?',
           free_access TEXT NOT NULL DEFAULT '?',
           opening_times TEXT NOT NULL DEFAULT '[]',
+          submission_status TEXT NOT NULL DEFAULT 'approved',
+          submitted_by_user_id INTEGER,
+          submitted_at TEXT,
+          reviewed_by_user_id INTEGER,
+          reviewed_at TEXT,
+          review_note TEXT,
           cleanliness REAL NOT NULL DEFAULT 3,
           cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
           cleanliness_no_count INTEGER NOT NULL DEFAULT 0,
@@ -163,13 +206,16 @@ function rebuildSqliteRatingTablesForDecimals(db) {
         INSERT INTO toilets (
           id, name, area, lat, lng, paid, comment, women, men, accessible, neutral,
           children, baby_changing, bidet, automatic, urinal_only, radar_key, free_access,
-          opening_times, cleanliness, cleanliness_yes_count, cleanliness_no_count,
+          opening_times, submission_status, submitted_by_user_id, submitted_at,
+          reviewed_by_user_id, reviewed_at, review_note, cleanliness, cleanliness_yes_count, cleanliness_no_count,
           cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias
         )
         SELECT
           id, name, area, lat, lng, paid, comment, women, men, accessible, neutral,
           children, baby_changing, bidet, automatic, urinal_only, radar_key, free_access,
-          opening_times, cleanliness, cleanliness_yes_count, cleanliness_no_count,
+          opening_times,
+          COALESCE(submission_status, 'approved'), submitted_by_user_id, submitted_at,
+          reviewed_by_user_id, reviewed_at, review_note, cleanliness, cleanliness_yes_count, cleanliness_no_count,
           cleanliness_rating_total, cleanliness_rating_count, cleanliness_rating_sum_squares, bias
         FROM toilets_integer_rating_backup;
         DROP TABLE toilets_integer_rating_backup;
@@ -189,15 +235,16 @@ function rebuildSqliteRatingTablesForDecimals(db) {
           rating_total REAL NOT NULL DEFAULT 0,
           rating_count INTEGER NOT NULL DEFAULT 0,
           rating_sum_squares REAL NOT NULL DEFAULT 0,
-          bias REAL NOT NULL DEFAULT 0.0
+          bias REAL NOT NULL DEFAULT 0.0,
+          is_admin INTEGER NOT NULL DEFAULT 0
         ) STRICT;
         INSERT INTO users (
           id, username, password_hash, email, gender, preferences,
-          rating_total, rating_count, rating_sum_squares, bias
+          rating_total, rating_count, rating_sum_squares, bias, is_admin
         )
         SELECT
           id, username, password_hash, email, gender, preferences,
-          rating_total, rating_count, rating_sum_squares, bias
+          rating_total, rating_count, rating_sum_squares, bias, COALESCE(is_admin, 0)
         FROM users_integer_rating_backup;
         DROP TABLE users_integer_rating_backup;
       `);
@@ -348,6 +395,28 @@ async function ensurePostgresCleanlinessColumns(pool) {
   `);
 }
 
+async function ensurePostgresToiletSubmissionColumns(pool) {
+  for (const column of TOILET_SUBMISSION_COLUMNS) {
+    await pool.query(`ALTER TABLE toilets ADD COLUMN IF NOT EXISTS ${column.name} ${column.postgresDefinition}`);
+  }
+
+  await pool.query("UPDATE toilets SET submission_status = 'approved' WHERE submission_status IS NULL OR submission_status = ''");
+  await pool.query(`
+    UPDATE toilets
+    SET
+      submission_status = 'pending',
+      submitted_at = COALESCE(submitted_at, NOW()::text)
+    WHERE id LIKE 'user-%'
+      AND submitted_by_user_id IS NULL
+      AND reviewed_at IS NULL
+      AND submission_status = 'approved'
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_toilets_submission_status
+    ON toilets(submission_status, submitted_at DESC)
+  `);
+}
+
 async function backfillPostgresFeatureColumns(pool, seedCsvPath) {
   const toiletsToSeed = await loadSeedToilets(seedCsvPath);
   const client = await pool.connect();
@@ -383,9 +452,12 @@ async function backfillPostgresFeatureColumns(pool, seedCsvPath) {
 export async function applySqliteToiletMigrations({ db, seedCsvPath }) {
   const missingFeatureColumns = ensureSqliteFeatureColumns(db);
   ensureSqliteCleanlinessColumns(db);
+  ensureSqliteToiletSubmissionColumns(db);
   ensureSqliteUserSupport(db);
   ensureSqliteUserColumns(db);
   rebuildSqliteRatingTablesForDecimals(db);
+  ensureSqliteToiletSubmissionColumns(db);
+  ensureSqliteUserColumns(db);
 
   if (missingFeatureColumns.length > 0) {
     await backfillSqliteFeatureColumns(db, seedCsvPath);
@@ -414,6 +486,9 @@ function ensureSqliteUserColumns(db) {
   }
   if (!existingColumns.has("bias")) {
     db.exec("ALTER TABLE users ADD COLUMN bias REAL NOT NULL DEFAULT 0.0;");
+  }
+  if (!existingColumns.has("is_admin")) {
+    db.exec("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0;");
   }
 }
 
@@ -487,6 +562,7 @@ function ensureSqliteUserSupport(db) {
 export async function applyPostgresToiletMigrations({ pool, seedCsvPath }) {
   const missingFeatureColumns = await ensurePostgresFeatureColumns(pool);
   await ensurePostgresCleanlinessColumns(pool);
+  await ensurePostgresToiletSubmissionColumns(pool);
 
   if (missingFeatureColumns.length > 0) {
     await backfillPostgresFeatureColumns(pool, seedCsvPath);

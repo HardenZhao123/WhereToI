@@ -1632,17 +1632,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     try {
       const toilet = await submitToiletContribution(payload);
       if (!toilet?.id) {
-        throw new Error("Could not add toilet.");
+        throw new Error("Could not submit toilet.");
       }
 
-      setToilets([toilet], {
-        hideDetails: false,
-        cleanlinessRange: "all",
-        merge: true
-      });
+      resetAddToiletForm();
       closeAddToiletPanel();
-      await setToilet(toilet.id);
-      setStatus(`${toilet.name} was added to the map.`);
+      setStatus(`${toilet.name} was submitted for review. It will appear on the map after approval.`);
       return true;
     } catch (error) {
       console.error("Failed to add toilet:", error);

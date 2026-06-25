@@ -18,6 +18,7 @@ import {
   mapCleanlinessSurveyResponse,
   mapCommentRow,
   getCleanlinessRangeStartDate,
+  isConfiguredAdminUser,
   normaliseAccessPayload,
   normaliseBounds,
   normaliseCleanlinessSurveyPayload,
@@ -28,6 +29,7 @@ import {
   normaliseToiletContributionPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
+  normaliseToiletSubmissionStatus,
   normaliseUserId,
   TOILET_DUPLICATE_RADIUS_METRES,
   toCleanlinessUpdate
@@ -128,6 +130,46 @@ async function removeBuiltInDemoUser(db) {
   }
 }
 
+function mapUserRow(row, { includePasswordHash = false } = {}) {
+  if (!row) return null;
+
+  const user = {
+    id: row.id,
+    username: row.username,
+    email: row.email,
+    gender: row.gender ?? null,
+    preferences: row.preferences ?? "[]",
+    rating_total: row.rating_total ?? 0,
+    rating_count: row.rating_count ?? 0,
+    rating_sum_squares: row.rating_sum_squares ?? 0,
+    bias: row.bias ?? 0.0,
+    isAdmin: Boolean(row.is_admin)
+  };
+
+  if (includePasswordHash) {
+    user.password_hash = row.password_hash;
+  }
+
+  return user;
+}
+
+function mapToiletSubmissionRow(row) {
+  if (!row) return null;
+
+  const toilet = mapRowToToilet(row);
+  return {
+    ...toilet,
+    submissionStatus: row.submission_status ?? "approved",
+    submittedByUserId: row.submitted_by_user_id ?? null,
+    submittedByUsername: row.submitted_by_username ?? null,
+    submittedAt: row.submitted_at ?? null,
+    reviewedByUserId: row.reviewed_by_user_id ?? null,
+    reviewedByUsername: row.reviewed_by_username ?? null,
+    reviewedAt: row.reviewed_at ?? null,
+    reviewNote: row.review_note ?? ""
+  };
+}
+
 export async function createSqliteDatabase({
   dbFilePath,
   seedCsvPath,
@@ -161,6 +203,12 @@ export async function createSqliteDatabase({
       radar_key TEXT NOT NULL DEFAULT '?',
       free_access TEXT NOT NULL DEFAULT '?',
       opening_times TEXT NOT NULL DEFAULT '[]',
+      submission_status TEXT NOT NULL DEFAULT 'approved',
+      submitted_by_user_id INTEGER,
+      submitted_at TEXT,
+      reviewed_by_user_id INTEGER,
+      reviewed_at TEXT,
+      review_note TEXT,
       cleanliness REAL NOT NULL DEFAULT 3,
       cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
       cleanliness_no_count INTEGER NOT NULL DEFAULT 0,
@@ -176,7 +224,8 @@ export async function createSqliteDatabase({
       gender TEXT,
       preferences TEXT,
       rating_total REAL NOT NULL DEFAULT 0,
-      rating_count INTEGER NOT NULL DEFAULT 0
+      rating_count INTEGER NOT NULL DEFAULT 0,
+      is_admin INTEGER NOT NULL DEFAULT 0
     ) STRICT;
 
     CREATE TABLE IF NOT EXISTS app_account (
@@ -346,8 +395,8 @@ export async function createSqliteDatabase({
 
     if (!demoUserId) {
       db.prepare(
-        "INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)"
-      ).run("demo", await hashPassword("demo123"), "demo@example.com");
+        "INSERT INTO users (username, password_hash, email, is_admin) VALUES (?, ?, ?, ?)"
+      ).run("demo", await hashPassword("demo123"), "demo@example.com", 1);
       demoUserId = Number(db.prepare("SELECT last_insert_rowid() AS id").get().id);
 
       db.prepare(
@@ -361,6 +410,8 @@ export async function createSqliteDatabase({
         ) VALUES (?, ?, ?, ?, ?)
         `
       ).run(demoUserId, 8.4, "Campus Plus", "2026-06-26", 3);
+    } else {
+      db.prepare("UPDATE users SET is_admin = 1 WHERE id = ?").run(demoUserId);
     }
 
     const placeholders = LEGACY_DEMO_ACCESS_HISTORY_NAMES.map(() => "?").join(", ");
@@ -374,6 +425,21 @@ export async function createSqliteDatabase({
     ).run(demoUserId, ...LEGACY_DEMO_ACCESS_HISTORY_NAMES);
   } else {
     await removeBuiltInDemoUser(db);
+  }
+
+  const adminIdentifiers = Array.from(
+    new Set(
+      String(process.env.WHERETOI_ADMIN_USERNAMES ?? "")
+        .split(",")
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+  if (adminIdentifiers.length > 0) {
+    const markAdmin = db.prepare("UPDATE users SET is_admin = 1 WHERE LOWER(username) = ? OR LOWER(COALESCE(email, '')) = ?");
+    for (const identifier of adminIdentifiers) {
+      markAdmin.run(identifier, identifier);
+    }
   }
 
   function toggleCommentReaction({ toiletId, commentId, userId, reactionTable, oppositeTable }) {
@@ -420,6 +486,7 @@ export async function createSqliteDatabase({
         FROM toilets
         WHERE lat >= ? AND lat <= ?
           AND lng >= ? AND lng <= ?
+          AND submission_status != 'rejected'
         `
       )
       .all(bounds.minLat, bounds.maxLat, bounds.minLng, bounds.maxLng);
@@ -448,11 +515,12 @@ export async function createSqliteDatabase({
     },
     async createUser({ username, password, email }) {
       const passwordHash = await hashPassword(password);
+      const isAdmin = isConfiguredAdminUser({ username, email }) ? 1 : 0;
       db.exec("BEGIN;");
       try {
         db.prepare(
-          "INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)"
-        ).run(username, passwordHash, email);
+          "INSERT INTO users (username, password_hash, email, is_admin) VALUES (?, ?, ?, ?)"
+        ).run(username, passwordHash, email, isAdmin);
         const userId = Number(db.prepare("SELECT last_insert_rowid() AS id").get().id);
 
         // Every user gets a default account
@@ -469,17 +537,22 @@ export async function createSqliteDatabase({
         ).run(userId, 5.0, "Standard", new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), 0);
 
         db.exec("COMMIT;");
-        return { id: userId, username, email };
+        return { id: userId, username, email, isAdmin: Boolean(isAdmin) };
       } catch (error) {
         db.exec("ROLLBACK;");
         throw error;
       }
     },
     async getUserByUsername(username) {
-      return db.prepare("SELECT id, username, password_hash, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias FROM users WHERE username = ?").get(username);
+      return mapUserRow(
+        db.prepare("SELECT id, username, password_hash, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias, is_admin FROM users WHERE username = ?").get(username),
+        { includePasswordHash: true }
+      );
     },
     async getUserById(userId) {
-      return db.prepare("SELECT id, username, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias FROM users WHERE id = ?").get(userId);
+      return mapUserRow(
+        db.prepare("SELECT id, username, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias, is_admin FROM users WHERE id = ?").get(userId)
+      );
     },
     async getToiletById(toiletId, { cleanlinessRange = "all" } = {}) {
       const startDate = getCleanlinessRangeStartDate(cleanlinessRange);
@@ -529,10 +602,104 @@ export async function createSqliteDatabase({
         FROM toilets t
         ${joinClause}
         WHERE t.id = ?
+          AND t.submission_status = 'approved'
         `
       ).get(...params);
 
       return row ? mapRowToToilet(row) : null;
+    },
+    async getToiletSubmissionById(toiletId) {
+      const safeToiletId = String(toiletId ?? "").trim();
+      if (!safeToiletId) return null;
+
+      const row = db.prepare(
+        `
+        SELECT
+          t.id, t.name, t.area, t.lat, t.lng, t.paid, t.comment,
+          t.women, t.men, t.accessible, t.neutral, t.children, t.baby_changing, t.bidet,
+          t.automatic, t.urinal_only, t.radar_key, t.free_access, t.opening_times,
+          t.submission_status, t.submitted_by_user_id, t.submitted_at,
+          t.reviewed_by_user_id, t.reviewed_at, t.review_note,
+          t.cleanliness AS cleanliness, t.cleanliness_yes_count, t.cleanliness_no_count,
+          t.cleanliness_rating_total AS cleanliness_rating_total,
+          t.cleanliness_rating_count AS cleanliness_rating_count,
+          submitter.username AS submitted_by_username,
+          reviewer.username AS reviewed_by_username
+        FROM toilets t
+        LEFT JOIN users submitter ON submitter.id = t.submitted_by_user_id
+        LEFT JOIN users reviewer ON reviewer.id = t.reviewed_by_user_id
+        WHERE t.id = ?
+        LIMIT 1
+        `
+      ).get(safeToiletId);
+
+      return mapToiletSubmissionRow(row);
+    },
+    async getToiletSubmissions({ status = "pending" } = {}) {
+      const safeStatus = status === "all" ? "all" : normaliseToiletSubmissionStatus(status, "pending");
+      const params = [];
+      const statusClause = safeStatus === "all" ? "" : "AND t.submission_status = ?";
+      if (safeStatus !== "all") {
+        params.push(safeStatus);
+      }
+
+      const rows = db.prepare(
+        `
+        SELECT
+          t.id, t.name, t.area, t.lat, t.lng, t.paid, t.comment,
+          t.women, t.men, t.accessible, t.neutral, t.children, t.baby_changing, t.bidet,
+          t.automatic, t.urinal_only, t.radar_key, t.free_access, t.opening_times,
+          t.submission_status, t.submitted_by_user_id, t.submitted_at,
+          t.reviewed_by_user_id, t.reviewed_at, t.review_note,
+          t.cleanliness AS cleanliness, t.cleanliness_yes_count, t.cleanliness_no_count,
+          t.cleanliness_rating_total AS cleanliness_rating_total,
+          t.cleanliness_rating_count AS cleanliness_rating_count,
+          submitter.username AS submitted_by_username,
+          reviewer.username AS reviewed_by_username
+        FROM toilets t
+        LEFT JOIN users submitter ON submitter.id = t.submitted_by_user_id
+        LEFT JOIN users reviewer ON reviewer.id = t.reviewed_by_user_id
+        WHERE (t.submitted_by_user_id IS NOT NULL OR t.id LIKE 'user-%')
+          ${statusClause}
+        ORDER BY COALESCE(t.submitted_at, '') DESC, t.id DESC
+        LIMIT 200
+        `
+      ).all(...params);
+
+      return rows.map(mapToiletSubmissionRow);
+    },
+    async reviewToiletSubmission({ toiletId, reviewerUserId, status, reviewNote = "" }) {
+      const safeToiletId = String(toiletId ?? "").trim();
+      if (!safeToiletId) {
+        throw new Error("toiletId is required.");
+      }
+
+      const safeStatus = normaliseToiletSubmissionStatus(status);
+      if (safeStatus === "pending") {
+        throw new Error("submission status must be approved or rejected.");
+      }
+
+      const reviewedAt = new Date().toISOString();
+      const result = db.prepare(
+        `
+        UPDATE toilets
+        SET submission_status = ?,
+            reviewed_by_user_id = ?,
+            reviewed_at = ?,
+            review_note = ?
+        WHERE id = ?
+          AND (submitted_by_user_id IS NOT NULL OR id LIKE 'user-%')
+        `
+      ).run(
+        safeStatus,
+        reviewerUserId ?? null,
+        reviewedAt,
+        String(reviewNote ?? "").slice(0, 600),
+        safeToiletId
+      );
+
+      if (result.changes === 0) return null;
+      return this.getToiletSubmissionById(safeToiletId);
     },
     async createToiletContribution(payload) {
       const toilet = normaliseToiletContributionPayload(payload);
@@ -542,13 +709,15 @@ export async function createSqliteDatabase({
       }
 
       const toiletId = `user-${randomUUID()}`;
+      const submittedAt = new Date().toISOString();
       db.prepare(
         `
         INSERT INTO toilets (
           id, name, area, lat, lng, paid, comment,
           women, men, accessible, neutral, children, baby_changing, bidet,
-          automatic, urinal_only, radar_key, free_access, opening_times, cleanliness
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          automatic, urinal_only, radar_key, free_access, opening_times,
+          submission_status, submitted_by_user_id, submitted_at, cleanliness
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       ).run(
         toiletId,
@@ -570,10 +739,13 @@ export async function createSqliteDatabase({
         toilet.features.radarKey,
         toilet.features.free,
         JSON.stringify(toilet.openingTimes),
+        "pending",
+        payload.userId ?? null,
+        submittedAt,
         toilet.cleanliness
       );
 
-      return this.getToiletById(toiletId, { cleanlinessRange: "all" });
+      return this.getToiletSubmissionById(toiletId);
     },
     async updateUserProfile(userId, { gender, preferences }) {
       db.prepare(
@@ -597,6 +769,8 @@ export async function createSqliteDatabase({
       const isAllTime = startDate === null;
       const params = [];
       const conditions = [];
+
+      conditions.push("t.submission_status = 'approved'");
 
       if (accessibleOnly) {
         conditions.push("t.accessible = 'Y'");

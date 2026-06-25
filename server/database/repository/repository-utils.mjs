@@ -64,6 +64,36 @@ const TOILET_FEATURE_KEYS = [
   "free"
 ];
 const TIME_VALUE_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const TOILET_SUBMISSION_STATUSES = new Set(["pending", "approved", "rejected"]);
+
+export function getConfiguredAdminIdentifiers() {
+  return new Set(
+    String(process.env.WHERETOI_ADMIN_USERNAMES ?? "")
+      .split(",")
+      .map((value) => normaliseText(value).toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+export function isConfiguredAdminUser(user, { enableDemoAccount = false } = {}) {
+  const username = normaliseText(user?.username).toLowerCase();
+  const email = normaliseText(user?.email).toLowerCase();
+  const adminIdentifiers = getConfiguredAdminIdentifiers();
+
+  return (
+    (enableDemoAccount && username === "demo") ||
+    (username && adminIdentifiers.has(username)) ||
+    (email && adminIdentifiers.has(email))
+  );
+}
+
+export function normaliseToiletSubmissionStatus(status, fallback = "pending") {
+  const normalised = normaliseText(status || fallback).toLowerCase();
+  if (!TOILET_SUBMISSION_STATUSES.has(normalised)) {
+    throw new Error("submission status must be pending, approved, or rejected.");
+  }
+  return normalised;
+}
 
 export function createCleanlinessRatingCooldownError(latestCreatedAt, nowMs = Date.now()) {
   const latestTime = Date.parse(latestCreatedAt);

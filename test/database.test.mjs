@@ -114,7 +114,9 @@ test("SQLite database keeps accessible-only filtering behavior", async () => {
 
 test("SQLite database stores user contributed toilets and rejects nearby duplicates", async () => {
   await withSeededDatabase(async (database) => {
+    const demoUser = await database.getUserByUsername("demo");
     const created = await database.createToiletContribution({
+      userId: demoUser.id,
       name: "New station toilet",
       area: "Gloucester Road",
       lat: 51.512,
@@ -139,6 +141,8 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
     });
 
     assert.match(created.id, /^user-/);
+    assert.equal(created.submissionStatus, "pending");
+    assert.equal(created.submittedByUsername, "demo");
     assert.equal(created.name, "New station toilet");
     assert.equal(created.area, "Gloucester Road");
     assert.equal(created.comment, "Comment: Beside the ticket hall");
@@ -150,6 +154,7 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
     assert.deepEqual(created.openingTimes[6], []);
 
     const unknownHoursToilet = await database.createToiletContribution({
+      userId: demoUser.id,
       name: "Library toilet with partial hours",
       area: "Paddington",
       lat: 51.521,
@@ -177,11 +182,28 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
     ]);
 
     const allToilets = await database.getToilets({ cleanlinessRange: "all" });
-    assert.equal(allToilets.some((toilet) => toilet.id === created.id), true);
-    assert.equal(allToilets.some((toilet) => toilet.id === unknownHoursToilet.id), true);
+    assert.equal(allToilets.some((toilet) => toilet.id === created.id), false);
+    assert.equal(allToilets.some((toilet) => toilet.id === unknownHoursToilet.id), false);
+
+    const pendingSubmissions = await database.getToiletSubmissions({ status: "pending" });
+    const pendingSubmissionIds = new Set(pendingSubmissions.map((submission) => submission.id));
+    assert.equal(pendingSubmissionIds.has(created.id), true);
+    assert.equal(pendingSubmissionIds.has(unknownHoursToilet.id), true);
+
+    const reviewed = await database.reviewToiletSubmission({
+      toiletId: created.id,
+      reviewerUserId: demoUser.id,
+      status: "approved"
+    });
+    assert.equal(reviewed.submissionStatus, "approved");
+
+    const publicAfterApproval = await database.getToilets({ cleanlinessRange: "all" });
+    assert.equal(publicAfterApproval.some((toilet) => toilet.id === created.id), true);
+    assert.equal(publicAfterApproval.some((toilet) => toilet.id === unknownHoursToilet.id), false);
 
     await assert.rejects(
       () => database.createToiletContribution({
+        userId: demoUser.id,
         name: "Duplicate station toilet",
         lat: created.lat + 0.00001,
         lng: created.lng + 0.00001,

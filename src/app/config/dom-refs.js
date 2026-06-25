@@ -70,6 +70,7 @@ export function getDomRefs() {
     visualRatingChoiceButtons: document.querySelectorAll("[data-visual-rating-choice]"),
     visualCleanlinessState: document.querySelector("#visual-cleanliness-state"),
     accessHistoryList: document.querySelector("#access-history-list"),
+    submissionReviewList: document.querySelector("#submission-review-list"),
     myCommentsList: document.querySelector("#my-comments-list"),
     accountActivityTabs: document.querySelectorAll("[data-account-activity-tab]"),
     accountActivityPanels: document.querySelectorAll("[data-account-activity-panel]"),

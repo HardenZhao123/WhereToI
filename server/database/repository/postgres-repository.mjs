@@ -15,6 +15,7 @@ import {
   mapCleanlinessSurveyResponse,
   mapCommentRow,
   getCleanlinessRangeStartDate,
+  isConfiguredAdminUser,
   normaliseAccessPayload,
   normaliseBounds,
   normaliseCleanlinessSurveyPayload,
@@ -25,6 +26,7 @@ import {
   normaliseToiletContributionPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
+  normaliseToiletSubmissionStatus,
   normaliseUserId,
   TOILET_DUPLICATE_RADIUS_METRES,
   toCleanlinessUpdate
@@ -60,7 +62,8 @@ function mapUserRow(row, { includePasswordHash = false } = {}) {
     rating_total: row.rating_total ?? 0,
     rating_count: row.rating_count ?? 0,
     rating_sum_squares: row.rating_sum_squares ?? 0,
-    bias: row.bias ?? 0.0
+    bias: row.bias ?? 0.0,
+    isAdmin: Boolean(row.is_admin)
   };
 
   if (includePasswordHash) {
@@ -68,6 +71,23 @@ function mapUserRow(row, { includePasswordHash = false } = {}) {
   }
 
   return user;
+}
+
+function mapToiletSubmissionRow(row) {
+  if (!row) return null;
+
+  const toilet = mapRowToToilet(row);
+  return {
+    ...toilet,
+    submissionStatus: row.submission_status ?? "approved",
+    submittedByUserId: row.submitted_by_user_id ?? null,
+    submittedByUsername: row.submitted_by_username ?? null,
+    submittedAt: row.submitted_at ?? null,
+    reviewedByUserId: row.reviewed_by_user_id ?? null,
+    reviewedByUsername: row.reviewed_by_username ?? null,
+    reviewedAt: row.reviewed_at ?? null,
+    reviewNote: row.review_note ?? ""
+  };
 }
 
 const COMMENT_MEDIA_ATTACHMENTS_METADATA_SQL = `
@@ -219,6 +239,7 @@ async function ensurePostgresUserSupport(pool, { enableDemoAccount }) {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_count INTEGER NOT NULL DEFAULT 0");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rating_sum_squares DOUBLE PRECISION NOT NULL DEFAULT 0");
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bias REAL NOT NULL DEFAULT 0.0");
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE");
   await pool.query("ALTER TABLE users ALTER COLUMN rating_total TYPE DOUBLE PRECISION USING rating_total::double precision");
   await pool.query("ALTER TABLE users ALTER COLUMN rating_sum_squares TYPE DOUBLE PRECISION USING rating_sum_squares::double precision");
 
@@ -258,6 +279,7 @@ async function ensurePostgresUserSupport(pool, { enableDemoAccount }) {
   let demoUserId = null;
   if (enableDemoAccount) {
     demoUserId = await ensureDemoUser(pool);
+    await pool.query("UPDATE users SET is_admin = TRUE WHERE id = $1", [demoUserId]);
 
     await pool.query("UPDATE app_account SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
     await pool.query("UPDATE access_history SET user_id = $1 WHERE user_id IS NULL", [demoUserId]);
@@ -272,6 +294,20 @@ async function ensurePostgresUserSupport(pool, { enableDemoAccount }) {
     );
   } else {
     await removeBuiltInDemoUser(pool);
+  }
+  const adminIdentifiers = Array.from(
+    new Set(
+      String(process.env.WHERETOI_ADMIN_USERNAMES ?? "")
+        .split(",")
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+  for (const identifier of adminIdentifiers) {
+    await pool.query(
+      "UPDATE users SET is_admin = TRUE WHERE LOWER(username) = $1 OR LOWER(COALESCE(email, '')) = $1",
+      [identifier]
+    );
   }
   await pool.query("UPDATE toilet_comments SET username = $1 WHERE username IS NULL", ["Anonymous"]);
   await pool.query("UPDATE toilet_comments SET comment_visibility = $1 WHERE user_id IS NULL OR LOWER(COALESCE(username, '')) = $1", ["anonymous"]);
@@ -388,6 +424,12 @@ export async function createPostgresDatabase({
       radar_key TEXT NOT NULL DEFAULT '?',
       free_access TEXT NOT NULL DEFAULT '?',
       opening_times JSONB NOT NULL DEFAULT '[]'::jsonb,
+      submission_status TEXT NOT NULL DEFAULT 'approved',
+      submitted_by_user_id INTEGER,
+      submitted_at TEXT,
+      reviewed_by_user_id INTEGER,
+      reviewed_at TEXT,
+      review_note TEXT,
       cleanliness DOUBLE PRECISION NOT NULL DEFAULT 3,
       cleanliness_yes_count INTEGER NOT NULL DEFAULT 0,
       cleanliness_no_count INTEGER NOT NULL DEFAULT 0,
@@ -405,7 +447,8 @@ export async function createPostgresDatabase({
       preferences JSONB,
       rating_total DOUBLE PRECISION NOT NULL DEFAULT 0,
       rating_count INTEGER NOT NULL DEFAULT 0,
-      rating_sum_squares DOUBLE PRECISION NOT NULL DEFAULT 0
+      rating_sum_squares DOUBLE PRECISION NOT NULL DEFAULT 0,
+      is_admin BOOLEAN NOT NULL DEFAULT FALSE
     );
   `);
 
@@ -604,6 +647,7 @@ export async function createPostgresDatabase({
       FROM toilets
       WHERE lat >= $1 AND lat <= $2
         AND lng >= $3 AND lng <= $4
+        AND submission_status != 'rejected'
       `,
       [bounds.minLat, bounds.maxLat, bounds.minLng, bounds.maxLng]
     );
@@ -632,17 +676,18 @@ export async function createPostgresDatabase({
     },
     async createUser({ username, password, email }) {
       const passwordHash = await hashPassword(password);
+      const isAdmin = isConfiguredAdminUser({ username, email });
       const client = await pool.connect();
 
       try {
         await client.query("BEGIN");
         const userResult = await client.query(
           `
-          INSERT INTO users (username, password_hash, email, preferences)
-          VALUES ($1, $2, $3, $4::jsonb)
-          RETURNING id, username, email, gender, preferences
+          INSERT INTO users (username, password_hash, email, preferences, is_admin)
+          VALUES ($1, $2, $3, $4::jsonb, $5)
+          RETURNING id, username, email, gender, preferences, is_admin
           `,
-          [username, passwordHash, email, JSON.stringify([])]
+          [username, passwordHash, email, JSON.stringify([]), isAdmin]
         );
         const user = mapUserRow(userResult.rows[0]);
 
@@ -677,7 +722,7 @@ export async function createPostgresDatabase({
     async getUserByUsername(username) {
       const result = await pool.query(
         `
-        SELECT id, username, password_hash, email, gender, preferences, rating_total, rating_count
+        SELECT id, username, password_hash, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias, is_admin
         FROM users
         WHERE username = $1
         `,
@@ -689,7 +734,7 @@ export async function createPostgresDatabase({
     async getUserById(userId) {
       const result = await pool.query(
         `
-        SELECT id, username, email, gender, preferences, rating_total, rating_count
+        SELECT id, username, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias, is_admin
         FROM users
         WHERE id = $1
         `,
@@ -750,6 +795,7 @@ export async function createPostgresDatabase({
           FROM toilets t
           ${joinClause}
           WHERE t.id = $1
+            AND t.submission_status = 'approved'
           LIMIT 1
           `,
           params
@@ -766,6 +812,102 @@ export async function createPostgresDatabase({
 
       return result.rows[0] ? mapRowToToilet(result.rows[0]) : null;
     },
+    async getToiletSubmissionById(toiletId) {
+      const safeToiletId = String(toiletId ?? "").trim();
+      if (!safeToiletId) return null;
+
+      const result = await pool.query(
+        `
+        SELECT
+          t.id, t.name, t.area, t.lat, t.lng, t.paid, t.comment,
+          t.women, t.men, t.accessible, t.neutral, t.children, t.baby_changing, t.bidet,
+          t.automatic, t.urinal_only, t.radar_key, t.free_access, t.opening_times,
+          t.submission_status, t.submitted_by_user_id, t.submitted_at,
+          t.reviewed_by_user_id, t.reviewed_at, t.review_note,
+          t.cleanliness AS cleanliness, t.cleanliness_yes_count, t.cleanliness_no_count,
+          t.cleanliness_rating_total AS cleanliness_rating_total,
+          t.cleanliness_rating_count AS cleanliness_rating_count,
+          submitter.username AS submitted_by_username,
+          reviewer.username AS reviewed_by_username
+        FROM toilets t
+        LEFT JOIN users submitter ON submitter.id = t.submitted_by_user_id
+        LEFT JOIN users reviewer ON reviewer.id = t.reviewed_by_user_id
+        WHERE t.id = $1
+        LIMIT 1
+        `,
+        [safeToiletId]
+      );
+
+      return mapToiletSubmissionRow(result.rows[0]);
+    },
+    async getToiletSubmissions({ status = "pending" } = {}) {
+      const safeStatus = status === "all" ? "all" : normaliseToiletSubmissionStatus(status, "pending");
+      const params = [];
+      const statusClause = safeStatus === "all" ? "" : `AND t.submission_status = $1`;
+      if (safeStatus !== "all") {
+        params.push(safeStatus);
+      }
+
+      const result = await pool.query(
+        `
+        SELECT
+          t.id, t.name, t.area, t.lat, t.lng, t.paid, t.comment,
+          t.women, t.men, t.accessible, t.neutral, t.children, t.baby_changing, t.bidet,
+          t.automatic, t.urinal_only, t.radar_key, t.free_access, t.opening_times,
+          t.submission_status, t.submitted_by_user_id, t.submitted_at,
+          t.reviewed_by_user_id, t.reviewed_at, t.review_note,
+          t.cleanliness AS cleanliness, t.cleanliness_yes_count, t.cleanliness_no_count,
+          t.cleanliness_rating_total AS cleanliness_rating_total,
+          t.cleanliness_rating_count AS cleanliness_rating_count,
+          submitter.username AS submitted_by_username,
+          reviewer.username AS reviewed_by_username
+        FROM toilets t
+        LEFT JOIN users submitter ON submitter.id = t.submitted_by_user_id
+        LEFT JOIN users reviewer ON reviewer.id = t.reviewed_by_user_id
+        WHERE (t.submitted_by_user_id IS NOT NULL OR t.id LIKE 'user-%')
+          ${statusClause}
+        ORDER BY COALESCE(t.submitted_at, '') DESC, t.id DESC
+        LIMIT 200
+        `,
+        params
+      );
+
+      return result.rows.map(mapToiletSubmissionRow);
+    },
+    async reviewToiletSubmission({ toiletId, reviewerUserId, status, reviewNote = "" }) {
+      const safeToiletId = String(toiletId ?? "").trim();
+      if (!safeToiletId) {
+        throw new Error("toiletId is required.");
+      }
+
+      const safeStatus = normaliseToiletSubmissionStatus(status);
+      if (safeStatus === "pending") {
+        throw new Error("submission status must be approved or rejected.");
+      }
+
+      const result = await pool.query(
+        `
+        UPDATE toilets
+        SET submission_status = $1,
+            reviewed_by_user_id = $2,
+            reviewed_at = $3,
+            review_note = $4
+        WHERE id = $5
+          AND (submitted_by_user_id IS NOT NULL OR id LIKE 'user-%')
+        RETURNING id
+        `,
+        [
+          safeStatus,
+          reviewerUserId ?? null,
+          new Date().toISOString(),
+          String(reviewNote ?? "").slice(0, 600),
+          safeToiletId
+        ]
+      );
+
+      if (result.rowCount === 0) return null;
+      return this.getToiletSubmissionById(safeToiletId);
+    },
     async createToiletContribution(payload) {
       const toilet = normaliseToiletContributionPayload(payload);
       const duplicate = await findDuplicateToilet(toilet);
@@ -774,13 +916,15 @@ export async function createPostgresDatabase({
       }
 
       const toiletId = `user-${randomUUID()}`;
+      const submittedAt = new Date().toISOString();
       await pool.query(
         `
         INSERT INTO toilets (
           id, name, area, lat, lng, paid, comment,
           women, men, accessible, neutral, children, baby_changing, bidet,
-          automatic, urinal_only, radar_key, free_access, opening_times, cleanliness
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20)
+          automatic, urinal_only, radar_key, free_access, opening_times,
+          submission_status, submitted_by_user_id, submitted_at, cleanliness
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22, $23)
         `,
         [
           toiletId,
@@ -802,11 +946,14 @@ export async function createPostgresDatabase({
           toilet.features.radarKey,
           toilet.features.free,
           JSON.stringify(toilet.openingTimes),
+          "pending",
+          payload.userId ?? null,
+          submittedAt,
           toilet.cleanliness
         ]
       );
 
-      return this.getToiletById(toiletId, { cleanlinessRange: "all" });
+      return this.getToiletSubmissionById(toiletId);
     },
     async updateUserProfile(userId, { gender, preferences }) {
       const result = await pool.query(
@@ -814,7 +961,7 @@ export async function createPostgresDatabase({
         UPDATE users
         SET gender = $1, preferences = $2::jsonb
         WHERE id = $3
-        RETURNING id, username, email, gender, preferences
+        RETURNING id, username, email, gender, preferences, rating_total, rating_count, rating_sum_squares, bias, is_admin
         `,
         [gender, JSON.stringify(preferences ?? []), userId]
       );
@@ -839,6 +986,8 @@ export async function createPostgresDatabase({
       const isAllTime = startDate === null;
       const params = [];
       const conditions = [];
+
+      conditions.push("t.submission_status = 'approved'");
 
       if (accessibleOnly) {
         params.push("Y");
