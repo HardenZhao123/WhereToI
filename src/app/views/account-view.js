@@ -113,6 +113,82 @@ function getSubmissionMeta(submission) {
   return `Submitted by ${submittedBy} - ${submittedAt}`;
 }
 
+function createReviewPanelId(prefix, rawId, index) {
+  const idPart = String(rawId ?? index)
+    .trim()
+    .replace(/[^a-z0-9_-]+/gi, "-") || String(index);
+  return `${prefix}-${idPart}-${index}`;
+}
+
+function createReviewDisclosure({
+  panelId,
+  title,
+  subtitle,
+  meta,
+  summary,
+  bodyLabel,
+  detailNodes
+}) {
+  const item = document.createElement("article");
+  item.className = "submission-review-item";
+
+  const toggle = document.createElement("button");
+  toggle.className = "submission-review-toggle";
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-controls", panelId);
+  toggle.setAttribute("aria-label", `Show review details for ${title}`);
+
+  const text = document.createElement("span");
+  text.className = "submission-review-toggle-text";
+
+  const titleElement = document.createElement("strong");
+  titleElement.className = "submission-review-title";
+  titleElement.textContent = title;
+
+  const subtitleElement = document.createElement("span");
+  subtitleElement.className = "submission-review-toggle-subtitle";
+  subtitleElement.textContent = subtitle;
+
+  const metaElement = document.createElement("span");
+  metaElement.className = "submission-review-toggle-meta";
+  metaElement.textContent = meta;
+
+  const summaryElement = document.createElement("span");
+  summaryElement.className = "submission-review-toggle-summary";
+  summaryElement.textContent = summary;
+
+  text.append(titleElement, subtitleElement, metaElement, summaryElement);
+
+  const state = document.createElement("span");
+  state.className = "submission-review-toggle-state";
+  state.textContent = "View details";
+
+  toggle.append(text, state);
+
+  const body = document.createElement("div");
+  body.className = "submission-review-body";
+  body.hidden = true;
+  body.setAttribute("id", panelId);
+  body.setAttribute("role", "region");
+  body.setAttribute("aria-label", bodyLabel);
+  body.append(...detailNodes);
+
+  toggle.addEventListener("click", () => {
+    const expanded = body.hidden;
+    body.hidden = !expanded;
+    item.className = expanded
+      ? "submission-review-item is-expanded"
+      : "submission-review-item";
+    toggle.setAttribute("aria-expanded", String(expanded));
+    toggle.setAttribute("aria-label", `${expanded ? "Hide" : "Show"} review details for ${title}`);
+    state.textContent = expanded ? "Hide details" : "View details";
+  });
+
+  item.append(toggle, body);
+  return item;
+}
+
 function getOpenStreetMapUrl(lat, lng) {
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=19/${lat}/${lng}`;
 }
@@ -408,20 +484,22 @@ export function renderToiletSubmissions(
     return;
   }
 
-  submissions.forEach((submission) => {
-    const item = document.createElement("article");
-    item.className = "submission-review-item";
+  submissions.forEach((submission, index) => {
+    const title = submission.name || "Unnamed toilet";
+    const subtitle = `${submission.area || "Unknown area"} - ${Number(submission.lat).toFixed(5)}, ${Number(submission.lng).toFixed(5)}`;
+    const metaText = getSubmissionMeta(submission);
+    const summaryText = `${getSubmissionFeatureSummary(submission)} - ${getSubmissionHoursSummary(submission)}`;
 
     const heading = document.createElement("h4");
-    heading.textContent = submission.name || "Unnamed toilet";
+    heading.textContent = title;
 
     const area = document.createElement("p");
     area.className = "submission-review-area";
-    area.textContent = `${submission.area || "Unknown area"} - ${Number(submission.lat).toFixed(5)}, ${Number(submission.lng).toFixed(5)}`;
+    area.textContent = subtitle;
 
     const meta = document.createElement("p");
     meta.className = "submission-review-meta";
-    meta.textContent = getSubmissionMeta(submission);
+    meta.textContent = metaText;
 
     const note = document.createElement("p");
     note.className = "submission-review-note";
@@ -429,7 +507,7 @@ export function renderToiletSubmissions(
 
     const details = document.createElement("p");
     details.className = "submission-review-details";
-    details.textContent = `${getSubmissionFeatureSummary(submission)} - ${getSubmissionHoursSummary(submission)}`;
+    details.textContent = summaryText;
 
     const evidence = renderSubmissionEvidence(submission);
     const locationChecks = renderSubmissionLocationChecks(submission);
@@ -451,7 +529,15 @@ export function renderToiletSubmissions(
     rejectButton.addEventListener("click", () => onReviewSubmission(submission, "rejected", rejectButton));
 
     actions.append(approveButton, rejectButton);
-    item.append(heading, area, meta, note, details, evidence, locationChecks, nearbyToilets, actions);
+    const item = createReviewDisclosure({
+      panelId: createReviewPanelId("toilet-submission-review", submission.id, index),
+      title,
+      subtitle,
+      meta: metaText,
+      summary: summaryText,
+      bodyLabel: `Review details for ${title}`,
+      detailNodes: [heading, area, meta, note, details, evidence, locationChecks, nearbyToilets, actions]
+    });
     submissionsContainer.append(item);
   });
 }
@@ -463,6 +549,13 @@ const reportIssueLabels = {
   hours: "Wrong opening hours",
   other: "Other problem"
 };
+
+function getReportIssueSummary(report) {
+  const summary = (report?.issueTypes ?? [])
+    .map((issue) => reportIssueLabels[issue] ?? issue)
+    .join(", ");
+  return summary || "No issue type supplied";
+}
 
 function formatReportOpeningTimes(openingTimes) {
   if (!Array.isArray(openingTimes)) return null;
@@ -506,35 +599,36 @@ export function renderToiletReports(
     return;
   }
 
-  reports.forEach((report) => {
-    const item = document.createElement("article");
-    item.className = "submission-review-item";
-
-    const heading = document.createElement("h4");
-    heading.textContent = report.toiletName || "Unknown toilet";
-
-    const area = document.createElement("p");
-    area.className = "submission-review-area";
+  reports.forEach((report, index) => {
+    const title = report.toiletName || "Unknown toilet";
     const location = report.currentLocation
       ? ` - ${Number(report.currentLocation.lat).toFixed(5)}, ${Number(report.currentLocation.lng).toFixed(5)}`
       : "";
-    area.textContent = `${report.toiletArea || "Unknown area"}${location}`;
+    const subtitle = `${report.toiletArea || "Unknown area"}${location}`;
+    const reporter = report.reportedByUsername || "Unknown user";
+    const createdAt = report.createdAt ? formatAccessTime(report.createdAt) : "Unknown time";
+    const metaText = `Reported by ${reporter} - ${createdAt}`;
+    const issueSummary = getReportIssueSummary(report);
+    const existenceSummary = `Toilet exists here: ${report.toiletExists || "unsure"}`;
+
+    const heading = document.createElement("h4");
+    heading.textContent = title;
+
+    const area = document.createElement("p");
+    area.className = "submission-review-area";
+    area.textContent = subtitle;
 
     const meta = document.createElement("p");
     meta.className = "submission-review-meta";
-    const reporter = report.reportedByUsername || "Unknown user";
-    const createdAt = report.createdAt ? formatAccessTime(report.createdAt) : "Unknown time";
-    meta.textContent = `Reported by ${reporter} - ${createdAt}`;
+    meta.textContent = metaText;
 
     const issues = document.createElement("p");
     issues.className = "submission-review-details";
-    issues.textContent = (report.issueTypes ?? [])
-      .map((issue) => reportIssueLabels[issue] ?? issue)
-      .join(", ");
+    issues.textContent = issueSummary;
 
     const existence = document.createElement("p");
     existence.className = "submission-review-details";
-    existence.textContent = `Toilet exists here: ${report.toiletExists || "unsure"}`;
+    existence.textContent = existenceSummary;
 
     const note = document.createElement("p");
     note.className = "submission-review-note";
@@ -578,7 +672,15 @@ export function renderToiletReports(
     rejectButton.addEventListener("click", () => onReviewReport(report, "reject", rejectButton));
 
     actions.append(applyButton, removeButton, rejectButton);
-    item.append(heading, area, meta, issues, existence, note, changeList, actions);
+    const item = createReviewDisclosure({
+      panelId: createReviewPanelId("toilet-report-review", report.id, index),
+      title,
+      subtitle,
+      meta: metaText,
+      summary: `${issueSummary} - ${existenceSummary}`,
+      bodyLabel: `Report details for ${title}`,
+      detailNodes: [heading, area, meta, issues, existence, note, changeList, actions]
+    });
     reportsContainer.append(item);
   });
 }

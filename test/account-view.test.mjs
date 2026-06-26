@@ -4,6 +4,7 @@ import {
   renderAccessHistory,
   renderMyComments,
   renderPublicProfile,
+  renderToiletReports,
   renderToiletSubmissions
 } from "../src/app/views/account-view.js";
 
@@ -260,6 +261,41 @@ test("toilet submission review renders nearby comparisons and external map links
   });
 });
 
+test("toilet submission review items are collapsed until the admin opens them", () => {
+  withTestDocument(() => {
+    const container = new TestElement("div");
+
+    renderToiletSubmissions(container, [{
+      id: "collapsed-submission",
+      name: "Museum cafe toilet",
+      area: "South Kensington",
+      lat: 51.4945,
+      lng: -0.1745,
+      submittedByUsername: "alex",
+      submittedAt: "2026-06-26T10:15:00.000Z",
+      comment: "Entrance is beside the cafe."
+    }]);
+
+    const toggle = findByClass(container, "submission-review-toggle");
+    const state = findByClass(container, "submission-review-toggle-state");
+    const body = findByClass(container, "submission-review-body");
+
+    assert.equal(body.hidden, true);
+    assert.equal(toggle.attributes["aria-expanded"], "false");
+    assert.match(collectText(toggle), /Museum cafe toilet/);
+    assert.match(collectText(toggle), /South Kensington/);
+    assert.doesNotMatch(collectText(toggle), /Entrance is beside the cafe/);
+    assert.equal(state.textContent, "View details");
+
+    toggle.click();
+
+    assert.equal(body.hidden, false);
+    assert.equal(toggle.attributes["aria-expanded"], "true");
+    assert.match(collectText(body), /Entrance is beside the cafe/);
+    assert.equal(state.textContent, "Hide details");
+  });
+});
+
 test("toilet submission review does not treat missing GPS evidence as zero metres", () => {
   withTestDocument(() => {
     const container = new TestElement("div");
@@ -276,5 +312,42 @@ test("toilet submission review does not treat missing GPS evidence as zero metre
     assert.match(collectText(evidence), /GPS accuracy unavailable/);
     assert.doesNotMatch(collectText(evidence), /GPS accuracy: \+\/- 0 m/);
     assert.match(collectText(evidence), /No entrance photo provided/);
+  });
+});
+
+test("toilet report review items are collapsed until the admin opens them", () => {
+  withTestDocument(() => {
+    const container = new TestElement("div");
+
+    renderToiletReports(container, [{
+      id: "report-1",
+      toiletName: "Library toilet",
+      toiletArea: "South Kensington",
+      currentLocation: { lat: 51.498, lng: -0.177 },
+      reportedByUsername: "jamie",
+      createdAt: "2026-06-26T12:20:00.000Z",
+      issueTypes: ["features", "hours"],
+      toiletExists: "yes",
+      details: "The accessible feature is wrong.",
+      proposedChanges: {
+        features: { accessible: "N" }
+      }
+    }]);
+
+    const toggle = findByClass(container, "submission-review-toggle");
+    const body = findByClass(container, "submission-review-body");
+
+    assert.equal(body.hidden, true);
+    assert.equal(toggle.attributes["aria-expanded"], "false");
+    assert.match(collectText(toggle), /Library toilet/);
+    assert.match(collectText(toggle), /Wrong features, Wrong opening hours/);
+    assert.doesNotMatch(collectText(toggle), /The accessible feature is wrong/);
+
+    toggle.click();
+
+    assert.equal(body.hidden, false);
+    assert.equal(toggle.attributes["aria-expanded"], "true");
+    assert.match(collectText(body), /The accessible feature is wrong/);
+    assert.match(collectText(body), /accessible: N/);
   });
 });
