@@ -404,9 +404,93 @@
 
 .submission-review-item {
   display: grid;
-  gap: 6px;
-  padding: 14px 0;
+  gap: 10px;
+  padding: 10px 0;
   border-top: 1px solid #b8c6b9;
+}
+
+.submission-review-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+}
+
+.submission-review-toggle:hover .submission-review-title,
+.submission-review-toggle:focus-visible .submission-review-title,
+.submission-review-toggle[aria-expanded="true"] .submission-review-title {
+  color: var(--teal);
+}
+
+.submission-review-toggle:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+
+.submission-review-toggle-text {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.submission-review-title {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.submission-review-toggle-subtitle,
+.submission-review-toggle-meta,
+.submission-review-toggle-summary {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.submission-review-toggle-summary {
+  color: #42564b;
+}
+
+.submission-review-toggle-state {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: #142c72;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.submission-review-toggle[aria-expanded="true"] .submission-review-toggle-state {
+  border-color: rgb(12 119 113 / 30%);
+  color: var(--teal);
+  background: #f2fbf9;
+}
+
+.submission-review-body {
+  display: grid;
+  gap: 6px;
+  padding: 4px 0 8px;
+}
+
+.submission-review-body[hidden] {
+  display: none;
 }
 
 .admin-review-heading {
@@ -450,7 +534,7 @@
   padding-top: 0;
 }
 
-.submission-review-item h4 {
+.submission-review-body h4 {
   margin: 0;
   color: var(--ink);
   font-size: 14px;
@@ -618,6 +702,15 @@
 }
 
 @media (max-width: 520px) {
+  .submission-review-toggle {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .submission-review-toggle-state {
+    width: fit-content;
+  }
+
   .submission-nearby-item {
     grid-template-columns: 1fr;
   }
