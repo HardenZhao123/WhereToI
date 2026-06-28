@@ -107,6 +107,40 @@ Then open / 然后打开：
 http://localhost:4173
 ```
 
+### Optional PaddleOCR / 可选 PaddleOCR
+
+PaddleOCR is only needed when you want admin review to extract text from user
+toilet photos. Install the Python OCR packages separately from npm:
+
+只有当你希望管理员审核用户上传厕所照片时自动提取文字，才需要安装 PaddleOCR。
+Python OCR 包需要和 npm 依赖分开安装：
+
+```bash
+python3 -m pip install -r requirements-ocr.txt
+WHERETOI_OCR_PROVIDER=paddle npm run dev
+```
+
+Render runs Python package installation inside its managed environment, so do
+not use `pip install --user` there. For the production web service, use this
+build command:
+
+Render 会在它管理的 Python 环境里安装 Python 包，所以不要在 Render 上使用
+`pip install --user`。生产环境 Web Service 使用这个 build command：
+
+```bash
+npm ci && python3 -m pip install -r requirements-ocr.txt && npm run build
+```
+
+Set these Render environment variables:
+
+在 Render 里设置这些环境变量：
+
+```text
+PYTHON_VERSION=3.13.5
+WHERETOI_OCR_PROVIDER=paddle
+WHERETOI_PADDLEOCR_PYTHON=python3
+```
+
 ### Android APK / 安卓 APK
 
 Build an installable development APK / 构建可安装的开发测试 APK：
