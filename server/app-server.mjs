@@ -7,6 +7,7 @@ import { createDatabase } from "./database.mjs";
 import { normaliseCommentPayload } from "./database/repository/repository-utils.mjs";
 import { createRegistrationEmailService } from "./email-service.mjs";
 import { createAiService } from "./ai-service.mjs";
+import { createPaddleOcrService } from "./ocr/paddle-ocr-service.mjs";
 
 const STATIC_CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -396,7 +397,68 @@ function queueRegistrationEmail({ emailService, logger, user }) {
   }
 }
 
-function createApiRouteHandlers(database, { emailService, logger }) {
+function trackBackgroundTask(backgroundTasks, task, logger, label) {
+  const trackedTask = Promise.resolve(task)
+    .catch((error) => {
+      logger.error(`${label} failed:`, error);
+    })
+    .finally(() => {
+      backgroundTasks.delete(trackedTask);
+    });
+  backgroundTasks.add(trackedTask);
+}
+
+async function runToiletSubmissionOcr({ database, logger, ocrService, toiletId }) {
+  if (typeof database.updateToiletSubmissionOcr !== "function") return;
+
+  const photo = await database.getToiletSubmissionPhoto(toiletId);
+  if (!photo?.dataUrl) return;
+
+  await database.updateToiletSubmissionOcr(toiletId, {
+    status: "pending",
+    provider: ocrService?.provider ?? "paddleocr",
+    checkedAt: new Date().toISOString()
+  });
+
+  try {
+    const evidence =
+      typeof ocrService?.extractText === "function"
+        ? await ocrService.extractText({
+            dataUrl: photo.dataUrl,
+            mimeType: photo.mimeType,
+            size: photo.size,
+            toiletId
+          })
+        : {
+            status: "unavailable",
+            provider: "paddleocr",
+            error: "PaddleOCR service is not configured.",
+            checkedAt: new Date().toISOString()
+          };
+
+    await database.updateToiletSubmissionOcr(toiletId, evidence);
+  } catch (error) {
+    await database.updateToiletSubmissionOcr(toiletId, {
+      status: "failed",
+      provider: ocrService?.provider ?? "paddleocr",
+      error: error instanceof Error ? error.message : String(error),
+      checkedAt: new Date().toISOString()
+    });
+    throw error;
+  }
+}
+
+function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService, toilet }) {
+  if (!toilet?.hasEntrancePhoto) return;
+  trackBackgroundTask(
+    backgroundTasks,
+    runToiletSubmissionOcr({ database, logger, ocrService, toiletId: toilet.id }),
+    logger,
+    "Toilet submission OCR"
+  );
+}
+
+function createApiRouteHandlers(database, { emailService, logger, ocrService, backgroundTasks }) {
   const publicToiletsCache = createPublicToiletsCache();
 
   return {
@@ -529,6 +591,7 @@ function createApiRouteHandlers(database, { emailService, logger }) {
         userId,
         ...body
       });
+      queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService, toilet });
 
       sendSensitiveJson(response, 201, {
         toilet,
@@ -997,8 +1060,8 @@ async function serveStaticFile({ root, pathname, request, response, staticCacheM
   createReadStream(file).pipe(response);
 }
 
-function createRequestHandler({ root, port, database, emailService, aiService, logger, staticCacheMode }) {
-  const routeHandlers = createApiRouteHandlers(database, { emailService, logger });
+function createRequestHandler({ root, port, database, emailService, aiService, logger, ocrService, backgroundTasks, staticCacheMode }) {
+  const routeHandlers = createApiRouteHandlers(database, { emailService, logger, ocrService, backgroundTasks });
 
   return async function handleRequest(request, response) {
     responseRequests.set(response, request);
@@ -1045,13 +1108,26 @@ export async function createAppServer({
   logger = console,
   emailService = createRegistrationEmailService(),
   aiService: providedAiService,
+  ocrService: providedOcrService,
   staticCacheMode = "production",
   databaseOptions = {}
 } = {}) {
   const root = resolve(rootDirectory);
   const database = await createDatabase({ rootDirectory: root, ...databaseOptions });
   const aiService = providedAiService ?? (await createAiService());
-  const requestHandler = createRequestHandler({ root, port, database, emailService, aiService, logger, staticCacheMode });
+  const ocrService = providedOcrService ?? createPaddleOcrService();
+  const backgroundTasks = new Set();
+  const requestHandler = createRequestHandler({
+    root,
+    port,
+    database,
+    emailService,
+    aiService,
+    logger,
+    ocrService,
+    backgroundTasks,
+    staticCacheMode
+  });
 
   const server = createServer(requestHandler);
 
@@ -1089,6 +1165,7 @@ export async function createAppServer({
         });
         server.closeAllConnections?.();
       });
+      await Promise.allSettled([...backgroundTasks]);
       await database.close?.();
     }
   };

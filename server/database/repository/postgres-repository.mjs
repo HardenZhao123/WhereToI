@@ -76,6 +76,16 @@ function mapUserRow(row, { includePasswordHash = false } = {}) {
   return user;
 }
 
+function parseStoredJson(value, fallback) {
+  if (value && typeof value === "object") return value;
+  if (typeof value !== "string" || !value.trim()) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
 function mapToiletSubmissionRow(row) {
   if (!row) return null;
 
@@ -92,6 +102,17 @@ function mapToiletSubmissionRow(row) {
     locationAccuracyMetres: row.submission_location_accuracy_metres ?? null,
     locationDistanceMetres: row.submission_location_distance_metres ?? null,
     locationCapturedAt: row.submission_location_captured_at ?? null,
+    ocrEvidence: {
+      status: row.submission_ocr_status ?? "not_requested",
+      provider: row.submission_ocr_provider ?? null,
+      text: row.submission_ocr_text ?? "",
+      lines: parseStoredJson(row.submission_ocr_lines, []),
+      keywords: parseStoredJson(row.submission_ocr_keywords, []),
+      openingHoursHints: parseStoredJson(row.submission_ocr_opening_hours, []),
+      confidence: row.submission_ocr_confidence ?? null,
+      error: row.submission_ocr_error ?? "",
+      checkedAt: row.submission_ocr_checked_at ?? null
+    },
     reviewedByUserId: row.reviewed_by_user_id ?? null,
     reviewedByUsername: row.reviewed_by_username ?? null,
     reviewedAt: row.reviewed_at ?? null,
@@ -474,6 +495,15 @@ export async function createPostgresDatabase({
       submission_location_accuracy_metres DOUBLE PRECISION,
       submission_location_distance_metres DOUBLE PRECISION,
       submission_location_captured_at TEXT,
+      submission_ocr_status TEXT NOT NULL DEFAULT 'not_requested',
+      submission_ocr_provider TEXT,
+      submission_ocr_text TEXT,
+      submission_ocr_lines JSONB NOT NULL DEFAULT '[]'::jsonb,
+      submission_ocr_keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
+      submission_ocr_opening_hours JSONB NOT NULL DEFAULT '[]'::jsonb,
+      submission_ocr_confidence DOUBLE PRECISION,
+      submission_ocr_error TEXT,
+      submission_ocr_checked_at TEXT,
       reviewed_by_user_id INTEGER,
       reviewed_at TEXT,
       review_note TEXT,
@@ -873,6 +903,9 @@ export async function createPostgresDatabase({
           t.submission_photo_mime_type, t.submission_photo_size,
           t.submission_location_accuracy_metres, t.submission_location_distance_metres,
           t.submission_location_captured_at,
+          t.submission_ocr_status, t.submission_ocr_provider, t.submission_ocr_text,
+          t.submission_ocr_lines, t.submission_ocr_keywords, t.submission_ocr_opening_hours,
+          t.submission_ocr_confidence, t.submission_ocr_error, t.submission_ocr_checked_at,
           t.reviewed_by_user_id, t.reviewed_at, t.review_note,
           t.cleanliness AS cleanliness, t.cleanliness_yes_count, t.cleanliness_no_count,
           t.cleanliness_rating_total AS cleanliness_rating_total,
@@ -908,6 +941,9 @@ export async function createPostgresDatabase({
           t.submission_photo_mime_type, t.submission_photo_size,
           t.submission_location_accuracy_metres, t.submission_location_distance_metres,
           t.submission_location_captured_at,
+          t.submission_ocr_status, t.submission_ocr_provider, t.submission_ocr_text,
+          t.submission_ocr_lines, t.submission_ocr_keywords, t.submission_ocr_opening_hours,
+          t.submission_ocr_confidence, t.submission_ocr_error, t.submission_ocr_checked_at,
           t.reviewed_by_user_id, t.reviewed_at, t.review_note,
           t.cleanliness AS cleanliness, t.cleanliness_yes_count, t.cleanliness_no_count,
           t.cleanliness_rating_total AS cleanliness_rating_total,
@@ -949,6 +985,43 @@ export async function createPostgresDatabase({
         mimeType: row.submission_photo_mime_type,
         size: row.submission_photo_size
       };
+    },
+    async updateToiletSubmissionOcr(toiletId, evidence = {}) {
+      const safeToiletId = String(toiletId ?? "").trim();
+      if (!safeToiletId) return null;
+
+      const result = await pool.query(
+        `
+        UPDATE toilets
+        SET
+          submission_ocr_status = $1,
+          submission_ocr_provider = $2,
+          submission_ocr_text = $3,
+          submission_ocr_lines = $4::jsonb,
+          submission_ocr_keywords = $5::jsonb,
+          submission_ocr_opening_hours = $6::jsonb,
+          submission_ocr_confidence = $7,
+          submission_ocr_error = $8,
+          submission_ocr_checked_at = $9
+        WHERE id = $10
+          AND (submitted_by_user_id IS NOT NULL OR id LIKE 'user-%')
+        `,
+        [
+          String(evidence.status || "completed").slice(0, 40),
+          evidence.provider ? String(evidence.provider).slice(0, 80) : null,
+          String(evidence.text || "").slice(0, 6000),
+          JSON.stringify(Array.isArray(evidence.lines) ? evidence.lines : []),
+          JSON.stringify(Array.isArray(evidence.keywords) ? evidence.keywords : []),
+          JSON.stringify(Array.isArray(evidence.openingHoursHints) ? evidence.openingHoursHints : []),
+          Number.isFinite(Number(evidence.confidence)) ? Number(evidence.confidence) : null,
+          String(evidence.error || "").slice(0, 600),
+          evidence.checkedAt ? String(evidence.checkedAt) : new Date().toISOString(),
+          safeToiletId
+        ]
+      );
+
+      if (result.rowCount === 0) return null;
+      return this.getToiletSubmissionById(safeToiletId);
     },
     async getNearbyApprovedToilets({
       lat,

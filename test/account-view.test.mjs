@@ -231,6 +231,18 @@ test("toilet submission review renders nearby comparisons and external map links
       locationAccuracyMetres: 18,
       locationDistanceMetres: 24,
       locationCapturedAt: "2026-06-26T10:15:00.000Z",
+      ocrEvidence: {
+        status: "completed",
+        provider: "paddleocr",
+        text: "Public Toilets\nAccessible WC\nOpen Mon-Fri 09:00-17:00",
+        keywords: [
+          { id: "toilet", label: "Toilet", matchedText: "Toilets" },
+          { id: "accessible", label: "Accessible", matchedText: "Accessible" }
+        ],
+        openingHoursHints: [{ text: "Open Mon-Fri 09:00-17:00", confidence: 0.91 }],
+        confidence: 0.92,
+        checkedAt: "2026-06-26T10:16:00.000Z"
+      },
       nearbyApprovedToilets: [{
         id: "detail-test",
         name: "Prayer room washroom",
@@ -256,6 +268,9 @@ test("toilet submission review renders nearby comparisons and external map links
     assert.equal(mapLinks.every((link) => link.target === "_blank"), true);
     assert.match(collectText(evidence), /GPS accuracy: \+\/- 18 m/);
     assert.match(collectText(evidence), /marker 24 m from device location/);
+    assert.match(collectText(evidence), /OCR completed via paddleocr/);
+    assert.match(collectText(evidence), /Toilet/);
+    assert.match(collectText(evidence), /Open Mon-Fri 09:00-17:00/);
     assert.match(evidencePhoto.children[0].src, /admin\/toilet-submissions\/photo/);
     assert.equal(evidencePhoto.children[0].loading, "lazy");
   });
