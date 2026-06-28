@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt
     branch: main
-    buildCommand: npm ci && python3 -m pip install --user -r requirements-ocr.txt && npm run build
+    buildCommand: npm ci && python3 -m pip install -r requirements-ocr.txt && npm run build
     startCommand: npm start
     autoDeployTrigger: checksPass
     healthCheckPath: /api/health
@@ -17,6 +17,8 @@ services:
         value: paddle
       - key: WHERETOI_PADDLEOCR_PYTHON
         value: python3
+      - key: PYTHON_VERSION
+        value: 3.13.5
       - key: WHERETOI_CLEANLINESS_SCORING_MODEL
         value: bias_training
       - key: WHERETOI_DATABASE_URL
