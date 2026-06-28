@@ -19,8 +19,10 @@ services:
         value: python3
       - key: WHERETOI_PADDLEOCR_TIMEOUT_MS
         value: "180000"
+      - key: WHERETOI_PADDLEOCR_MAX_IMAGE_DIMENSION
+        value: "960"
       - key: PYTHON_VERSION
-        value: 3.12.8
+        value: 3.10.14
       - key: WHERETOI_CLEANLINESS_SCORING_MODEL
         value: bias_training
       - key: WHERETOI_DATABASE_URL
