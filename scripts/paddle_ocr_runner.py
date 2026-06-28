@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 import json
+import os
 import sys
+
+os.environ.setdefault("FLAGS_use_mkldnn", "0")
+os.environ.setdefault("FLAGS_use_onednn", "0")
+os.environ.setdefault("FLAGS_enable_pir_api", "0")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
 
 
 def clamp_confidence(value):
@@ -76,14 +82,25 @@ def run_ocr(image_path):
         }
 
     try:
-        # Support newer PaddleOCR first; fall back to the older 2.x API used in
-        # many examples. Both paths emit the same compact JSON shape.
+        # Prefer the stable PaddleOCR 2.x API used by the pinned Render
+        # dependency set. Fall back to the newer 3.x API only if needed.
         try:
-            ocr = PaddleOCR(lang="en", use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=True)
-            result = ocr.predict(input=image_path)
-        except TypeError:
-            ocr = PaddleOCR(lang="en", use_angle_cls=True)
+            ocr = PaddleOCR(
+                lang="en",
+                use_angle_cls=True,
+                use_gpu=False,
+                enable_mkldnn=False,
+                show_log=False
+            )
             result = ocr.ocr(image_path, cls=True)
+        except TypeError:
+            ocr = PaddleOCR(
+                lang="en",
+                use_doc_orientation_classify=False,
+                use_doc_unwarping=False,
+                use_textline_orientation=True
+            )
+            result = ocr.predict(input=image_path)
 
         lines = collect_lines_from_result(result)
         confidence_values = [

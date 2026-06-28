@@ -20,7 +20,7 @@ services:
       - key: WHERETOI_PADDLEOCR_TIMEOUT_MS
         value: "180000"
       - key: PYTHON_VERSION
-        value: 3.13.5
+        value: 3.12.8
       - key: WHERETOI_CLEANLINESS_SCORING_MODEL
         value: bias_training
       - key: WHERETOI_DATABASE_URL
