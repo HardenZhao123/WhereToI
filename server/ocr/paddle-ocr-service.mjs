@@ -115,6 +115,7 @@ export function createPaddleOcrService({
   return {
     provider: "paddleocr",
     enabled,
+    timeoutMs,
     async extractText({ dataUrl } = {}) {
       if (!enabled) {
         return createOcrEvidenceUpdate({

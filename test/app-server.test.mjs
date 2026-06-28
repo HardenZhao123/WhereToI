@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createAppServer } from "../server/app-server.mjs";
+import { createAppServer, expireStaleToiletSubmissionOcr } from "../server/app-server.mjs";
 import { createOcrEvidenceUpdate } from "../server/ocr/ocr-analysis.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
@@ -493,6 +493,44 @@ test("API stores PaddleOCR evidence for submitted toilet photos", async () => {
     );
     assert.equal(pendingSubmission.ocrEvidence.openingHoursHints[0].text, "Open Mon-Fri 09:00-17:00");
   }, { ocrService });
+});
+
+test("stale pending PaddleOCR evidence is marked failed for admin review", async () => {
+  let updateCall = null;
+  const staleSubmission = {
+    id: "stale-ocr-submission",
+    ocrEvidence: {
+      status: "pending",
+      provider: "paddleocr",
+      checkedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    }
+  };
+  const freshSubmission = {
+    id: "fresh-ocr-submission",
+    ocrEvidence: {
+      status: "pending",
+      provider: "paddleocr",
+      checkedAt: new Date().toISOString()
+    }
+  };
+
+  const submissions = await expireStaleToiletSubmissionOcr({
+    database: {
+      async updateToiletSubmissionOcr(toiletId, evidence) {
+        updateCall = { toiletId, evidence };
+        return { ...staleSubmission, ocrEvidence: evidence };
+      }
+    },
+    logger: console,
+    ocrService: { provider: "paddleocr", timeoutMs: 1_000 },
+    submissions: [staleSubmission, freshSubmission]
+  });
+
+  assert.equal(updateCall.toiletId, "stale-ocr-submission");
+  assert.equal(updateCall.evidence.status, "failed");
+  assert.match(updateCall.evidence.error, /stayed pending/);
+  assert.equal(submissions[0].ocrEvidence.status, "failed");
+  assert.equal(submissions[1].ocrEvidence.status, "pending");
 });
 
 test("admins can retry failed PaddleOCR evidence for submitted toilet photos", async () => {
