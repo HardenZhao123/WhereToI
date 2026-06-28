@@ -32,6 +32,8 @@ const SENSITIVE_CACHE_CONTROL = "no-store";
 const PUBLIC_TOILETS_CACHE_CONTROL = "public, max-age=10, stale-while-revalidate=20";
 const PUBLIC_TOILETS_SERVER_CACHE_TTL_MS = 10_000;
 const PUBLIC_TOILETS_SERVER_CACHE_MAX_ENTRIES = 12;
+const DEFAULT_OCR_TIMEOUT_MS = 180_000;
+const STALE_PENDING_OCR_GRACE_MS = 60_000;
 const STATIC_DOCUMENT_CACHE_CONTROL = "no-cache, max-age=0, must-revalidate";
 const STATIC_ASSET_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
 const STATIC_APP_CODE_CACHE_CONTROL = "no-cache, max-age=0, must-revalidate";
@@ -459,6 +461,60 @@ function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrServic
   );
 }
 
+function getOcrTimeoutMs(ocrService) {
+  const timeoutMs = Number(ocrService?.timeoutMs ?? process.env.WHERETOI_PADDLEOCR_TIMEOUT_MS);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_OCR_TIMEOUT_MS;
+}
+
+function getStalePendingOcrCutoffMs(ocrService) {
+  return getOcrTimeoutMs(ocrService) + STALE_PENDING_OCR_GRACE_MS;
+}
+
+function isStalePendingOcr(ocrEvidence, { nowMs, staleAfterMs }) {
+  if (ocrEvidence?.status !== "pending") return false;
+
+  const checkedAtMs = Date.parse(ocrEvidence?.checkedAt ?? "");
+  return !Number.isFinite(checkedAtMs) || nowMs - checkedAtMs > staleAfterMs;
+}
+
+export async function expireStaleToiletSubmissionOcr({ database, logger, ocrService, submissions }) {
+  if (typeof database.updateToiletSubmissionOcr !== "function" || !Array.isArray(submissions)) {
+    return submissions;
+  }
+
+  const now = new Date();
+  const staleAfterMs = getStalePendingOcrCutoffMs(ocrService);
+  const staleAfterSeconds = Math.round(staleAfterMs / 1000);
+
+  return Promise.all(submissions.map(async (submission) => {
+    if (!isStalePendingOcr(submission?.ocrEvidence, { nowMs: now.getTime(), staleAfterMs })) {
+      return submission;
+    }
+
+    const failedEvidence = {
+      status: "failed",
+      provider: submission.ocrEvidence?.provider ?? ocrService?.provider ?? "paddleocr",
+      text: "",
+      lines: [],
+      keywords: [],
+      openingHoursHints: [],
+      confidence: null,
+      error: `OCR stayed pending for more than ${staleAfterSeconds} seconds. The background OCR task may have been interrupted; use Retry OCR to run it again.`,
+      checkedAt: now.toISOString()
+    };
+
+    try {
+      return await database.updateToiletSubmissionOcr(submission.id, failedEvidence) ?? {
+        ...submission,
+        ocrEvidence: failedEvidence
+      };
+    } catch (error) {
+      logger.error("Stale toilet submission OCR expiry failed:", error);
+      return submission;
+    }
+  }));
+}
+
 function createApiRouteHandlers(database, { emailService, logger, ocrService, backgroundTasks }) {
   const publicToiletsCache = createPublicToiletsCache();
 
@@ -621,8 +677,14 @@ function createApiRouteHandlers(database, { emailService, logger, ocrService, ba
 
       const status = url.searchParams.get("status") ?? "pending";
       const submissions = await database.getToiletSubmissions({ status });
+      const reviewableSubmissions = await expireStaleToiletSubmissionOcr({
+        database,
+        logger,
+        ocrService,
+        submissions
+      });
       const submissionsWithNearbyToilets = await Promise.all(
-        submissions.map(async (submission) => ({
+        reviewableSubmissions.map(async (submission) => ({
           ...submission,
           nearbyRadiusMetres: TOILET_REVIEW_NEARBY_RADIUS_METRES,
           nearbyApprovedToilets: await database.getNearbyApprovedToilets({
