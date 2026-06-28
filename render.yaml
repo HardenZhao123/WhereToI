@@ -17,6 +17,8 @@ services:
         value: paddle
       - key: WHERETOI_PADDLEOCR_PYTHON
         value: python3
+      - key: WHERETOI_PADDLEOCR_TIMEOUT_MS
+        value: "180000"
       - key: PYTHON_VERSION
         value: 3.13.5
       - key: WHERETOI_CLEANLINESS_SCORING_MODEL

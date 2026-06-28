@@ -139,6 +139,7 @@ Set these Render environment variables:
 PYTHON_VERSION=3.13.5
 WHERETOI_OCR_PROVIDER=paddle
 WHERETOI_PADDLEOCR_PYTHON=python3
+WHERETOI_PADDLEOCR_TIMEOUT_MS=180000
 ```
 
 ### Android APK / 安卓 APK
