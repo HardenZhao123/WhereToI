@@ -46,8 +46,12 @@ const requiredFiles = [
   "src/styles.css",
   "scripts/build.mjs",
   "scripts/e2e-smoke.mjs",
+  "scripts/paddle_ocr_runner.py",
   "server/app-server.mjs",
   "server/database.mjs",
+  "server/ocr/ocr-analysis.mjs",
+  "server/ocr/paddle-ocr-service.mjs",
+  "requirements-ocr.txt",
   "render.yaml"
 ];
 
@@ -465,8 +469,10 @@ if (
   throw new Error("Expected Postgres comment queries to return media metadata without base64 data URLs.");
 }
 
+const renderBuildCommand = renderConfig.match(/^\s*buildCommand:\s*(.+)$/m)?.[1] ?? "";
 if (
-  !renderConfig.includes("buildCommand: npm ci && npm run build") ||
+  !/\bnpm ci\b/.test(renderBuildCommand) ||
+  !/\bnpm run build\b/.test(renderBuildCommand) ||
   !server.includes("const BODY_SIZE_LIMIT_BYTES = 8 * 1024 * 1024")
 ) {
   throw new Error("Expected Render to build dist and comment uploads to stay under the emergency body-size guardrail.");
