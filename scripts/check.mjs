@@ -482,6 +482,7 @@ if (
 
 if (
   !ocrRequirements.includes("setuptools>=68,<83") ||
+  !ocrRequirements.includes("numpy==1.26.4") ||
   !ocrRequirements.includes("paddlepaddle==2.6.2") ||
   !ocrRequirements.includes("paddleocr==2.7.3") ||
   !renderConfig.includes("PYTHON_VERSION") ||
@@ -498,7 +499,7 @@ if (
   !paddleOcrRunner.includes('os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")') ||
   !paddleOcrRunner.includes("enable_mkldnn=False")
 ) {
-  throw new Error("Expected PaddleOCR deployment to use setuptools, pinned 2.x dependencies, Python 3.10, OCR image downscaling, a longer timeout, and constrained oneDNN-disabled CPU execution.");
+  throw new Error("Expected PaddleOCR deployment to use setuptools, NumPy 1.x, pinned 2.x dependencies, Python 3.10, OCR image downscaling, a longer timeout, and constrained oneDNN-disabled CPU execution.");
 }
 
 if (
