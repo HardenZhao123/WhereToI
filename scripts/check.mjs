@@ -481,6 +481,7 @@ if (
 }
 
 if (
+  !ocrRequirements.includes("setuptools>=68,<83") ||
   !ocrRequirements.includes("paddlepaddle==2.6.2") ||
   !ocrRequirements.includes("paddleocr==2.7.3") ||
   !renderConfig.includes("PYTHON_VERSION") ||
@@ -490,7 +491,7 @@ if (
   !paddleOcrRunner.includes('os.environ.setdefault("FLAGS_use_mkldnn", "0")') ||
   !paddleOcrRunner.includes("enable_mkldnn=False")
 ) {
-  throw new Error("Expected PaddleOCR deployment to use pinned 2.x dependencies, Python 3.12, a longer timeout, and oneDNN-disabled CPU execution.");
+  throw new Error("Expected PaddleOCR deployment to use setuptools, pinned 2.x dependencies, Python 3.12, a longer timeout, and oneDNN-disabled CPU execution.");
 }
 
 if (
