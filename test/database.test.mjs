@@ -162,6 +162,7 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
     assert.equal(created.locationAccuracyMetres, 14.4);
     assert.equal(created.locationDistanceMetres, 18.2);
     assert.equal(created.locationCapturedAt, "2026-06-26T10:15:00.000Z");
+    assert.equal(created.ocrEvidence.status, "not_requested");
     assert.deepEqual(created.openingTimes[0], ["08:00", "20:00"]);
     assert.deepEqual(created.openingTimes[6], []);
 
@@ -169,6 +170,22 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
     assert.equal(storedPhoto.mimeType, "image/png");
     assert.equal(storedPhoto.dataUrl, tinyPngDataUrl);
     assert.equal(storedPhoto.size > 0, true);
+
+    const ocrUpdated = await database.updateToiletSubmissionOcr(created.id, {
+      status: "completed",
+      provider: "paddleocr",
+      text: "Public Convenience Toilets\nAccessible WC\nOpen Mon-Fri 09:00-17:00",
+      lines: [{ text: "Public Convenience Toilets", confidence: 0.93 }],
+      keywords: [{ id: "toilet", label: "Toilet", matchedText: "Toilets" }],
+      openingHoursHints: [{ text: "Open Mon-Fri 09:00-17:00", confidence: 0.91 }],
+      confidence: 0.92,
+      checkedAt: "2026-06-26T10:16:00.000Z"
+    });
+    assert.equal(ocrUpdated.ocrEvidence.status, "completed");
+    assert.equal(ocrUpdated.ocrEvidence.provider, "paddleocr");
+    assert.match(ocrUpdated.ocrEvidence.text, /Accessible WC/);
+    assert.equal(ocrUpdated.ocrEvidence.keywords[0].label, "Toilet");
+    assert.equal(ocrUpdated.ocrEvidence.openingHoursHints[0].text, "Open Mon-Fri 09:00-17:00");
 
     const unknownHoursToilet = await database.createToiletContribution({
       userId: demoUser.id,

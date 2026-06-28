@@ -284,6 +284,76 @@ function renderSubmissionEvidence(submission) {
     container.append(noPhoto);
   }
 
+  container.append(renderSubmissionOcrEvidence(submission));
+  return container;
+}
+
+const ocrStatusLabels = {
+  not_requested: "OCR not run",
+  pending: "OCR pending",
+  completed: "OCR completed",
+  no_text: "OCR found no readable text",
+  unavailable: "OCR unavailable",
+  failed: "OCR failed"
+};
+
+function renderSubmissionOcrEvidence(submission) {
+  const ocr = submission?.ocrEvidence ?? {};
+  const status = ocr.status || "not_requested";
+  const container = document.createElement("section");
+  container.className = `submission-ocr submission-ocr-${status}`;
+  container.setAttribute("aria-label", "OCR text evidence");
+
+  const heading = document.createElement("h5");
+  heading.textContent = "OCR text check";
+  container.append(heading);
+
+  const statusLine = document.createElement("p");
+  statusLine.className = "submission-ocr-status";
+  const provider = ocr.provider ? ` via ${ocr.provider}` : "";
+  const checkedAt = ocr.checkedAt ? ` - checked ${formatAccessTime(ocr.checkedAt)}` : "";
+  statusLine.textContent = `${ocrStatusLabels[status] || status}${provider}${checkedAt}`;
+  container.append(statusLine);
+
+  if (ocr.error) {
+    const error = document.createElement("p");
+    error.className = "submission-ocr-error";
+    error.textContent = ocr.error;
+    container.append(error);
+  }
+
+  const keywords = Array.isArray(ocr.keywords) ? ocr.keywords : [];
+  if (keywords.length > 0) {
+    const keywordList = document.createElement("div");
+    keywordList.className = "submission-ocr-keywords";
+    keywords.forEach((keyword) => {
+      const chip = document.createElement("span");
+      chip.className = "submission-ocr-keyword";
+      chip.textContent = keyword.label || keyword.matchedText || keyword.id;
+      keywordList.append(chip);
+    });
+    container.append(keywordList);
+  }
+
+  const openingHoursHints = Array.isArray(ocr.openingHoursHints) ? ocr.openingHoursHints : [];
+  if (openingHoursHints.length > 0) {
+    const list = document.createElement("ul");
+    list.className = "submission-ocr-opening-hours";
+    openingHoursHints.slice(0, 4).forEach((hint) => {
+      const item = document.createElement("li");
+      item.textContent = hint.text || String(hint);
+      list.append(item);
+    });
+    container.append(list);
+  }
+
+  if (ocr.text) {
+    const text = document.createElement("p");
+    text.className = "submission-ocr-text";
+    text.textContent = ocr.text;
+    container.append(text);
+  }
+
   return container;
 }
 

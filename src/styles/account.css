@@ -601,6 +601,74 @@
   font-size: 10px;
 }
 
+.submission-ocr {
+  display: grid;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.submission-ocr-status,
+.submission-ocr-error,
+.submission-ocr-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.submission-ocr-completed .submission-ocr-status {
+  color: #216b4f;
+  font-weight: 800;
+}
+
+.submission-ocr-failed .submission-ocr-status,
+.submission-ocr-unavailable .submission-ocr-status,
+.submission-ocr-error {
+  color: #9c2b2e;
+  font-weight: 800;
+}
+
+.submission-ocr-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.submission-ocr-keyword {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid rgb(12 119 113 / 22%);
+  border-radius: 999px;
+  color: var(--teal);
+  background: #f2fbf9;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.submission-ocr-opening-hours {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.submission-ocr-text {
+  max-height: 92px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f7f9f6;
+  white-space: pre-wrap;
+}
+
 .submission-map-links {
   display: flex;
   flex-wrap: wrap;

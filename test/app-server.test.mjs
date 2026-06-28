@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { createAppServer } from "../server/app-server.mjs";
+import { createOcrEvidenceUpdate } from "../server/ocr/ocr-analysis.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
 const largeStaticScript = `export const payload = "${"x".repeat(4096)}";`;
@@ -50,6 +51,17 @@ async function fetchJson(url, options = {}) {
 
   assert.equal(response.ok, true, `Expected ${url} to return 2xx. Status: ${response.status}`);
   return { payload, response };
+}
+
+async function waitFor(callback, { timeoutMs = 1500, intervalMs = 25 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let latestValue;
+  while (Date.now() < deadline) {
+    latestValue = await callback();
+    if (latestValue) return latestValue;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  assert.fail(`Timed out waiting for condition. Latest value: ${JSON.stringify(latestValue)}`);
 }
 
 test("API exposes health and expanded toilet feature details", async () => {
@@ -418,6 +430,69 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
     assert.equal(duplicateResponse.status, 409);
     assert.match(duplicatePayload.error, /already on the map/);
   });
+});
+
+test("API stores PaddleOCR evidence for submitted toilet photos", async () => {
+  const ocrService = {
+    provider: "paddleocr",
+    async extractText() {
+      return createOcrEvidenceUpdate({
+        provider: "paddleocr",
+        status: "completed",
+        text: "Public Convenience Toilets\nAccessible WC\nOpen Mon-Fri 09:00-17:00",
+        lines: [
+          { text: "Public Convenience Toilets", confidence: 0.95 },
+          { text: "Accessible WC", confidence: 0.91 },
+          { text: "Open Mon-Fri 09:00-17:00", confidence: 0.88 }
+        ],
+        confidence: 0.91,
+        checkedAt: "2026-06-26T10:16:00.000Z"
+      });
+    }
+  };
+
+  await withAppServer(async (baseUrl) => {
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+    const authHeaders = {
+      "Content-Type": "application/json",
+      "Cookie": cookie
+    };
+
+    const { payload: createdPayload } = await fetchJson(`${baseUrl}/api/toilets`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        name: "OCR station toilet",
+        area: "Paddington",
+        lat: 51.519,
+        lng: -0.181,
+        entrancePhoto: { dataUrl: tinyPngDataUrl },
+        features: { accessible: "Y", free: "Y" },
+        openingTimes: [null, null, null, null, null, null, null]
+      })
+    });
+
+    const pendingSubmission = await waitFor(async () => {
+      const { payload } = await fetchJson(`${baseUrl}/api/admin/toilet-submissions`, {
+        headers: { "Cookie": cookie }
+      });
+      const submission = payload.submissions.find((item) => item.id === createdPayload.toilet.id);
+      return submission?.ocrEvidence?.status === "completed" ? submission : null;
+    });
+
+    assert.equal(pendingSubmission.ocrEvidence.provider, "paddleocr");
+    assert.match(pendingSubmission.ocrEvidence.text, /Accessible WC/);
+    assert.deepEqual(
+      pendingSubmission.ocrEvidence.keywords.map((keyword) => keyword.id),
+      ["toilet", "wc", "public-convenience", "accessible"]
+    );
+    assert.equal(pendingSubmission.ocrEvidence.openingHoursHints[0].text, "Open Mon-Fri 09:00-17:00");
+  }, { ocrService });
 });
 
 test("API accepts toilet reports and lets admins apply corrections", async () => {
