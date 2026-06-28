@@ -1,2 +1,2 @@
-paddlepaddle
-paddleocr
+paddlepaddle==2.6.2
+paddleocr==2.7.3

@@ -121,6 +121,8 @@ const app = await readFile("src/app/app.js", "utf8");
 const toiletsService = await readFile("src/app/services/toilets-service.js", "utf8");
 const buildScript = await readFile("scripts/build.mjs", "utf8");
 const renderConfig = await readFile("render.yaml", "utf8");
+const ocrRequirements = await readFile("requirements-ocr.txt", "utf8");
+const paddleOcrRunner = await readFile("scripts/paddle_ocr_runner.py", "utf8");
 const manifest = JSON.parse(await readFile("app.webmanifest", "utf8"));
 const serviceWorker = await readFile("service-worker.js", "utf8");
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));
@@ -476,6 +478,19 @@ if (
   !server.includes("const BODY_SIZE_LIMIT_BYTES = 8 * 1024 * 1024")
 ) {
   throw new Error("Expected Render to build dist and comment uploads to stay under the emergency body-size guardrail.");
+}
+
+if (
+  !ocrRequirements.includes("paddlepaddle==2.6.2") ||
+  !ocrRequirements.includes("paddleocr==2.7.3") ||
+  !renderConfig.includes("PYTHON_VERSION") ||
+  !renderConfig.includes("3.12.8") ||
+  !renderConfig.includes("WHERETOI_PADDLEOCR_TIMEOUT_MS") ||
+  !renderConfig.includes("180000") ||
+  !paddleOcrRunner.includes('os.environ.setdefault("FLAGS_use_mkldnn", "0")') ||
+  !paddleOcrRunner.includes("enable_mkldnn=False")
+) {
+  throw new Error("Expected PaddleOCR deployment to use pinned 2.x dependencies, Python 3.12, a longer timeout, and oneDNN-disabled CPU execution.");
 }
 
 if (

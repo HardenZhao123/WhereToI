@@ -136,7 +136,7 @@ Set these Render environment variables:
 在 Render 里设置这些环境变量：
 
 ```text
-PYTHON_VERSION=3.13.5
+PYTHON_VERSION=3.12.8
 WHERETOI_OCR_PROVIDER=paddle
 WHERETOI_PADDLEOCR_PYTHON=python3
 WHERETOI_PADDLEOCR_TIMEOUT_MS=180000
