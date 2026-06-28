@@ -1,3 +1,4 @@
 setuptools>=68,<83
+numpy==1.26.4
 paddlepaddle==2.6.2
 paddleocr==2.7.3
