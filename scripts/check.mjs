@@ -485,13 +485,20 @@ if (
   !ocrRequirements.includes("paddlepaddle==2.6.2") ||
   !ocrRequirements.includes("paddleocr==2.7.3") ||
   !renderConfig.includes("PYTHON_VERSION") ||
-  !renderConfig.includes("3.12.8") ||
+  !renderConfig.includes("3.10.14") ||
   !renderConfig.includes("WHERETOI_PADDLEOCR_TIMEOUT_MS") ||
   !renderConfig.includes("180000") ||
+  !renderConfig.includes("WHERETOI_PADDLEOCR_MAX_IMAGE_DIMENSION") ||
+  !renderConfig.includes("960") ||
+  !paddleOcrRunner.includes("DEFAULT_OCR_MAX_IMAGE_DIMENSION = 960") ||
+  !paddleOcrRunner.includes("prepare_image_for_ocr") ||
+  !paddleOcrRunner.includes("image.thumbnail((max_dimension, max_dimension)") ||
   !paddleOcrRunner.includes('os.environ.setdefault("FLAGS_use_mkldnn", "0")') ||
+  !paddleOcrRunner.includes('os.environ.setdefault("FLAGS_allocator_strategy", "auto_growth")') ||
+  !paddleOcrRunner.includes('os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")') ||
   !paddleOcrRunner.includes("enable_mkldnn=False")
 ) {
-  throw new Error("Expected PaddleOCR deployment to use setuptools, pinned 2.x dependencies, Python 3.12, a longer timeout, and oneDNN-disabled CPU execution.");
+  throw new Error("Expected PaddleOCR deployment to use setuptools, pinned 2.x dependencies, Python 3.10, OCR image downscaling, a longer timeout, and constrained oneDNN-disabled CPU execution.");
 }
 
 if (
