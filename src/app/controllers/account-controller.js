@@ -8,6 +8,7 @@ import {
   logoutUser,
   getCurrentUser,
   reviewToiletSubmission,
+  retryToiletSubmissionOcr,
   reviewToiletReport,
   updateUserProfile,
   updateCommentProfileVisibility
@@ -82,12 +83,15 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   } = callbacks;
 
   const autoFilterStorageKey = "wheretoi-auto-filter-enabled";
+  const toiletSubmissionOcrRefreshMs = 5000;
   let currentUser = null;
   let isRegisterMode = false;
   let signupIntroActive = false;
   let publicProfileActive = false;
   let activePublicProfileUserId = null;
   let activeAccountActivityTab = "feedback";
+  let toiletSubmissionOcrRefreshTimerId = null;
+  let toiletSubmissionReviewLoadId = 0;
 
   function loadAutoFilterState() {
     return window.localStorage?.getItem(autoFilterStorageKey) === "true";
@@ -264,6 +268,9 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
   function setAccountActivityTab(tabKey) {
     const nextTab = tabKey || "feedback";
     activeAccountActivityTab = nextTab;
+    if (nextTab !== "review-additions") {
+      clearToiletSubmissionOcrRefresh();
+    }
 
     accountActivityTabs?.forEach((button) => {
       const isActive = button.dataset.accountActivityTab === nextTab;
@@ -280,6 +287,47 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
   function isCurrentUserAdmin() {
     return Boolean(currentUser?.isAdmin || currentUser?.is_admin);
+  }
+
+  function clearToiletSubmissionOcrRefresh() {
+    if (toiletSubmissionOcrRefreshTimerId) {
+      window.clearTimeout(toiletSubmissionOcrRefreshTimerId);
+      toiletSubmissionOcrRefreshTimerId = null;
+    }
+  }
+
+  function hasPendingSubmissionOcr(submissions) {
+    return Array.isArray(submissions) && submissions.some(
+      (submission) => submission?.ocrEvidence?.status === "pending"
+    );
+  }
+
+  function shouldRefreshPendingSubmissionOcr() {
+    return isCurrentUserAdmin() && activeAccountActivityTab === "review-additions" && !publicProfileActive;
+  }
+
+  function getOpenSubmissionReviewIds() {
+    if (!submissionReviewList?.querySelectorAll) return new Set();
+    const openItems = submissionReviewList.querySelectorAll(
+      ".submission-review-item.is-expanded[data-review-id]"
+    );
+    return new Set(
+      Array.from(openItems)
+        .map((item) => item.getAttribute("data-review-id"))
+        .filter(Boolean)
+    );
+  }
+
+  function schedulePendingSubmissionOcrRefresh(submissions) {
+    clearToiletSubmissionOcrRefresh();
+    if (!hasPendingSubmissionOcr(submissions) || !shouldRefreshPendingSubmissionOcr()) return;
+
+    toiletSubmissionOcrRefreshTimerId = window.setTimeout(() => {
+      toiletSubmissionOcrRefreshTimerId = null;
+      if (shouldRefreshPendingSubmissionOcr()) {
+        void loadAddedToiletsForReview({ silent: true });
+      }
+    }, toiletSubmissionOcrRefreshMs);
   }
 
   function syncReviewTabVisibility() {
@@ -306,13 +354,17 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     }
   }
 
-  async function loadAddedToiletsForReview() {
+  async function loadAddedToiletsForReview({ silent = false } = {}) {
+    const loadId = ++toiletSubmissionReviewLoadId;
+    const openSubmissionIds = getOpenSubmissionReviewIds();
+    clearToiletSubmissionOcrRefresh();
+
     if (!isCurrentUserAdmin()) {
       renderToiletSubmissions(submissionReviewList, []);
       return;
     }
 
-    if (submissionReviewList) {
+    if (submissionReviewList && !silent) {
       submissionReviewList.textContent = "";
       const loading = document.createElement("p");
       loading.textContent = "Loading pending submissions...";
@@ -320,11 +372,16 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     }
     try {
       const payload = await fetchToiletSubmissions("pending");
+      if (loadId !== toiletSubmissionReviewLoadId) return;
       renderToiletSubmissions(submissionReviewList, payload.submissions, {
-        onReviewSubmission: handleReviewSubmission
+        onReviewSubmission: handleReviewSubmission,
+        onRetryOcr: handleRetrySubmissionOcr,
+        openSubmissionIds
       });
+      schedulePendingSubmissionOcrRefresh(payload.submissions);
     } catch (error) {
       console.error("Toilet submissions loading failed:", error);
+      if (silent) return;
       if (submissionReviewList) {
         submissionReviewList.textContent = "";
         const message = document.createElement("p");
@@ -575,6 +632,27 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
     } finally {
       if (button) {
         button.disabled = false;
+      }
+    }
+  }
+
+  async function handleRetrySubmissionOcr(submission, button) {
+    if (!submission?.id || !isCurrentUserAdmin()) return;
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Retrying...";
+    }
+
+    try {
+      await retryToiletSubmissionOcr(submission.id);
+      await loadAddedToiletsForReview({ silent: true });
+    } catch (error) {
+      console.error("Toilet submission OCR retry failed:", error);
+      alert(error?.message || "Could not retry OCR for this toilet submission.");
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Retry OCR";
       }
     }
   }

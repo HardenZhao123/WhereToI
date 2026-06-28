@@ -495,6 +495,91 @@ test("API stores PaddleOCR evidence for submitted toilet photos", async () => {
   }, { ocrService });
 });
 
+test("admins can retry failed PaddleOCR evidence for submitted toilet photos", async () => {
+  let ocrCalls = 0;
+  const ocrService = {
+    provider: "paddleocr",
+    async extractText() {
+      ocrCalls += 1;
+      if (ocrCalls === 1) {
+        return createOcrEvidenceUpdate({
+          provider: "paddleocr",
+          status: "failed",
+          error: "PaddleOCR timed out after 45 seconds before returning a result."
+        });
+      }
+
+      return createOcrEvidenceUpdate({
+        provider: "paddleocr",
+        status: "completed",
+        text: "Accessible WC\nPublic Toilets",
+        lines: [{ text: "Accessible WC", confidence: 0.94 }],
+        confidence: 0.94
+      });
+    }
+  };
+
+  await withAppServer(async (baseUrl) => {
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+    const authHeaders = {
+      "Content-Type": "application/json",
+      "Cookie": cookie
+    };
+
+    const { payload: createdPayload } = await fetchJson(`${baseUrl}/api/toilets`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        name: "Retry OCR station toilet",
+        area: "Paddington",
+        lat: 51.519,
+        lng: -0.181,
+        entrancePhoto: { dataUrl: tinyPngDataUrl },
+        features: { accessible: "Y", free: "Y" },
+        openingTimes: [null, null, null, null, null, null, null]
+      })
+    });
+
+    const failedSubmission = await waitFor(async () => {
+      const { payload } = await fetchJson(`${baseUrl}/api/admin/toilet-submissions`, {
+        headers: { "Cookie": cookie }
+      });
+      const submission = payload.submissions.find((item) => item.id === createdPayload.toilet.id);
+      return submission?.ocrEvidence?.status === "failed" ? submission : null;
+    });
+    assert.match(failedSubmission.ocrEvidence.error, /timed out/);
+
+    const { payload: retryPayload, response: retryResponse } = await fetchJson(
+      `${baseUrl}/api/admin/toilet-submissions/ocr/retry`,
+      {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ toiletId: createdPayload.toilet.id })
+      }
+    );
+    assert.equal(retryResponse.status, 202);
+    assert.equal(retryPayload.status, "pending");
+    assert.equal(retryPayload.submission.ocrEvidence.status, "pending");
+
+    const completedSubmission = await waitFor(async () => {
+      const { payload } = await fetchJson(`${baseUrl}/api/admin/toilet-submissions`, {
+        headers: { "Cookie": cookie }
+      });
+      const submission = payload.submissions.find((item) => item.id === createdPayload.toilet.id);
+      return submission?.ocrEvidence?.status === "completed" ? submission : null;
+    });
+
+    assert.equal(ocrCalls, 2);
+    assert.equal(completedSubmission.ocrEvidence.provider, "paddleocr");
+    assert.match(completedSubmission.ocrEvidence.text, /Accessible WC/);
+  }, { ocrService });
+});
+
 test("API accepts toilet reports and lets admins apply corrections", async () => {
   await withAppServer(async (baseUrl) => {
     const reportPayload = {

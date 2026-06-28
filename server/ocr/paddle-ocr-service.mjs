@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createOcrEvidenceUpdate } from "./ocr-analysis.mjs";
 
 const DATA_URL_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([a-z0-9+/=\r\n]+)$/i;
-const DEFAULT_TIMEOUT_MS = 45_000;
+const DEFAULT_TIMEOUT_MS = 180_000;
 const RUNNER_PATH = fileURLToPath(new URL("../../scripts/paddle_ocr_runner.py", import.meta.url));
 
 function getImageExtension(mimeType) {
@@ -40,7 +40,7 @@ function execFileJson(command, args, { timeoutMs }) {
           status: "failed",
           provider: "paddleocr",
           error: timedOut
-            ? "PaddleOCR timed out before returning a result."
+            ? `PaddleOCR timed out after ${Math.round(timeoutMs / 1000)} seconds before returning a result.`
             : String(error?.message || stderr || "PaddleOCR did not return valid JSON.")
         });
       }

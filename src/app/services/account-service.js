@@ -65,6 +65,13 @@ export function reviewToiletSubmission(payload) {
   });
 }
 
+export function retryToiletSubmissionOcr(toiletId) {
+  return fetchJson(`${appConfig.apiBasePath}/admin/toilet-submissions/ocr/retry`, {
+    method: "POST",
+    body: JSON.stringify({ toiletId })
+  });
+}
+
 export function fetchToiletReports(status = "pending") {
   return fetchJson(`${appConfig.apiBasePath}/admin/toilet-reports?status=${encodeURIComponent(status)}`);
 }

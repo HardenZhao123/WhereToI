@@ -448,11 +448,12 @@ async function runToiletSubmissionOcr({ database, logger, ocrService, toiletId }
   }
 }
 
-function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService, toilet }) {
-  if (!toilet?.hasEntrancePhoto) return;
+function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService, toilet, toiletId }) {
+  const queuedToiletId = toilet?.id ?? toiletId;
+  if (!queuedToiletId || (toilet && !toilet.hasEntrancePhoto)) return;
   trackBackgroundTask(
     backgroundTasks,
-    runToiletSubmissionOcr({ database, logger, ocrService, toiletId: toilet.id }),
+    runToiletSubmissionOcr({ database, logger, ocrService, toiletId: queuedToiletId }),
     logger,
     "Toilet submission OCR"
   );
@@ -657,6 +658,49 @@ function createApiRouteHandlers(database, { emailService, logger, ocrService, ba
       const separatorIndex = photo.dataUrl.indexOf(",");
       const bytes = Buffer.from(photo.dataUrl.slice(separatorIndex + 1), "base64");
       sendSensitiveBinary(response, 200, bytes, photo.mimeType || "image/jpeg");
+    },
+    "POST /api/admin/toilet-submissions/ocr/retry": async ({ request, response }) => {
+      const admin = await requireAdminUser(request, response, database);
+      if (!admin) return;
+
+      const body = await readJsonBody(request);
+      const toiletId = normaliseOptionalToiletId(body.toiletId);
+      if (!toiletId) {
+        sendSensitiveJson(response, 400, { error: "toiletId is required." });
+        return;
+      }
+
+      const submission = await database.getToiletSubmissionById(toiletId);
+      if (!submission) {
+        sendSensitiveJson(response, 404, { error: "Toilet submission not found." });
+        return;
+      }
+      if (!submission.hasEntrancePhoto) {
+        sendSensitiveJson(response, 400, { error: "Cannot retry OCR without an entrance photo." });
+        return;
+      }
+
+      const pendingEvidence = {
+        status: "pending",
+        provider: ocrService?.provider ?? "paddleocr",
+        text: "",
+        lines: [],
+        keywords: [],
+        openingHoursHints: [],
+        confidence: null,
+        error: "",
+        checkedAt: new Date().toISOString()
+      };
+      const pendingSubmission = await database.updateToiletSubmissionOcr(toiletId, pendingEvidence) ?? {
+        ...submission,
+        ocrEvidence: pendingEvidence
+      };
+
+      queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService, toilet: submission });
+      sendSensitiveJson(response, 202, {
+        submission: pendingSubmission,
+        status: "pending"
+      });
     },
     "POST /api/admin/toilet-submissions/review": async ({ request, response }) => {
       const admin = await requireAdminUser(request, response, database);

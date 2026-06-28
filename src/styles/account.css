@@ -669,6 +669,13 @@
   white-space: pre-wrap;
 }
 
+.submission-ocr-retry {
+  justify-self: start;
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
 .submission-map-links {
   display: flex;
   flex-wrap: wrap;

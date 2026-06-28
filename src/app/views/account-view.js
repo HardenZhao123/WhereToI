@@ -122,15 +122,20 @@ function createReviewPanelId(prefix, rawId, index) {
 
 function createReviewDisclosure({
   panelId,
+  reviewId,
   title,
   subtitle,
   meta,
   summary,
   bodyLabel,
-  detailNodes
+  detailNodes,
+  expanded = false
 }) {
   const item = document.createElement("article");
   item.className = "submission-review-item";
+  if (reviewId) {
+    item.setAttribute("data-review-id", reviewId);
+  }
 
   const toggle = document.createElement("button");
   toggle.className = "submission-review-toggle";
@@ -174,16 +179,18 @@ function createReviewDisclosure({
   body.setAttribute("aria-label", bodyLabel);
   body.append(...detailNodes);
 
-  toggle.addEventListener("click", () => {
-    const expanded = body.hidden;
-    body.hidden = !expanded;
-    item.className = expanded
+  function setExpanded(isExpanded) {
+    body.hidden = !isExpanded;
+    item.className = isExpanded
       ? "submission-review-item is-expanded"
       : "submission-review-item";
-    toggle.setAttribute("aria-expanded", String(expanded));
-    toggle.setAttribute("aria-label", `${expanded ? "Hide" : "Show"} review details for ${title}`);
-    state.textContent = expanded ? "Hide details" : "View details";
-  });
+    toggle.setAttribute("aria-expanded", String(isExpanded));
+    toggle.setAttribute("aria-label", `${isExpanded ? "Hide" : "Show"} review details for ${title}`);
+    state.textContent = isExpanded ? "Hide details" : "View details";
+  }
+
+  setExpanded(Boolean(expanded));
+  toggle.addEventListener("click", () => setExpanded(body.hidden));
 
   item.append(toggle, body);
   return item;
@@ -226,7 +233,7 @@ function renderSubmissionLocationChecks(submission) {
   return container;
 }
 
-function renderSubmissionEvidence(submission) {
+function renderSubmissionEvidence(submission, { onRetryOcr = () => {} } = {}) {
   const container = document.createElement("section");
   container.className = "submission-evidence";
   container.setAttribute("aria-label", "Submission evidence");
@@ -284,7 +291,7 @@ function renderSubmissionEvidence(submission) {
     container.append(noPhoto);
   }
 
-  container.append(renderSubmissionOcrEvidence(submission));
+  container.append(renderSubmissionOcrEvidence(submission, { onRetryOcr }));
   return container;
 }
 
@@ -297,7 +304,9 @@ const ocrStatusLabels = {
   failed: "OCR failed"
 };
 
-function renderSubmissionOcrEvidence(submission) {
+const retryableOcrStatuses = new Set(["failed", "unavailable"]);
+
+function renderSubmissionOcrEvidence(submission, { onRetryOcr = () => {} } = {}) {
   const ocr = submission?.ocrEvidence ?? {};
   const status = ocr.status || "not_requested";
   const container = document.createElement("section");
@@ -352,6 +361,15 @@ function renderSubmissionOcrEvidence(submission) {
     text.className = "submission-ocr-text";
     text.textContent = ocr.text;
     container.append(text);
+  }
+
+  if (submission?.id && retryableOcrStatuses.has(status)) {
+    const retryButton = document.createElement("button");
+    retryButton.className = "outline-button submission-ocr-retry";
+    retryButton.type = "button";
+    retryButton.textContent = "Retry OCR";
+    retryButton.addEventListener("click", () => onRetryOcr(submission, retryButton));
+    container.append(retryButton);
   }
 
   return container;
@@ -541,7 +559,7 @@ export function renderPublicProfile(
 export function renderToiletSubmissions(
   submissionsContainer,
   submissions,
-  { onReviewSubmission = () => {} } = {}
+  { onReviewSubmission = () => {}, onRetryOcr = () => {}, openSubmissionIds = new Set() } = {}
 ) {
   if (!submissionsContainer) return;
 
@@ -579,7 +597,7 @@ export function renderToiletSubmissions(
     details.className = "submission-review-details";
     details.textContent = summaryText;
 
-    const evidence = renderSubmissionEvidence(submission);
+    const evidence = renderSubmissionEvidence(submission, { onRetryOcr });
     const locationChecks = renderSubmissionLocationChecks(submission);
     const nearbyToilets = renderNearbyApprovedToilets(submission);
 
@@ -601,12 +619,14 @@ export function renderToiletSubmissions(
     actions.append(approveButton, rejectButton);
     const item = createReviewDisclosure({
       panelId: createReviewPanelId("toilet-submission-review", submission.id, index),
+      reviewId: String(submission.id),
       title,
       subtitle,
       meta: metaText,
       summary: summaryText,
       bodyLabel: `Review details for ${title}`,
-      detailNodes: [heading, area, meta, note, details, evidence, locationChecks, nearbyToilets, actions]
+      detailNodes: [heading, area, meta, note, details, evidence, locationChecks, nearbyToilets, actions],
+      expanded: openSubmissionIds.has(String(submission.id))
     });
     submissionsContainer.append(item);
   });

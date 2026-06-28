@@ -311,6 +311,71 @@ test("toilet submission review items are collapsed until the admin opens them", 
   });
 });
 
+test("toilet submission review preserves open items across rerenders", () => {
+  withTestDocument(() => {
+    const container = new TestElement("div");
+
+    renderToiletSubmissions(container, [{
+      id: "open-submission",
+      name: "Station toilet",
+      area: "Paddington",
+      lat: 51.519,
+      lng: -0.181,
+      ocrEvidence: { status: "pending", provider: "paddleocr" }
+    }], {
+      openSubmissionIds: new Set(["open-submission"])
+    });
+
+    const item = findByClass(container, "submission-review-item");
+    const toggle = findByClass(container, "submission-review-toggle");
+    const state = findByClass(container, "submission-review-toggle-state");
+    const body = findByClass(container, "submission-review-body");
+
+    assert.match(item.className, /is-expanded/);
+    assert.equal(item.attributes["data-review-id"], "open-submission");
+    assert.equal(body.hidden, false);
+    assert.equal(toggle.attributes["aria-expanded"], "true");
+    assert.equal(state.textContent, "Hide details");
+    assert.match(collectText(body), /OCR pending via paddleocr/);
+  });
+});
+
+test("toilet submission review lets admins retry failed OCR", () => {
+  withTestDocument(() => {
+    const container = new TestElement("div");
+    let retried = null;
+
+    renderToiletSubmissions(container, [{
+      id: "failed-ocr-submission",
+      name: "Station toilet",
+      area: "Paddington",
+      lat: 51.519,
+      lng: -0.181,
+      ocrEvidence: {
+        status: "failed",
+        provider: "paddleocr",
+        error: "PaddleOCR timed out after 45 seconds before returning a result."
+      }
+    }], {
+      openSubmissionIds: new Set(["failed-ocr-submission"]),
+      onRetryOcr: (submission, button) => {
+        retried = { submission, button };
+      }
+    });
+
+    const retryButton = findByClass(container, "submission-ocr-retry");
+    assert.ok(retryButton);
+    assert.equal(retryButton.textContent, "Retry OCR");
+    assert.match(collectText(container), /OCR failed via paddleocr/);
+    assert.match(collectText(container), /timed out/);
+
+    retryButton.click();
+
+    assert.equal(retried.submission.id, "failed-ocr-submission");
+    assert.equal(retried.button, retryButton);
+  });
+});
+
 test("toilet submission review does not treat missing GPS evidence as zero metres", () => {
   withTestDocument(() => {
     const container = new TestElement("div");
