@@ -7,12 +7,51 @@ import { createOcrEvidenceUpdate } from "./ocr-analysis.mjs";
 
 const DATA_URL_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([a-z0-9+/=\r\n]+)$/i;
 const DEFAULT_TIMEOUT_MS = 180_000;
+const OCR_PROCESS_MAX_BUFFER = 8 * 1024 * 1024;
 const RUNNER_PATH = fileURLToPath(new URL("../../scripts/paddle_ocr_runner.py", import.meta.url));
 
 function getImageExtension(mimeType) {
   if (mimeType === "image/png") return ".png";
   if (mimeType === "image/webp") return ".webp";
   return ".jpg";
+}
+
+export function parsePaddleOcrJsonOutput(output) {
+  const text = String(output || "").trim();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    // PaddleOCR/tqdm can write progress before our JSON result. Walk backwards
+    // and parse the last object-shaped suffix rather than failing on the noise.
+  }
+
+  for (let index = text.lastIndexOf("{"); index >= 0; index = text.lastIndexOf("{", index - 1)) {
+    try {
+      return JSON.parse(text.slice(index));
+    } catch {
+      // Keep looking for an earlier JSON object start.
+    }
+  }
+  return null;
+}
+
+function cleanPaddleOcrProcessError(error, stderr) {
+  const rawText = String(stderr || error?.message || "PaddleOCR did not return valid JSON.");
+  const lines = rawText
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) =>
+      !line.includes("%|") &&
+      !/\b(?:[kmgt]?ib\/s|it\/s|eta)\b/i.test(line) &&
+      !line.startsWith("Command failed:")
+    );
+
+  const usefulText = lines.join(" ").trim();
+  return usefulText || "PaddleOCR failed before returning a valid result. Check Render logs for the Python OCR process.";
 }
 
 function execFileJson(command, args, { timeoutMs }) {
@@ -22,17 +61,13 @@ function execFileJson(command, args, { timeoutMs }) {
       args,
       {
         timeout: timeoutMs,
-        maxBuffer: 2 * 1024 * 1024
+        maxBuffer: OCR_PROCESS_MAX_BUFFER
       },
       (error, stdout, stderr) => {
-        const output = String(stdout || "").trim();
-        if (output) {
-          try {
-            resolve(JSON.parse(output));
-            return;
-          } catch {
-            // Fall through to the generic failure below.
-          }
+        const result = parsePaddleOcrJsonOutput(stdout);
+        if (result) {
+          resolve(result);
+          return;
         }
 
         const timedOut = error?.killed || error?.signal === "SIGTERM";
@@ -41,7 +76,7 @@ function execFileJson(command, args, { timeoutMs }) {
           provider: "paddleocr",
           error: timedOut
             ? `PaddleOCR timed out after ${Math.round(timeoutMs / 1000)} seconds before returning a result.`
-            : String(error?.message || stderr || "PaddleOCR did not return valid JSON.")
+            : cleanPaddleOcrProcessError(error, stderr)
         });
       }
     );

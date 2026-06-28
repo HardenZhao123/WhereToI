@@ -117,6 +117,7 @@ const html = await readHtmlWithIncludes("index.html");
 const css = await readCssWithImports("src/styles.css");
 const server = await readFile("server/app-server.mjs", "utf8");
 const postgresRepository = await readFile("server/database/repository/postgres-repository.mjs", "utf8");
+const paddleOcrService = await readFile("server/ocr/paddle-ocr-service.mjs", "utf8");
 const app = await readFile("src/app/app.js", "utf8");
 const toiletsService = await readFile("src/app/services/toilets-service.js", "utf8");
 const buildScript = await readFile("scripts/build.mjs", "utf8");
@@ -493,13 +494,16 @@ if (
   !renderConfig.includes("960") ||
   !paddleOcrRunner.includes("DEFAULT_OCR_MAX_IMAGE_DIMENSION = 960") ||
   !paddleOcrRunner.includes("prepare_image_for_ocr") ||
+  !paddleOcrRunner.includes("quiet_library_output") ||
   !paddleOcrRunner.includes("image.thumbnail((max_dimension, max_dimension)") ||
   !paddleOcrRunner.includes('os.environ.setdefault("FLAGS_use_mkldnn", "0")') ||
   !paddleOcrRunner.includes('os.environ.setdefault("FLAGS_allocator_strategy", "auto_growth")') ||
   !paddleOcrRunner.includes('os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")') ||
-  !paddleOcrRunner.includes("enable_mkldnn=False")
+  !paddleOcrRunner.includes("enable_mkldnn=False") ||
+  !paddleOcrService.includes("parsePaddleOcrJsonOutput") ||
+  !paddleOcrService.includes("cleanPaddleOcrProcessError")
 ) {
-  throw new Error("Expected PaddleOCR deployment to use setuptools, NumPy 1.x, pinned 2.x dependencies, Python 3.10, OCR image downscaling, a longer timeout, and constrained oneDNN-disabled CPU execution.");
+  throw new Error("Expected PaddleOCR deployment to use setuptools, NumPy 1.x, pinned 2.x dependencies, Python 3.10, OCR image downscaling, quiet JSON output parsing, a longer timeout, and constrained oneDNN-disabled CPU execution.");
 }
 
 if (

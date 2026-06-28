@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 import json
 import os
 import sys
@@ -17,6 +17,21 @@ os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
 
 DEFAULT_OCR_MAX_IMAGE_DIMENSION = 960
 DEFAULT_OCR_MAX_SOURCE_PIXELS = 12_000_000
+
+
+class QuietWriter:
+    def write(self, value):
+        return len(str(value or ""))
+
+    def flush(self):
+        return None
+
+
+@contextmanager
+def quiet_library_output():
+    sink = QuietWriter()
+    with redirect_stdout(sink), redirect_stderr(sink):
+        yield
 
 
 def get_positive_int_env(name, default, minimum=1, maximum=100_000_000):
@@ -147,7 +162,8 @@ def run_ocr(image_path):
         }
 
     try:
-        from paddleocr import PaddleOCR
+        with quiet_library_output():
+            from paddleocr import PaddleOCR
     except Exception as exc:
         prepared_image_context.__exit__(None, None, None)
         return {
@@ -158,33 +174,36 @@ def run_ocr(image_path):
 
     try:
         try:
-            import paddle
-            paddle.set_flags({
-                "FLAGS_use_mkldnn": False,
-                "FLAGS_allocator_strategy": "auto_growth"
-            })
+            with quiet_library_output():
+                import paddle
+                paddle.set_flags({
+                    "FLAGS_use_mkldnn": False,
+                    "FLAGS_allocator_strategy": "auto_growth"
+                })
         except Exception:
             pass
 
         # Prefer the stable PaddleOCR 2.x API used by the pinned Render
         # dependency set. Fall back to the newer 3.x API only if needed.
         try:
-            ocr = PaddleOCR(
-                lang="en",
-                use_angle_cls=True,
-                use_gpu=False,
-                enable_mkldnn=False,
-                show_log=False
-            )
-            result = ocr.ocr(prepared_image, cls=True)
+            with quiet_library_output():
+                ocr = PaddleOCR(
+                    lang="en",
+                    use_angle_cls=True,
+                    use_gpu=False,
+                    enable_mkldnn=False,
+                    show_log=False
+                )
+                result = ocr.ocr(prepared_image, cls=True)
         except TypeError:
-            ocr = PaddleOCR(
-                lang="en",
-                use_doc_orientation_classify=False,
-                use_doc_unwarping=False,
-                use_textline_orientation=True
-            )
-            result = ocr.predict(input=prepared_image)
+            with quiet_library_output():
+                ocr = PaddleOCR(
+                    lang="en",
+                    use_doc_orientation_classify=False,
+                    use_doc_unwarping=False,
+                    use_textline_orientation=True
+                )
+                result = ocr.predict(input=prepared_image)
 
         lines = collect_lines_from_result(result)
         confidence_values = [
