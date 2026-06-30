@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createAppServer, expireStaleToiletSubmissionOcr } from "../server/app-server.mjs";
+import { createAppServer, expireStaleToiletSubmissionOcr, resumePendingToiletSubmissionOcr } from "../server/app-server.mjs";
 import { createOcrEvidenceUpdate } from "../server/ocr/ocr-analysis.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
@@ -532,6 +532,83 @@ test("stale pending PaddleOCR evidence is marked failed for admin review", async
   assert.match(updateCall.evidence.error, /Render web process restarted/);
   assert.equal(submissions[0].ocrEvidence.status, "failed");
   assert.equal(submissions[1].ocrEvidence.status, "pending");
+});
+
+test("server startup resumes pending PaddleOCR evidence after process restart", async () => {
+  const backgroundTasks = new Set();
+  const logMessages = [];
+  let ocrCalls = 0;
+  let latestEvidence = null;
+  const pendingSubmission = {
+    id: "resume-ocr-submission",
+    hasEntrancePhoto: true,
+    ocrEvidence: {
+      status: "pending",
+      provider: "paddleocr"
+    }
+  };
+
+  const resumedCount = await resumePendingToiletSubmissionOcr({
+    backgroundTasks,
+    database: {
+      async getToiletSubmissions({ status }) {
+        assert.equal(status, "pending");
+        return [
+          pendingSubmission,
+          {
+            id: "no-photo-submission",
+            hasEntrancePhoto: false,
+            ocrEvidence: { status: "pending", provider: "paddleocr" }
+          },
+          {
+            id: "completed-submission",
+            hasEntrancePhoto: true,
+            ocrEvidence: { status: "completed", provider: "paddleocr" }
+          }
+        ];
+      },
+      async getToiletSubmissionPhoto(toiletId) {
+        assert.equal(toiletId, pendingSubmission.id);
+        return {
+          dataUrl: tinyPngDataUrl,
+          mimeType: "image/png",
+          size: 1024
+        };
+      },
+      async updateToiletSubmissionOcr(toiletId, evidence) {
+        assert.equal(toiletId, pendingSubmission.id);
+        latestEvidence = evidence;
+        return { ...pendingSubmission, ocrEvidence: evidence };
+      }
+    },
+    logger: {
+      info: (...args) => logMessages.push(args.join(" ")),
+      warn: (...args) => logMessages.push(args.join(" ")),
+      error: (...args) => logMessages.push(args.join(" "))
+    },
+    ocrService: {
+      provider: "paddleocr",
+      timeoutMs: 1_000,
+      async extractText() {
+        ocrCalls += 1;
+        return createOcrEvidenceUpdate({
+          provider: "paddleocr",
+          status: "completed",
+          text: "Public Toilets",
+          lines: [{ text: "Public Toilets", confidence: 0.95 }],
+          confidence: 0.95
+        });
+      }
+    }
+  });
+
+  await Promise.allSettled([...backgroundTasks]);
+
+  assert.equal(resumedCount, 1);
+  assert.equal(ocrCalls, 1);
+  assert.equal(latestEvidence.status, "completed");
+  assert.match(logMessages.join("\n"), /OCR resumed after server start/);
+  assert.match(logMessages.join("\n"), /OCR finished/);
 });
 
 test("admins can retry failed PaddleOCR evidence for submitted toilet photos", async () => {
