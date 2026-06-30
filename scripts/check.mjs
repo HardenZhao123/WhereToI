@@ -158,7 +158,7 @@ if (
   !androidManifest.includes("android.permission.INTERNET") ||
   !androidManifest.includes("android.permission.ACCESS_FINE_LOCATION") ||
   !androidManifest.includes('android:usesCleartextTraffic="false"') ||
-  !androidActivity.includes('APP_ORIGIN = "https://wheretoi-webapp.onrender.com"') ||
+  !androidActivity.includes('APP_ORIGIN = "https://wheretoi-webapp-lvvt.onrender.com"') ||
   !androidActivity.includes("setAcceptThirdPartyCookies(webView, false)") ||
   !androidActivity.includes("onGeolocationPermissionsShowPrompt") ||
   !androidActivity.includes("Intent.ACTION_VIEW")

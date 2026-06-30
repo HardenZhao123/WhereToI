@@ -39,7 +39,7 @@ public final class MainActivity extends Activity {
     private static final String LOG_TAG = "WhereToI";
     private static final int LOCATION_PERMISSION_REQUEST = 1001;
     private static final long LOAD_TIMEOUT_MILLIS = 45_000;
-    private static final String APP_ORIGIN = "https://wheretoi-webapp.onrender.com";
+    private static final String APP_ORIGIN = "https://wheretoi-webapp-lvvt.onrender.com";
     private static final String APP_URL = APP_ORIGIN + "/?source=android-apk";
 
     private WebView webView;
