@@ -528,7 +528,8 @@ test("stale pending PaddleOCR evidence is marked failed for admin review", async
 
   assert.equal(updateCall.toiletId, "stale-ocr-submission");
   assert.equal(updateCall.evidence.status, "failed");
-  assert.match(updateCall.evidence.error, /stayed pending/);
+  assert.match(updateCall.evidence.error, /No OCR completion was recorded/);
+  assert.match(updateCall.evidence.error, /Render web process restarted/);
   assert.equal(submissions[0].ocrEvidence.status, "failed");
   assert.equal(submissions[1].ocrEvidence.status, "pending");
 });

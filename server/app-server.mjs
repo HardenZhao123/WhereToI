@@ -410,16 +410,44 @@ function trackBackgroundTask(backgroundTasks, task, logger, label) {
   backgroundTasks.add(trackedTask);
 }
 
+function callLogger(logger, level, ...args) {
+  const logFunction = typeof logger?.[level] === "function" ? logger[level] : logger?.log;
+  if (typeof logFunction === "function") {
+    logFunction.call(logger, ...args);
+  }
+}
+
+function formatDiagnosticByteSize(bytes) {
+  const size = Number(bytes);
+  if (!Number.isFinite(size) || size <= 0) return "unknown";
+  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(size / 1024))} KB`;
+}
+
 async function runToiletSubmissionOcr({ database, logger, ocrService, toiletId }) {
   if (typeof database.updateToiletSubmissionOcr !== "function") return;
 
   const photo = await database.getToiletSubmissionPhoto(toiletId);
   if (!photo?.dataUrl) return;
 
+  const startedAt = new Date();
+  const timeoutMs = getOcrTimeoutMs(ocrService);
+  callLogger(
+    logger,
+    "info",
+    `Toilet submission OCR started: toiletId=${toiletId} provider=${ocrService?.provider ?? "paddleocr"} photoSize=${formatDiagnosticByteSize(photo.size)} timeoutMs=${timeoutMs}`
+  );
+
   await database.updateToiletSubmissionOcr(toiletId, {
     status: "pending",
     provider: ocrService?.provider ?? "paddleocr",
-    checkedAt: new Date().toISOString()
+    text: "",
+    lines: [],
+    keywords: [],
+    openingHoursHints: [],
+    confidence: null,
+    error: "",
+    checkedAt: startedAt.toISOString()
   });
 
   try {
@@ -439,6 +467,11 @@ async function runToiletSubmissionOcr({ database, logger, ocrService, toiletId }
           };
 
     await database.updateToiletSubmissionOcr(toiletId, evidence);
+    callLogger(
+      logger,
+      "info",
+      `Toilet submission OCR finished: toiletId=${toiletId} status=${evidence?.status ?? "unknown"} provider=${evidence?.provider ?? ocrService?.provider ?? "paddleocr"} durationMs=${Date.now() - startedAt.getTime()}`
+    );
   } catch (error) {
     await database.updateToiletSubmissionOcr(toiletId, {
       status: "failed",
@@ -446,6 +479,12 @@ async function runToiletSubmissionOcr({ database, logger, ocrService, toiletId }
       error: error instanceof Error ? error.message : String(error),
       checkedAt: new Date().toISOString()
     });
+    callLogger(
+      logger,
+      "error",
+      `Toilet submission OCR crashed: toiletId=${toiletId} durationMs=${Date.now() - startedAt.getTime()}`,
+      error
+    );
     throw error;
   }
 }
@@ -499,11 +538,16 @@ export async function expireStaleToiletSubmissionOcr({ database, logger, ocrServ
       keywords: [],
       openingHoursHints: [],
       confidence: null,
-      error: `OCR stayed pending for more than ${staleAfterSeconds} seconds. The background OCR task may have been interrupted; use Retry OCR to run it again.`,
+      error: `No OCR completion was recorded after ${staleAfterSeconds} seconds. This usually means the Render web process restarted or the background OCR task was killed before it could write the PaddleOCR result. Use Retry OCR, then check Render logs for "Toilet submission OCR started" and "Toilet submission OCR finished" for this toilet id.`,
       checkedAt: now.toISOString()
     };
 
     try {
+      callLogger(
+        logger,
+        "warn",
+        `Toilet submission OCR stale pending: toiletId=${submission.id} startedAt=${submission.ocrEvidence?.checkedAt ?? "unknown"} staleAfterSeconds=${staleAfterSeconds}`
+      );
       return await database.updateToiletSubmissionOcr(submission.id, failedEvidence) ?? {
         ...submission,
         ocrEvidence: failedEvidence
