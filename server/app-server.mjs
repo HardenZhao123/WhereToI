@@ -500,6 +500,33 @@ function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrServic
   );
 }
 
+export async function resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService }) {
+  if (typeof database.getToiletSubmissions !== "function") return 0;
+
+  let submissions = [];
+  try {
+    submissions = await database.getToiletSubmissions({ status: "pending" });
+  } catch (error) {
+    callLogger(logger, "error", "Pending toilet submission OCR resume failed:", error);
+    return 0;
+  }
+
+  const resumableSubmissions = submissions.filter(
+    (submission) => submission?.hasEntrancePhoto && submission?.ocrEvidence?.status === "pending"
+  );
+
+  resumableSubmissions.forEach((submission) => {
+    callLogger(
+      logger,
+      "warn",
+      `Toilet submission OCR resumed after server start: toiletId=${submission.id}`
+    );
+    queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService, toilet: submission });
+  });
+
+  return resumableSubmissions.length;
+}
+
 function getOcrTimeoutMs(ocrService) {
   const timeoutMs = Number(ocrService?.timeoutMs ?? process.env.WHERETOI_PADDLEOCR_TIMEOUT_MS);
   return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_OCR_TIMEOUT_MS;
@@ -1267,6 +1294,12 @@ export async function createAppServer({
   const aiService = providedAiService ?? (await createAiService());
   const ocrService = providedOcrService ?? createPaddleOcrService();
   const backgroundTasks = new Set();
+  trackBackgroundTask(
+    backgroundTasks,
+    resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService }),
+    logger,
+    "Pending toilet submission OCR resume"
+  );
   const requestHandler = createRequestHandler({
     root,
     port,
