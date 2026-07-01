@@ -41,6 +41,7 @@ public final class MainActivity extends Activity {
     private static final long LOAD_TIMEOUT_MILLIS = 45_000;
     private static final String APP_ORIGIN = "https://wheretoi-webapp-lvvt.onrender.com";
     private static final String APP_URL = APP_ORIGIN + "/?source=android-apk";
+    private static final String APP_HOST = Uri.parse(APP_ORIGIN).getHost();
 
     private WebView webView;
     private ProgressBar loadingIndicator;
@@ -312,7 +313,7 @@ public final class MainActivity extends Activity {
         String host = uri.getHost();
         boolean isWebUrl = "https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme);
 
-        if (isWebUrl && "wheretoi-webapp.onrender.com".equalsIgnoreCase(host)) {
+        if (isWebUrl && APP_HOST != null && APP_HOST.equalsIgnoreCase(host)) {
             return false;
         }
 
