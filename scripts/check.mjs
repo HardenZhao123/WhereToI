@@ -494,6 +494,9 @@ if (
   !renderConfig.includes("3.10.14") ||
   !renderConfig.includes("WHERETOI_PADDLEOCR_TIMEOUT_MS") ||
   !renderConfig.includes("180000") ||
+  !renderConfig.includes("WHERETOI_PADDLEOCR_COLD_TIMEOUT_MS") ||
+  !renderConfig.includes("WHERETOI_PADDLEOCR_WARMUP_TIMEOUT_MS") ||
+  !renderConfig.includes("420000") ||
   !renderConfig.includes("WHERETOI_PADDLEOCR_MAX_IMAGE_DIMENSION") ||
   !renderConfig.includes("960") ||
   !paddleOcrRunner.includes("DEFAULT_OCR_MAX_IMAGE_DIMENSION = 960") ||
@@ -505,9 +508,11 @@ if (
   !paddleOcrRunner.includes('os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")') ||
   !paddleOcrRunner.includes("enable_mkldnn=False") ||
   !paddleOcrService.includes("parsePaddleOcrJsonOutput") ||
-  !paddleOcrService.includes("cleanPaddleOcrProcessError")
+  !paddleOcrService.includes("cleanPaddleOcrProcessError") ||
+  !paddleOcrService.includes("getPaddleOcrExecutionTimeoutMs") ||
+  !paddleOcrService.includes("warmUp")
 ) {
-  throw new Error("Expected PaddleOCR deployment to use setuptools, NumPy 1.x, pinned 2.x dependencies, Python 3.10, OCR image downscaling, quiet JSON output parsing, a longer timeout, and constrained oneDNN-disabled CPU execution.");
+  throw new Error("Expected PaddleOCR deployment to use setuptools, NumPy 1.x, pinned 2.x dependencies, Python 3.10, OCR image downscaling, quiet JSON output parsing, warmup/cold-start timeouts, and constrained oneDNN-disabled CPU execution.");
 }
 
 if (

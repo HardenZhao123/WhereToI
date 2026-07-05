@@ -19,6 +19,10 @@ services:
         value: python3
       - key: WHERETOI_PADDLEOCR_TIMEOUT_MS
         value: "180000"
+      - key: WHERETOI_PADDLEOCR_COLD_TIMEOUT_MS
+        value: "420000"
+      - key: WHERETOI_PADDLEOCR_WARMUP_TIMEOUT_MS
+        value: "420000"
       - key: WHERETOI_PADDLEOCR_MAX_IMAGE_DIMENSION
         value: "960"
       - key: WHERETOI_PERSON_DETECTION_PROVIDER

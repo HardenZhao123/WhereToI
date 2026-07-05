@@ -501,6 +501,20 @@ function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrServic
   );
 }
 
+function queueOcrWarmup({ backgroundTasks, logger, ocrService }) {
+  if (typeof ocrService?.warmUp !== "function") return Promise.resolve();
+
+  let warmupTask;
+  try {
+    warmupTask = Promise.resolve(ocrService.warmUp({ logger }));
+  } catch (error) {
+    warmupTask = Promise.reject(error);
+  }
+
+  trackBackgroundTask(backgroundTasks, warmupTask, logger, "PaddleOCR warmup");
+  return warmupTask.catch(() => undefined);
+}
+
 export async function resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService }) {
   if (typeof database.getToiletSubmissions !== "function") return 0;
 
@@ -529,8 +543,15 @@ export async function resumePendingToiletSubmissionOcr({ backgroundTasks, databa
 }
 
 function getOcrTimeoutMs(ocrService) {
-  const timeoutMs = Number(ocrService?.timeoutMs ?? process.env.WHERETOI_PADDLEOCR_TIMEOUT_MS);
-  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_OCR_TIMEOUT_MS;
+  const timeoutCandidates = [
+    ocrService?.timeoutMs,
+    ocrService?.coldTimeoutMs,
+    process.env.WHERETOI_PADDLEOCR_TIMEOUT_MS,
+    process.env.WHERETOI_PADDLEOCR_COLD_TIMEOUT_MS
+  ]
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  return timeoutCandidates.length > 0 ? Math.max(...timeoutCandidates) : DEFAULT_OCR_TIMEOUT_MS;
 }
 
 function getStalePendingOcrCutoffMs(ocrService) {
@@ -1320,9 +1341,10 @@ export async function createAppServer({
   const ocrService = providedOcrService ?? createPaddleOcrService();
   const personDetectionService = providedPersonDetectionService ?? createYoloPersonDetectionService();
   const backgroundTasks = new Set();
+  const ocrWarmupTask = queueOcrWarmup({ backgroundTasks, logger, ocrService });
   trackBackgroundTask(
     backgroundTasks,
-    resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService }),
+    ocrWarmupTask.then(() => resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService })),
     logger,
     "Pending toilet submission OCR resume"
   );

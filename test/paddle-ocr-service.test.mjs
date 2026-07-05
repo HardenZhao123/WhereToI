@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parsePaddleOcrJsonOutput } from "../server/ocr/paddle-ocr-service.mjs";
+import { getPaddleOcrExecutionTimeoutMs, parsePaddleOcrJsonOutput } from "../server/ocr/paddle-ocr-service.mjs";
 
 test("PaddleOCR service parses JSON after model download progress output", () => {
   const output = [
@@ -19,4 +19,23 @@ test("PaddleOCR service parses JSON after model download progress output", () =>
 
 test("PaddleOCR service returns null when no JSON result is present", () => {
   assert.equal(parsePaddleOcrJsonOutput("0%| | 0.00/4.00M [00:00<?, ?iB/s]"), null);
+});
+
+test("PaddleOCR service uses the cold timeout until warmup completes", () => {
+  assert.equal(
+    getPaddleOcrExecutionTimeoutMs({
+      timeoutMs: 180_000,
+      coldTimeoutMs: 420_000,
+      warmedUp: false
+    }),
+    420_000
+  );
+  assert.equal(
+    getPaddleOcrExecutionTimeoutMs({
+      timeoutMs: 180_000,
+      coldTimeoutMs: 420_000,
+      warmedUp: true
+    }),
+    180_000
+  );
 });
