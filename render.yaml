@@ -19,6 +19,10 @@ services:
         value: python3
       - key: WHERETOI_PADDLEOCR_TIMEOUT_MS
         value: "180000"
+      - key: WHERETOI_PADDLEOCR_COLD_TIMEOUT_MS
+        value: "420000"
+      - key: WHERETOI_PADDLEOCR_WARMUP_TIMEOUT_MS
+        value: "420000"
       - key: WHERETOI_PADDLEOCR_MAX_IMAGE_DIMENSION
         value: "960"
       - key: WHERETOI_PERSON_DETECTION_PROVIDER
@@ -29,10 +33,14 @@ services:
         value: yolo26n-seg.pt
       - key: WHERETOI_YOLO_PERSON_CONFIDENCE
         value: "0.25"
+      - key: WHERETOI_YOLO_PERSON_IMAGE_SIZE
+        value: "512"
+      - key: WHERETOI_YOLO_PERSON_MAX_IMAGE_DIMENSION
+        value: "960"
       - key: WHERETOI_YOLO_PERSON_BLUR_RADIUS
         value: "18"
       - key: WHERETOI_YOLO_PERSON_TIMEOUT_MS
-        value: "120000"
+        value: "45000"
       - key: PYTHON_VERSION
         value: 3.10.14
       - key: WHERETOI_CLEANLINESS_SCORING_MODEL

@@ -7,8 +7,12 @@ import { createOcrEvidenceUpdate } from "./ocr-analysis.mjs";
 
 const DATA_URL_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([a-z0-9+/=\r\n]+)$/i;
 const DEFAULT_TIMEOUT_MS = 180_000;
+const DEFAULT_COLD_TIMEOUT_MS = 420_000;
+const DEFAULT_WARMUP_TIMEOUT_MS = 420_000;
 const OCR_PROCESS_MAX_BUFFER = 8 * 1024 * 1024;
 const RUNNER_PATH = fileURLToPath(new URL("../../scripts/paddle_ocr_runner.py", import.meta.url));
+const WARMUP_IMAGE_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAAAAYLlVAAAAK0lEQVR42u3OQQ0AAAgEoNP6p7ZkQICym5kAAAAAAAAAAAAAAAAAAOD1AoBAAAG8m0UxAAAAAElFTkSuQmCC";
 
 function getImageExtension(mimeType) {
   if (mimeType === "image/png") return ".png";
@@ -83,6 +87,24 @@ function execFileJson(command, args, { timeoutMs }) {
   });
 }
 
+function getPositiveTimeoutMs(value, fallback) {
+  const timeoutMs = Number(value);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : fallback;
+}
+
+export function getPaddleOcrExecutionTimeoutMs({ timeoutMs, coldTimeoutMs, warmedUp } = {}) {
+  const standardTimeoutMs = getPositiveTimeoutMs(timeoutMs, DEFAULT_TIMEOUT_MS);
+  const firstRunTimeoutMs = getPositiveTimeoutMs(coldTimeoutMs, DEFAULT_COLD_TIMEOUT_MS);
+  return warmedUp ? standardTimeoutMs : Math.max(standardTimeoutMs, firstRunTimeoutMs);
+}
+
+function logServiceMessage(logger, level, ...args) {
+  const logFunction = typeof logger?.[level] === "function" ? logger[level] : logger?.log;
+  if (typeof logFunction === "function") {
+    logFunction.call(logger, ...args);
+  }
+}
+
 async function withTemporaryImage(dataUrl, callback) {
   const match = String(dataUrl || "").match(DATA_URL_PATTERN);
   if (!match) {
@@ -110,12 +132,54 @@ export function createPaddleOcrService({
   enabled = String(process.env.WHERETOI_OCR_PROVIDER ?? "").toLowerCase() === "paddle",
   pythonCommand = process.env.WHERETOI_PADDLEOCR_PYTHON ?? "python3",
   runnerPath = RUNNER_PATH,
-  timeoutMs = Number(process.env.WHERETOI_PADDLEOCR_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS
+  timeoutMs = getPositiveTimeoutMs(process.env.WHERETOI_PADDLEOCR_TIMEOUT_MS, DEFAULT_TIMEOUT_MS),
+  coldTimeoutMs = getPositiveTimeoutMs(process.env.WHERETOI_PADDLEOCR_COLD_TIMEOUT_MS, DEFAULT_COLD_TIMEOUT_MS),
+  warmupTimeoutMs = getPositiveTimeoutMs(process.env.WHERETOI_PADDLEOCR_WARMUP_TIMEOUT_MS, DEFAULT_WARMUP_TIMEOUT_MS)
 } = {}) {
+  let warmedUp = false;
+  let warmupPromise = null;
+
+  async function runPaddleOcr(dataUrl, { executionTimeoutMs }) {
+    return withTemporaryImage(dataUrl, (imagePath) =>
+      execFileJson(pythonCommand, [runnerPath, imagePath], { timeoutMs: executionTimeoutMs })
+    );
+  }
+
   return {
     provider: "paddleocr",
     enabled,
     timeoutMs,
+    coldTimeoutMs,
+    warmupTimeoutMs,
+    get warmedUp() {
+      return warmedUp;
+    },
+    async warmUp({ logger } = {}) {
+      if (!enabled) return { status: "skipped", provider: "paddleocr" };
+      if (warmedUp) return { status: "completed", provider: "paddleocr" };
+      if (warmupPromise) return warmupPromise;
+
+      const startedAt = Date.now();
+      logServiceMessage(logger, "info", `PaddleOCR warmup started: timeoutMs=${warmupTimeoutMs}`);
+      warmupPromise = runPaddleOcr(WARMUP_IMAGE_DATA_URL, { executionTimeoutMs: warmupTimeoutMs })
+        .then((rawResult) => {
+          if (rawResult?.status !== "failed" && rawResult?.status !== "unavailable") {
+            warmedUp = true;
+          }
+          const level = warmedUp ? "info" : "warn";
+          logServiceMessage(
+            logger,
+            level,
+            `PaddleOCR warmup finished: status=${rawResult?.status ?? "unknown"} durationMs=${Date.now() - startedAt}`
+          );
+          return rawResult;
+        })
+        .finally(() => {
+          warmupPromise = null;
+        });
+
+      return warmupPromise;
+    },
     async extractText({ dataUrl } = {}) {
       if (!enabled) {
         return createOcrEvidenceUpdate({
@@ -125,9 +189,11 @@ export function createPaddleOcrService({
         });
       }
 
-      const rawResult = await withTemporaryImage(dataUrl, (imagePath) =>
-        execFileJson(pythonCommand, [runnerPath, imagePath], { timeoutMs })
-      );
+      const executionTimeoutMs = getPaddleOcrExecutionTimeoutMs({ timeoutMs, coldTimeoutMs, warmedUp });
+      const rawResult = await runPaddleOcr(dataUrl, { executionTimeoutMs });
+      if (rawResult?.status !== "failed" && rawResult?.status !== "unavailable") {
+        warmedUp = true;
+      }
 
       return createOcrEvidenceUpdate({
         provider: rawResult.provider || "paddleocr",

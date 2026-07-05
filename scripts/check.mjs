@@ -494,6 +494,9 @@ if (
   !renderConfig.includes("3.10.14") ||
   !renderConfig.includes("WHERETOI_PADDLEOCR_TIMEOUT_MS") ||
   !renderConfig.includes("180000") ||
+  !renderConfig.includes("WHERETOI_PADDLEOCR_COLD_TIMEOUT_MS") ||
+  !renderConfig.includes("WHERETOI_PADDLEOCR_WARMUP_TIMEOUT_MS") ||
+  !renderConfig.includes("420000") ||
   !renderConfig.includes("WHERETOI_PADDLEOCR_MAX_IMAGE_DIMENSION") ||
   !renderConfig.includes("960") ||
   !paddleOcrRunner.includes("DEFAULT_OCR_MAX_IMAGE_DIMENSION = 960") ||
@@ -505,9 +508,11 @@ if (
   !paddleOcrRunner.includes('os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")') ||
   !paddleOcrRunner.includes("enable_mkldnn=False") ||
   !paddleOcrService.includes("parsePaddleOcrJsonOutput") ||
-  !paddleOcrService.includes("cleanPaddleOcrProcessError")
+  !paddleOcrService.includes("cleanPaddleOcrProcessError") ||
+  !paddleOcrService.includes("getPaddleOcrExecutionTimeoutMs") ||
+  !paddleOcrService.includes("warmUp")
 ) {
-  throw new Error("Expected PaddleOCR deployment to use setuptools, NumPy 1.x, pinned 2.x dependencies, Python 3.10, OCR image downscaling, quiet JSON output parsing, a longer timeout, and constrained oneDNN-disabled CPU execution.");
+  throw new Error("Expected PaddleOCR deployment to use setuptools, NumPy 1.x, pinned 2.x dependencies, Python 3.10, OCR image downscaling, quiet JSON output parsing, warmup/cold-start timeouts, and constrained oneDNN-disabled CPU execution.");
 }
 
 if (
@@ -516,13 +521,18 @@ if (
   !renderConfig.includes("WHERETOI_PERSON_DETECTION_PROVIDER") ||
   !renderConfig.includes("WHERETOI_YOLO_PERSON_MODEL") ||
   !renderConfig.includes("yolo26n-seg.pt") ||
+  !renderConfig.includes("WHERETOI_YOLO_PERSON_IMAGE_SIZE") ||
+  !renderConfig.includes("WHERETOI_YOLO_PERSON_MAX_IMAGE_DIMENSION") ||
   !renderConfig.includes("WHERETOI_YOLO_PERSON_BLUR_RADIUS") ||
+  !renderConfig.includes("45000") ||
   !server.includes("POST /api/toilets/photo/person-detection") ||
   !server.includes("createYoloPersonDetectionService") ||
   !toiletsService.includes("detectPeopleInToiletPhoto") ||
   !html.includes("add-toilet-photo-person-overlay") ||
   !css.includes(".add-toilet-person-box") ||
   !yoloPersonRunner.includes("classes=[0]") ||
+  !yoloPersonRunner.includes("imgsz=image_size") ||
+  !yoloPersonRunner.includes("prepare_image_for_person_detection") ||
   !yoloPersonRunner.includes("WHERETOI_YOLO_PERSON_MODEL") ||
   !yoloPersonRunner.includes("DEFAULT_PERSON_MODEL = \"yolo26n-seg.pt\"") ||
   !yoloPersonRunner.includes("create_blurred_person_image") ||

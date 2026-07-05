@@ -5,10 +5,13 @@ import base64
 import json
 import os
 import sys
+from tempfile import TemporaryDirectory
 
 DEFAULT_PERSON_MODEL = "yolo26n-seg.pt"
 DEFAULT_PERSON_CONFIDENCE = 0.25
 DEFAULT_PERSON_BLUR_RADIUS = 18
+DEFAULT_PERSON_IMAGE_SIZE = 512
+DEFAULT_PERSON_MAX_IMAGE_DIMENSION = 960
 
 
 class QuietWriter:
@@ -34,6 +37,14 @@ def get_confidence_env(name, default):
     return max(0.01, min(0.99, value))
 
 
+def get_positive_int_env(name, default, minimum=1, maximum=100_000):
+    try:
+        value = int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, value))
+
+
 def clamp_unit(value):
     try:
         number = float(value)
@@ -48,6 +59,36 @@ def get_positive_float_env(name, default, minimum=1.0, maximum=100.0):
     except (TypeError, ValueError):
         return default
     return max(minimum, min(maximum, value))
+
+
+@contextmanager
+def prepare_image_for_person_detection(image_path):
+    try:
+        from PIL import Image, ImageOps
+    except Exception:
+        yield image_path
+        return
+
+    max_dimension = get_positive_int_env(
+        "WHERETOI_YOLO_PERSON_MAX_IMAGE_DIMENSION",
+        DEFAULT_PERSON_MAX_IMAGE_DIMENSION,
+        minimum=320,
+        maximum=1600
+    )
+
+    try:
+        with Image.open(image_path) as source_image:
+            image = ImageOps.exif_transpose(source_image).convert("RGB")
+            if max(image.size) > max_dimension:
+                resample_filter = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.BICUBIC)
+                image.thumbnail((max_dimension, max_dimension), resample_filter)
+
+            with TemporaryDirectory(prefix="wheretoi-yolo-person-input-") as directory:
+                prepared_path = os.path.join(directory, "person-detection.jpg")
+                image.save(prepared_path, "JPEG", quality=86, optimize=True)
+                yield prepared_path
+    except Exception:
+        yield image_path
 
 
 def encode_jpeg_data_url(image):
@@ -129,6 +170,12 @@ def create_blurred_person_image(image_path, boxes, polygons, blur_radius):
 def run_detection(image_path):
     model_name = os.environ.get("WHERETOI_YOLO_PERSON_MODEL", DEFAULT_PERSON_MODEL)
     confidence = get_confidence_env("WHERETOI_YOLO_PERSON_CONFIDENCE", DEFAULT_PERSON_CONFIDENCE)
+    image_size = get_positive_int_env(
+        "WHERETOI_YOLO_PERSON_IMAGE_SIZE",
+        DEFAULT_PERSON_IMAGE_SIZE,
+        minimum=320,
+        maximum=1280
+    )
     blur_radius = get_positive_float_env(
         "WHERETOI_YOLO_PERSON_BLUR_RADIUS",
         DEFAULT_PERSON_BLUR_RADIUS,
@@ -148,12 +195,15 @@ def run_detection(image_path):
         }
 
     try:
+        prepared_image_context = prepare_image_for_person_detection(image_path)
+        prepared_image = prepared_image_context.__enter__()
         with quiet_library_output():
             model = YOLO(model_name)
             results = model.predict(
-                source=image_path,
+                source=prepared_image,
                 classes=[0],
                 conf=confidence,
+                imgsz=image_size,
                 verbose=False
             )
 
@@ -206,7 +256,7 @@ def run_detection(image_path):
 
         polygons = get_mask_polygons(result)
         blurred_image, blur_error = (
-            create_blurred_person_image(image_path, boxes, polygons, blur_radius)
+            create_blurred_person_image(prepared_image, boxes, polygons, blur_radius)
             if boxes
             else (None, "")
         )
@@ -228,6 +278,11 @@ def run_detection(image_path):
             "model": model_name,
             "error": str(exc)
         }
+    finally:
+        try:
+            prepared_image_context.__exit__(None, None, None)
+        except Exception:
+            pass
 
 
 def main():
