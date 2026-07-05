@@ -559,7 +559,11 @@ export function renderPublicProfile(
 export function renderToiletSubmissions(
   submissionsContainer,
   submissions,
-  { onReviewSubmission = () => {}, onRetryOcr = () => {}, openSubmissionIds = new Set() } = {}
+  {
+    onReviewSubmission = () => {},
+    onRetryOcr = () => {},
+    openSubmissionIds = new Set()
+  } = {}
 ) {
   if (!submissionsContainer) return;
 

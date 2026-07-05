@@ -535,17 +535,14 @@ if (
   !renderConfig.includes("45000") ||
   !server.includes("POST /api/toilets/photo/person-detection") ||
   !server.includes("createYoloPersonDetectionService") ||
-  !server.includes("queueStartupModelWarmup") ||
+  !server.includes("createPendingToiletSubmissionOcrEvidence") ||
+  !server.includes("database.updateToiletSubmissionOcr(toilet.id") ||
   !server.includes("queueToiletSubmissionPhotoReview") ||
   !server.includes("runToiletSubmissionPhotoModeration") ||
   !server.includes("resumePendingToiletSubmissionPhotoModeration") ||
   !server.includes("updateToiletSubmissionPhoto") ||
   !toiletsService.includes("detectPeopleInToiletPhoto") ||
   !toiletsService.includes("signal") ||
-  !js.includes("addToiletPersonDetectionSoftDeadlineMs = 10_000") ||
-  !js.includes("AbortController") ||
-  !js.includes("addToiletBlurredPhoto ?? addToiletPhoto") ||
-  !js.includes("original photo will be sent") ||
   !html.includes("add-toilet-photo-person-overlay") ||
   !css.includes(".add-toilet-person-box") ||
   !yoloPersonRunner.includes("classes=[0]") ||
@@ -562,7 +559,16 @@ if (
   !yoloPersonService.includes("createPersonDetectionEvidence") ||
   !yoloPersonService.includes("blurredImage")
 ) {
-  throw new Error("Expected add-toilet photo previews to use CPU-only YOLO person segmentation with yolo26n-seg, person-only class filtering, startup warmup/cold timeouts, preview overlay boxes, and blurred person images.");
+  throw new Error("Expected automatic add-toilet photo checks to use CPU-only YOLO person segmentation with yolo26n-seg, person-only class filtering, cold timeouts, and blurred person images after user submission.");
+}
+
+if (
+  server.includes("POST /api/admin/toilet-submissions/photo-check/run") ||
+  js.includes("runToiletSubmissionPhotoChecks") ||
+  js.includes("submission-photo-check") ||
+  js.includes("Run photo checks")
+) {
+  throw new Error("Expected add-toilet photo checks to run automatically after submission, without an admin Run photo checks button or endpoint.");
 }
 
 if (

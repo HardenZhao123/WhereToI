@@ -2450,19 +2450,15 @@ test("map controller records access history when opening directions if authentic
   }
 });
 
-test("add toilet photo preview appears immediately and person detection stops after ten seconds", async () => {
+test("add toilet photo preview appears immediately without running person detection", async () => {
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
   const originalImage = globalThis.Image;
   const originalFileReader = globalThis.FileReader;
   const originalFetch = globalThis.fetch;
   const originalUrl = globalThis.URL;
-  const originalSetTimeout = globalThis.setTimeout;
-  const originalClearTimeout = globalThis.clearTimeout;
 
-  let timeoutCallback = null;
-  let timeoutDelay = null;
-  let detectionSignal = null;
+  let fetchCalls = 0;
   const revokedUrls = [];
 
   class FakeImage {
@@ -2547,21 +2543,9 @@ test("add toilet photo preview appears immediately and person detection stops af
       setItem() {}
     }
   };
-  globalThis.setTimeout = (callback, delay) => {
-    timeoutCallback = callback;
-    timeoutDelay = delay;
-    return 1001;
-  };
-  globalThis.clearTimeout = () => {};
-  globalThis.fetch = async (_url, options = {}) => {
-    detectionSignal = options.signal;
-    return new Promise((_resolve, reject) => {
-      options.signal?.addEventListener("abort", () => {
-        const error = new Error("Aborted");
-        error.name = "AbortError";
-        reject(error);
-      });
-    });
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw new Error("User-side person detection should not run.");
   };
 
   const photoStatus = createTextElement();
@@ -2602,16 +2586,9 @@ test("add toilet photo preview appears immediately and person detection stops af
 
     assert.equal(photoImage.src, "data:image/jpeg;base64,compressed");
     assert.ok(revokedUrls.includes("blob:instant-preview-1"));
-    assert.equal(timeoutDelay, 10_000);
-    assert.match(photoStatus.textContent, /Checking for people/);
-
-    timeoutCallback();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    assert.equal(detectionSignal.aborted, true);
-    assert.match(photoStatus.textContent, /original photo will be sent/);
-    assert.equal(photoStatus.classList.contains("warning"), true);
+    assert.equal(fetchCalls, 0);
+    assert.equal(photoStatus.textContent, "Photo ready (1 KB).");
+    assert.equal(photoStatus.classList.contains("warning"), false);
   } finally {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
@@ -2619,8 +2596,6 @@ test("add toilet photo preview appears immediately and person detection stops af
     globalThis.FileReader = originalFileReader;
     globalThis.fetch = originalFetch;
     globalThis.URL = originalUrl;
-    globalThis.setTimeout = originalSetTimeout;
-    globalThis.clearTimeout = originalClearTimeout;
   }
 });
 
