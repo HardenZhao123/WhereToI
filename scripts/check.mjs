@@ -537,6 +537,11 @@ if (
   !server.includes("createYoloPersonDetectionService") ||
   !server.includes("queueStartupModelWarmup") ||
   !toiletsService.includes("detectPeopleInToiletPhoto") ||
+  !toiletsService.includes("signal") ||
+  !js.includes("addToiletPersonDetectionSoftDeadlineMs = 10_000") ||
+  !js.includes("AbortController") ||
+  !js.includes("addToiletBlurredPhoto ?? addToiletPhoto") ||
+  !js.includes("original photo will be sent") ||
   !html.includes("add-toilet-photo-person-overlay") ||
   !css.includes(".add-toilet-person-box") ||
   !yoloPersonRunner.includes("classes=[0]") ||

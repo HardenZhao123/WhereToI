@@ -246,9 +246,10 @@ export async function submitToiletContribution(payload) {
   return result.toilet ?? null;
 }
 
-export async function detectPeopleInToiletPhoto({ dataUrl } = {}) {
+export async function detectPeopleInToiletPhoto({ dataUrl, signal } = {}) {
   const payload = await fetchJson(`${appConfig.apiBasePath}/toilets/photo/person-detection`, {
     method: "POST",
+    signal,
     body: JSON.stringify({ dataUrl })
   });
 

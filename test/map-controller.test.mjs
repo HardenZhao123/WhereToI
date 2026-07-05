@@ -2450,6 +2450,180 @@ test("map controller records access history when opening directions if authentic
   }
 });
 
+test("add toilet photo preview appears immediately and person detection stops after ten seconds", async () => {
+  const originalDocument = globalThis.document;
+  const originalWindow = globalThis.window;
+  const originalImage = globalThis.Image;
+  const originalFileReader = globalThis.FileReader;
+  const originalFetch = globalThis.fetch;
+  const originalUrl = globalThis.URL;
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+
+  let timeoutCallback = null;
+  let timeoutDelay = null;
+  let detectionSignal = null;
+  const revokedUrls = [];
+
+  class FakeImage {
+    constructor() {
+      this.naturalWidth = 640;
+      this.naturalHeight = 480;
+      this.listeners = {};
+    }
+
+    addEventListener(eventName, callback) {
+      this.listeners[eventName] = callback;
+    }
+
+    set src(value) {
+      this._src = value;
+      queueMicrotask(() => this.listeners.load?.());
+    }
+
+    get src() {
+      return this._src;
+    }
+  }
+
+  class FakeFileReader {
+    constructor() {
+      this.result = "";
+      this.listeners = {};
+    }
+
+    addEventListener(eventName, callback) {
+      this.listeners[eventName] = callback;
+    }
+
+    readAsDataURL() {
+      this.result = "data:image/jpeg;base64,compressed";
+      queueMicrotask(() => this.listeners.load?.());
+    }
+  }
+
+  globalThis.Image = FakeImage;
+  globalThis.FileReader = FakeFileReader;
+  let objectUrlCount = 0;
+  globalThis.URL = {
+    createObjectURL() {
+      objectUrlCount += 1;
+      return `blob:instant-preview-${objectUrlCount}`;
+    },
+    revokeObjectURL(url) {
+      revokedUrls.push(url);
+    }
+  };
+  globalThis.document = {
+    addEventListener() {},
+    querySelector() {
+      return null;
+    },
+    createElement(tagName) {
+      if (tagName === "canvas") {
+        return {
+          width: 0,
+          height: 0,
+          getContext() {
+            return {
+              fillStyle: "",
+              fillRect() {},
+              drawImage() {}
+            };
+          },
+          toBlob(callback) {
+            callback(new Blob(["compressed"], { type: "image/jpeg" }));
+          }
+        };
+      }
+      return createTextElement();
+    }
+  };
+  globalThis.window = {
+    localStorage: {
+      getItem() {
+        return null;
+      },
+      setItem() {}
+    }
+  };
+  globalThis.setTimeout = (callback, delay) => {
+    timeoutCallback = callback;
+    timeoutDelay = delay;
+    return 1001;
+  };
+  globalThis.clearTimeout = () => {};
+  globalThis.fetch = async (_url, options = {}) => {
+    detectionSignal = options.signal;
+    return new Promise((_resolve, reject) => {
+      options.signal?.addEventListener("abort", () => {
+        const error = new Error("Aborted");
+        error.name = "AbortError";
+        reject(error);
+      });
+    });
+  };
+
+  const photoStatus = createTextElement();
+  photoStatus.classList = createRecordingClassList();
+  const photoInput = {
+    files: [new Blob(["photo"], { type: "image/jpeg" })],
+    value: ""
+  };
+  const photoImage = {
+    src: "",
+    removeAttribute(name) {
+      if (name === "src") this.src = "";
+    }
+  };
+  const photoPreview = { hidden: true };
+  const removeButton = { hidden: true };
+
+  try {
+    const controller = createMapController(
+      {
+        addToiletPhotoInput: photoInput,
+        addToiletPhotoStatus: photoStatus,
+        addToiletPhotoImage: photoImage,
+        addToiletPhotoPreview: photoPreview,
+        addToiletPhotoRemoveButton: removeButton,
+        addToiletPhotoPersonOverlay: createTextElement(),
+        addToiletSubmitButton: { disabled: false, textContent: "" }
+      },
+      () => {},
+      { currentUser: { id: 1, username: "tester" } }
+    );
+
+    const changePromise = controller.handleAddToiletPhotoChange();
+    assert.equal(photoImage.src, "blob:instant-preview-1");
+    assert.equal(photoPreview.hidden, false);
+
+    await changePromise;
+
+    assert.equal(photoImage.src, "data:image/jpeg;base64,compressed");
+    assert.ok(revokedUrls.includes("blob:instant-preview-1"));
+    assert.equal(timeoutDelay, 10_000);
+    assert.match(photoStatus.textContent, /Checking for people/);
+
+    timeoutCallback();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(detectionSignal.aborted, true);
+    assert.match(photoStatus.textContent, /original photo will be sent/);
+    assert.equal(photoStatus.classList.contains("warning"), true);
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.window = originalWindow;
+    globalThis.Image = originalImage;
+    globalThis.FileReader = originalFileReader;
+    globalThis.fetch = originalFetch;
+    globalThis.URL = originalUrl;
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});
+
 test("map controller does not record access history when opening directions if unauthenticated", async () => {
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;
