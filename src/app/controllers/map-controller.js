@@ -41,6 +41,7 @@ const duplicateToiletRadiusMetres = 35;
 const defaultCleanlinessRange = "3days";
 const addToiletHourDayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const touchCommentComposerQuery = "(hover: none), (pointer: coarse), (max-width: 760px)";
+const addToiletPersonDetectionSoftDeadlineMs = 10_000;
 const locationRequestOptions = Object.freeze({
   enableHighAccuracy: true,
   timeout: 10000,
@@ -231,8 +232,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let addToiletLocation = null;
   let addToiletDraftMarker = null;
   let addToiletPhoto = null;
+  let addToiletBlurredPhoto = null;
+  let addToiletPhotoPreviewObjectUrl = null;
   let addToiletPhotoProcessing = false;
   let addToiletPhotoDetectionRequestId = 0;
+  let addToiletPhotoDetectionAbortController = null;
+  let addToiletPhotoDetectionDeadline = null;
 
   const feedbackThreadController = createFeedbackThreadController(
     {
@@ -1587,6 +1592,35 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     addToiletPhotoStatus.classList?.toggle?.("warning", warning);
   }
 
+  function revokeAddToiletPhotoPreviewObjectUrl() {
+    if (!addToiletPhotoPreviewObjectUrl) return;
+    globalThis.URL?.revokeObjectURL?.(addToiletPhotoPreviewObjectUrl);
+    addToiletPhotoPreviewObjectUrl = null;
+  }
+
+  function clearAddToiletPhotoDetectionDeadline() {
+    if (!addToiletPhotoDetectionDeadline) return;
+    clearTimeout(addToiletPhotoDetectionDeadline);
+    addToiletPhotoDetectionDeadline = null;
+  }
+
+  function cancelAddToiletPhotoDetection() {
+    clearAddToiletPhotoDetectionDeadline();
+    addToiletPhotoDetectionAbortController?.abort?.();
+    addToiletPhotoDetectionAbortController = null;
+  }
+
+  function showImmediateAddToiletPhotoPreview(file) {
+    revokeAddToiletPhotoPreviewObjectUrl();
+    const objectUrl = globalThis.URL?.createObjectURL?.(file);
+    if (!objectUrl) return;
+
+    addToiletPhotoPreviewObjectUrl = objectUrl;
+    if (addToiletPhotoImage) addToiletPhotoImage.src = objectUrl;
+    if (addToiletPhotoPreview) addToiletPhotoPreview.hidden = false;
+    if (addToiletPhotoRemoveButton) addToiletPhotoRemoveButton.hidden = false;
+  }
+
   function clearAddToiletPersonOverlay() {
     if (addToiletPhotoPersonOverlay) {
       addToiletPhotoPersonOverlay.textContent = "";
@@ -1657,9 +1691,23 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     setAddToiletPhotoStatus(`Photo ready (${sizeKilobytes} KB). Checking for people...`);
+    cancelAddToiletPhotoDetection();
+    const abortController = typeof AbortController === "function" ? new AbortController() : null;
+    addToiletPhotoDetectionAbortController = abortController;
+    addToiletPhotoDetectionDeadline = setTimeout(() => {
+      if (requestId !== addToiletPhotoDetectionRequestId || photo !== addToiletPhoto) return;
+      setAddToiletPhotoStatus(
+        `Photo ready (${sizeKilobytes} KB). Person check is taking longer than 10 seconds; you can submit now and the original photo will be sent.`,
+        { warning: true }
+      );
+      abortController?.abort?.();
+    }, addToiletPersonDetectionSoftDeadlineMs);
 
     try {
-      const personDetection = await detectPeopleInToiletPhoto({ dataUrl: photo.dataUrl });
+      const personDetection = await detectPeopleInToiletPhoto({
+        dataUrl: photo.dataUrl,
+        signal: abortController?.signal
+      });
       if (requestId !== addToiletPhotoDetectionRequestId || photo !== addToiletPhoto) return;
 
       const blurredPhoto = personDetection?.blurredImage?.dataUrl
@@ -1671,7 +1719,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
           }
         : null;
       if (blurredPhoto) {
-        addToiletPhoto = blurredPhoto;
+        addToiletBlurredPhoto = blurredPhoto;
         if (addToiletPhotoImage) addToiletPhotoImage.src = blurredPhoto.dataUrl;
       }
 
@@ -1680,6 +1728,13 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       setAddToiletPhotoStatus(status.message, { warning: status.warning });
     } catch (error) {
       if (requestId !== addToiletPhotoDetectionRequestId || photo !== addToiletPhoto) return;
+      if (error?.name === "AbortError") {
+        setAddToiletPhotoStatus(
+          `Photo ready (${sizeKilobytes} KB). Person check is taking longer than 10 seconds; you can submit now and the original photo will be sent.`,
+          { warning: true }
+        );
+        return;
+      }
       clearAddToiletPersonOverlay();
       setAddToiletPhotoStatus(
         error?.status === 401
@@ -1687,12 +1742,22 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
           : `Photo ready (${sizeKilobytes} KB). Person detection failed.`,
         { warning: error?.status !== 401 }
       );
+    } finally {
+      if (requestId === addToiletPhotoDetectionRequestId) {
+        clearAddToiletPhotoDetectionDeadline();
+        if (addToiletPhotoDetectionAbortController === abortController) {
+          addToiletPhotoDetectionAbortController = null;
+        }
+      }
     }
   }
 
   function removeAddToiletPhoto({ syncSubmitState = true } = {}) {
     addToiletPhotoDetectionRequestId += 1;
+    cancelAddToiletPhotoDetection();
+    revokeAddToiletPhotoPreviewObjectUrl();
     addToiletPhoto = null;
+    addToiletBlurredPhoto = null;
     addToiletPhotoProcessing = false;
     if (addToiletPhotoInput) addToiletPhotoInput.value = "";
     if (addToiletPhotoImage) addToiletPhotoImage.removeAttribute?.("src");
@@ -1712,14 +1777,17 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
 
     addToiletPhotoProcessing = true;
     addToiletPhotoDetectionRequestId += 1;
+    cancelAddToiletPhotoDetection();
     addToiletPhoto = null;
+    addToiletBlurredPhoto = null;
     clearAddToiletPersonOverlay();
-    if (addToiletPhotoPreview) addToiletPhotoPreview.hidden = true;
-    setAddToiletPhotoStatus("Preparing photo...");
+    showImmediateAddToiletPhotoPreview(file);
+    setAddToiletPhotoStatus("Preparing upload copy...");
     syncAddToiletSubmitState();
 
     try {
       addToiletPhoto = await compressEntrancePhoto(file);
+      revokeAddToiletPhotoPreviewObjectUrl();
       if (addToiletPhotoImage) addToiletPhotoImage.src = addToiletPhoto.dataUrl;
       if (addToiletPhotoPreview) addToiletPhotoPreview.hidden = false;
       if (addToiletPhotoRemoveButton) addToiletPhotoRemoveButton.hidden = false;
@@ -2018,6 +2086,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       throw new Error(`${duplicate.toilet.name} is already on the map.`);
     }
 
+    const submissionPhoto = addToiletBlurredPhoto ?? addToiletPhoto;
+
     return {
       name,
       area: addToiletAreaInput?.value?.trim() ?? "",
@@ -2026,8 +2096,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       lng,
       features: getAddToiletFeatures(),
       openingTimes: getAddToiletOpeningTimes(),
-      entrancePhoto: addToiletPhoto
-        ? { dataUrl: addToiletPhoto.dataUrl }
+      entrancePhoto: submissionPhoto
+        ? { dataUrl: submissionPhoto.dataUrl }
         : null,
       ...getAddToiletLocationEvidence()
     };

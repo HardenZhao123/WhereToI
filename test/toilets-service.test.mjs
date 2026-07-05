@@ -322,10 +322,13 @@ test("toilets service sends entrance photos for person detection", async () => {
   const originalFetch = globalThis.fetch;
   let requestedUrl = "";
   let requestedBody = null;
+  let requestedSignal = null;
+  const abortController = new AbortController();
 
   globalThis.fetch = async (url, options) => {
     requestedUrl = String(url);
     requestedBody = JSON.parse(options.body);
+    requestedSignal = options.signal;
     return {
       ok: true,
       json: async () => ({
@@ -341,10 +344,14 @@ test("toilets service sends entrance photos for person detection", async () => {
   };
 
   try {
-    const result = await detectPeopleInToiletPhoto({ dataUrl: "data:image/jpeg;base64,abc" });
+    const result = await detectPeopleInToiletPhoto({
+      dataUrl: "data:image/jpeg;base64,abc",
+      signal: abortController.signal
+    });
 
     assert.equal(requestedUrl, "/api/toilets/photo/person-detection");
     assert.equal(requestedBody.dataUrl, "data:image/jpeg;base64,abc");
+    assert.equal(requestedSignal, abortController.signal);
     assert.equal(result.status, "completed");
     assert.equal(result.boxes[0].label, "person");
     assert.equal(result.blurred, true);
