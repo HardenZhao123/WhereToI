@@ -50,6 +50,7 @@ export function getDomRefs() {
     addToiletPhotoInput: document.querySelector("#add-toilet-photo"),
     addToiletPhotoPreview: document.querySelector("#add-toilet-photo-preview"),
     addToiletPhotoImage: document.querySelector("#add-toilet-photo-image"),
+    addToiletPhotoPersonOverlay: document.querySelector("#add-toilet-photo-person-overlay"),
     addToiletPhotoRemoveButton: document.querySelector("#add-toilet-photo-remove"),
     addToiletPhotoStatus: document.querySelector("#add-toilet-photo-status"),
     addToiletLocationEvidenceStatus: document.querySelector("#add-toilet-location-evidence-status"),

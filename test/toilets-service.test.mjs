@@ -7,6 +7,7 @@ import {
   getCachedToiletDetail,
   getCachedToiletsFromApi,
   loadToiletsFromApi,
+  detectPeopleInToiletPhoto,
   submitToiletContribution
 } from "../src/app/services/toilets-service.js";
 
@@ -313,6 +314,41 @@ test("toilets service posts contributed toilets and clears list cache", async ()
     assert.equal(getCachedToiletsFromApi("all"), null);
   } finally {
     clearToiletsApiCache();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("toilets service sends entrance photos for person detection", async () => {
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = "";
+  let requestedBody = null;
+
+  globalThis.fetch = async (url, options) => {
+    requestedUrl = String(url);
+    requestedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      json: async () => ({
+        personDetection: {
+          status: "completed",
+          provider: "yolo",
+          boxes: [{ label: "person", box: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 } }],
+          blurredImage: { dataUrl: "data:image/jpeg;base64,blurred", mimeType: "image/jpeg", size: 456 },
+          blurred: true
+        }
+      })
+    };
+  };
+
+  try {
+    const result = await detectPeopleInToiletPhoto({ dataUrl: "data:image/jpeg;base64,abc" });
+
+    assert.equal(requestedUrl, "/api/toilets/photo/person-detection");
+    assert.equal(requestedBody.dataUrl, "data:image/jpeg;base64,abc");
+    assert.equal(result.status, "completed");
+    assert.equal(result.boxes[0].label, "person");
+    assert.equal(result.blurred, true);
+  } finally {
     globalThis.fetch = originalFetch;
   }
 });

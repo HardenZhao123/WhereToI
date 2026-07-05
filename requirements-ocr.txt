@@ -1,4 +1,6 @@
 setuptools>=68,<83
 numpy==1.26.4
+Pillow>=10,<13
 paddlepaddle==2.6.2
 paddleocr==2.7.3
+ultralytics>=8.3,<9

@@ -8,6 +8,7 @@ import { normaliseCommentPayload } from "./database/repository/repository-utils.
 import { createRegistrationEmailService } from "./email-service.mjs";
 import { createAiService } from "./ai-service.mjs";
 import { createPaddleOcrService } from "./ocr/paddle-ocr-service.mjs";
+import { createYoloPersonDetectionService } from "./vision/yolo-person-service.mjs";
 
 const STATIC_CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -586,7 +587,7 @@ export async function expireStaleToiletSubmissionOcr({ database, logger, ocrServ
   }));
 }
 
-function createApiRouteHandlers(database, { emailService, logger, ocrService, backgroundTasks }) {
+function createApiRouteHandlers(database, { emailService, logger, ocrService, personDetectionService, backgroundTasks }) {
   const publicToiletsCache = createPublicToiletsCache();
 
   return {
@@ -726,6 +727,29 @@ function createApiRouteHandlers(database, { emailService, logger, ocrService, ba
         submission: toilet,
         status: toilet?.submissionStatus ?? "pending"
       });
+    },
+    "POST /api/toilets/photo/person-detection": async ({ request, response }) => {
+      const userId = getSessionUserId(request);
+      const user = userId ? await database.getUserById(userId) : null;
+      if (!user) {
+        sendSensitiveJson(response, 401, { error: "Log in to check a toilet photo for people." });
+        return;
+      }
+
+      const body = await readJsonBody(request);
+      const dataUrl = String(body?.dataUrl ?? body?.photo?.dataUrl ?? "").trim();
+      const personDetection =
+        typeof personDetectionService?.detectPeople === "function"
+          ? await personDetectionService.detectPeople({ dataUrl })
+          : {
+              status: "unavailable",
+              provider: "yolo",
+              boxes: [],
+              error: "YOLO person detection service is not configured.",
+              checkedAt: new Date().toISOString()
+            };
+
+      sendSensitiveJson(response, 200, { personDetection });
     },
     "POST /api/toilets/report": async ({ request, response }) => {
       const userId = getSessionUserId(request);
@@ -1237,8 +1261,8 @@ async function serveStaticFile({ root, pathname, request, response, staticCacheM
   createReadStream(file).pipe(response);
 }
 
-function createRequestHandler({ root, port, database, emailService, aiService, logger, ocrService, backgroundTasks, staticCacheMode }) {
-  const routeHandlers = createApiRouteHandlers(database, { emailService, logger, ocrService, backgroundTasks });
+function createRequestHandler({ root, port, database, emailService, aiService, logger, ocrService, personDetectionService, backgroundTasks, staticCacheMode }) {
+  const routeHandlers = createApiRouteHandlers(database, { emailService, logger, ocrService, personDetectionService, backgroundTasks });
 
   return async function handleRequest(request, response) {
     responseRequests.set(response, request);
@@ -1286,6 +1310,7 @@ export async function createAppServer({
   emailService = createRegistrationEmailService(),
   aiService: providedAiService,
   ocrService: providedOcrService,
+  personDetectionService: providedPersonDetectionService,
   staticCacheMode = "production",
   databaseOptions = {}
 } = {}) {
@@ -1293,6 +1318,7 @@ export async function createAppServer({
   const database = await createDatabase({ rootDirectory: root, ...databaseOptions });
   const aiService = providedAiService ?? (await createAiService());
   const ocrService = providedOcrService ?? createPaddleOcrService();
+  const personDetectionService = providedPersonDetectionService ?? createYoloPersonDetectionService();
   const backgroundTasks = new Set();
   trackBackgroundTask(
     backgroundTasks,
@@ -1308,6 +1334,7 @@ export async function createAppServer({
     aiService,
     logger,
     ocrService,
+    personDetectionService,
     backgroundTasks,
     staticCacheMode
   });
