@@ -717,13 +717,52 @@
   display: none;
 }
 
-.add-toilet-photo-preview img {
+.add-toilet-photo-frame {
+  position: relative;
+  display: inline-grid;
   width: min(220px, 100%);
-  aspect-ratio: 4 / 3;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
-  object-fit: cover;
   background: #eef1ed;
+}
+
+.add-toilet-photo-frame img,
+.add-toilet-photo-person-overlay {
+  grid-area: 1 / 1;
+}
+
+.add-toilet-photo-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: transparent;
+}
+
+.add-toilet-photo-person-overlay {
+  position: relative;
+  pointer-events: none;
+}
+
+.add-toilet-person-box {
+  position: absolute;
+  border: 2px solid #e24b3a;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
+
+.add-toilet-person-box span {
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: white;
+  background: #c7362c;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .add-toilet-photo-preview .outline-button {

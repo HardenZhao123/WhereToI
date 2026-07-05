@@ -3,6 +3,7 @@ import {
   clearToiletDetailCache,
   fetchAiSummary,
   fetchToiletDetail,
+  detectPeopleInToiletPhoto,
   submitCleanlinessSurvey,
   submitComment,
   submitToiletContribution,
@@ -165,6 +166,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     addToiletPhotoInput,
     addToiletPhotoPreview,
     addToiletPhotoImage,
+    addToiletPhotoPersonOverlay,
     addToiletPhotoRemoveButton,
     addToiletPhotoStatus,
     addToiletLocationEvidenceStatus,
@@ -230,6 +232,7 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
   let addToiletDraftMarker = null;
   let addToiletPhoto = null;
   let addToiletPhotoProcessing = false;
+  let addToiletPhotoDetectionRequestId = 0;
 
   const feedbackThreadController = createFeedbackThreadController(
     {
@@ -1584,11 +1587,112 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     addToiletPhotoStatus.classList?.toggle?.("warning", warning);
   }
 
+  function clearAddToiletPersonOverlay() {
+    if (addToiletPhotoPersonOverlay) {
+      addToiletPhotoPersonOverlay.textContent = "";
+    }
+  }
+
+  function renderAddToiletPersonDetection(personDetection) {
+    clearAddToiletPersonOverlay();
+    const boxes = Array.isArray(personDetection?.boxes) ? personDetection.boxes : [];
+    boxes.forEach((detectedPerson) => {
+      const box = detectedPerson?.box ?? {};
+      const x = Math.max(0, Math.min(1, Number(box.x) || 0));
+      const y = Math.max(0, Math.min(1, Number(box.y) || 0));
+      const width = Math.max(0, Math.min(1 - x, Number(box.width) || 0));
+      const height = Math.max(0, Math.min(1 - y, Number(box.height) || 0));
+      if (!addToiletPhotoPersonOverlay || width <= 0 || height <= 0) return;
+
+      const personBox = document.createElement("div");
+      personBox.className = "add-toilet-person-box";
+      personBox.style.left = `${x * 100}%`;
+      personBox.style.top = `${y * 100}%`;
+      personBox.style.width = `${width * 100}%`;
+      personBox.style.height = `${height * 100}%`;
+
+      const confidence = Number(detectedPerson.confidence);
+      const label = document.createElement("span");
+      label.textContent = Number.isFinite(confidence)
+        ? `Person ${Math.round(confidence * 100)}%`
+        : "Person";
+      personBox.append(label);
+      addToiletPhotoPersonOverlay.append(personBox);
+    });
+  }
+
+  function getAddToiletPersonDetectionStatus(personDetection, sizeKilobytes) {
+    const boxes = Array.isArray(personDetection?.boxes) ? personDetection.boxes : [];
+    if (personDetection?.status === "completed" && boxes.length > 0) {
+      const privacyAction = personDetection.blurred
+        ? "detected and blurred"
+        : "detected; blur unavailable";
+      return {
+        message: `Photo ready (${sizeKilobytes} KB). ${boxes.length} ${boxes.length === 1 ? "person" : "people"} ${privacyAction}.`,
+        warning: true
+      };
+    }
+
+    if (personDetection?.status === "no_person" || personDetection?.status === "completed") {
+      return {
+        message: `Photo ready (${sizeKilobytes} KB). No people detected.`,
+        warning: false
+      };
+    }
+
+    return {
+      message: `Photo ready (${sizeKilobytes} KB). Person detection unavailable.`,
+      warning: true
+    };
+  }
+
+  async function detectAddToiletPhotoPeople(photo, requestId, sizeKilobytes) {
+    if (!isAuthenticated()) {
+      setAddToiletPhotoStatus(`Photo ready (${sizeKilobytes} KB). Log in to check people.`);
+      return;
+    }
+
+    setAddToiletPhotoStatus(`Photo ready (${sizeKilobytes} KB). Checking for people...`);
+
+    try {
+      const personDetection = await detectPeopleInToiletPhoto({ dataUrl: photo.dataUrl });
+      if (requestId !== addToiletPhotoDetectionRequestId || photo !== addToiletPhoto) return;
+
+      const blurredPhoto = personDetection?.blurredImage?.dataUrl
+        ? {
+            ...photo,
+            dataUrl: personDetection.blurredImage.dataUrl,
+            mimeType: personDetection.blurredImage.mimeType || "image/jpeg",
+            size: Number(personDetection.blurredImage.size) || photo.size
+          }
+        : null;
+      if (blurredPhoto) {
+        addToiletPhoto = blurredPhoto;
+        if (addToiletPhotoImage) addToiletPhotoImage.src = blurredPhoto.dataUrl;
+      }
+
+      renderAddToiletPersonDetection(personDetection);
+      const status = getAddToiletPersonDetectionStatus(personDetection, sizeKilobytes);
+      setAddToiletPhotoStatus(status.message, { warning: status.warning });
+    } catch (error) {
+      if (requestId !== addToiletPhotoDetectionRequestId || photo !== addToiletPhoto) return;
+      clearAddToiletPersonOverlay();
+      setAddToiletPhotoStatus(
+        error?.status === 401
+          ? `Photo ready (${sizeKilobytes} KB). Log in to check people.`
+          : `Photo ready (${sizeKilobytes} KB). Person detection failed.`,
+        { warning: error?.status !== 401 }
+      );
+    }
+  }
+
   function removeAddToiletPhoto({ syncSubmitState = true } = {}) {
+    addToiletPhotoDetectionRequestId += 1;
     addToiletPhoto = null;
     addToiletPhotoProcessing = false;
     if (addToiletPhotoInput) addToiletPhotoInput.value = "";
     if (addToiletPhotoImage) addToiletPhotoImage.removeAttribute?.("src");
+    clearAddToiletPersonOverlay();
     if (addToiletPhotoPreview) addToiletPhotoPreview.hidden = true;
     if (addToiletPhotoRemoveButton) addToiletPhotoRemoveButton.hidden = true;
     setAddToiletPhotoStatus("No photo selected.");
@@ -1603,7 +1707,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
     }
 
     addToiletPhotoProcessing = true;
+    addToiletPhotoDetectionRequestId += 1;
     addToiletPhoto = null;
+    clearAddToiletPersonOverlay();
     if (addToiletPhotoPreview) addToiletPhotoPreview.hidden = true;
     setAddToiletPhotoStatus("Preparing photo...");
     syncAddToiletSubmitState();
@@ -1614,7 +1720,9 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       if (addToiletPhotoPreview) addToiletPhotoPreview.hidden = false;
       if (addToiletPhotoRemoveButton) addToiletPhotoRemoveButton.hidden = false;
       const sizeKilobytes = Math.max(1, Math.round(addToiletPhoto.size / 1024));
-      setAddToiletPhotoStatus(`Photo ready (${sizeKilobytes} KB).`);
+      const detectionRequestId = ++addToiletPhotoDetectionRequestId;
+      clearAddToiletPersonOverlay();
+      void detectAddToiletPhotoPeople(addToiletPhoto, detectionRequestId, sizeKilobytes);
       return true;
     } catch (error) {
       removeAddToiletPhoto({ syncSubmitState: false });

@@ -246,6 +246,15 @@ export async function submitToiletContribution(payload) {
   return result.toilet ?? null;
 }
 
+export async function detectPeopleInToiletPhoto({ dataUrl } = {}) {
+  const payload = await fetchJson(`${appConfig.apiBasePath}/toilets/photo/person-detection`, {
+    method: "POST",
+    body: JSON.stringify({ dataUrl })
+  });
+
+  return payload.personDetection ?? null;
+}
+
 export async function fetchComments(toiletId) {
   const payload = await fetchJson(`${appConfig.apiBasePath}/comments?toiletId=${encodeURIComponent(toiletId)}`);
   return payload.comments || [];

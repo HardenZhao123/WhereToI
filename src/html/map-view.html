@@ -63,7 +63,10 @@
           <input id="add-toilet-photo" name="entrancePhoto" type="file" accept="image/*" capture="environment" />
         </label>
         <div class="add-toilet-photo-preview" id="add-toilet-photo-preview" hidden>
-          <img id="add-toilet-photo-image" alt="Selected toilet entrance preview" />
+          <div class="add-toilet-photo-frame">
+            <img id="add-toilet-photo-image" alt="Selected toilet entrance preview" />
+            <div id="add-toilet-photo-person-overlay" class="add-toilet-photo-person-overlay" aria-hidden="true"></div>
+          </div>
           <button id="add-toilet-photo-remove" class="outline-button" type="button">Remove photo</button>
         </div>
         <p id="add-toilet-photo-status" class="add-toilet-photo-status" aria-live="polite">No photo selected.</p>

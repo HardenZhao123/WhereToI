@@ -107,13 +107,15 @@ Then open / 然后打开：
 http://localhost:4173
 ```
 
-### Optional PaddleOCR / 可选 PaddleOCR
+### Optional Photo Analysis / 可选照片分析
 
-PaddleOCR is only needed when you want admin review to extract text from user
-toilet photos. Install the Python OCR packages separately from npm:
+PaddleOCR and YOLO are only needed when you want admin review to extract text
+from user toilet photos and detect people in add-toilet photo previews. Install
+the Python photo-analysis packages separately from npm:
 
-只有当你希望管理员审核用户上传厕所照片时自动提取文字，才需要安装 PaddleOCR。
-Python OCR 包需要和 npm 依赖分开安装：
+只有当你希望管理员审核用户上传厕所照片时自动提取文字，或在 add toilet
+照片预览中检测 people，才需要安装 PaddleOCR 和 YOLO。Python 照片分析包需要和
+npm 依赖分开安装：
 
 ```bash
 python3 -m pip install -r requirements-ocr.txt
@@ -141,6 +143,12 @@ WHERETOI_OCR_PROVIDER=paddle
 WHERETOI_PADDLEOCR_PYTHON=python3
 WHERETOI_PADDLEOCR_TIMEOUT_MS=180000
 WHERETOI_PADDLEOCR_MAX_IMAGE_DIMENSION=960
+WHERETOI_PERSON_DETECTION_PROVIDER=yolo
+WHERETOI_YOLO_PERSON_PYTHON=python3
+WHERETOI_YOLO_PERSON_MODEL=yolo26n-seg.pt
+WHERETOI_YOLO_PERSON_CONFIDENCE=0.25
+WHERETOI_YOLO_PERSON_BLUR_RADIUS=18
+WHERETOI_YOLO_PERSON_TIMEOUT_MS=120000
 ```
 
 ### Android APK / 安卓 APK

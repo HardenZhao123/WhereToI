@@ -47,10 +47,12 @@ const requiredFiles = [
   "scripts/build.mjs",
   "scripts/e2e-smoke.mjs",
   "scripts/paddle_ocr_runner.py",
+  "scripts/yolo_person_runner.py",
   "server/app-server.mjs",
   "server/database.mjs",
   "server/ocr/ocr-analysis.mjs",
   "server/ocr/paddle-ocr-service.mjs",
+  "server/vision/yolo-person-service.mjs",
   "requirements-ocr.txt",
   "render.yaml"
 ];
@@ -118,12 +120,14 @@ const css = await readCssWithImports("src/styles.css");
 const server = await readFile("server/app-server.mjs", "utf8");
 const postgresRepository = await readFile("server/database/repository/postgres-repository.mjs", "utf8");
 const paddleOcrService = await readFile("server/ocr/paddle-ocr-service.mjs", "utf8");
+const yoloPersonService = await readFile("server/vision/yolo-person-service.mjs", "utf8");
 const app = await readFile("src/app/app.js", "utf8");
 const toiletsService = await readFile("src/app/services/toilets-service.js", "utf8");
 const buildScript = await readFile("scripts/build.mjs", "utf8");
 const renderConfig = await readFile("render.yaml", "utf8");
 const ocrRequirements = await readFile("requirements-ocr.txt", "utf8");
 const paddleOcrRunner = await readFile("scripts/paddle_ocr_runner.py", "utf8");
+const yoloPersonRunner = await readFile("scripts/yolo_person_runner.py", "utf8");
 const manifest = JSON.parse(await readFile("app.webmanifest", "utf8"));
 const serviceWorker = await readFile("service-worker.js", "utf8");
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));
@@ -504,6 +508,30 @@ if (
   !paddleOcrService.includes("cleanPaddleOcrProcessError")
 ) {
   throw new Error("Expected PaddleOCR deployment to use setuptools, NumPy 1.x, pinned 2.x dependencies, Python 3.10, OCR image downscaling, quiet JSON output parsing, a longer timeout, and constrained oneDNN-disabled CPU execution.");
+}
+
+if (
+  !ocrRequirements.includes("ultralytics>=8.3,<9") ||
+  !ocrRequirements.includes("Pillow>=10,<13") ||
+  !renderConfig.includes("WHERETOI_PERSON_DETECTION_PROVIDER") ||
+  !renderConfig.includes("WHERETOI_YOLO_PERSON_MODEL") ||
+  !renderConfig.includes("yolo26n-seg.pt") ||
+  !renderConfig.includes("WHERETOI_YOLO_PERSON_BLUR_RADIUS") ||
+  !server.includes("POST /api/toilets/photo/person-detection") ||
+  !server.includes("createYoloPersonDetectionService") ||
+  !toiletsService.includes("detectPeopleInToiletPhoto") ||
+  !html.includes("add-toilet-photo-person-overlay") ||
+  !css.includes(".add-toilet-person-box") ||
+  !yoloPersonRunner.includes("classes=[0]") ||
+  !yoloPersonRunner.includes("WHERETOI_YOLO_PERSON_MODEL") ||
+  !yoloPersonRunner.includes("DEFAULT_PERSON_MODEL = \"yolo26n-seg.pt\"") ||
+  !yoloPersonRunner.includes("create_blurred_person_image") ||
+  !yoloPersonRunner.includes("result.masks") ||
+  !yoloPersonService.includes("parseYoloPersonJsonOutput") ||
+  !yoloPersonService.includes("createPersonDetectionEvidence") ||
+  !yoloPersonService.includes("blurredImage")
+) {
+  throw new Error("Expected add-toilet photo previews to use optional YOLO person segmentation with yolo26n-seg, person-only class filtering, preview overlay boxes, and blurred person images.");
 }
 
 if (

@@ -432,6 +432,68 @@ test("API accepts logged-in missing toilet submissions and rejects nearby duplic
   });
 });
 
+test("API detects people in add-toilet entrance photos", async () => {
+  let detectionRequest = null;
+  const personDetectionService = {
+    provider: "yolo",
+    async detectPeople(request) {
+      detectionRequest = request;
+      return {
+        status: "completed",
+        provider: "yolo",
+        model: "yolo26n-seg.pt",
+        boxes: [{
+          label: "person",
+          confidence: 0.87,
+          box: { x: 0.2, y: 0.1, width: 0.3, height: 0.6 },
+          pixels: { x1: 20, y1: 10, x2: 50, y2: 70 }
+        }],
+        image: { width: 100, height: 100 },
+        blurredImage: {
+          dataUrl: "data:image/jpeg;base64,blurred",
+          mimeType: "image/jpeg",
+          size: 2048
+        },
+        blurred: true,
+        checkedAt: "2026-07-05T09:00:00.000Z"
+      };
+    }
+  };
+
+  await withAppServer(async (baseUrl) => {
+    const unauthenticatedResponse = await fetch(`${baseUrl}/api/toilets/photo/person-detection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dataUrl: tinyPngDataUrl })
+    });
+    assert.equal(unauthenticatedResponse.status, 401);
+
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const { payload } = await fetchJson(`${baseUrl}/api/toilets/photo/person-detection`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({ dataUrl: tinyPngDataUrl })
+    });
+
+    assert.equal(detectionRequest.dataUrl, tinyPngDataUrl);
+    assert.equal(payload.personDetection.status, "completed");
+    assert.equal(payload.personDetection.provider, "yolo");
+    assert.equal(payload.personDetection.boxes[0].label, "person");
+    assert.equal(payload.personDetection.boxes[0].box.width, 0.3);
+    assert.equal(payload.personDetection.blurred, true);
+    assert.equal(payload.personDetection.blurredImage.dataUrl, "data:image/jpeg;base64,blurred");
+  }, { personDetectionService });
+});
+
 test("API stores PaddleOCR evidence for submitted toilet photos", async () => {
   const ocrService = {
     provider: "paddleocr",
