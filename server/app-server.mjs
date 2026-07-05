@@ -550,6 +550,20 @@ function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrServic
   );
 }
 
+function createPendingToiletSubmissionOcrEvidence(ocrService) {
+  return {
+    status: "pending",
+    provider: ocrService?.provider ?? "paddleocr",
+    text: "",
+    lines: [],
+    keywords: [],
+    openingHoursHints: [],
+    confidence: null,
+    error: "",
+    checkedAt: new Date().toISOString()
+  };
+}
+
 function queueToiletSubmissionPhotoReview({
   backgroundTasks,
   database,
@@ -589,7 +603,9 @@ export async function resumePendingToiletSubmissionPhotoModeration({ database, l
     return 0;
   }
 
-  const resumableSubmissions = submissions.filter((submission) => submission?.hasEntrancePhoto);
+  const resumableSubmissions = submissions.filter(
+    (submission) => submission?.hasEntrancePhoto && submission?.ocrEvidence?.status === "pending"
+  );
   for (const submission of resumableSubmissions) {
     callLogger(
       logger,
@@ -605,36 +621,6 @@ export async function resumePendingToiletSubmissionPhotoModeration({ database, l
   }
 
   return resumableSubmissions.length;
-}
-
-function startServiceWarmup({ logger, service, label }) {
-  if (typeof service?.warmUp !== "function") return Promise.resolve();
-
-  try {
-    return Promise.resolve(service.warmUp({ logger })).catch((error) => {
-      logger.error(`${label} failed:`, error);
-    });
-  } catch (error) {
-    logger.error(`${label} failed:`, error);
-    return Promise.resolve();
-  }
-}
-
-function queueStartupModelWarmup({ backgroundTasks, logger, ocrService, personDetectionService }) {
-  const warmupTask = startServiceWarmup({
-    logger,
-    service: personDetectionService,
-    label: "YOLO person detection warmup"
-  }).then(() =>
-    startServiceWarmup({
-      logger,
-      service: ocrService,
-      label: "PaddleOCR warmup"
-    })
-  );
-
-  trackBackgroundTask(backgroundTasks, warmupTask, logger, "Startup model warmup");
-  return warmupTask;
 }
 
 export async function resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService }) {
@@ -863,19 +849,28 @@ function createApiRouteHandlers(database, { emailService, logger, ocrService, pe
         userId,
         ...body
       });
-      queueToiletSubmissionPhotoReview({
-        backgroundTasks,
-        database,
-        logger,
-        ocrService,
-        personDetectionService,
-        toilet
-      });
+      let submission = toilet;
+
+      if (toilet?.hasEntrancePhoto) {
+        const pendingEvidence = createPendingToiletSubmissionOcrEvidence(ocrService);
+        submission = await database.updateToiletSubmissionOcr(toilet.id, pendingEvidence) ?? {
+          ...toilet,
+          ocrEvidence: pendingEvidence
+        };
+        queueToiletSubmissionPhotoReview({
+          backgroundTasks,
+          database,
+          logger,
+          ocrService,
+          personDetectionService,
+          toilet: submission
+        });
+      }
 
       sendSensitiveJson(response, 201, {
-        toilet,
-        submission: toilet,
-        status: toilet?.submissionStatus ?? "pending"
+        toilet: submission,
+        submission,
+        status: submission?.submissionStatus ?? "pending"
       });
     },
     "POST /api/toilets/photo/person-detection": async ({ request, response }) => {
@@ -1470,13 +1465,12 @@ export async function createAppServer({
   const ocrService = providedOcrService ?? createPaddleOcrService();
   const personDetectionService = providedPersonDetectionService ?? createYoloPersonDetectionService();
   const backgroundTasks = new Set();
-  const startupModelWarmupTask = queueStartupModelWarmup({ backgroundTasks, logger, ocrService, personDetectionService });
   trackBackgroundTask(
     backgroundTasks,
-    startupModelWarmupTask.then(async () => {
+    (async () => {
       await resumePendingToiletSubmissionPhotoModeration({ database, logger, personDetectionService });
       return resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService });
-    }),
+    })(),
     logger,
     "Pending toilet submission OCR resume"
   );
