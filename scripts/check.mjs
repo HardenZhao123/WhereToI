@@ -516,13 +516,18 @@ if (
   !renderConfig.includes("WHERETOI_PERSON_DETECTION_PROVIDER") ||
   !renderConfig.includes("WHERETOI_YOLO_PERSON_MODEL") ||
   !renderConfig.includes("yolo26n-seg.pt") ||
+  !renderConfig.includes("WHERETOI_YOLO_PERSON_IMAGE_SIZE") ||
+  !renderConfig.includes("WHERETOI_YOLO_PERSON_MAX_IMAGE_DIMENSION") ||
   !renderConfig.includes("WHERETOI_YOLO_PERSON_BLUR_RADIUS") ||
+  !renderConfig.includes("45000") ||
   !server.includes("POST /api/toilets/photo/person-detection") ||
   !server.includes("createYoloPersonDetectionService") ||
   !toiletsService.includes("detectPeopleInToiletPhoto") ||
   !html.includes("add-toilet-photo-person-overlay") ||
   !css.includes(".add-toilet-person-box") ||
   !yoloPersonRunner.includes("classes=[0]") ||
+  !yoloPersonRunner.includes("imgsz=image_size") ||
+  !yoloPersonRunner.includes("prepare_image_for_person_detection") ||
   !yoloPersonRunner.includes("WHERETOI_YOLO_PERSON_MODEL") ||
   !yoloPersonRunner.includes("DEFAULT_PERSON_MODEL = \"yolo26n-seg.pt\"") ||
   !yoloPersonRunner.includes("create_blurred_person_image") ||

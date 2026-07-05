@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DATA_URL_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([a-z0-9+/=\r\n]+)$/i;
-const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_PERSON_MODEL = "yolo26n-seg.pt";
 const PERSON_DETECTION_PROCESS_MAX_BUFFER = 8 * 1024 * 1024;
 const RUNNER_PATH = fileURLToPath(new URL("../../scripts/yolo_person_runner.py", import.meta.url));

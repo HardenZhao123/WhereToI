@@ -1640,8 +1640,12 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       };
     }
 
+    const diagnostic = String(personDetection?.error || personDetection?.blurError || personDetection?.status || "")
+      .slice(0, 180);
     return {
-      message: `Photo ready (${sizeKilobytes} KB). Person detection unavailable.`,
+      message: diagnostic
+        ? `Photo ready (${sizeKilobytes} KB). Person detection unavailable: ${diagnostic}`
+        : `Photo ready (${sizeKilobytes} KB). Person detection unavailable.`,
       warning: true
     };
   }
