@@ -31,6 +31,8 @@ services:
         value: python3
       - key: WHERETOI_YOLO_PERSON_MODEL
         value: yolo26n-seg.pt
+      - key: WHERETOI_YOLO_PERSON_DEVICE
+        value: cpu
       - key: WHERETOI_YOLO_PERSON_CONFIDENCE
         value: "0.25"
       - key: WHERETOI_YOLO_PERSON_IMAGE_SIZE
@@ -41,6 +43,10 @@ services:
         value: "18"
       - key: WHERETOI_YOLO_PERSON_TIMEOUT_MS
         value: "45000"
+      - key: WHERETOI_YOLO_PERSON_COLD_TIMEOUT_MS
+        value: "180000"
+      - key: WHERETOI_YOLO_PERSON_WARMUP_TIMEOUT_MS
+        value: "180000"
       - key: PYTHON_VERSION
         value: 3.10.14
       - key: WHERETOI_CLEANLINESS_SCORING_MODEL

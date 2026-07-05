@@ -12,6 +12,7 @@ DEFAULT_PERSON_CONFIDENCE = 0.25
 DEFAULT_PERSON_BLUR_RADIUS = 18
 DEFAULT_PERSON_IMAGE_SIZE = 512
 DEFAULT_PERSON_MAX_IMAGE_DIMENSION = 960
+DEFAULT_PERSON_DEVICE = "cpu"
 
 
 class QuietWriter:
@@ -182,6 +183,7 @@ def run_detection(image_path):
         minimum=3.0,
         maximum=80.0
     )
+    device = os.environ.get("WHERETOI_YOLO_PERSON_DEVICE", DEFAULT_PERSON_DEVICE).strip() or DEFAULT_PERSON_DEVICE
 
     try:
         with quiet_library_output():
@@ -204,6 +206,7 @@ def run_detection(image_path):
                 classes=[0],
                 conf=confidence,
                 imgsz=image_size,
+                device=device,
                 verbose=False
             )
 

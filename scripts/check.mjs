@@ -518,15 +518,24 @@ if (
 if (
   !ocrRequirements.includes("ultralytics>=8.3,<9") ||
   !ocrRequirements.includes("Pillow>=10,<13") ||
+  !ocrRequirements.includes("--extra-index-url https://download.pytorch.org/whl/cpu") ||
+  !ocrRequirements.includes("torch==2.7.0+cpu") ||
+  !ocrRequirements.includes("torchvision==0.22.0+cpu") ||
   !renderConfig.includes("WHERETOI_PERSON_DETECTION_PROVIDER") ||
   !renderConfig.includes("WHERETOI_YOLO_PERSON_MODEL") ||
   !renderConfig.includes("yolo26n-seg.pt") ||
+  !renderConfig.includes("WHERETOI_YOLO_PERSON_DEVICE") ||
+  !renderConfig.includes("cpu") ||
   !renderConfig.includes("WHERETOI_YOLO_PERSON_IMAGE_SIZE") ||
   !renderConfig.includes("WHERETOI_YOLO_PERSON_MAX_IMAGE_DIMENSION") ||
   !renderConfig.includes("WHERETOI_YOLO_PERSON_BLUR_RADIUS") ||
+  !renderConfig.includes("WHERETOI_YOLO_PERSON_COLD_TIMEOUT_MS") ||
+  !renderConfig.includes("WHERETOI_YOLO_PERSON_WARMUP_TIMEOUT_MS") ||
+  !renderConfig.includes("180000") ||
   !renderConfig.includes("45000") ||
   !server.includes("POST /api/toilets/photo/person-detection") ||
   !server.includes("createYoloPersonDetectionService") ||
+  !server.includes("queueStartupModelWarmup") ||
   !toiletsService.includes("detectPeopleInToiletPhoto") ||
   !html.includes("add-toilet-photo-person-overlay") ||
   !css.includes(".add-toilet-person-box") ||
@@ -534,14 +543,17 @@ if (
   !yoloPersonRunner.includes("imgsz=image_size") ||
   !yoloPersonRunner.includes("prepare_image_for_person_detection") ||
   !yoloPersonRunner.includes("WHERETOI_YOLO_PERSON_MODEL") ||
+  !yoloPersonRunner.includes("WHERETOI_YOLO_PERSON_DEVICE") ||
   !yoloPersonRunner.includes("DEFAULT_PERSON_MODEL = \"yolo26n-seg.pt\"") ||
   !yoloPersonRunner.includes("create_blurred_person_image") ||
   !yoloPersonRunner.includes("result.masks") ||
   !yoloPersonService.includes("parseYoloPersonJsonOutput") ||
+  !yoloPersonService.includes("getYoloPersonExecutionTimeoutMs") ||
+  !yoloPersonService.includes("warmUp") ||
   !yoloPersonService.includes("createPersonDetectionEvidence") ||
   !yoloPersonService.includes("blurredImage")
 ) {
-  throw new Error("Expected add-toilet photo previews to use optional YOLO person segmentation with yolo26n-seg, person-only class filtering, preview overlay boxes, and blurred person images.");
+  throw new Error("Expected add-toilet photo previews to use CPU-only YOLO person segmentation with yolo26n-seg, person-only class filtering, startup warmup/cold timeouts, preview overlay boxes, and blurred person images.");
 }
 
 if (
