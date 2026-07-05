@@ -23,6 +23,7 @@ import {
   normaliseCommentLikePayload,
   normaliseCommentPayload,
   normaliseCommentProfileVisibility,
+  normaliseSubmissionPhoto,
   normaliseToiletContributionPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
@@ -985,6 +986,34 @@ export async function createPostgresDatabase({
         mimeType: row.submission_photo_mime_type,
         size: row.submission_photo_size
       };
+    },
+    async updateToiletSubmissionPhoto(toiletId, photo) {
+      const safeToiletId = String(toiletId ?? "").trim();
+      if (!safeToiletId) return null;
+      const normalisedPhoto = normaliseSubmissionPhoto(photo);
+      if (!normalisedPhoto) return null;
+
+      const result = await pool.query(
+        `
+        UPDATE toilets
+        SET
+          submission_photo_data_url = $1,
+          submission_photo_mime_type = $2,
+          submission_photo_size = $3
+        WHERE id = $4
+          AND submission_status = 'pending'
+          AND (submitted_by_user_id IS NOT NULL OR id LIKE 'user-%')
+        `,
+        [
+          normalisedPhoto.dataUrl,
+          normalisedPhoto.mimeType,
+          normalisedPhoto.size,
+          safeToiletId
+        ]
+      );
+
+      if (result.rowCount === 0) return null;
+      return this.getToiletSubmissionById(safeToiletId);
     },
     async updateToiletSubmissionOcr(toiletId, evidence = {}) {
       const safeToiletId = String(toiletId ?? "").trim();

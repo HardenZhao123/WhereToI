@@ -263,7 +263,7 @@ function hasExpectedImageSignature(bytes, mimeType) {
   return false;
 }
 
-function normaliseSubmissionPhoto(photo) {
+export function normaliseSubmissionPhoto(photo) {
   if (photo === undefined || photo === null || photo === "") return null;
 
   const dataUrl = typeof photo === "string"
