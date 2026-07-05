@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createPersonDetectionEvidence,
+  getYoloPersonExecutionTimeoutMs,
   parseYoloPersonJsonOutput
 } from "../server/vision/yolo-person-service.mjs";
 
@@ -55,4 +56,23 @@ test("person detection evidence clamps invalid boxes and marks empty completed a
 
   const empty = createPersonDetectionEvidence({ status: "completed", boxes: [] });
   assert.equal(empty.status, "no_person");
+});
+
+test("YOLO person service uses the cold timeout until warmup completes", () => {
+  assert.equal(
+    getYoloPersonExecutionTimeoutMs({
+      timeoutMs: 45_000,
+      coldTimeoutMs: 180_000,
+      warmedUp: false
+    }),
+    180_000
+  );
+  assert.equal(
+    getYoloPersonExecutionTimeoutMs({
+      timeoutMs: 45_000,
+      coldTimeoutMs: 180_000,
+      warmedUp: true
+    }),
+    45_000
+  );
 });

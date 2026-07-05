@@ -501,18 +501,34 @@ function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrServic
   );
 }
 
-function queueOcrWarmup({ backgroundTasks, logger, ocrService }) {
-  if (typeof ocrService?.warmUp !== "function") return Promise.resolve();
+function startServiceWarmup({ logger, service, label }) {
+  if (typeof service?.warmUp !== "function") return Promise.resolve();
 
-  let warmupTask;
   try {
-    warmupTask = Promise.resolve(ocrService.warmUp({ logger }));
+    return Promise.resolve(service.warmUp({ logger })).catch((error) => {
+      logger.error(`${label} failed:`, error);
+    });
   } catch (error) {
-    warmupTask = Promise.reject(error);
+    logger.error(`${label} failed:`, error);
+    return Promise.resolve();
   }
+}
 
-  trackBackgroundTask(backgroundTasks, warmupTask, logger, "PaddleOCR warmup");
-  return warmupTask.catch(() => undefined);
+function queueStartupModelWarmup({ backgroundTasks, logger, ocrService, personDetectionService }) {
+  const warmupTask = startServiceWarmup({
+    logger,
+    service: personDetectionService,
+    label: "YOLO person detection warmup"
+  }).then(() =>
+    startServiceWarmup({
+      logger,
+      service: ocrService,
+      label: "PaddleOCR warmup"
+    })
+  );
+
+  trackBackgroundTask(backgroundTasks, warmupTask, logger, "Startup model warmup");
+  return warmupTask;
 }
 
 export async function resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService }) {
@@ -1341,10 +1357,10 @@ export async function createAppServer({
   const ocrService = providedOcrService ?? createPaddleOcrService();
   const personDetectionService = providedPersonDetectionService ?? createYoloPersonDetectionService();
   const backgroundTasks = new Set();
-  const ocrWarmupTask = queueOcrWarmup({ backgroundTasks, logger, ocrService });
+  const startupModelWarmupTask = queueStartupModelWarmup({ backgroundTasks, logger, ocrService, personDetectionService });
   trackBackgroundTask(
     backgroundTasks,
-    ocrWarmupTask.then(() => resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService })),
+    startupModelWarmupTask.then(() => resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService })),
     logger,
     "Pending toilet submission OCR resume"
   );

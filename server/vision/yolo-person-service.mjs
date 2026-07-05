@@ -6,9 +6,13 @@ import { fileURLToPath } from "node:url";
 
 const DATA_URL_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([a-z0-9+/=\r\n]+)$/i;
 const DEFAULT_TIMEOUT_MS = 45_000;
+const DEFAULT_COLD_TIMEOUT_MS = 180_000;
+const DEFAULT_WARMUP_TIMEOUT_MS = 180_000;
 const DEFAULT_PERSON_MODEL = "yolo26n-seg.pt";
 const PERSON_DETECTION_PROCESS_MAX_BUFFER = 8 * 1024 * 1024;
 const RUNNER_PATH = fileURLToPath(new URL("../../scripts/yolo_person_runner.py", import.meta.url));
+const WARMUP_IMAGE_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAAAAYLlVAAAAK0lEQVR42u3OQQ0AAAgEoNP6p7ZkQICym5kAAAAAAAAAAAAAAAAAAOD1AoBAAAG8m0UxAAAAAElFTkSuQmCC";
 
 function getImageExtension(mimeType) {
   if (mimeType === "image/png") return ".png";
@@ -142,6 +146,24 @@ function execFileJson(command, args, { timeoutMs }) {
   });
 }
 
+function getPositiveTimeoutMs(value, fallback) {
+  const timeoutMs = Number(value);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : fallback;
+}
+
+export function getYoloPersonExecutionTimeoutMs({ timeoutMs, coldTimeoutMs, warmedUp } = {}) {
+  const standardTimeoutMs = getPositiveTimeoutMs(timeoutMs, DEFAULT_TIMEOUT_MS);
+  const firstRunTimeoutMs = getPositiveTimeoutMs(coldTimeoutMs, DEFAULT_COLD_TIMEOUT_MS);
+  return warmedUp ? standardTimeoutMs : Math.max(standardTimeoutMs, firstRunTimeoutMs);
+}
+
+function logServiceMessage(logger, level, ...args) {
+  const logFunction = typeof logger?.[level] === "function" ? logger[level] : logger?.log;
+  if (typeof logFunction === "function") {
+    logFunction.call(logger, ...args);
+  }
+}
+
 async function withTemporaryImage(dataUrl, callback) {
   const match = String(dataUrl || "").match(DATA_URL_PATTERN);
   if (!match) {
@@ -169,12 +191,55 @@ export function createYoloPersonDetectionService({
   enabled = String(process.env.WHERETOI_PERSON_DETECTION_PROVIDER ?? "yolo").toLowerCase() === "yolo",
   pythonCommand = process.env.WHERETOI_YOLO_PERSON_PYTHON ?? "python3",
   runnerPath = RUNNER_PATH,
-  timeoutMs = Number(process.env.WHERETOI_YOLO_PERSON_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS
+  timeoutMs = getPositiveTimeoutMs(process.env.WHERETOI_YOLO_PERSON_TIMEOUT_MS, DEFAULT_TIMEOUT_MS),
+  coldTimeoutMs = getPositiveTimeoutMs(process.env.WHERETOI_YOLO_PERSON_COLD_TIMEOUT_MS, DEFAULT_COLD_TIMEOUT_MS),
+  warmupTimeoutMs = getPositiveTimeoutMs(process.env.WHERETOI_YOLO_PERSON_WARMUP_TIMEOUT_MS, DEFAULT_WARMUP_TIMEOUT_MS)
 } = {}) {
+  let warmedUp = false;
+  let warmupPromise = null;
+
+  async function runPersonDetection(dataUrl, { executionTimeoutMs }) {
+    return withTemporaryImage(dataUrl, (imagePath) =>
+      execFileJson(pythonCommand, [runnerPath, imagePath], { timeoutMs: executionTimeoutMs })
+    );
+  }
+
   return {
     provider: "yolo",
     enabled,
     timeoutMs,
+    coldTimeoutMs,
+    warmupTimeoutMs,
+    get warmedUp() {
+      return warmedUp;
+    },
+    async warmUp({ logger } = {}) {
+      if (!enabled) return { status: "skipped", provider: "yolo" };
+      if (warmedUp) return { status: "completed", provider: "yolo" };
+      if (warmupPromise) return warmupPromise;
+
+      const startedAt = Date.now();
+      logServiceMessage(logger, "info", `YOLO person detection warmup started: timeoutMs=${warmupTimeoutMs}`);
+      warmupPromise = runPersonDetection(WARMUP_IMAGE_DATA_URL, { executionTimeoutMs: warmupTimeoutMs })
+        .then((rawResult) => {
+          if (rawResult?.status !== "failed" && rawResult?.status !== "unavailable") {
+            warmedUp = true;
+          }
+          const level = warmedUp ? "info" : "warn";
+          const errorSuffix = rawResult?.error ? ` error=${String(rawResult.error).slice(0, 240)}` : "";
+          logServiceMessage(
+            logger,
+            level,
+            `YOLO person detection warmup finished: status=${rawResult?.status ?? "unknown"} durationMs=${Date.now() - startedAt}${errorSuffix}`
+          );
+          return rawResult;
+        })
+        .finally(() => {
+          warmupPromise = null;
+        });
+
+      return warmupPromise;
+    },
     async detectPeople({ dataUrl } = {}) {
       if (!enabled) {
         return createPersonDetectionEvidence({
@@ -184,9 +249,11 @@ export function createYoloPersonDetectionService({
         });
       }
 
-      const rawResult = await withTemporaryImage(dataUrl, (imagePath) =>
-        execFileJson(pythonCommand, [runnerPath, imagePath], { timeoutMs })
-      );
+      const executionTimeoutMs = getYoloPersonExecutionTimeoutMs({ timeoutMs, coldTimeoutMs, warmedUp });
+      const rawResult = await runPersonDetection(dataUrl, { executionTimeoutMs });
+      if (rawResult?.status !== "failed" && rawResult?.status !== "unavailable") {
+        warmedUp = true;
+      }
 
       return createPersonDetectionEvidence({
         provider: rawResult.provider || "yolo",

@@ -167,10 +167,11 @@ export function createPaddleOcrService({
             warmedUp = true;
           }
           const level = warmedUp ? "info" : "warn";
+          const errorSuffix = rawResult?.error ? ` error=${String(rawResult.error).slice(0, 240)}` : "";
           logServiceMessage(
             logger,
             level,
-            `PaddleOCR warmup finished: status=${rawResult?.status ?? "unknown"} durationMs=${Date.now() - startedAt}`
+            `PaddleOCR warmup finished: status=${rawResult?.status ?? "unknown"} durationMs=${Date.now() - startedAt}${errorSuffix}`
           );
           return rawResult;
         })
