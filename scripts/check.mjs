@@ -536,6 +536,10 @@ if (
   !server.includes("POST /api/toilets/photo/person-detection") ||
   !server.includes("createYoloPersonDetectionService") ||
   !server.includes("queueStartupModelWarmup") ||
+  !server.includes("queueToiletSubmissionPhotoReview") ||
+  !server.includes("runToiletSubmissionPhotoModeration") ||
+  !server.includes("resumePendingToiletSubmissionPhotoModeration") ||
+  !server.includes("updateToiletSubmissionPhoto") ||
   !toiletsService.includes("detectPeopleInToiletPhoto") ||
   !toiletsService.includes("signal") ||
   !js.includes("addToiletPersonDetectionSoftDeadlineMs = 10_000") ||

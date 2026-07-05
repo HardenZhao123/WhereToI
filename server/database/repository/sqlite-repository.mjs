@@ -26,6 +26,7 @@ import {
   normaliseCommentLikePayload,
   normaliseCommentPayload,
   normaliseCommentProfileVisibility,
+  normaliseSubmissionPhoto,
   normaliseToiletContributionPayload,
   normaliseHistoryLimit,
   normaliseSearchQuery,
@@ -776,6 +777,33 @@ export async function createSqliteDatabase({
         mimeType: row.submission_photo_mime_type,
         size: row.submission_photo_size
       };
+    },
+    async updateToiletSubmissionPhoto(toiletId, photo) {
+      const safeToiletId = String(toiletId ?? "").trim();
+      if (!safeToiletId) return null;
+      const normalisedPhoto = normaliseSubmissionPhoto(photo);
+      if (!normalisedPhoto) return null;
+
+      const result = db.prepare(
+        `
+        UPDATE toilets
+        SET
+          submission_photo_data_url = ?,
+          submission_photo_mime_type = ?,
+          submission_photo_size = ?
+        WHERE id = ?
+          AND submission_status = 'pending'
+          AND (submitted_by_user_id IS NOT NULL OR id LIKE 'user-%')
+        `
+      ).run(
+        normalisedPhoto.dataUrl,
+        normalisedPhoto.mimeType,
+        normalisedPhoto.size,
+        safeToiletId
+      );
+
+      if (result.changes === 0) return null;
+      return this.getToiletSubmissionById(safeToiletId);
     },
     async updateToiletSubmissionOcr(toiletId, evidence = {}) {
       const safeToiletId = String(toiletId ?? "").trim();

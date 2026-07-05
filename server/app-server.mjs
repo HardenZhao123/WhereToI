@@ -490,6 +490,55 @@ async function runToiletSubmissionOcr({ database, logger, ocrService, toiletId }
   }
 }
 
+async function runToiletSubmissionPhotoModeration({ database, logger, personDetectionService, toiletId }) {
+  if (typeof database.updateToiletSubmissionPhoto !== "function") return;
+  if (typeof personDetectionService?.detectPeople !== "function") return;
+
+  const photo = await database.getToiletSubmissionPhoto(toiletId);
+  if (!photo?.dataUrl) return;
+
+  const startedAt = new Date();
+  callLogger(
+    logger,
+    "info",
+    `Toilet submission photo moderation started: toiletId=${toiletId} provider=${personDetectionService?.provider ?? "yolo"} photoSize=${formatDiagnosticByteSize(photo.size)} timeoutMs=${personDetectionService?.timeoutMs ?? "unknown"}`
+  );
+
+  try {
+    const evidence = await personDetectionService.detectPeople({
+      dataUrl: photo.dataUrl,
+      mimeType: photo.mimeType,
+      size: photo.size,
+      toiletId
+    });
+
+    const blurredPhoto = evidence?.blurredImage?.dataUrl ? evidence.blurredImage : null;
+    if (blurredPhoto) {
+      await database.updateToiletSubmissionPhoto(toiletId, { dataUrl: blurredPhoto.dataUrl });
+      callLogger(
+        logger,
+        "info",
+        `Toilet submission photo moderation blurred photo: toiletId=${toiletId} people=${Array.isArray(evidence.boxes) ? evidence.boxes.length : 0} durationMs=${Date.now() - startedAt.getTime()}`
+      );
+      return;
+    }
+
+    callLogger(
+      logger,
+      evidence?.status === "failed" || evidence?.status === "unavailable" ? "warn" : "info",
+      `Toilet submission photo moderation finished without blur: toiletId=${toiletId} status=${evidence?.status ?? "unknown"} durationMs=${Date.now() - startedAt.getTime()}${evidence?.error ? ` error=${String(evidence.error).slice(0, 240)}` : ""}`
+    );
+  } catch (error) {
+    callLogger(
+      logger,
+      "error",
+      `Toilet submission photo moderation crashed: toiletId=${toiletId} durationMs=${Date.now() - startedAt.getTime()}`,
+      error
+    );
+    throw error;
+  }
+}
+
 function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService, toilet, toiletId }) {
   const queuedToiletId = toilet?.id ?? toiletId;
   if (!queuedToiletId || (toilet && !toilet.hasEntrancePhoto)) return;
@@ -499,6 +548,63 @@ function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrServic
     logger,
     "Toilet submission OCR"
   );
+}
+
+function queueToiletSubmissionPhotoReview({
+  backgroundTasks,
+  database,
+  logger,
+  ocrService,
+  personDetectionService,
+  toilet,
+  toiletId
+}) {
+  const queuedToiletId = toilet?.id ?? toiletId;
+  if (!queuedToiletId || (toilet && !toilet.hasEntrancePhoto)) return;
+
+  trackBackgroundTask(
+    backgroundTasks,
+    (async () => {
+      await runToiletSubmissionPhotoModeration({
+        database,
+        logger,
+        personDetectionService,
+        toiletId: queuedToiletId
+      });
+      await runToiletSubmissionOcr({ database, logger, ocrService, toiletId: queuedToiletId });
+    })(),
+    logger,
+    "Toilet submission photo review"
+  );
+}
+
+export async function resumePendingToiletSubmissionPhotoModeration({ database, logger, personDetectionService }) {
+  if (typeof database.getToiletSubmissions !== "function") return 0;
+
+  let submissions = [];
+  try {
+    submissions = await database.getToiletSubmissions({ status: "pending" });
+  } catch (error) {
+    callLogger(logger, "error", "Pending toilet submission photo moderation resume failed:", error);
+    return 0;
+  }
+
+  const resumableSubmissions = submissions.filter((submission) => submission?.hasEntrancePhoto);
+  for (const submission of resumableSubmissions) {
+    callLogger(
+      logger,
+      "warn",
+      `Toilet submission photo moderation resumed after server start: toiletId=${submission.id}`
+    );
+    await runToiletSubmissionPhotoModeration({
+      database,
+      logger,
+      personDetectionService,
+      toiletId: submission.id
+    });
+  }
+
+  return resumableSubmissions.length;
 }
 
 function startServiceWarmup({ logger, service, label }) {
@@ -757,7 +863,14 @@ function createApiRouteHandlers(database, { emailService, logger, ocrService, pe
         userId,
         ...body
       });
-      queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService, toilet });
+      queueToiletSubmissionPhotoReview({
+        backgroundTasks,
+        database,
+        logger,
+        ocrService,
+        personDetectionService,
+        toilet
+      });
 
       sendSensitiveJson(response, 201, {
         toilet,
@@ -1360,7 +1473,10 @@ export async function createAppServer({
   const startupModelWarmupTask = queueStartupModelWarmup({ backgroundTasks, logger, ocrService, personDetectionService });
   trackBackgroundTask(
     backgroundTasks,
-    startupModelWarmupTask.then(() => resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService })),
+    startupModelWarmupTask.then(async () => {
+      await resumePendingToiletSubmissionPhotoModeration({ database, logger, personDetectionService });
+      return resumePendingToiletSubmissionOcr({ backgroundTasks, database, logger, ocrService });
+    }),
     logger,
     "Pending toilet submission OCR resume"
   );

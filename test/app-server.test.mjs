@@ -3,13 +3,19 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createAppServer, expireStaleToiletSubmissionOcr, resumePendingToiletSubmissionOcr } from "../server/app-server.mjs";
+import {
+  createAppServer,
+  expireStaleToiletSubmissionOcr,
+  resumePendingToiletSubmissionOcr,
+  resumePendingToiletSubmissionPhotoModeration
+} from "../server/app-server.mjs";
 import { createOcrEvidenceUpdate } from "../server/ocr/ocr-analysis.mjs";
 import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
 const largeStaticScript = `export const payload = "${"x".repeat(4096)}";`;
 const tinyPngDataUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const tinyJpegDataUrl = "data:image/jpeg;base64,/9j/";
 
 async function withAppServer(callback, serverOptions = {}) {
   const rootDirectory = await mkdtemp(join(tmpdir(), "wheretoi-server-test-"));
@@ -494,6 +500,74 @@ test("API detects people in add-toilet entrance photos", async () => {
   }, { personDetectionService });
 });
 
+test("submitted toilet photos are blurred for admin review in the background", async () => {
+  const personDetectionService = {
+    provider: "yolo",
+    async detectPeople() {
+      return {
+        status: "completed",
+        provider: "yolo",
+        model: "yolo26n-seg.pt",
+        boxes: [{
+          label: "person",
+          confidence: 0.87,
+          box: { x: 0.2, y: 0.1, width: 0.3, height: 0.6 }
+        }],
+        blurredImage: {
+          dataUrl: tinyJpegDataUrl,
+          mimeType: "image/jpeg",
+          size: 3
+        },
+        blurred: true,
+        checkedAt: "2026-07-05T09:00:00.000Z"
+      };
+    }
+  };
+
+  await withAppServer(async (baseUrl) => {
+    const { response: loginRes } = await fetchJson(`${baseUrl}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "demo", password: "demo123" })
+    });
+    const cookie = loginRes.headers.get("set-cookie");
+
+    const { payload: createdPayload } = await fetchJson(`${baseUrl}/api/toilets`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cookie": cookie
+      },
+      body: JSON.stringify({
+        name: "Blurred admin review toilet",
+        area: "Paddington",
+        lat: 51.519,
+        lng: -0.181,
+        entrancePhoto: { dataUrl: tinyPngDataUrl },
+        features: { accessible: "Y", free: "Y" },
+        openingTimes: [null, null, null, null, null, null, null]
+      })
+    });
+
+    await waitFor(async () => {
+      const response = await fetch(
+        `${baseUrl}/api/admin/toilet-submissions/photo?toiletId=${createdPayload.toilet.id}`,
+        { headers: { "Cookie": cookie } }
+      );
+      return response.headers.get("content-type") === "image/jpeg" ? response : null;
+    });
+
+    const photoResponse = await fetch(
+      `${baseUrl}/api/admin/toilet-submissions/photo?toiletId=${createdPayload.toilet.id}`,
+      { headers: { "Cookie": cookie } }
+    );
+    const photoBytes = Buffer.from(await photoResponse.arrayBuffer());
+
+    assert.equal(photoResponse.headers.get("content-type"), "image/jpeg");
+    assert.deepEqual([...photoBytes], [0xff, 0xd8, 0xff]);
+  }, { personDetectionService });
+});
+
 test("API stores PaddleOCR evidence for submitted toilet photos", async () => {
   const ocrService = {
     provider: "paddleocr",
@@ -671,6 +745,60 @@ test("server startup resumes pending PaddleOCR evidence after process restart", 
   assert.equal(latestEvidence.status, "completed");
   assert.match(logMessages.join("\n"), /OCR resumed after server start/);
   assert.match(logMessages.join("\n"), /OCR finished/);
+});
+
+test("server startup resumes pending toilet photo moderation after process restart", async () => {
+  const updates = [];
+  let detectionCalls = 0;
+  const pendingSubmission = {
+    id: "resume-photo-submission",
+    hasEntrancePhoto: true
+  };
+
+  const resumedCount = await resumePendingToiletSubmissionPhotoModeration({
+    database: {
+      async getToiletSubmissions({ status }) {
+        assert.equal(status, "pending");
+        return [pendingSubmission, { id: "without-photo", hasEntrancePhoto: false }];
+      },
+      async getToiletSubmissionPhoto(toiletId) {
+        assert.equal(toiletId, pendingSubmission.id);
+        return {
+          dataUrl: tinyPngDataUrl,
+          mimeType: "image/png",
+          size: 67
+        };
+      },
+      async updateToiletSubmissionPhoto(toiletId, photo) {
+        updates.push({ toiletId, photo });
+        return { ...pendingSubmission, entrancePhotoMimeType: "image/jpeg" };
+      }
+    },
+    logger: { info() {}, warn() {}, error() {} },
+    personDetectionService: {
+      provider: "yolo",
+      async detectPeople() {
+        detectionCalls += 1;
+        return {
+          status: "completed",
+          provider: "yolo",
+          boxes: [{ label: "person", box: { x: 0.1, y: 0.1, width: 0.2, height: 0.4 } }],
+          blurredImage: {
+            dataUrl: tinyJpegDataUrl,
+            mimeType: "image/jpeg",
+            size: 3
+          },
+          blurred: true
+        };
+      }
+    }
+  });
+
+  assert.equal(resumedCount, 1);
+  assert.equal(detectionCalls, 1);
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].toiletId, pendingSubmission.id);
+  assert.equal(updates[0].photo.dataUrl, tinyJpegDataUrl);
 });
 
 test("admins can retry failed PaddleOCR evidence for submitted toilet photos", async () => {

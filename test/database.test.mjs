@@ -10,6 +10,7 @@ import { sampleToiletsCsv } from "../test-fixtures/seed-csv.mjs";
 
 const tinyPngDataUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const tinyJpegDataUrl = "data:image/jpeg;base64,/9j/";
 
 async function withSeededDatabase(callback, options = {}) {
   const directory = await mkdtemp(join(tmpdir(), "wheretoi-db-test-"));
@@ -170,6 +171,13 @@ test("SQLite database stores user contributed toilets and rejects nearby duplica
     assert.equal(storedPhoto.mimeType, "image/png");
     assert.equal(storedPhoto.dataUrl, tinyPngDataUrl);
     assert.equal(storedPhoto.size > 0, true);
+
+    const photoUpdated = await database.updateToiletSubmissionPhoto(created.id, { dataUrl: tinyJpegDataUrl });
+    assert.equal(photoUpdated.entrancePhotoMimeType, "image/jpeg");
+    assert.equal(photoUpdated.entrancePhotoSize, 3);
+    const updatedPhoto = await database.getToiletSubmissionPhoto(created.id);
+    assert.equal(updatedPhoto.mimeType, "image/jpeg");
+    assert.equal(updatedPhoto.dataUrl, tinyJpegDataUrl);
 
     const ocrUpdated = await database.updateToiletSubmissionOcr(created.id, {
       status: "completed",
