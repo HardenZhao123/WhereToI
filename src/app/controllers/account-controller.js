@@ -298,7 +298,9 @@ export function createAccountController(elements, onProfilePreferenceToggled = (
 
   function hasPendingSubmissionOcr(submissions) {
     return Array.isArray(submissions) && submissions.some(
-      (submission) => submission?.ocrEvidence?.status === "pending"
+      (submission) =>
+        submission?.ocrEvidence?.status === "pending" ||
+        submission?.ocrEvidence?.status === "photo_pending"
     );
   }
 

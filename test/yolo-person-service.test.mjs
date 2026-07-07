@@ -58,7 +58,7 @@ test("person detection evidence clamps invalid boxes and marks empty completed a
   assert.equal(empty.status, "no_person");
 });
 
-test("YOLO person service uses the cold timeout until warmup completes", () => {
+test("YOLO person service keeps the cold timeout for non-reused Python processes", () => {
   assert.equal(
     getYoloPersonExecutionTimeoutMs({
       timeoutMs: 45_000,
@@ -72,6 +72,15 @@ test("YOLO person service uses the cold timeout until warmup completes", () => {
       timeoutMs: 45_000,
       coldTimeoutMs: 180_000,
       warmedUp: true
+    }),
+    180_000
+  );
+  assert.equal(
+    getYoloPersonExecutionTimeoutMs({
+      timeoutMs: 45_000,
+      coldTimeoutMs: 180_000,
+      warmedUp: true,
+      reusesProcess: true
     }),
     45_000
   );

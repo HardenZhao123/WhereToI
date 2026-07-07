@@ -340,6 +340,27 @@ test("toilet submission review preserves open items across rerenders", () => {
   });
 });
 
+test("toilet submission review shows automatic photo checks while YOLO is pending", () => {
+  withTestDocument(() => {
+    const container = new TestElement("div");
+
+    renderToiletSubmissions(container, [{
+      id: "photo-pending-submission",
+      name: "Station toilet",
+      area: "Paddington",
+      lat: 51.519,
+      lng: -0.181,
+      hasEntrancePhoto: true,
+      ocrEvidence: { status: "photo_pending", provider: "paddleocr" }
+    }], {
+      openSubmissionIds: new Set(["photo-pending-submission"])
+    });
+
+    assert.match(collectText(container), /Photo checks pending via paddleocr/);
+    assert.equal(findByClass(container, "submission-photo-check"), null);
+  });
+});
+
 test("toilet submission review lets admins retry failed OCR", () => {
   withTestDocument(() => {
     const container = new TestElement("div");
