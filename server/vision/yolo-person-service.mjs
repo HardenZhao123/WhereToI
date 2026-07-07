@@ -151,10 +151,10 @@ function getPositiveTimeoutMs(value, fallback) {
   return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : fallback;
 }
 
-export function getYoloPersonExecutionTimeoutMs({ timeoutMs, coldTimeoutMs, warmedUp } = {}) {
+export function getYoloPersonExecutionTimeoutMs({ timeoutMs, coldTimeoutMs, warmedUp, reusesProcess = false } = {}) {
   const standardTimeoutMs = getPositiveTimeoutMs(timeoutMs, DEFAULT_TIMEOUT_MS);
   const firstRunTimeoutMs = getPositiveTimeoutMs(coldTimeoutMs, DEFAULT_COLD_TIMEOUT_MS);
-  return warmedUp ? standardTimeoutMs : Math.max(standardTimeoutMs, firstRunTimeoutMs);
+  return reusesProcess && warmedUp ? standardTimeoutMs : Math.max(standardTimeoutMs, firstRunTimeoutMs);
 }
 
 function logServiceMessage(logger, level, ...args) {
@@ -213,6 +213,9 @@ export function createYoloPersonDetectionService({
     get warmedUp() {
       return warmedUp;
     },
+    getExecutionTimeoutMs() {
+      return getYoloPersonExecutionTimeoutMs({ timeoutMs, coldTimeoutMs, warmedUp, reusesProcess: false });
+    },
     async warmUp({ logger } = {}) {
       if (!enabled) return { status: "skipped", provider: "yolo" };
       if (warmedUp) return { status: "completed", provider: "yolo" };
@@ -249,7 +252,12 @@ export function createYoloPersonDetectionService({
         });
       }
 
-      const executionTimeoutMs = getYoloPersonExecutionTimeoutMs({ timeoutMs, coldTimeoutMs, warmedUp });
+      const executionTimeoutMs = getYoloPersonExecutionTimeoutMs({
+        timeoutMs,
+        coldTimeoutMs,
+        warmedUp,
+        reusesProcess: false
+      });
       const rawResult = await runPersonDetection(dataUrl, { executionTimeoutMs });
       if (rawResult?.status !== "failed" && rawResult?.status !== "unavailable") {
         warmedUp = true;

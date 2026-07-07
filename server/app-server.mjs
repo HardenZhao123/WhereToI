@@ -35,6 +35,7 @@ const PUBLIC_TOILETS_SERVER_CACHE_TTL_MS = 10_000;
 const PUBLIC_TOILETS_SERVER_CACHE_MAX_ENTRIES = 12;
 const DEFAULT_OCR_TIMEOUT_MS = 180_000;
 const STALE_PENDING_OCR_GRACE_MS = 60_000;
+const TOILET_SUBMISSION_PHOTO_PENDING_STATUS = "photo_pending";
 const STATIC_DOCUMENT_CACHE_CONTROL = "no-cache, max-age=0, must-revalidate";
 const STATIC_ASSET_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
 const STATIC_APP_CODE_CACHE_CONTROL = "no-cache, max-age=0, must-revalidate";
@@ -498,10 +499,14 @@ async function runToiletSubmissionPhotoModeration({ database, logger, personDete
   if (!photo?.dataUrl) return;
 
   const startedAt = new Date();
+  const executionTimeoutMs =
+    typeof personDetectionService?.getExecutionTimeoutMs === "function"
+      ? personDetectionService.getExecutionTimeoutMs()
+      : personDetectionService?.timeoutMs;
   callLogger(
     logger,
     "info",
-    `Toilet submission photo moderation started: toiletId=${toiletId} provider=${personDetectionService?.provider ?? "yolo"} photoSize=${formatDiagnosticByteSize(photo.size)} timeoutMs=${personDetectionService?.timeoutMs ?? "unknown"}`
+    `Toilet submission photo moderation started: toiletId=${toiletId} provider=${personDetectionService?.provider ?? "yolo"} photoSize=${formatDiagnosticByteSize(photo.size)} timeoutMs=${executionTimeoutMs ?? "unknown"}`
   );
 
   try {
@@ -550,9 +555,9 @@ function queueToiletSubmissionOcr({ backgroundTasks, database, logger, ocrServic
   );
 }
 
-function createPendingToiletSubmissionOcrEvidence(ocrService) {
+function createPendingToiletSubmissionPhotoEvidence(ocrService) {
   return {
-    status: "pending",
+    status: TOILET_SUBMISSION_PHOTO_PENDING_STATUS,
     provider: ocrService?.provider ?? "paddleocr",
     text: "",
     lines: [],
@@ -562,6 +567,19 @@ function createPendingToiletSubmissionOcrEvidence(ocrService) {
     error: "",
     checkedAt: new Date().toISOString()
   };
+}
+
+function createPendingToiletSubmissionOcrEvidence(ocrService) {
+  return {
+    ...createPendingToiletSubmissionPhotoEvidence(ocrService),
+    status: "pending",
+    checkedAt: new Date().toISOString()
+  };
+}
+
+async function markToiletSubmissionOcrPending({ database, ocrService, toiletId }) {
+  if (typeof database.updateToiletSubmissionOcr !== "function") return null;
+  return database.updateToiletSubmissionOcr(toiletId, createPendingToiletSubmissionOcrEvidence(ocrService));
 }
 
 function queueToiletSubmissionPhotoReview({
@@ -579,12 +597,22 @@ function queueToiletSubmissionPhotoReview({
   trackBackgroundTask(
     backgroundTasks,
     (async () => {
-      await runToiletSubmissionPhotoModeration({
-        database,
-        logger,
-        personDetectionService,
-        toiletId: queuedToiletId
-      });
+      try {
+        await runToiletSubmissionPhotoModeration({
+          database,
+          logger,
+          personDetectionService,
+          toiletId: queuedToiletId
+        });
+      } catch (error) {
+        callLogger(
+          logger,
+          "error",
+          `Toilet submission photo moderation failed before OCR fallback: toiletId=${queuedToiletId}`,
+          error
+        );
+      }
+      await markToiletSubmissionOcrPending({ database, ocrService, toiletId: queuedToiletId });
       await runToiletSubmissionOcr({ database, logger, ocrService, toiletId: queuedToiletId });
     })(),
     logger,
@@ -604,7 +632,9 @@ export async function resumePendingToiletSubmissionPhotoModeration({ database, l
   }
 
   const resumableSubmissions = submissions.filter(
-    (submission) => submission?.hasEntrancePhoto && submission?.ocrEvidence?.status === "pending"
+    (submission) =>
+      submission?.hasEntrancePhoto &&
+      submission?.ocrEvidence?.status === TOILET_SUBMISSION_PHOTO_PENDING_STATUS
   );
   for (const submission of resumableSubmissions) {
     callLogger(
@@ -616,6 +646,11 @@ export async function resumePendingToiletSubmissionPhotoModeration({ database, l
       database,
       logger,
       personDetectionService,
+      toiletId: submission.id
+    });
+    await markToiletSubmissionOcrPending({
+      database,
+      ocrService: { provider: submission.ocrEvidence?.provider },
       toiletId: submission.id
     });
   }
@@ -852,7 +887,7 @@ function createApiRouteHandlers(database, { emailService, logger, ocrService, pe
       let submission = toilet;
 
       if (toilet?.hasEntrancePhoto) {
-        const pendingEvidence = createPendingToiletSubmissionOcrEvidence(ocrService);
+        const pendingEvidence = createPendingToiletSubmissionPhotoEvidence(ocrService);
         submission = await database.updateToiletSubmissionOcr(toilet.id, pendingEvidence) ?? {
           ...toilet,
           ocrEvidence: pendingEvidence

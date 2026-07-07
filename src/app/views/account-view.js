@@ -297,6 +297,7 @@ function renderSubmissionEvidence(submission, { onRetryOcr = () => {} } = {}) {
 
 const ocrStatusLabels = {
   not_requested: "OCR not run",
+  photo_pending: "Photo checks pending",
   pending: "OCR pending",
   completed: "OCR completed",
   no_text: "OCR found no readable text",

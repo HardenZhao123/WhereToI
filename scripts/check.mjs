@@ -531,12 +531,16 @@ if (
   !renderConfig.includes("WHERETOI_YOLO_PERSON_BLUR_RADIUS") ||
   !renderConfig.includes("WHERETOI_YOLO_PERSON_COLD_TIMEOUT_MS") ||
   !renderConfig.includes("WHERETOI_YOLO_PERSON_WARMUP_TIMEOUT_MS") ||
-  !renderConfig.includes("180000") ||
-  !renderConfig.includes("45000") ||
+  !renderConfig.includes("300000") ||
+  !renderConfig.includes('value: "384"') ||
+  !renderConfig.includes('value: "640"') ||
   !server.includes("POST /api/toilets/photo/person-detection") ||
   !server.includes("createYoloPersonDetectionService") ||
   !server.includes("createPendingToiletSubmissionOcrEvidence") ||
+  !server.includes("createPendingToiletSubmissionPhotoEvidence") ||
+  !server.includes("TOILET_SUBMISSION_PHOTO_PENDING_STATUS") ||
   !server.includes("database.updateToiletSubmissionOcr(toilet.id") ||
+  !server.includes("personDetectionService.getExecutionTimeoutMs") ||
   !server.includes("queueToiletSubmissionPhotoReview") ||
   !server.includes("runToiletSubmissionPhotoModeration") ||
   !server.includes("resumePendingToiletSubmissionPhotoModeration") ||
@@ -544,6 +548,8 @@ if (
   !toiletsService.includes("detectPeopleInToiletPhoto") ||
   !toiletsService.includes("signal") ||
   !html.includes("add-toilet-photo-person-overlay") ||
+  !js.includes("photo_pending") ||
+  !js.includes("Photo checks pending") ||
   !css.includes(".add-toilet-person-box") ||
   !yoloPersonRunner.includes("classes=[0]") ||
   !yoloPersonRunner.includes("imgsz=image_size") ||
@@ -555,6 +561,7 @@ if (
   !yoloPersonRunner.includes("result.masks") ||
   !yoloPersonService.includes("parseYoloPersonJsonOutput") ||
   !yoloPersonService.includes("getYoloPersonExecutionTimeoutMs") ||
+  !yoloPersonService.includes("reusesProcess: false") ||
   !yoloPersonService.includes("warmUp") ||
   !yoloPersonService.includes("createPersonDetectionEvidence") ||
   !yoloPersonService.includes("blurredImage")
@@ -569,6 +576,10 @@ if (
   js.includes("Run photo checks")
 ) {
   throw new Error("Expected add-toilet photo checks to run automatically after submission, without an admin Run photo checks button or endpoint.");
+}
+
+if (server.includes("submission?.ocrEvidence?.status === \"pending\"\n  );\n  for (const submission of resumableSubmissions)")) {
+  throw new Error("Expected server restart to resume YOLO only for photo_pending submissions, not every OCR pending submission.");
 }
 
 if (

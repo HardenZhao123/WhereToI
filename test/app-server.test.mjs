@@ -580,7 +580,7 @@ test("submitted toilet photos are blurred for admin review automatically after s
       })
     });
 
-    assert.equal(createdPayload.toilet.ocrEvidence.status, "pending");
+    assert.equal(createdPayload.toilet.ocrEvidence.status, "photo_pending");
 
     await waitFor(async () => {
       const response = await fetch(
@@ -649,7 +649,7 @@ test("API stores PaddleOCR evidence for submitted toilet photos", async () => {
       })
     });
 
-    assert.equal(createdPayload.toilet.ocrEvidence.status, "pending");
+    assert.equal(createdPayload.toilet.ocrEvidence.status, "photo_pending");
 
     const pendingSubmission = await waitFor(async () => {
       const { payload } = await fetchJson(`${baseUrl}/api/admin/toilet-submissions`, {
@@ -795,8 +795,9 @@ test("server startup resumes pending toilet photo moderation after process resta
   const pendingSubmission = {
     id: "resume-photo-submission",
     hasEntrancePhoto: true,
-    ocrEvidence: { status: "pending", provider: "paddleocr" }
+    ocrEvidence: { status: "photo_pending", provider: "paddleocr" }
   };
+  let latestOcrEvidence = null;
 
   const resumedCount = await resumePendingToiletSubmissionPhotoModeration({
     database: {
@@ -805,6 +806,7 @@ test("server startup resumes pending toilet photo moderation after process resta
         return [
           pendingSubmission,
           { id: "without-photo", hasEntrancePhoto: false, ocrEvidence: { status: "pending" } },
+          { id: "ocr-pending", hasEntrancePhoto: true, ocrEvidence: { status: "pending" } },
           { id: "not-requested", hasEntrancePhoto: true, ocrEvidence: { status: "not_requested" } }
         ];
       },
@@ -819,6 +821,11 @@ test("server startup resumes pending toilet photo moderation after process resta
       async updateToiletSubmissionPhoto(toiletId, photo) {
         updates.push({ toiletId, photo });
         return { ...pendingSubmission, entrancePhotoMimeType: "image/jpeg" };
+      },
+      async updateToiletSubmissionOcr(toiletId, evidence) {
+        assert.equal(toiletId, pendingSubmission.id);
+        latestOcrEvidence = evidence;
+        return { ...pendingSubmission, ocrEvidence: evidence };
       }
     },
     logger: { info() {}, warn() {}, error() {} },
@@ -846,6 +853,7 @@ test("server startup resumes pending toilet photo moderation after process resta
   assert.equal(updates.length, 1);
   assert.equal(updates[0].toiletId, pendingSubmission.id);
   assert.equal(updates[0].photo.dataUrl, tinyJpegDataUrl);
+  assert.equal(latestOcrEvidence.status, "pending");
 });
 
 test("admins can retry failed PaddleOCR evidence for submitted toilet photos", async () => {
