@@ -58,6 +58,7 @@ async function withAppServer(callback, serverOptions = {}) {
     appServer = await createAppServer({
       rootDirectory,
       port: 0,
+      personDetectionService: createNoPersonDetectionService(),
       ...appServerOptions,
       databaseOptions: {
         enableDemoAccount: true,
@@ -237,6 +238,7 @@ test("server can serve dist static files while keeping source data private", asy
     appServer = await createAppServer({
       rootDirectory: staticRoot,
       port: 0,
+      personDetectionService: createNoPersonDetectionService(),
       databaseOptions: {
         rootDirectory: appRoot,
         enableDemoAccount: true

@@ -552,21 +552,28 @@ if (
   !js.includes("Photo checks pending") ||
   !css.includes(".add-toilet-person-box") ||
   !yoloPersonRunner.includes("classes=[0]") ||
-  !yoloPersonRunner.includes("imgsz=image_size") ||
+  !yoloPersonRunner.includes("imgsz=self.image_size") ||
   !yoloPersonRunner.includes("prepare_image_for_person_detection") ||
   !yoloPersonRunner.includes("WHERETOI_YOLO_PERSON_MODEL") ||
   !yoloPersonRunner.includes("WHERETOI_YOLO_PERSON_DEVICE") ||
   !yoloPersonRunner.includes("DEFAULT_PERSON_MODEL = \"yolo26n-seg.pt\"") ||
+  !yoloPersonRunner.includes("class PersonDetector") ||
+  !yoloPersonRunner.includes("def run_worker()") ||
   !yoloPersonRunner.includes("create_blurred_person_image") ||
   !yoloPersonRunner.includes("result.masks") ||
   !yoloPersonService.includes("parseYoloPersonJsonOutput") ||
   !yoloPersonService.includes("getYoloPersonExecutionTimeoutMs") ||
-  !yoloPersonService.includes("reusesProcess: false") ||
+  !yoloPersonService.includes("spawn(pythonCommand, [runnerPath, \"--worker\"]") ||
+  !yoloPersonService.includes("reusesProcess: true") ||
+  !yoloPersonService.includes("startWorker") ||
+  !yoloPersonService.includes("queueWorkerRequest") ||
   !yoloPersonService.includes("warmUp") ||
   !yoloPersonService.includes("createPersonDetectionEvidence") ||
-  !yoloPersonService.includes("blurredImage")
+  !yoloPersonService.includes("blurredImage") ||
+  !server.includes("personDetectionService.start({ logger })") ||
+  !server.includes("personDetectionService?.close?.()")
 ) {
-  throw new Error("Expected automatic add-toilet photo checks to use CPU-only YOLO person segmentation with yolo26n-seg, person-only class filtering, cold timeouts, and blurred person images after user submission.");
+  throw new Error("Expected automatic add-toilet photo checks to use one persistent CPU-only YOLO worker with a startup-loaded yolo26n-seg model and blurred person images after user submission.");
 }
 
 if (
