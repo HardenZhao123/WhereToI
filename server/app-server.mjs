@@ -1500,6 +1500,14 @@ export async function createAppServer({
   const ocrService = providedOcrService ?? createPaddleOcrService();
   const personDetectionService = providedPersonDetectionService ?? createYoloPersonDetectionService();
   const backgroundTasks = new Set();
+  if (typeof personDetectionService?.start === "function") {
+    trackBackgroundTask(
+      backgroundTasks,
+      personDetectionService.start({ logger }),
+      logger,
+      "YOLO person worker startup"
+    );
+  }
   trackBackgroundTask(
     backgroundTasks,
     (async () => {
@@ -1544,6 +1552,8 @@ export async function createAppServer({
     },
     async close() {
       if (!server.listening) {
+        await personDetectionService?.close?.();
+        await Promise.allSettled([...backgroundTasks]);
         await database.close?.();
         return;
       }
@@ -1558,6 +1568,7 @@ export async function createAppServer({
         });
         server.closeAllConnections?.();
       });
+      await personDetectionService?.close?.();
       await Promise.allSettled([...backgroundTasks]);
       await database.close?.();
     }

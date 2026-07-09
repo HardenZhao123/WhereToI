@@ -168,133 +168,201 @@ def create_blurred_person_image(image_path, boxes, polygons, blur_radius):
         return None, f"Could not blur detected people: {exc}"
 
 
-def run_detection(image_path):
-    model_name = os.environ.get("WHERETOI_YOLO_PERSON_MODEL", DEFAULT_PERSON_MODEL)
-    confidence = get_confidence_env("WHERETOI_YOLO_PERSON_CONFIDENCE", DEFAULT_PERSON_CONFIDENCE)
-    image_size = get_positive_int_env(
-        "WHERETOI_YOLO_PERSON_IMAGE_SIZE",
-        DEFAULT_PERSON_IMAGE_SIZE,
-        minimum=320,
-        maximum=1280
-    )
-    blur_radius = get_positive_float_env(
-        "WHERETOI_YOLO_PERSON_BLUR_RADIUS",
-        DEFAULT_PERSON_BLUR_RADIUS,
-        minimum=3.0,
-        maximum=80.0
-    )
-    device = os.environ.get("WHERETOI_YOLO_PERSON_DEVICE", DEFAULT_PERSON_DEVICE).strip() or DEFAULT_PERSON_DEVICE
+class PersonDetector:
+    def __init__(self):
+        self.model_name = os.environ.get("WHERETOI_YOLO_PERSON_MODEL", DEFAULT_PERSON_MODEL)
+        self.confidence = get_confidence_env(
+            "WHERETOI_YOLO_PERSON_CONFIDENCE",
+            DEFAULT_PERSON_CONFIDENCE
+        )
+        self.image_size = get_positive_int_env(
+            "WHERETOI_YOLO_PERSON_IMAGE_SIZE",
+            DEFAULT_PERSON_IMAGE_SIZE,
+            minimum=320,
+            maximum=1280
+        )
+        self.blur_radius = get_positive_float_env(
+            "WHERETOI_YOLO_PERSON_BLUR_RADIUS",
+            DEFAULT_PERSON_BLUR_RADIUS,
+            minimum=3.0,
+            maximum=80.0
+        )
+        self.device = (
+            os.environ.get("WHERETOI_YOLO_PERSON_DEVICE", DEFAULT_PERSON_DEVICE).strip()
+            or DEFAULT_PERSON_DEVICE
+        )
 
-    try:
         with quiet_library_output():
             from ultralytics import YOLO
+            self.model = YOLO(self.model_name)
+
+    def detect(self, image_path):
+        try:
+            with prepare_image_for_person_detection(image_path) as prepared_image:
+                with quiet_library_output():
+                    results = self.model.predict(
+                        source=prepared_image,
+                        classes=[0],
+                        conf=self.confidence,
+                        imgsz=self.image_size,
+                        device=self.device,
+                        verbose=False
+                    )
+
+                if not results:
+                    return {
+                        "status": "no_person",
+                        "provider": "yolo",
+                        "model": self.model_name,
+                        "boxes": [],
+                        "image": {"width": None, "height": None}
+                    }
+
+                result = results[0]
+                height, width = result.orig_shape if result.orig_shape else (None, None)
+                boxes = []
+
+                if result.boxes is not None:
+                    xyxy_values = result.boxes.xyxy.cpu().tolist()
+                    confidence_values = result.boxes.conf.cpu().tolist()
+                    for index, xyxy in enumerate(xyxy_values):
+                        if len(xyxy) < 4 or not width or not height:
+                            continue
+
+                        x1, y1, x2, y2 = [float(value) for value in xyxy[:4]]
+                        x1 = max(0.0, min(float(width), x1))
+                        x2 = max(0.0, min(float(width), x2))
+                        y1 = max(0.0, min(float(height), y1))
+                        y2 = max(0.0, min(float(height), y2))
+                        if x2 <= x1 or y2 <= y1:
+                            continue
+
+                        box_width = x2 - x1
+                        box_height = y2 - y1
+                        boxes.append({
+                            "label": "person",
+                            "confidence": clamp_unit(
+                                confidence_values[index] if index < len(confidence_values) else None
+                            ),
+                            "box": {
+                                "x": clamp_unit(x1 / width),
+                                "y": clamp_unit(y1 / height),
+                                "width": clamp_unit(box_width / width),
+                                "height": clamp_unit(box_height / height)
+                            },
+                            "pixels": {
+                                "x1": round(x1),
+                                "y1": round(y1),
+                                "x2": round(x2),
+                                "y2": round(y2)
+                            }
+                        })
+
+                polygons = get_mask_polygons(result)
+                blurred_image, blur_error = (
+                    create_blurred_person_image(
+                        prepared_image,
+                        boxes,
+                        polygons,
+                        self.blur_radius
+                    )
+                    if boxes
+                    else (None, "")
+                )
+
+                return {
+                    "status": "completed" if boxes else "no_person",
+                    "provider": "yolo",
+                    "model": self.model_name,
+                    "boxes": boxes,
+                    "image": {"width": width, "height": height},
+                    "blurredImage": blurred_image,
+                    "blurred": bool(blurred_image),
+                    "blurError": blur_error
+                }
+        except Exception as exc:
+            return {
+                "status": "failed",
+                "provider": "yolo",
+                "model": self.model_name,
+                "error": str(exc)
+            }
+
+
+def create_detector():
+    model_name = os.environ.get("WHERETOI_YOLO_PERSON_MODEL", DEFAULT_PERSON_MODEL)
+    try:
+        return PersonDetector(), None
     except Exception as exc:
-        return {
+        return None, {
             "status": "unavailable",
             "provider": "yolo",
             "model": model_name,
-            "error": f"Ultralytics YOLO is not installed or could not be imported: {exc}"
+            "error": f"Ultralytics YOLO could not be loaded: {exc}"
         }
 
-    try:
-        prepared_image_context = prepare_image_for_person_detection(image_path)
-        prepared_image = prepared_image_context.__enter__()
-        with quiet_library_output():
-            model = YOLO(model_name)
-            results = model.predict(
-                source=prepared_image,
-                classes=[0],
-                conf=confidence,
-                imgsz=image_size,
-                device=device,
-                verbose=False
-            )
 
-        if not results:
-            return {
-                "status": "no_person",
+def run_detection(image_path):
+    detector, error = create_detector()
+    if error:
+        return error
+    return detector.detect(image_path)
+
+
+def write_protocol_message(message):
+    sys.stdout.write(json.dumps(message, ensure_ascii=False) + "\n")
+    sys.stdout.flush()
+
+
+def run_worker():
+    detector, error = create_detector()
+    if error:
+        write_protocol_message({"type": "ready", **error})
+        return 1
+
+    write_protocol_message({
+        "type": "ready",
+        "status": "completed",
+        "provider": "yolo",
+        "model": detector.model_name
+    })
+
+    for raw_line in sys.stdin:
+        try:
+            request = json.loads(raw_line)
+            request_id = str(request.get("id", ""))
+            image_path = str(request.get("imagePath", ""))
+            if not request_id or not image_path:
+                raise ValueError("Worker requests require id and imagePath.")
+            result = detector.detect(image_path)
+        except Exception as exc:
+            request_id = str(locals().get("request_id", ""))
+            result = {
+                "status": "failed",
                 "provider": "yolo",
-                "model": model_name,
-                "boxes": [],
-                "image": {"width": None, "height": None}
+                "model": detector.model_name,
+                "error": str(exc)
             }
 
-        result = results[0]
-        height, width = result.orig_shape if result.orig_shape else (None, None)
-        boxes = []
+        write_protocol_message({
+            "type": "result",
+            "id": request_id,
+            "result": result
+        })
 
-        if result.boxes is not None:
-            xyxy_values = result.boxes.xyxy.cpu().tolist()
-            confidence_values = result.boxes.conf.cpu().tolist()
-            for index, xyxy in enumerate(xyxy_values):
-                if len(xyxy) < 4 or not width or not height:
-                    continue
-
-                x1, y1, x2, y2 = [float(value) for value in xyxy[:4]]
-                x1 = max(0.0, min(float(width), x1))
-                x2 = max(0.0, min(float(width), x2))
-                y1 = max(0.0, min(float(height), y1))
-                y2 = max(0.0, min(float(height), y2))
-                if x2 <= x1 or y2 <= y1:
-                    continue
-
-                box_width = x2 - x1
-                box_height = y2 - y1
-                boxes.append({
-                    "label": "person",
-                    "confidence": clamp_unit(confidence_values[index] if index < len(confidence_values) else None),
-                    "box": {
-                        "x": clamp_unit(x1 / width),
-                        "y": clamp_unit(y1 / height),
-                        "width": clamp_unit(box_width / width),
-                        "height": clamp_unit(box_height / height)
-                    },
-                    "pixels": {
-                        "x1": round(x1),
-                        "y1": round(y1),
-                        "x2": round(x2),
-                        "y2": round(y2)
-                    }
-                })
-
-        polygons = get_mask_polygons(result)
-        blurred_image, blur_error = (
-            create_blurred_person_image(prepared_image, boxes, polygons, blur_radius)
-            if boxes
-            else (None, "")
-        )
-
-        return {
-            "status": "completed" if boxes else "no_person",
-            "provider": "yolo",
-            "model": model_name,
-            "boxes": boxes,
-            "image": {"width": width, "height": height},
-            "blurredImage": blurred_image,
-            "blurred": bool(blurred_image),
-            "blurError": blur_error
-        }
-    except Exception as exc:
-        return {
-            "status": "failed",
-            "provider": "yolo",
-            "model": model_name,
-            "error": str(exc)
-        }
-    finally:
-        try:
-            prepared_image_context.__exit__(None, None, None)
-        except Exception:
-            pass
+    return 0
 
 
 def main():
+    if len(sys.argv) == 2 and sys.argv[1] == "--worker":
+        return run_worker()
+
     if len(sys.argv) != 2:
         print(json.dumps({
             "status": "failed",
             "provider": "yolo",
             "model": os.environ.get("WHERETOI_YOLO_PERSON_MODEL", DEFAULT_PERSON_MODEL),
-            "error": "Usage: yolo_person_runner.py <image-path>"
+            "error": "Usage: yolo_person_runner.py <image-path> | --worker"
         }))
         return 2
 

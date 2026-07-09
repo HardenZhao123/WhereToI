@@ -1,7 +1,8 @@
-import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 const DATA_URL_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([a-z0-9+/=\r\n]+)$/i;
@@ -9,10 +10,7 @@ const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_COLD_TIMEOUT_MS = 180_000;
 const DEFAULT_WARMUP_TIMEOUT_MS = 180_000;
 const DEFAULT_PERSON_MODEL = "yolo26n-seg.pt";
-const PERSON_DETECTION_PROCESS_MAX_BUFFER = 8 * 1024 * 1024;
 const RUNNER_PATH = fileURLToPath(new URL("../../scripts/yolo_person_runner.py", import.meta.url));
-const WARMUP_IMAGE_DATA_URL =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAAAAYLlVAAAAK0lEQVR42u3OQQ0AAAgEoNP6p7ZkQICym5kAAAAAAAAAAAAAAAAAAOD1AoBAAAG8m0UxAAAAAElFTkSuQmCC";
 
 function getImageExtension(mimeType) {
   if (mimeType === "image/png") return ".png";
@@ -104,7 +102,7 @@ export function createPersonDetectionEvidence({
 }
 
 function cleanYoloPersonProcessError(error, stderr) {
-  const rawText = String(stderr || error?.message || "YOLO did not return valid JSON.");
+  const rawText = String(stderr || error?.message || "YOLO worker stopped before returning a result.");
   const usefulText = rawText
     .replace(/\r/g, "\n")
     .split("\n")
@@ -114,36 +112,7 @@ function cleanYoloPersonProcessError(error, stderr) {
     .join(" ")
     .trim();
 
-  return usefulText || "YOLO person detection failed before returning a valid result. Check server logs for the Python process.";
-}
-
-function execFileJson(command, args, { timeoutMs }) {
-  return new Promise((resolve) => {
-    execFile(
-      command,
-      args,
-      {
-        timeout: timeoutMs,
-        maxBuffer: PERSON_DETECTION_PROCESS_MAX_BUFFER
-      },
-      (error, stdout, stderr) => {
-        const result = parseYoloPersonJsonOutput(stdout);
-        if (result) {
-          resolve(result);
-          return;
-        }
-
-        const timedOut = error?.killed || error?.signal === "SIGTERM";
-        resolve({
-          status: "failed",
-          provider: "yolo",
-          error: timedOut
-            ? `YOLO person detection timed out after ${Math.round(timeoutMs / 1000)} seconds before returning a result.`
-            : cleanYoloPersonProcessError(error, stderr)
-        });
-      }
-    );
-  });
+  return usefulText || "YOLO worker stopped before returning a result. Check server logs for the Python process.";
 }
 
 function getPositiveTimeoutMs(value, fallback) {
@@ -196,12 +165,192 @@ export function createYoloPersonDetectionService({
   warmupTimeoutMs = getPositiveTimeoutMs(process.env.WHERETOI_YOLO_PERSON_WARMUP_TIMEOUT_MS, DEFAULT_WARMUP_TIMEOUT_MS)
 } = {}) {
   let warmedUp = false;
-  let warmupPromise = null;
+  let workerState = null;
+  let workerStartPromise = null;
+  let requestQueue = Promise.resolve();
+  let requestSequence = 0;
+  let serviceLogger = null;
+  let closed = false;
 
-  async function runPersonDetection(dataUrl, { executionTimeoutMs }) {
-    return withTemporaryImage(dataUrl, (imagePath) =>
-      execFileJson(pythonCommand, [runnerPath, imagePath], { timeoutMs: executionTimeoutMs })
+  function createWorkerResult(status, error = "") {
+    return {
+      status,
+      provider: "yolo",
+      model: process.env.WHERETOI_YOLO_PERSON_MODEL || DEFAULT_PERSON_MODEL,
+      error
+    };
+  }
+
+  function appendWorkerStderr(state, chunk) {
+    state.stderr = `${state.stderr}${String(chunk || "")}`.slice(-4_000);
+  }
+
+  function settleWorkerStartup(state, result) {
+    if (!state.startupResolve) return;
+    clearTimeout(state.startupTimer);
+    const resolve = state.startupResolve;
+    state.startupResolve = null;
+    resolve(result);
+  }
+
+  function settleWorkerRequest(state, result) {
+    if (!state.pendingRequest) return;
+    clearTimeout(state.pendingRequest.timer);
+    const { resolve } = state.pendingRequest;
+    state.pendingRequest = null;
+    resolve(result);
+  }
+
+  function stopWorker(state = workerState, signal = "SIGTERM") {
+    if (!state || state.process.exitCode !== null) return;
+    state.process.kill(signal);
+  }
+
+  function handleWorkerMessage(state, message) {
+    if (!message || typeof message !== "object") return;
+
+    if (message.type === "ready") {
+      const ready = message.status === "completed";
+      state.ready = ready;
+      warmedUp = ready;
+      settleWorkerStartup(state, message);
+      if (!ready) stopWorker(state);
+      return;
+    }
+
+    if (
+      message.type === "result" &&
+      state.pendingRequest &&
+      String(message.id || "") === state.pendingRequest.id
+    ) {
+      settleWorkerRequest(
+        state,
+        message.result && typeof message.result === "object"
+          ? message.result
+          : createWorkerResult("failed", "YOLO worker returned an invalid result.")
+      );
+    }
+  }
+
+  function handleWorkerExit(state, code, signal, error = null) {
+    const details = cleanYoloPersonProcessError(
+      error || new Error(`YOLO worker exited with code ${code ?? "unknown"}${signal ? ` (${signal})` : ""}.`),
+      state.stderr
     );
+    settleWorkerStartup(state, createWorkerResult("unavailable", details));
+    settleWorkerRequest(state, createWorkerResult("failed", details));
+    state.output.close();
+    if (workerState === state) {
+      workerState = null;
+      warmedUp = false;
+    }
+  }
+
+  function startWorker({ logger = serviceLogger } = {}) {
+    if (!enabled) return Promise.resolve(createWorkerResult("skipped"));
+    if (closed) {
+      return Promise.resolve(createWorkerResult("unavailable", "YOLO worker service has been closed."));
+    }
+    if (workerState?.ready) return Promise.resolve(createWorkerResult("completed"));
+    if (workerStartPromise) return workerStartPromise;
+
+    serviceLogger = logger || serviceLogger;
+    const startedAt = Date.now();
+    logServiceMessage(serviceLogger, "info", `YOLO person worker starting: timeoutMs=${warmupTimeoutMs}`);
+
+    const child = spawn(pythonCommand, [runnerPath, "--worker"], {
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    const state = {
+      process: child,
+      output: createInterface({ input: child.stdout }),
+      stderr: "",
+      ready: false,
+      pendingRequest: null,
+      startupResolve: null,
+      startupTimer: null
+    };
+    workerState = state;
+
+    state.output.on("line", (line) => {
+      const message = parseYoloPersonJsonOutput(line);
+      if (message) handleWorkerMessage(state, message);
+    });
+    child.stderr.on("data", (chunk) => appendWorkerStderr(state, chunk));
+    child.once("error", (error) => handleWorkerExit(state, null, null, error));
+    child.once("exit", (code, signal) => handleWorkerExit(state, code, signal));
+
+    workerStartPromise = new Promise((resolve) => {
+      state.startupResolve = resolve;
+      state.startupTimer = setTimeout(() => {
+        settleWorkerStartup(
+          state,
+          createWorkerResult(
+            "unavailable",
+            `YOLO worker model loading timed out after ${Math.round(warmupTimeoutMs / 1000)} seconds.`
+          )
+        );
+        stopWorker(state);
+      }, warmupTimeoutMs);
+    })
+      .then((result) => {
+        const ready = result?.status === "completed";
+        const level = ready ? "info" : "warn";
+        const errorSuffix = result?.error ? ` error=${String(result.error).slice(0, 240)}` : "";
+        logServiceMessage(
+          serviceLogger,
+          level,
+          `YOLO person worker ${ready ? "ready" : "unavailable"}: durationMs=${Date.now() - startedAt}${errorSuffix}`
+        );
+        return result;
+      })
+      .finally(() => {
+        workerStartPromise = null;
+      });
+
+    return workerStartPromise;
+  }
+
+  async function runWorkerRequest(imagePath) {
+    const startupResult = await startWorker();
+    if (startupResult?.status !== "completed") {
+      return startupResult || createWorkerResult("unavailable", "YOLO worker did not become ready.");
+    }
+    if (!workerState?.ready) {
+      return createWorkerResult("unavailable", "YOLO worker stopped after loading the model.");
+    }
+
+    const state = workerState;
+    const id = `${process.pid}-${Date.now()}-${++requestSequence}`;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        settleWorkerRequest(
+          state,
+          createWorkerResult(
+            "failed",
+            `YOLO person detection timed out after ${Math.round(timeoutMs / 1000)} seconds before returning a result.`
+          )
+        );
+        stopWorker(state);
+      }, timeoutMs);
+
+      state.pendingRequest = { id, resolve, timer };
+      state.process.stdin.write(`${JSON.stringify({ id, imagePath })}\n`, (error) => {
+        if (!error) return;
+        settleWorkerRequest(state, createWorkerResult("failed", cleanYoloPersonProcessError(error, state.stderr)));
+        stopWorker(state);
+      });
+    });
+  }
+
+  function queueWorkerRequest(imagePath) {
+    const request = requestQueue.then(() => runWorkerRequest(imagePath));
+    requestQueue = request.catch(() => {});
+    return request;
+  }
+
+  async function runPersonDetection(dataUrl) {
+    return withTemporaryImage(dataUrl, (imagePath) => queueWorkerRequest(imagePath));
   }
 
   return {
@@ -214,34 +363,13 @@ export function createYoloPersonDetectionService({
       return warmedUp;
     },
     getExecutionTimeoutMs() {
-      return getYoloPersonExecutionTimeoutMs({ timeoutMs, coldTimeoutMs, warmedUp, reusesProcess: false });
+      return getYoloPersonExecutionTimeoutMs({ timeoutMs, coldTimeoutMs, warmedUp, reusesProcess: true });
     },
-    async warmUp({ logger } = {}) {
-      if (!enabled) return { status: "skipped", provider: "yolo" };
-      if (warmedUp) return { status: "completed", provider: "yolo" };
-      if (warmupPromise) return warmupPromise;
-
-      const startedAt = Date.now();
-      logServiceMessage(logger, "info", `YOLO person detection warmup started: timeoutMs=${warmupTimeoutMs}`);
-      warmupPromise = runPersonDetection(WARMUP_IMAGE_DATA_URL, { executionTimeoutMs: warmupTimeoutMs })
-        .then((rawResult) => {
-          if (rawResult?.status !== "failed" && rawResult?.status !== "unavailable") {
-            warmedUp = true;
-          }
-          const level = warmedUp ? "info" : "warn";
-          const errorSuffix = rawResult?.error ? ` error=${String(rawResult.error).slice(0, 240)}` : "";
-          logServiceMessage(
-            logger,
-            level,
-            `YOLO person detection warmup finished: status=${rawResult?.status ?? "unknown"} durationMs=${Date.now() - startedAt}${errorSuffix}`
-          );
-          return rawResult;
-        })
-        .finally(() => {
-          warmupPromise = null;
-        });
-
-      return warmupPromise;
+    start({ logger } = {}) {
+      return startWorker({ logger });
+    },
+    warmUp({ logger } = {}) {
+      return startWorker({ logger });
     },
     async detectPeople({ dataUrl } = {}) {
       if (!enabled) {
@@ -252,13 +380,7 @@ export function createYoloPersonDetectionService({
         });
       }
 
-      const executionTimeoutMs = getYoloPersonExecutionTimeoutMs({
-        timeoutMs,
-        coldTimeoutMs,
-        warmedUp,
-        reusesProcess: false
-      });
-      const rawResult = await runPersonDetection(dataUrl, { executionTimeoutMs });
+      const rawResult = await runPersonDetection(dataUrl);
       if (rawResult?.status !== "failed" && rawResult?.status !== "unavailable") {
         warmedUp = true;
       }
@@ -276,8 +398,34 @@ export function createYoloPersonDetectionService({
         checkedAt: new Date().toISOString()
       });
     },
+    async close() {
+      closed = true;
+      const state = workerState;
+      if (!state) return;
+
+      settleWorkerStartup(state, createWorkerResult("unavailable", "YOLO worker service is shutting down."));
+      settleWorkerRequest(state, createWorkerResult("failed", "YOLO worker service is shutting down."));
+      if (state.process.exitCode !== null) return;
+
+      await new Promise((resolve) => {
+        const forceTimer = setTimeout(() => {
+          stopWorker(state, "SIGKILL");
+        }, 2_000);
+        const handleExit = () => {
+          clearTimeout(forceTimer);
+          resolve();
+        };
+        state.process.once("exit", handleExit);
+        if (state.process.exitCode !== null) {
+          state.process.off("exit", handleExit);
+          handleExit();
+          return;
+        }
+        stopWorker(state);
+      });
+    },
     toString() {
-      return `YOLO person detection service (${basename(pythonCommand)})`;
+      return `YOLO person detection worker (${basename(pythonCommand)})`;
     }
   };
 }

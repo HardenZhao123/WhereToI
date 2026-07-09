@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
+  createYoloPersonDetectionService,
   createPersonDetectionEvidence,
   getYoloPersonExecutionTimeoutMs,
   parseYoloPersonJsonOutput
@@ -84,4 +88,67 @@ test("YOLO person service keeps the cold timeout for non-reused Python processes
     }),
     45_000
   );
+});
+
+test("YOLO person service starts one persistent worker and reuses its loaded model", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "wheretoi-yolo-worker-test-"));
+  const runnerPath = join(directory, "fake-yolo-worker.mjs");
+  const workerSource = `
+    import { createInterface } from "node:readline";
+    let requestCount = 0;
+    process.stdout.write(JSON.stringify({
+      type: "ready",
+      status: "completed",
+      provider: "yolo",
+      model: "fake-seg.pt"
+    }) + "\\n");
+    const input = createInterface({ input: process.stdin });
+    input.on("line", (line) => {
+      const request = JSON.parse(line);
+      requestCount += 1;
+      process.stdout.write(JSON.stringify({
+        type: "result",
+        id: request.id,
+        result: {
+          status: "no_person",
+          provider: "yolo",
+          model: "fake-seg.pt",
+          boxes: [],
+          image: { width: requestCount, height: 1 }
+        }
+      }) + "\\n");
+    });
+  `;
+  const service = createYoloPersonDetectionService({
+    enabled: true,
+    pythonCommand: process.execPath,
+    runnerPath,
+    timeoutMs: 1_000,
+    coldTimeoutMs: 2_000,
+    warmupTimeoutMs: 2_000
+  });
+
+  try {
+    await writeFile(runnerPath, workerSource, "utf8");
+
+    const startup = await service.start();
+    assert.equal(startup.status, "completed");
+    assert.equal(service.warmedUp, true);
+    assert.equal(service.getExecutionTimeoutMs(), 1_000);
+
+    const first = await service.detectPeople({
+      dataUrl: "data:image/jpeg;base64,/9j/"
+    });
+    const second = await service.detectPeople({
+      dataUrl: "data:image/jpeg;base64,/9j/"
+    });
+
+    assert.equal(first.status, "no_person");
+    assert.equal(first.image.width, 1);
+    assert.equal(second.status, "no_person");
+    assert.equal(second.image.width, 2);
+  } finally {
+    await service.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
