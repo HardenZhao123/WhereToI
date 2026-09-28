@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { appConfig } from "../src/app/config/app-config.js";
 import { createMapController } from "../src/app/controllers/map-controller.js";
 import { clearToiletDetailCache } from "../src/app/services/toilets-service.js";
 
@@ -358,6 +359,7 @@ test("map controller renders toilet map markers with cleanliness rating images",
   const originalDocument = globalThis.document;
   const originalWindow = globalThis.window;
   const createdIcons = [];
+  let tileLayerUrl = "";
   const markerLayer = {
     addTo() {
       return markerLayer;
@@ -397,7 +399,8 @@ test("map controller renders toilet map markers with cleanliness rating images",
       map() {
         return fakeMap;
       },
-      tileLayer() {
+      tileLayer(url) {
+        tileLayerUrl = url;
         return {
           addTo() {}
         };
@@ -443,6 +446,10 @@ test("map controller renders toilet map markers with cleanliness rating images",
     };
 
     assert.equal(controller.createInteractiveMap(), true);
+    assert.equal(
+      tileLayerUrl.endsWith(`?key=${encodeURIComponent(appConfig.cartoBasemapsApiKey)}`),
+      true
+    );
     controller.setToilets([toilet], { cleanlinessRange: "3days" });
 
     const toiletIcon = createdIcons.find((icon) => icon.className === "map-marker-icon");
