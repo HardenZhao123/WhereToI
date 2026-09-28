@@ -5,6 +5,7 @@ const isNativeAppShell = nativeAppProtocols.has(globalThis.location?.protocol);
 export const appConfig = {
   productionOrigin,
   apiBasePath: isNativeAppShell ? `${productionOrigin}/api` : "/api",
+  cartoBasemapsApiKey: "cb1_41xm_1_618f255b5d02b146802312fe",
   assetVersion: "toilet-small-floor-20260611",
   dayLabels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
   todayDayIndex: (new Date().getDay() + 6) % 7,

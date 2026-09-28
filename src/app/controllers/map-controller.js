@@ -2008,7 +2008,8 @@ export function createMapController(elements, onToiletSelected = () => {}, auth 
       attributionControl: true
     }).setView([appConfig.initialView.lat, appConfig.initialView.lng], appConfig.initialView.zoom);
 
-    window.L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    const cartoBasemapKey = encodeURIComponent(appConfig.cartoBasemapsApiKey);
+    window.L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${cartoBasemapKey}`, {
       maxZoom: 19,
       minZoom: 3,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
